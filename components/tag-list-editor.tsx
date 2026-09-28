@@ -38,7 +38,7 @@ export function TagListEditor({
               type="button"
               onClick={() => remove(item)}
               aria-label={`Verwijder ${item}`}
-              className="ml-0.5 text-[var(--text-muted)] hover:text-[var(--status-error)]"
+              className="ml-0.5 text-[var(--text-tertiary)] hover:text-[var(--intent-danger-content)]"
             >
               ×
             </button>

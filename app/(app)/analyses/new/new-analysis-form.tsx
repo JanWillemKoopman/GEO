@@ -111,7 +111,7 @@ export function NewAnalysisForm({
             setLabelKeuze("");
             setNieuwLabel("");
           }}
-          className="field"
+          className="field field-select"
         >
           {profiles.map((p) => (
             <option key={p.id} value={p.id}>
@@ -146,7 +146,7 @@ export function NewAnalysisForm({
           <select
             value={labelKeuze}
             onChange={(e) => setLabelKeuze(e.target.value)}
-            className="field"
+            className="field field-select"
           >
             <option value="">Geen label</option>
             {labels.map((l) => (
@@ -154,7 +154,7 @@ export function NewAnalysisForm({
                 {l.name}
               </option>
             ))}
-            <option value={NIEUW_LABEL}>+ Nieuw label maken</option>
+            <option value={NIEUW_LABEL}>Nieuw label maken…</option>
           </select>
         </label>
 
@@ -200,7 +200,7 @@ export function NewAnalysisForm({
           {NEW_CLUSTER_MIN_TOTAL} en {NEW_CLUSTER_MAX_TOTAL} liggen.
         </span>
         {mixError && (
-          <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+          <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
             {mixError}
           </p>
         )}
@@ -232,7 +232,7 @@ export function NewAnalysisForm({
           Staat de mail uit (EMAILS_ENABLED), dan verdwijnt het vinkje: een vakje
           aanvinken waar niets van komt, is een belofte die de app niet nakomt. */}
       {emailsEnabled && (
-        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
+        <label className="vlak vlak-gevuld flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
             checked={notifyByEmail}
@@ -250,7 +250,7 @@ export function NewAnalysisForm({
       )}
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}
@@ -258,7 +258,7 @@ export function NewAnalysisForm({
       <button
         type="submit"
         disabled={pending || !mixCheck.ok}
-        className="btn-primary btn-lg w-full disabled:opacity-60"
+        className="btn-primary btn-lg w-full"
       >
         {pending ? "Cluster aanmaken…" : "Start cluster"}
       </button>

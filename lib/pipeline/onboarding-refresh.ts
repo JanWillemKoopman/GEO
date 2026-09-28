@@ -68,7 +68,8 @@ export const FIELD_TASKS: Record<string, RefreshTask[]> = {
   // dat dat een keuze was.
   name_exclusions: [], // gelezen door de vermeldingsclassificatie, bij de meting
   offline_proof: [], // gelezen door de feitenbank, bij het schrijven
-  sales_objections: [], // gelezen door de briefing en de schrijfprompt
+  sales_objections: [], // gelezen door de schrijver, als bedrijfskennis
+  verhalen: [], // gelezen door de schrijver, als bedrijfskennis (contentketen-opnieuw.md §6.3)
   goal_12m: [], // gelezen door het contentplan en het rapport
   // ⚠️ Hier stond "weegt mee in de potentiescore, bij het plannen", en dat
   // klopte niet: `lib/potential.ts` noemt dit veld nergens, en dat is een

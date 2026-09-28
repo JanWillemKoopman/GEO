@@ -185,7 +185,11 @@ export async function loadWork(db: Db, analysis: Analysis): Promise<WorkItem[]> 
  */
 export async function loadBrandWork(
   db: Db,
-  userId: string,
+  /**
+   * Niet meer gebruikt om te filteren, zie hieronder. Blijft staan zodat de
+   * aanroepers niet wijzigen.
+   */
+  _userId: string,
   profileId: string,
 ): Promise<{
   analyses: Analysis[];
@@ -193,8 +197,18 @@ export async function loadBrandWork(
 }> {
   // Gearchiveerde analyses tellen nergens mee, niet in de lijst, niet in de
   // werkitems, niet in de kaartcijfers (migratie 0044).
+  //
+  // ⚠️ Filter op het MERK, niet op wie de analyse aanmaakte
+  // (kwaliteitsdoorlichting, punt 26, 24 september 2026). Hier stond ook
+  // `.eq("user_id", userId)`. Wie wat mag zien bepaalt de database al
+  // (`analyses_select_own`, `_account`, `_staff`), en dat extra filter
+  // verborg precies de clusters van de klant voor de consultant: bij alle drie
+  // de merken van de doorlichting "Alle clusters (0)" en de knop "Start het
+  // eerste cluster", met een dubbele meting als gevolg. Ook een collega die als
+  // lid in het account zit, zag de clusters niet. `db` MOET daarom de client
+  // met de sessie van de gebruiker zijn, nooit de beheerclient.
   const { data } = await activeOnly(
-    db.from("analyses").select("*").eq("user_id", userId).eq("profile_id", profileId),
+    db.from("analyses").select("*").eq("profile_id", profileId),
   ).order("created_at", { ascending: false });
 
   const analyses = (data ?? []) as Analysis[];
@@ -540,6 +554,9 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
         urgency: URGENCY.feit,
         href: `/analyses/${piece.analysis_id}/briefing`,
         actionLabel: "Briefing invullen",
+        // A5: een pagina wacht niet ongemerkt. Dezelfde vorm als de meta van
+        // een geblokkeerde pagina hierboven ("Onveranderd sinds ...").
+        meta: `Wacht sinds ${formatDateShort(piece.created_at)}`,
         analysisId: piece.analysis_id,
         analysisName: analysis.name,
         profileId: analysis.profile_id,

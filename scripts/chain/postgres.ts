@@ -23,7 +23,7 @@ import { chownSync, mkdtempSync, readFileSync, readdirSync, rmSync, existsSync }
 import { userInfo } from "node:os";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Client } from "pg";
+import { Client, types as pgTypes } from "pg";
 
 /**
  * Postgres weigert als root te draaien, en in containers is root de norm.
@@ -192,7 +192,21 @@ export async function startTestDatabase(migrationsDir: string): Promise<TestData
     { stdio: "pipe", ...alsGebruiker },
   );
 
-  const client = new Client({ host: socketDir, port, user: "postgres", database: "postgres" });
+  // Een `date`-kolom komt uit PostgREST als tekst ("2026-10-05"), niet als
+  // Date-object. De shim hoort dat na te doen, anders keurt de ketentest code
+  // goed die in productie op een string rekent, en andersom (de contentketen,
+  // 25 september 2026: `scheduled_for.localeCompare`).
+  const DATE_OID = 1082;
+  const client = new Client({
+    host: socketDir,
+    port,
+    user: "postgres",
+    database: "postgres",
+    types: {
+      getTypeParser: ((oid: number, format?: "text" | "binary") =>
+        oid === DATE_OID ? (v: string) => v : pgTypes.getTypeParser(oid, format as "text")) as typeof pgTypes.getTypeParser,
+    },
+  });
   await client.connect();
 
   const stop = async () => {

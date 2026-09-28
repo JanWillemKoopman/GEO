@@ -7,6 +7,9 @@ import { PageHeader } from "@/components/page-header";
 import { OnboardingSession } from "../../_components/onboarding-session";
 import { parseContextFactors } from "@/lib/pipeline/context-factors";
 import type { FieldState } from "@/lib/profile-meter";
+import { ordenKansen, type KansBewijs, type KansHandeling, type CommercieleWaarde } from "@/lib/kansen/prioriteit";
+import { kennisrondeVoorMerk, type KennisrondeDomein } from "@/lib/kansen/kennisronde";
+import type { Behoefte } from "@/lib/kansen/kennisgat";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Onboardinggesprek" };
@@ -47,7 +50,7 @@ export default async function OnboardingSessiePagina({
   if (!(await isStaff(user.id))) notFound();
 
   const admin = createAdminClient();
-  const [{ data: bronRijen }, { data: strategieRij }, { data: analyseRijen }] =
+  const [{ data: bronRijen }, { data: strategieRij }, { data: analyseRijen }, { data: kansRijen }] =
     await Promise.all([
       admin
         .from("profile_field_sources")
@@ -68,6 +71,14 @@ export default async function OnboardingSessiePagina({
         .eq("profile_id", id)
         .is("archived_at", null)
         .in("status", ["bezig", "concept_klaar"]),
+      // A4: de kennisronde. Alleen kansen die nog geschreven moeten worden, want
+      // het gesprek bereidt de volgende pagina's voor, niet de al geschreven of
+      // gepubliceerde.
+      admin
+        .from("kansen")
+        .select("id, titel, handeling, commerciele_waarde, potentie, kennis_ontbreekt")
+        .eq("profile_id", id)
+        .in("status", ["open", "ingepland", "in_voorbereiding"]),
     ]);
 
   const states: Record<string, FieldState> = {};
@@ -89,18 +100,68 @@ export default async function OnboardingSessiePagina({
   } | null;
 
   // Wat er sinds de laatste onderzoeksronde door een mens is gezet. Bepaalt
-  // welke stappen het afrondblok aanbiedt om opnieuw te draaien.
-  const gewijzigd = profile.deep_research_at
-    ? ((bronRijen ?? []) as { field: string; source: string; set_at: string }[])
-        .filter((r) => r.source !== "ai" && r.set_at > profile.deep_research_at!)
-        .map((r) => r.field)
-    : [];
+  // welke stappen het afrondblok aanbiedt om opnieuw te draaien. De abonnee
+  // `onderzoek_refresh` houdt dit bij (migratie 0127, G4); geen live
+  // vergelijking meer tegen `profile_field_sources` en `deep_research_at`.
+  const gewijzigd = profile.velden_te_verversen ?? [];
 
   const merknaam = profile.brand_name ?? profile.name;
+
+  // A4: dezelfde volgorde als het kansenscherm (N1, `ordenKansen()`), zodat er
+  // maar één plek is die "hoogste kans" bepaalt.
+  const kansen = (kansRijen ?? []) as {
+    id: string;
+    titel: string;
+    handeling: KansHandeling;
+    commerciele_waarde: CommercieleWaarde | null;
+    potentie: number | null;
+    kennis_ontbreekt: string[] | null;
+  }[];
+  const kansIds = kansen.map((k) => k.id);
+  const { data: bewijsRijen } = kansIds.length
+    ? await admin
+        .from("kans_bewijs")
+        .select("kans_id, bron, vragen_gemeten, vragen_genoemd, eigen_site_geciteerd, vertoningen")
+        .in("kans_id", kansIds)
+    : { data: [] };
+  const bewijsPerKans = new Map<string, KansBewijs[]>();
+  for (const r of (bewijsRijen ?? []) as {
+    kans_id: string;
+    bron: KansBewijs["bron"];
+    vragen_gemeten: number | null;
+    vragen_genoemd: number | null;
+    eigen_site_geciteerd: boolean | null;
+    vertoningen: number | null;
+  }[]) {
+    const lijst = bewijsPerKans.get(r.kans_id) ?? [];
+    lijst.push({
+      bron: r.bron,
+      vragenGemeten: r.vragen_gemeten,
+      vragenGenoemd: r.vragen_genoemd,
+      eigenSiteGeciteerd: r.eigen_site_geciteerd,
+      vertoningen: r.vertoningen,
+    });
+    bewijsPerKans.set(r.kans_id, lijst);
+  }
+  const kansenGeordend = ordenKansen(
+    kansen.map((k) => ({
+      id: k.id,
+      titel: k.titel,
+      handeling: k.handeling,
+      commercieleWaarde: k.commerciele_waarde,
+      potentie: k.potentie,
+      bewijs: bewijsPerKans.get(k.id) ?? [],
+      kennisOntbreekt: k.kennis_ontbreekt as Behoefte[] | null,
+    })),
+  );
+  const kennisronde: KennisrondeDomein[] = kennisrondeVoorMerk(
+    kansenGeordend.map((k) => ({ titel: k.titel, kennisOntbreekt: k.kennisOntbreekt as readonly Behoefte[] | null })),
+  );
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        eyebrow="Admin"
         title="Onboardinggesprek"
         description={`Samen nalopen wat ORBIT ENGINE over ${merknaam} heeft gevonden, aanvullen wat een website niet kan vertellen, en vastleggen wat we afspreken. Alles wat je hier invult wordt meteen bewaard.`}
       />
@@ -115,6 +176,7 @@ export default async function OnboardingSessiePagina({
         recordedAt={strategie?.recorded_at ?? null}
         changedSinceResearch={gewijzigd}
         openAnalyses={(analyseRijen ?? []).length}
+        kennisronde={kennisronde}
       />
     </div>
   );

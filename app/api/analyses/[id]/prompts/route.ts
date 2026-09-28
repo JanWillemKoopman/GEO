@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { regionGateMessage } from "@/lib/pipeline/geo-share";
+import { regionGateMessage, toegestanePlaatsen } from "@/lib/pipeline/geo-share";
 
 /**
  * POST /api/analyses/[id]/prompts, nieuwe prompt toevoegen door de klant
@@ -34,12 +34,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // net zo hard mee in de noemer van de score (zie lib/pipeline/geo-share.ts).
   const { data: profile } = await admin
     .from("profiles")
-    .select("service_scope, service_regions")
+    .select("service_scope, service_regions, growth_regions")
     .eq("id", analysis.profile_id)
     .maybeSingle();
   const gate = regionGateMessage(
     profile?.service_scope as string | null,
-    (profile?.service_regions as string[] | null) ?? [],
+    // Een groeiplaats is ook een toegestane plaats (punt 5 van de kwaliteitsdoorlichting).
+    toegestanePlaatsen(
+      profile?.service_regions as string[] | null,
+      profile?.growth_regions as string[] | null,
+    ),
     text,
   );
   if (gate) return NextResponse.json({ error: gate }, { status: 400 });

@@ -58,7 +58,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
     <div className="card flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label">Wat AI-assistenten over je weten</span>
-        <span className="mono-label text-muted">
+        <span className="mono-label">
           {engines.map(engineLabel).join(" · ")}
         </span>
       </div>
@@ -103,7 +103,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
               <span
                 className={
                   knows.level === "kent"
-                    ? "chip chip-green"
+                    ? "chip chip-success"
                     : knows.level === "wisselend"
                       ? "chip chip-warning"
                       : "chip chip-neutral"
@@ -119,7 +119,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
               {categorieOordelen.length > 0 && (
                 <span
                   className={
-                    genoemdBij > 0 ? "chip chip-green" : "chip chip-neutral"
+                    genoemdBij > 0 ? "chip chip-success" : "chip chip-neutral"
                   }
                 >
                   genoemd bij {genoemdBij} van de {categorieOordelen.length}{" "}
@@ -145,7 +145,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
                 {tegenspraken.map((c, i) => (
                   <li
                     key={`${c.key}-${i}`}
-                    className="rounded-[var(--radius-lg)] border border-[var(--status-error)] px-3 py-2 text-sm"
+                    className="vlak border-[var(--intent-danger-content)] py-2 text-sm"
                   >
                     <span className="mono-label">{c.key}</span>{" "}
                     <span className="text-secondary">
@@ -200,7 +200,7 @@ export function LlmKnowledgePanel({ rows }: { rows: ProfileLlmBaseline[] }) {
                       {(r.raw_response ?? "").length > 900 ? "…" : ""}
                     </p>
                     {!r.web_search && (
-                      <span className="mono-label text-muted">
+                      <span className="mono-label">
                         zonder zoekfunctie gemeten
                       </span>
                     )}

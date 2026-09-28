@@ -55,9 +55,9 @@ export default async function BeheerPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Beheer"
-        title="Waar lopen we achter?"
-        description="Alle merken van alle klanten, gesorteerd op wat het eerst aandacht vraagt. Dit scherm ziet alleen jij."
+        eyebrow="Admin"
+        title="Alle merken"
+        description="Alle merken van alle klanten, met bovenaan wat het eerst aandacht vraagt."
       />
       <CsmView brands={brands} kpi={totals(brands)} />
       <DeleteAccountBox accounts={verwijderbaar} />

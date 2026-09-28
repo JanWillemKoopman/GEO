@@ -110,3 +110,61 @@ export function formatEvidenceDossier(entries: EvidenceEntry[]): string {
     `${blocks.join("\n\n")}`
   );
 }
+
+/**
+ * Welke metingen horen bij een gap? Vertaalt wat het model opgeeft naar echte
+ * meet-id's (kwaliteitsdoorlichting, 24 september 2026).
+ *
+ * Het dossier hierboven toont het model alleen de codes V1, V2, …, nooit een
+ * meet-id. Het schema vraagt wél om `evidenceRunIds`, dus het model geeft codes
+ * ("V1") of niets terug. De naamcontrole (`validateReportClaims`) zocht die als
+ * meet-id op, vond niets, en haalde daardoor ELKE zin met een concurrentnaam
+ * weg, ook de juiste: 17, 17 en 15 zinnen in de drie rapporten van die dag, bij
+ * alle drie de merken met een lege lijst toegestane namen.
+ *
+ * Volgorde, van hard naar zacht:
+ * 1. een echte meet-id uit het dossier blijft staan (ook een die niet in het
+ *    dossier staat maar wel een uuid is: de naamcontrole haalt die zelf op);
+ * 2. een code (ook midden in tekst: "V3, gewicht 0,50") wordt de meet-id erachter;
+ * 3. levert dat niets op, dan de codes die in de clusternaam staan;
+ * 4. en anders de dossiervragen met precies dezelfde clusternaam.
+ * Een code die niet bestaat, wordt weggegooid, niet geraden (conventie 3). Blijft
+ * de lijst leeg, dan mag er geen naam blijven staan: dat is het veilige gevolg.
+ */
+export function resolveGapEvidence(
+  gap: { cluster: string; evidenceRunIds?: string[] | null },
+  dossier: Pick<EvidenceEntry, "code" | "runId" | "cluster">[],
+): string[] {
+  const byCode = new Map(dossier.map((d) => [d.code.trim().toUpperCase(), d.runId]));
+  const uit = new Set<string>();
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const codesIn = (tekst: string) =>
+    (tekst.match(/\bV\d+\b/gi) ?? [])
+      .map((c) => byCode.get(c.toUpperCase()))
+      .filter((r): r is string => !!r);
+
+  for (const ruw of gap.evidenceRunIds ?? []) {
+    const waarde = String(ruw).trim();
+    if (uuid.test(waarde)) uit.add(waarde);
+    else codesIn(waarde).forEach((r) => uit.add(r));
+  }
+  if (uit.size === 0) codesIn(gap.cluster ?? "").forEach((r) => uit.add(r));
+  if (uit.size === 0) {
+    const cluster = (gap.cluster ?? "").trim().toLowerCase();
+    for (const d of dossier) {
+      if (cluster && d.cluster?.trim().toLowerCase() === cluster) uit.add(d.runId);
+    }
+  }
+  return Array.from(uit);
+}
+
+/**
+ * Haalt de interne vraagcode voor een clusternaam weg: "V1", een kastlijntje en
+ * "Proefles bij faalangst" wordt "Proefles bij faalangst". De klant kent geen V1, en het
+ * streepje hoort niet in onze teksten (schrijfstijl §10). Gezien in het rapport
+ * van de rijschool op 24 september 2026: 15 van de 15 gaps begonnen zo.
+ */
+export function schoonGapCluster(cluster: string): string {
+  const schoon = cluster.replace(/^\s*V\d+\s*[\u2014\u2013:\-.)]\s*/i, "").trim();
+  return schoon || cluster;
+}

@@ -1,5 +1,6 @@
 import type { EntityRole } from "@/lib/schemas/entity-classification";
 import type { CrawlSpeed } from "@/lib/crawl-speed";
+import type { CommercieleWaarde, KansBron, KansHandeling, KansStatus } from "@/lib/kansen/prioriteit";
 /**
  * TypeScript-representatie van het datamodel (abcplan.md §5).
  * Handgeschreven (in plaats van gegenereerd) zodat de scaffolding zonder
@@ -116,6 +117,8 @@ export interface PlannedPage {
   /** Migratie 0067: de gebruiker koos deze datum zelf, dus herplannen laat hem staan. */
   scheduled_manual: boolean;
   content_piece_id: string | null;
+  /** De kans waar deze kaart uit komt (migratie 0119, N2). */
+  kans_id?: string | null;
   posted_at: string | null;
   posted_url: string | null;
   /** Besluit 8: zowel de eigenaar als de klant mag plaatsen, en we leggen vast wie. */
@@ -249,6 +252,8 @@ export interface Analysis {
   prompts_beslissing: number | null;
   /** Eenmalige herinnering bij klaarliggende, niet-gepubliceerde content (5.8). */
   publish_reminder_sent_at: string | null;
+  /** Eenmalige herinnering bij pagina's die op antwoorden wachten (A5, migratie 0128). */
+  question_reminder_sent_at: string | null;
   /**
    * Het label waaronder dit cluster in het overzicht staat (migratie 0083).
    * Null = geen label, en dat is een geldige stand: labels zijn optioneel en
@@ -299,6 +304,14 @@ export interface ClusterLabel {
 export type BusinessModel = "retailer" | "platform" | "dienstverlener" | "fabrikant" | "overig";
 
 /** Klantprofiel (accountniveau): het grondige, bedrijfsbrede onderzoek, één keer per merk. */
+/** Eén stemvoorbeeld (migratie 0115, `docs/tasks/contentketen-opnieuw.md` §6.10). */
+export interface StemVoorbeeld {
+  url: string;
+  tekst: string | null;
+  opgehaald_op: string | null;
+  fout: string | null;
+}
+
 export interface Profile {
   id: string;
   user_id: string;
@@ -327,6 +340,10 @@ export interface Profile {
   personas: Persona[];
   proof_points: string[]; // ✅ contentkwaliteit (A2): citeerbare feiten uit de site
   style_samples: string[]; // ✅ contentkwaliteit (A3): letterlijke stijlvoorbeelden
+  /** De verhalen uit het gesprek met de ondernemer (migratie 0115, §6.3). */
+  verhalen?: string | null;
+  /** Eén tot drie adressen met de stem van het bedrijf, met de opgehaalde tekst (migratie 0115, B14). */
+  stem_voorbeelden?: StemVoorbeeld[] | null;
   raw_json: unknown | null;
   status: ProfileStatus;
   /** Search Console (migratie 0052). Leeg = niet gekoppeld. */
@@ -414,6 +431,13 @@ export interface Profile {
   onboarding_budget_usd: number;
   /** Wanneer het uitgebreide onderzoek (blok B) voor het laatst draaide. */
   deep_research_at: string | null;
+  /**
+   * Profielvelden die een mens zette sinds die laatste ronde (migratie 0127,
+   * G4). Bijgehouden door de abonnee `onderzoek_refresh`, gewist zodra een
+   * nieuwe ronde start. `lib/pipeline/onboarding-refresh.ts` rekent ermee uit
+   * wat dat betekent voor de meting.
+   */
+  velden_te_verversen: string[];
   /** Welke engines meedoen (migratie 0041). Doorsnede met de beschikbare sleutels. */
   engines_enabled: EngineId[];
   /**
@@ -660,7 +684,9 @@ export interface ProfileTopic {
    * Herkomst op het moment van voorstellen (migratie 0076): aanbod, of aanbod
    * plus het strategisch gesprek. Null voor onderwerpen van vóór 0076.
    */
-  origin: "aanbod" | "aanbod_en_gesprek" | null;
+  origin: "aanbod" | "aanbod_en_gesprek" | "ontdekking" | null;
+  /** De kandidaat uit Clusters ontdekken waar dit uit kwam (migratie 0109). */
+  discovery_candidate_id?: string | null;
   /** Stond er gemeten bewijs in de aanroep die dit onderwerp opleverde (migratie 0077)? */
   origin_uses_measurement: boolean;
   /** Waarom dit onderwerp is afgewezen (migratie 0077), instructie voor een volgende ronde. */
@@ -843,6 +869,12 @@ export interface ContentImpact {
   control_delta: number | null;
   delta_threshold: number | null;
   verdict: ImpactVerdict;
+  /**
+   * Is het gepubliceerde adres van de pagina geciteerd in minstens één
+   * antwoord op de doelvragen van deze golf (M3, migratie 0120)? `null` =
+   * nog niet gemeten of geen adres bekend, niet "nee" (conventie 3).
+   */
+  target_cited_own_page: boolean | null;
   computed_at: string;
 }
 
@@ -1013,6 +1045,20 @@ export interface ContentPiece {
   proof_points_json: unknown;
   /** Migratie 0094: de redactionele keuze vóór het schrijven (optimalisatie 5). */
   writer_brief_json: unknown;
+  /** De paginastrategie van deze versie (migratie 0114, WP3), met `weggelaten` van de schrijver (WP4). */
+  strategy_json: unknown;
+  /** Het logboek van de eindredactie (migratie 0114, WP5). */
+  edit_log_json: unknown;
+  /** Het oordeel over publicatiegereedheid (migratie 0114, §12.3). */
+  readiness_json: unknown;
+  /**
+   * De content brief (migratie 0115, `docs/tasks/contentketen-opnieuw.md` §6.1):
+   * het onderzoek plus de bedrijfskennis die de schrijver kreeg. Gevuld betekent:
+   * de voorbereiding van deze pagina is klaar.
+   */
+  brief_json: unknown | null;
+  /** De uitkomst van de controle en de bevestigde gele zinnen (migratie 0115, §6.6). */
+  controle_json: unknown | null;
   cluster: string | null;
   body_markdown: string | null;
   meta_title: string | null;
@@ -1116,6 +1162,8 @@ export interface ContentPiece {
   weighted_evidence_coverage?: number | null;
   critical_evidence_coverage?: number | null;
   quality_profile?: string | null;
+  /** Zinnen zonder bron die de klant bewust laat staan (migratie 0110). */
+  geaccepteerde_zinnen?: unknown | null;
   /** De onderbouwingsgraad vóór het schrijven (migratie 0087). */
   input_coverage?: number | null;
   write_mode?: string | null;
@@ -1129,6 +1177,18 @@ export interface ContentPiece {
   created_at: string;
   /** Migratie 0100: wanneer de PATCH-route dit stuk voor het laatst opsloeg (punt 17). */
   updated_at: string;
+  /**
+   * De kennisitems die in blok A van DEZE versie stonden (migratie 0124, C3 van
+   * `van-pijplijn-naar-kennissysteem.md`). Gevuld door `tekstKolommen()` uit wat
+   * `kiesVoorBlokA()` koos, nooit door de schrijver zelf (B9 blijft staan).
+   */
+  gebruikte_kennis: string[];
+  /**
+   * Wanneer een kennisitem uit `gebruikte_kennis` van DEZE versie voor het
+   * laatst veranderde (migratie 0126, G3). `null` = niets te melden. Gezet
+   * door de abonnee `kennis_wijziging_impact`, nooit door de schrijver.
+   */
+  kennis_gewijzigd_op: string | null;
 }
 
 /**
@@ -1260,6 +1320,162 @@ export interface FactRequest {
   claim_key?: string | null;
   fact_ref?: string | null;
   verify_after?: string | null;
+  /** De vaste open vraag van een pagina (migratie 0115, besluit B3). */
+  open_vraag?: boolean;
+}
+
+/**
+ * Eén kennisitem in de kennislaag (migratie 0116, K1 van
+ * `docs/tasks/van-pijplijn-naar-kennissysteem.md` §6.1). De regels over wat
+ * waarheen mag staan in `lib/kennis/regels.ts`; schrijven loopt alleen via
+ * `lib/kennis/` (K2).
+ */
+export interface Klantkennis {
+  id: string;
+  profile_id: string;
+  domein: "identiteit" | "aanbod" | "doelgroep" | "positionering" | "bewijs" | "stem" | "verhaal" | "grens" | "geleerd";
+  soort: string | null;
+  bewering: string;
+  waarde: unknown | null;
+  status: "waargenomen" | "verklaard" | "bevestigd" | "afgeleid";
+  /** sterk, gewoon, geen (besluit V12). */
+  bewijskracht: "geen" | "gewoon" | "sterk" | null;
+  bron: "website" | "klant" | "gesprek" | "document" | "extern" | "meting" | "ai";
+  bron_url: string | null;
+  /** Letterlijk uit de bron. Verplicht bij waargenomen. */
+  citaat: string | null;
+  vastgelegd_door: string | null;
+  /** Bij code en modellen: de taaksoort. */
+  vastgelegd_door_taak: string | null;
+  vastgelegd_op: string;
+  bevestigd_door: string | null;
+  bevestigd_op: string | null;
+  laatst_gecontroleerd_op: string | null;
+  /** Een datum (JJJJ-MM-DD). */
+  verloopt_op: string | null;
+  gebruik: "content" | "intern" | "verboden";
+  /** Andere kennisitems waarvoor dit geldt. Leeg is merkbreed. */
+  geldt_voor: string[];
+  /** Alleen voor dit onderwerp (besluit V13). */
+  analysis_id: string | null;
+  /** Alleen voor deze pagina (besluit V13). */
+  content_piece_id: string | null;
+  vervangen_door: string | null;
+  /** Door een mens afgewezen (migratie 0117). */
+  afgewezen_door: string | null;
+  afgewezen_op: string | null;
+  herkomst_tabel:
+    | "brand_facts"
+    | "profile_offerings"
+    | "profiles"
+    | "fact_requests"
+    | "brand_documents"
+    | "profile_strategy"
+    | "profile_facets"
+    | "content_impact"
+    | null;
+  herkomst_id: string | null;
+  sleutel: string | null;
+  ruw: unknown | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Eén kans (migratie 0118, N1 van `docs/tasks/van-pijplijn-naar-kennissysteem.md`
+ * §6.2). De volgorde en de uitleg staan in `lib/kansen/prioriteit.ts`; de
+ * bronnen van een kans volgen uit zijn bewijs (`bronnenVan()`), niet uit een kolom.
+ */
+export interface Kans {
+  id: string;
+  profile_id: string;
+  /** Het gemeten cluster; leeg bij een handmatige kans (besluit V2). */
+  analysis_id: string | null;
+  titel: string;
+  lezer: string | null;
+  handeling: KansHandeling;
+  /** Verplicht bij `pagina_verbeteren`. */
+  bestaande_url: string | null;
+  /** Kennisitems: deze dienst, deze regio, deze doelgroep. */
+  geldt_voor: string[];
+  /** `null` = niet bekend, iets anders dan gewoon. */
+  commerciele_waarde: CommercieleWaarde | null;
+  /** 0 tot 100, `null` = niet berekend. */
+  potentie: number | null;
+  /** `null` = het kennisgat is nog niet uitgerekend (N6). */
+  kennis_bekend: string[] | null;
+  kennis_ontbreekt: string[] | null;
+  status: KansStatus;
+  /** Opgebouwd in code uit het bewijs, nooit door een model. */
+  uitleg: string | null;
+  rapport_id: string | null;
+  vastgelegd_door: string | null;
+  vastgelegd_door_taak: string | null;
+  sleutel: string | null;
+  ruw: unknown | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Het bewijs voor een kans, één rij per bron (migratie 0118). Leeg is geen gegevens, niet nul. */
+export interface KansBewijsRij {
+  id: string;
+  kans_id: string;
+  profile_id: string;
+  bron: KansBron;
+  vragen_gemeten: number | null;
+  vragen_genoemd: number | null;
+  concurrenten: string[] | null;
+  eigen_site_geciteerd: boolean | null;
+  run_ids: string[] | null;
+  vertoningen: number | null;
+  klikken: number | null;
+  positie: number | null;
+  periode_dagen: number | null;
+  zoekopdrachten: string[] | null;
+  toelichting: string | null;
+  rapport_id: string | null;
+  gemeten_op: string | null;
+  ruw: unknown | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Eén rij van het gebeurtenissenlogboek (migratie 0123, G1 van
+ * `van-pijplijn-naar-kennissysteem.md`). Deny-all in RLS: alleen
+ * `lib/gebeurtenissen/` en de werker lezen en schrijven, met de service-role key.
+ */
+export interface GebeurtenisRij {
+  id: string;
+  profile_id: string;
+  soort: "kennis_gewijzigd";
+  object_tabel: string;
+  object_id: string;
+  payload: unknown | null;
+  aangemaakt_op: string;
+}
+
+/** Eén verwerking door één abonnee (migratie 0123). Bewaakt "precies één keer" (G1). */
+export interface GebeurtenisVerwerkingRij {
+  id: string;
+  gebeurtenis_id: string;
+  abonnee: string;
+  verwerkt_op: string;
+}
+
+/**
+ * "Deze kans of pagina leunt op dit kennisitem" (migratie 0125, G2 van
+ * `van-pijplijn-naar-kennissysteem.md`). Deny-all in RLS: alleen
+ * `lib/afhankelijkheden/` schrijft, gevuld door wie het object maakt.
+ */
+export interface AfhankelijkheidRij {
+  id: string;
+  profile_id: string;
+  van_tabel: "kansen" | "content_pieces";
+  van_id: string;
+  kennis_id: string;
+  aangemaakt_op: string;
 }
 
 /**

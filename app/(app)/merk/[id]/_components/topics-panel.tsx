@@ -18,7 +18,6 @@ import { PotentialInline } from "@/components/potential-metrics";
 import type { PotentialTriple } from "@/lib/potential";
 import { Icon } from "@/components/icon";
 import { CollapsibleSection } from "@/components/collapsible-section";
-import { TopicRefreshButton } from "./topic-refresh-button";
 
 /**
  * De core topics (docs/tasks/onboarding-2.0.md, blok D).
@@ -57,9 +56,8 @@ export function TopicsPanel({
   /** Potentiescore per onderwerp-id, alleen gevuld voor onderwerpen met een analyse. */
   potenties: Record<string, PotentialTriple>;
   /**
-   * Alleen de beheerder ziet "Stel nieuwe clusters voor" (§3.5): de knop kost
-   * geld per klik en is een regieknop, geen klantwerk. De echte grendel staat
-   * op de route, dit is alleen de weergave.
+   * Alleen de beheerder start een cluster: dat kost geld en is regiewerk, geen
+   * klantwerk. De echte grendel staat op de route, dit is alleen de weergave.
    */
   staff: boolean;
   /** `profiles.service_regions.length`, voor de voorgestelde verdeling (werkpakket B punt 2). */
@@ -195,7 +193,7 @@ export function TopicsPanel({
     return (
       <li
         key={t.id}
-        className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-4"
+        className="vlak flex flex-col gap-2"
       >
         <div className="flex flex-wrap items-start justify-between gap-2">
           <span className="font-medium">{t.title}</span>
@@ -215,7 +213,7 @@ export function TopicsPanel({
                 <Icon naam="naar" size={12} />
               </Link>
             ) : t.status === "goedgekeurd" ? (
-              <span className="chip chip-green">Goedgekeurd</span>
+              <span className="chip chip-success">Goedgekeurd</span>
             ) : t.status === "afgewezen" ? (
               <span className="chip chip-neutral">Afgewezen</span>
             ) : null}
@@ -236,7 +234,7 @@ export function TopicsPanel({
         {t.rationale && <p className="text-sm text-secondary">{t.rationale}</p>}
 
         {t.origin && (
-          <span className="mono-label text-muted">
+          <span className="mono-label">
             {t.origin === "aanbod_en_gesprek" ? "Uit het aanbod en het gesprek" : "Uit het aanbod"}
           </span>
         )}
@@ -272,7 +270,7 @@ export function TopicsPanel({
         )}
 
         {mixFor === t.id && (
-          <div className="flex flex-col gap-3 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+          <div className="vlak flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="mono-label">Hoeveel vragen per fase?</span>
               <p className="text-sm text-secondary">
@@ -313,12 +311,12 @@ export function TopicsPanel({
             {/* Werkpakket B punt 6: geen harde grens, wel een zichtbare
                 waarschuwing vóórdat het geld wordt uitgegeven. */}
             {exceedsRunBudgetWarning(mix) && checkMix(mix).ok && (
-              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+              <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
                 Dit is een grote meetronde. Weet je zeker dat dit onderwerp dit verdient?
               </p>
             )}
             {!checkMix(mix).ok && (
-              <p className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+              <p className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
                 {(checkMix(mix) as { ok: false; reason: string }).reason}
               </p>
             )}
@@ -326,7 +324,7 @@ export function TopicsPanel({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-actie btn-sm disabled:opacity-50"
+                className="btn-primary btn-sm"
                 disabled={bezig || !checkMix(mix).ok}
                 onClick={() => void start(t.id, mix)}
               >
@@ -334,7 +332,7 @@ export function TopicsPanel({
               </button>
               <button
                 type="button"
-                className="btn-outline btn-sm"
+                className="btn-ghost btn-sm"
                 onClick={() => setMixFor(null)}
               >
                 Annuleren
@@ -393,19 +391,32 @@ export function TopicsPanel({
                   }).then(() => setBriefFor(null));
                 }}
               >
-                Bewaren
+                Opslaan
               </button>
-              <button type="button" className="btn-outline btn-sm" onClick={() => setBriefFor(null)}>
+              <button type="button" className="btn-ghost btn-sm" onClick={() => setBriefFor(null)}>
                 Annuleren
               </button>
             </div>
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {!t.analysis_id && t.stage !== "concept" && (
+            {/* ── Wie start dit? (UX-audit 23 september 2026, P1.3) ─────────
+                Een cluster starten is van de consultant (`lib/cost-rules.ts`).
+                Tot die dag zag de klant hier een opvallende knop "Cluster
+                starten" die na de klik zei dat hij dat niet mocht. Nu zegt de
+                regel het vooraf, net als de reputatieknop al deed: de functie
+                blijft zichtbaar, de belofte klopt. Rustige knoppen per regel en
+                geen accentkleur (P2.9): een lijst van zes accentknoppen is een
+                muur van gelijkwaardige hoofdacties. */}
+            {!t.analysis_id && t.stage !== "concept" && !staff && (
+              <span className="text-sm text-secondary">
+                Wil je dit laten meten? Je consultant start het voor je.
+              </span>
+            )}
+            {!t.analysis_id && t.stage !== "concept" && staff && (
               <button
                 type="button"
-                className="btn-actie btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
@@ -415,10 +426,10 @@ export function TopicsPanel({
             {/* ⚠️ Een aparte knop en geen veld dat altijd openstaat. Negen van de
                 tien keer is 10/10/10 goed, en dan hoort er één klik te zijn.
                 Wie het anders wil, klapt het open en ziet meteen wat het kost. */}
-            {!t.analysis_id && t.stage !== "concept" && mixFor !== t.id && (
+            {!t.analysis_id && t.stage !== "concept" && staff && mixFor !== t.id && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => {
                   // Werkpakket B punt 2: een voorzet op de omvang van dit
@@ -439,7 +450,7 @@ export function TopicsPanel({
             )}
             <button
               type="button"
-              className="btn-outline btn-sm disabled:opacity-50"
+              className="btn-outline btn-sm"
               disabled={bezig}
               onClick={() => {
                 setBriefDraft({
@@ -457,7 +468,7 @@ export function TopicsPanel({
             {t.status !== "afgewezen" && !t.analysis_id && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void patch(t.id, { status: "afgewezen" })}
               >
@@ -467,7 +478,7 @@ export function TopicsPanel({
             {t.status === "afgewezen" && (
               <button
                 type="button"
-                className="btn-outline btn-sm disabled:opacity-50"
+                className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void patch(t.id, { status: "voorgesteld" })}
               >
@@ -522,12 +533,22 @@ export function TopicsPanel({
       )}
 
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}
 
-      {staff && <TopicRefreshButton profileId={profileId} />}
+      {/* ⚠️ Hier stond tot 23 september 2026 de knop "Stel nieuwe clusters voor".
+          Die is opgegaan in Clusters ontdekken, dat dezelfde bronnen gebruikt
+          plus Search Console en de zoekdata van Google
+          (docs/tasks/clusters-ontdekken.md). */}
+      <p className="text-sm text-secondary">
+        Meer onderwerpen zoeken?{" "}
+        <Link href={`/merk/${profileId}/ontdekken`} className="link">
+          Ga naar Clusters ontdekken
+        </Link>
+        .
+      </p>
     </CollapsibleSection>
   );
 }

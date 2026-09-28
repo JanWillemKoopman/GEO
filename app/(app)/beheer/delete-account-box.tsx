@@ -181,7 +181,7 @@ export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] })
             {/* De knop blijft aanklikbaar; de server controleert de naam ook. Een
                 knop die uitgaat zonder te zeggen waarom, is een raadsel. */}
             {getypt.length > 0 && !naamKlopt ? (
-              <span className="text-sm" style={{ color: "var(--intent-danger-text)" }}>
+              <span className="text-sm" style={{ color: "var(--intent-danger-content)" }}>
                 De naam komt nog niet overeen.
               </span>
             ) : null}

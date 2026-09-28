@@ -43,34 +43,6 @@ export function createOpenAiStub(log: StubLog[]) {
   };
 }
 
-/**
- * De feitenkaart uit de prompt teruglezen.
- *
- * Een echt model leest de kaart die het krijgt en verwijst naar de nummers die
- * daar staan. Een stub met hardgecodeerde F-nummers doet dat niet, en dan test je
- * of je die nummers goed geraden hebt in plaats van of de dekkingscontrole werkt.
- *
- * Dat is geen theorie: de eerste versie van deze stub noemde "F1, F2", terwijl de
- * kaart in het scenario inmiddels bij F5 en F6 zat omdat de klantantwoorden
- * vooraan komen te staan (`SOURCE_ORDER`). De test viel daarop om, terecht.
- *
- * De vorm komt uit `formatFactCard()`: `${ref}  ${text}` opgevuld tot 60 tekens,
- * gevolgd door `bron: …`.
- */
-function leesFeitenkaart(user: string): { ref: string; text: string }[] {
-  const feiten: { ref: string; text: string }[] = [];
-  for (const regel of user.split("\n")) {
-    const m = /^(F\d+)\s\s+(.*?)\s*bron:\s/.exec(regel);
-    if (m) feiten.push({ ref: m[1], text: m[2].trim() });
-  }
-  return feiten;
-}
-
-/** De eerste paar woorden van een feit, het letterlijke citaat dat de claim dekt. */
-function citaatUit(tekst: string, woorden = 6): string {
-  return tekst.split(/\s+/).slice(0, woorden).join(" ");
-}
-
 const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   /**
    * De marktontdekking van de Sales-module (plan hoofdstuk 9).
@@ -556,371 +528,6 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
   },
 
   /**
-   * De atomiseerstap (S1). Geeft één zin terug die letterlijk in de gecrawlde
-   * pagina van het scenario staat, plus één die er NIET in staat, zodat de
-   * test aantoont dat het vangnet in `atom-verify.ts` de tweede weggooit.
-   */
-  fact_atoms: () => ({
-    atoms: [
-      {
-        sentence: "Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints.",
-        pageIndex: 1,
-      },
-      { sentence: "Fysi-Unique is de beste praktijk van Nederland.", pageIndex: 1 },
-    ],
-  }),
-
-  /**
-   * De claim-audit (R5.1). Twee beweringen: één gedekt door een proof point, één
-   * ongedekt. Die laatste wordt de vraag aan de klant, en beide horen straks in
-   * het paginaplan te staan (S2).
-   */
-  claim_audit: () => ({
-    claims: [
-      {
-        claim: "Fysi-Unique wordt met een 9,4 beoordeeld op Zorgkaart.",
-        neededFor: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
-        supported: true,
-        sourceRef: "F1",
-        supportQuote: "Wordt met een 9,4 beoordeeld op Zorgkaart",
-        importance: "ondersteunend",
-        // Migratie 0091: welk SOORT bewering dit is. Bedrijfsspecifiek, dus er
-        // hoort bewijs van de klant achter te zitten.
-        claimClass: "bedrijfsspecifiek",
-        questionIfMissing: null,
-        reason: "Een cijfer maakt de pagina geloofwaardig.",
-        kind: "verificatie",
-        answerType: "tekst_kort",
-        options: [],
-        suggestedAnswer: null,
-        scope: "merk",
-        sectionId: null,
-      },
-      {
-        claim: "Fysi-Unique biedt een preventief nazorgprogramma na herstel.",
-        neededFor: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
-        supported: false,
-        sourceRef: null,
-        supportQuote: null,
-        importance: "kern",
-        claimClass: "bedrijfsspecifiek",
-        questionIfMissing: "Biedt Fysi-Unique een preventief nazorgprogramma na herstel?",
-        reason: "Zonder dit kan de pagina zijn eigen vraag niet beantwoorden.",
-        kind: "verificatie",
-        answerType: "ja_nee",
-        options: [],
-        suggestedAnswer: "ja",
-        scope: "analyse",
-        // De sectie waar deze vraag bij hoort (migratie 0087). "P1-s2" is de
-        // tweede sectie van de eerste pagina van de batch, en dat is precies
-        // wat het contract van de stub hieronder ook aanlevert. Zonder deze
-        // koppeling valt de vraag terug op de tekstvergelijking met
-        // `neededFor`, en dan raakt overslaan geen enkele sectie.
-        sectionId: "P1-s2",
-      },
-    ],
-    // Leeg is de norm (S9): dit testgeval noemt geen term die algemene,
-    // niet-bedrijfsspecifieke uitleg nodig heeft.
-    generalContextGaps: [],
-  }),
-
-  /**
-   * De geschreven pagina. Drie dingen zijn met opzet zo gekozen:
-   *
-   *   • de eerste bewering krijgt een SAMENGESTELDE verwijzing ("F1, F2"), de
-   *     vorm die vóór R8.3 als onbewezen telde en 2 van de 10 pagina's van
-   *     31 juli vertekende;
-   *   • de tweede verwijst naar één feit, als controlegroep;
-   *   • de derde zin in de body ("binnen 24 uur") wordt NIET getagd. Dat is de
-   *     categorie waarin beide fabricages van de contentronde vielen, en S3 moet
-   *     hem alsnog opmerken.
-   */
-  content_piece: (user: string) => {
-    const kaart = leesFeitenkaart(user);
-    if (kaart.length < 2) {
-      throw new Error(
-        `openai-stub: de feitenkaart in de schrijfprompt heeft ${kaart.length} feiten; ` +
-          `er zijn er minstens 2 nodig om een samengestelde verwijzing te maken.`,
-      );
-    }
-
-    // De twee feiten waar de beweringen naar wijzen. Bewust de LAATSTE twee:
-    // dat zijn in dit scenario het proof point en de geatomiseerde sitezin, en
-    // door ze op te zoeken in plaats van te nummeren blijft de stub kloppen als
-    // er een feit bij komt.
-    const eerste = kaart[kaart.length - 2];
-    const tweede = kaart[kaart.length - 1];
-
-    const zin1 = "Fysi-Unique behandelt hardloopblessures in Amersfoort en werkt met een vast team.";
-    const zin2 = "Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints.";
-
-    return {
-      title: "Fysiotherapie bij hardloopblessures in Amersfoort",
-      metaTitle: "Hardloopblessure in Amersfoort",
-      metaDescription: "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
-      bodyMarkdown:
-        `${zin1}\n\n### Welke klachten\n\n${zin2}\n\n### Afspraak maken\n\n` +
-        "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.\n",
-      faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, je kunt direct een afspraak maken." }],
-      schemaJsonLd: '{"@context":"https://schema.org","@type":"WebPage"}',
-      targetIntent: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
-      cluster: "hardloopblessure",
-      // V9 (migratie 0093): per gekozen feit wat het voor de lezer betekent.
-      // De betekeniszinnen staan hierboven ook echt in `bodyMarkdown`, want de
-      // controle rekent dat na.
-      proofPoints: [
-        // `relevantie` is de derde stap van optimalisatie 7 (4 september 2026):
-        // feit, betekenis, en waarom dat voor DEZE lezer telt.
-        { factRef: eerste.ref, betekenis: zin1, relevantie: "deze lezer wil weten waar hij aan toe is" },
-        { factRef: tweede.ref, betekenis: zin2, relevantie: "hij wil snel verder kunnen met hardlopen" },
-        {
-          factRef: tweede.ref,
-          betekenis: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake",
-          relevantie: "wachten is precies waar deze lezer bang voor is",
-        },
-      ],
-      claims: [
-        {
-          claim: zin1,
-          factRef: `${eerste.ref}, ${tweede.ref}`,
-          quote: citaatUit(eerste.text),
-        },
-        { claim: zin2, factRef: tweede.ref, quote: citaatUit(tweede.text) },
-      ],
-    };
-  },
-
-  content_critique: () => ({
-    qualityScore: 88,
-    followsRules: true,
-    geo: {
-      answersTargetQuestionUpFront: true,
-      hasStandaloneCitableSentences: true,
-      namesTheBusinessExplicitly: true,
-      usesConcreteFacts: true,
-      answersFollowUpQuestions: true,
-    },
-    issues: [],
-  }),
-
-  /**
-   * De vierde beoordelaar: vakmanschap (migratie 0091).
-   *
-   * Bewust ruim voldoende en niet perfect: de keten moet kunnen aantonen dat een
-   * pagina die op alle vier de beoordelaars goed scoort tóch geblokkeerd wordt
-   * zodra een KERNsectie geen bewijs heeft. Zou deze stub laag scoren, dan zou
-   * die blokkade ook uit de score kunnen komen en bewijst de test niets.
-   */
-  content_craft: () => ({
-    specificiteit: {
-      score: 78,
-      evidence: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.",
-      why: "De pagina noemt het bedrijf met naam en geeft een concrete termijn.",
-    },
-    expertise: {
-      score: 74,
-      evidence: "Welke klachten",
-      why: "De uitleg is correct maar niet uitgebreid.",
-    },
-    diepgang: { score: 70, evidence: "Welke klachten", why: "Twee secties, beide kort." },
-    originaliteit: {
-      score: 72,
-      evidence: "Afspraak maken",
-      why: "Geen standaardzinnen, wel een gangbare opzet.",
-    },
-    toon: { score: 80, evidence: "Afspraak maken", why: "Past bij de stijlvoorbeelden." },
-    // V11: het cijfer bestaat en telt nog niet mee in het profiel.
-    herkenning: {
-      score: 55,
-      evidence: "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.",
-      why: "De pagina begint bij het aanbod en niet bij wat de lezer meemaakt.",
-    },
-    overtuiging: {
-      score: 68,
-      evidence: "Afspraak maken",
-      why: "Er staat een vervolgstap in, zonder aandrang.",
-    },
-    wouldSendToClient: true,
-    firstThingToChange: "",
-    firstThingSection: "",
-  }),
-
-  source_analysis: () => ({ sources: [], whatIsMissing: null }),
-
-  /**
-   * Het vergelijkende oordeel tussen twee versies (optimalisatie 11).
-   *
-   * Kiest B, de gerepareerde versie: dat is het pad waarin de reparatie bewaard
-   * wordt, en dus het pad dat de keten moet kunnen laten zien. Draait alleen bij
-   * een gelijkspel, dus deze stub wordt niet in elke ronde aangeroepen.
-   */
-  version_compare: () => ({
-    beter: "B",
-    waarom: "De gerepareerde versie beantwoordt de vraag concreter en blijft even zorgvuldig.",
-  }),
-
-  /**
-   * De schrijfopdracht (optimalisatie 5 en 6, migratie 0094).
-   *
-   * De F-nummers worden uit de feitenkaart in de prompt gelezen, net als bij
-   * `content_piece`: een stub met hardgecodeerde nummers zou testen of we goed
-   * geraden hebben in plaats van of de opdracht bij de kaart past. Levert de
-   * kaart te weinig feiten, dan blijft de lijst korter dan drie en levert
-   * `bruikbareOpdracht()` terecht `null`: ook dat pad hoort de keten te kunnen
-   * laten zien.
-   */
-  writer_brief: (user: string) => {
-    const kaart = leesFeitenkaart(user);
-    return {
-      lezer: "Iemand die na het hardlopen pijn aan de buitenkant van zijn knie houdt",
-      hoofdvraag: "Kan ik hiermee doorlopen of moet ik langskomen?",
-      kernantwoord: "Kom langs voor een intake, dan weet je binnen een week waar je aan toe bent.",
-      waaromDezePagina: "Een AI-assistent noemt bij deze vraag nu alleen andere praktijken.",
-      // ⚠️ Met OPZET in het formaat dat het echte model op 4 september 2026
-      // teruggaf: het hele feit in plaats van alleen het nummer, en een
-      // samengestelde verwijzing bij de keuzereden. De eerste versie van deze
-      // stub gaf keurige F-nummers terug en dekte daarmee de fout toe die alle
-      // zes de opdrachten van de eerste echte ronde weggooide.
-      kernfeiten: kaart.slice(0, 3).map((f) => `${f.ref}: ${f.text}`),
-      keuzeredenen: [
-        {
-          factRef: kaart.length > 1 ? `${kaart[0].ref} en ${kaart[1].ref}` : (kaart[0]?.ref ?? ""),
-          reden: "deze lezer wil snel duidelijkheid en kan daarom binnen 24 uur terecht",
-        },
-      ],
-      eigenWoorden: "",
-      moetErIn: ["wat de intake kost"],
-      nietDoen: ["geen checklist om fysiotherapeuten te vergelijken"],
-      blijftHangen: "deze praktijk begrijpt mijn klacht en ik kan er snel terecht",
-    };
-  },
-
-  /**
-   * Het itemdossier (A1, migratie 0082).
-   *
-   * Eén uitleg mét bron, en die bron is met opzet onbereikbaar in de ketentest:
-   * `verifyExplainers()` haalt hem op en keurt hem af, dus de keten toetst
-   * precies wat hij moet toetsen, namelijk dat niet-geverifieerde uitleg de
-   * schrijfprompt NIET haalt (A7). Uitleg die wél door de controle komt, is
-   * werk voor een test met een echte bron.
-   */
-  item_dossier: () => ({
-    subQuestions: [
-      { question: "Wat kost een behandeling?", why: "dit is de eerste vraag die iedereen stelt" },
-      { question: "Heb ik een verwijzing nodig?", why: "onzekerheid houdt mensen tegen" },
-    ],
-    followUps: ["Hoe lang duurt het herstel?"],
-    concerns: ["Ik weet niet of het vergoed wordt."],
-    explainers: [
-      {
-        term: "runnersknie",
-        explanation: "Pijn aan de buitenkant van de knie door overbelasting bij hardlopen.",
-        sourceUrl: "https://voorbeeld.test/runnersknie",
-        quote: "Runnersknie is pijn aan de buitenkant van de knie door overbelasting.",
-      },
-    ],
-  }),
-
-  /**
-   * Het contentcontract (A2). De koppen komen letterlijk overeen met wat
-   * `content_piece` hierboven schrijft, zodat de dekkingspoort in de keten een
-   * echte uitslag geeft in plaats van alles af te keuren op een stub die zichzelf
-   * tegenspreekt.
-   */
-  content_contract: () => ({
-    openingAnswer:
-      "Fysi-Unique behandelt hardloopblessures in Amersfoort en werkt met een vast team.",
-    sections: [
-      {
-        id: "s1",
-        heading: "Welke klachten",
-        subQuestion: "Welke hardloopblessures behandelt Fysi-Unique?",
-        mustCover: ["de klachten die behandeld worden"],
-        factRefs: ["F1"],
-        explainerTerms: [],
-        targetWords: 120,
-        rol: "uitleg",
-        // Gedekt: er staat een F-nummer bij dat op de kaart bestaat, dus deze
-        // sectie levert geen vraag op.
-        needsBrandFact: true,
-        // Migratie 0091: ondersteunend, dus een ontbrekend feit hier is een
-        // verbeterpunt en geen blokkade. Zie lib/pipeline/evidence-weight.ts.
-        importance: "ondersteunend",
-        successCriterion: "Er staat welke blessures behandeld worden.",
-        // O4: bij een NIEUWE pagina is er geen bestaande pagina om tegen af te
-        // zetten. `normaliseerContract()` dwingt dit deterministisch af, maar de
-        // stub hoort te leveren wat het schema vraagt (zie de kop van dit
-        // bestand: een stub die stilletjes van het schema afwijkt verbergt
-        // precies de fout die de keten moet vinden).
-        presentOnExisting: "niet_van_toepassing",
-        whatToChange: "",
-      },
-      {
-        id: "s2",
-        heading: "Afspraak maken",
-        subQuestion: "Hoe snel kan ik terecht voor een intake?",
-        mustCover: ["hoe je een afspraak maakt"],
-        factRefs: [],
-        explainerTerms: [],
-        targetWords: 100,
-        rol: "uitleg",
-        // ONGEDEKT en merkgebonden: dit is het gat waar de briefing zijn vraag
-        // uit haalt, en de sectie die vervalt als de klant hem overslaat
-        // (docs/tasks/vragen-voor-het-schrijven.md §4 en §6).
-        needsBrandFact: true,
-        // KERN en ongedekt: dit is precies het geval uit punt 15 van de
-        // opdracht. De pagina kan hoog scoren en toch niet publiceerbaar zijn,
-        // want zonder dit feit bereikt hij zijn doel niet.
-        importance: "kern",
-        successCriterion: "Er staat een concrete termijn voor de intake.",
-        presentOnExisting: "niet_van_toepassing",
-        whatToChange: "",
-      },
-    ],
-    faqQuestions: ["Heb ik een verwijzing nodig?"],
-    pageObjective: "Iemand met een hardloopblessure in Amersfoort laten zien waar hij terechtkan.",
-    targetAudience: "Een hardloper met een blessure die een fysiotherapeut zoekt.",
-    avoid: [],
-    reasoning: "Twee deelvragen, plus de vraag over de verwijzing als FAQ.",
-  }),
-
-  /** De feitelijkheidsbeoordelaar (A5): in de keten vindt hij niets. */
-  content_factuality: () => ({
-    unsupportedSentences: [],
-    overreachingClaims: [],
-    allClaimsCovered: true,
-  }),
-
-  /** De citeerbaarheidsbeoordelaar (A5): idem, alles beantwoord. */
-  content_citability: () => ({
-    subQuestionAnswers: [],
-    remainingReaderQuestions: [],
-    issues: [],
-  }),
-
-  /**
-   * De gerichte reparatie (A6).
-   *
-   * Geeft één sectie terug met de kop die `content_piece` ook gebruikt, zodat de
-   * keten toetst wat de bedoeling is: `applySectionPatch()` zet hem op zijn
-   * plek en laat de rest van de pagina letterlijk staan.
-   */
-  content_patch: () => ({
-    sections: [
-      {
-        heading: "Afspraak maken",
-        markdown:
-          "Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake. Bel of mail voor een afspraak.",
-      },
-    ],
-    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, je kunt direct een afspraak maken." }],
-    claims: [],
-    metaTitle: "Hardloopblessure in Amersfoort",
-    metaDescription: "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
-    notes: ["De sectie over de afspraak is aangevuld."],
-  }),
-
-  /**
    * De profielbrede zoekvolume-herkalibratie (docs/tasks/potentiescore.md, stap
    * B, `lib/pipeline/search-demand.ts`).
    *
@@ -994,6 +601,42 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
    */
   mention: () => ({ mentions: [] }),
 
+  /**
+   * De aanbodboom (`lib/pipeline/offering.ts`), voor scenario 21 (K4). Drie
+   * knopen op de pagina's van dat scenario: twee met een citaat dat letterlijk
+   * op de pagina staat, één met een citaat dat er NIET staat. Die laatste moet
+   * in de kennislaag een vermoeden worden, geen waarneming.
+   */
+  offering_tree: () => ({
+    businessModel: "dienstverlener" as const,
+    nodes: [
+      {
+        kind: "categorie" as const, name: "Behandelingen", parent: "", description: "", audience: "", priceIndication: "",
+        evidenceUrl: "https://fysi-unique.nl/hardloopklachten", evidenceQuote: "Hardloopklachten behandelen wij",
+      },
+      {
+        kind: "dienst" as const, name: "Dry needling", parent: "Behandelingen", description: "Naaldjes in de spier.",
+        audience: "sporters", priceIndication: "€ 65 per behandeling",
+        evidenceUrl: "https://fysi-unique.nl/dry-needling", evidenceQuote: "Dry needling voor sporters kost € 65",
+      },
+      {
+        kind: "dienst" as const, name: "Sportmassage", parent: "Behandelingen", description: "", audience: "", priceIndication: "",
+        evidenceUrl: "https://fysi-unique.nl/hardloopklachten", evidenceQuote: "Sportmassage na elke wedstrijd",
+      },
+    ],
+    gaps: [],
+  }),
+
+  /** Het marktonderzoek (`lib/pipeline/market.ts`), voor scenario 21 (K4). */
+  market_research: () => ({
+    competitors: [
+      { name: "SMC Amersfoort", why: "Groter team en langere openingstijden.", evidenceUrl: "" },
+      { name: "Fysio Vathorst", why: "Dichter bij de nieuwbouwwijk.", evidenceUrl: "https://fysiovathorst.nl" },
+    ],
+    sourceDomains: [{ domain: "zorgkaartnederland.nl", whyItMatters: "Hier vergelijken patiënten praktijken." }],
+    positioning: "Fysi-Unique is kleiner dan SMC Amersfoort, maar gespecialiseerd in hardloopblessures.",
+  }),
+
   profile_research: () => ({
     brandName: "Fysi-Unique",
     industry: "wellness en massage",
@@ -1020,6 +663,57 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
    * onderscheid zou de ketentest niet kunnen zien of de definitieve ronde
    * echt iets anders opleverde, of toevallig hetzelfde teruggaf.
    */
+  /**
+   * Clusters ontdekken (lib/pipeline/cluster-discovery.ts, migratie 0109).
+   *
+   * De beginpunten bevatten bewust één term met de merknaam: die moet het
+   * vangnet in code eruit halen. Het schiften geeft alles terug behalve de
+   * homoniem ("capcut apk") en één nummer dat niet bestaat. Het bundelen geeft
+   * één goede kandidaat, één die op een bestaand cluster lijkt, en één die
+   * alleen uit verzonnen zoektermen bestaat en dus moet sneuvelen.
+   */
+  discovery_seeds: () => ({
+    zoektermen: ["airco laten plaatsen", "cv ketel onderhoud", "klimaat bv airco"],
+  }),
+  discovery_sift: (user: string) => {
+    const regels = user.split("\n").filter((r) => /^\d+\. /.test(r));
+    return {
+      relevant: [
+        ...regels
+          .filter((r) => !r.includes("capcut"))
+          .map((r) => ({ nr: Number(r.split(".")[0]), pasvorm: "sterk" as const })),
+        { nr: 999, pasvorm: "sterk" as const },
+      ],
+    };
+  },
+  discovery_bundle: (user: string) => {
+    const termen = user
+      .split("\n")
+      .filter((r) => r.startsWith("- ") && r.includes(" · "))
+      .map((r) => r.slice(2).split(" · ")[0]);
+    return {
+      kandidaten: [
+        {
+          titel: "Airco laten installeren",
+          onderbouwing: "Mensen zoeken hier veel op en je staat net buiten de top.",
+          diensten: ["Airco"],
+          zoektermen: termen.filter((t) => t.includes("airco")),
+        },
+        {
+          titel: "CV-ketel onderhoud in Tilburg",
+          onderbouwing: "Past bij je aanbod.",
+          diensten: ["CV-ketel onderhoud"],
+          zoektermen: [...termen.filter((t) => t.includes("ketel")), "verzonnen ketelterm"],
+        },
+        {
+          titel: "Zonnepanelen",
+          onderbouwing: "Verzonnen door het model.",
+          diensten: [],
+          zoektermen: ["zonnepanelen kopen", "zonnepanelen prijs"],
+        },
+      ],
+    };
+  },
   topic_proposals: (user: string) => {
     const gesprek = user.includes("UIT HET STRATEGISCH GESPREK");
     return {
@@ -1048,6 +742,143 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
           ],
     };
   },
+  /**
+   * L6, de FAQ-selectie (WP7). Houdt de eerste kandidaat met het eerste feit
+   * van de kaart, en wijst de rest af op criterium 3: dan moeten die als vraag
+   * aan de ondernemer terugkomen.
+   */
+  faq_selection: (user) => {
+    const eersteFeit = /^(F\d+)\s\s/m.exec(user)?.[1] ?? "F1";
+    const kandidaten = Array.from(user.matchAll(/^(\d+)\. /gm)).map((m) => Number(m[1]));
+    return {
+      kandidaten: kandidaten.map((nummer) =>
+        nummer === 1
+          ? { nummer, houden: true, criterium: null, reden: "Een bezwaar uit het gesprek.", onderbouwing: "feit", feiten: [eersteFeit], vakkennis: null }
+          : { nummer, houden: false, criterium: "geen onderbouwing", reden: "Geen feit.", onderbouwing: "geen", feiten: [], vakkennis: null },
+      ),
+    };
+  },
+  /**
+   * L8, de eindredactie (WP5). Leest het concept uit de opdracht terug, haalt
+   * de relativering na een bewijsstuk weg (het voorbeeld van de zwemvijver in
+   * §1.2) en houdt de beweringen met hun citaat. Staat er in het concept het
+   * woord TESTBEDRAG, dan voegt de stub een bedrag toe dat nergens op de kaart
+   * staat, zodat de ketentest het terugdraaien kan toetsen.
+   */
+  editorial_pass: (user) => {
+    const concept = user.split("── HET CONCEPT ──")[1] ?? "";
+    const metaTitle = /Metatitel: (.*)/.exec(concept)?.[1]?.slice(0, 60) ?? "Titel";
+    const metaDescription = /Metabeschrijving: (.*)/.exec(concept)?.[1]?.slice(0, 160) ?? "Beschrijving";
+    const na = concept.split(/Metabeschrijving: .*\n/)[1] ?? "";
+    const body = na.split(/\n\[FAQ\]|\nBeweringen in het concept/)[0].trim();
+    const faq = Array.from((na.split("[FAQ]")[1] ?? "").matchAll(/Q: (.*)\nA: (.*)/g)).map((m) => ({ q: m[1], a: m[2] }));
+    const claims = Array.from(na.matchAll(/^- (F[\d, F]+): (.*) \(citaat: "(.*)"\)$/gm)).map((m) => ({
+      factRef: m[1],
+      claim: m[2],
+      quote: m[3],
+    }));
+    const zonderRelativering = body.replace(/,? maar dat zegt op zichzelf niets[^.]*\./g, ".");
+    return {
+      bodyMarkdown: /TESTBEDRAG/.test(body) ? `${zonderRelativering}\n\nEen intake kost bij ons € 777.` : zonderRelativering,
+      faq,
+      metaTitle,
+      metaDescription,
+      claims,
+      proofPoints: [],
+      wijzigingen: [
+        { was: "maar dat zegt op zichzelf niets", wordt: "", soort: "relativering", raaktFeit: false },
+      ],
+    };
+  },
+  /**
+   * L5, de paginastrategie (WP3). Met opzet ongemakkelijk, zodat elk vangnet
+   * in `strategie-check.ts` iets te doen krijgt: een F-nummer dat niet bestaat,
+   * een kernonderwerp zonder feit, een voorbehoud zonder reden, en een budget
+   * ver boven het plafond. Staat er een betwist feit in de opdracht, dan kiest
+   * de stub het toch als prioriteitsfeit, zodat de conflictpoort het ziet.
+   */
+  page_strategy: (user) => {
+    const refs = user
+      .split("\n")
+      .map((r) => /^(F\d+)\s\s+/.exec(r)?.[1])
+      .filter((r): r is string => Boolean(r));
+    const betwist = user
+      .split("\n")
+      .map((r) => /^(B\d+) \(/.exec(r)?.[1])
+      .filter((r): r is string => Boolean(r));
+    return {
+      zoekintentie: "lokaal vinden",
+      lezer: "Iemand met een hardloopblessure die snel geholpen wil worden",
+      fase: "beslissing",
+      paginadoel: "Een afspraak maken",
+      kernboodschap: "Bij een hardloopblessure ben je hier snel en deskundig geholpen.",
+      openingsantwoord: "Voor een hardloopblessure kun je in Amersfoort bij ons terecht.",
+      hoek: "De pagina voor hardlopers met een blessure.",
+      prioriteitsfeiten: [
+        ...betwist.slice(0, 1).map((b) => ({ feit: b, betekenis: "betwist, hoort eruit" })),
+        ...refs.slice(0, 3).map((f) => ({ feit: f, betekenis: "Dit telt voor deze lezer." })),
+        { feit: "F99", betekenis: "bestaat niet" },
+      ],
+      optioneleFeiten: refs.slice(3, 5),
+      uitgeslotenFeiten: [],
+      onderwerpen: [
+        { onderwerp: "Wat we behandelen", besluit: "opnemen", bron: "feit", feiten: refs.slice(0, 1), woorden: 150, vraag: null, uitleg: [], wachtOpConflict: [], kern: true, reden: "beslisvraag" },
+        { onderwerp: "Wat een behandeling kost", besluit: "opnemen", bron: "geen", feiten: [], woorden: 80, vraag: null, uitleg: [], wachtOpConflict: betwist.slice(0, 1), kern: true, reden: "beslisvraag" },
+        { onderwerp: "Vergelijk aanbieders", besluit: "weglaten", bron: "vakkennis", feiten: [], woorden: null, vraag: null, uitleg: [], wachtOpConflict: [], kern: false, reden: "consumentengids" },
+      ],
+      onzekerheden: [
+        { punt: "Of er een wachtlijst is", bestemming: "B", reden: null, formulering: null, vraag: null },
+        { punt: "Prijs verschilt per behandeling", bestemming: "B", reden: "geld", formulering: "De prijs hangt af van het aantal behandelingen.", vraag: null },
+      ],
+      bezwaar: null,
+      lengtebudget: { woorden: 2000, onderbouwing: "veel te zeggen", redenBovenPlafond: null },
+      oproep: "Maak een afspraak.",
+      gevoelig: [],
+    };
+  },
+  /**
+   * L1, feiten indelen (WP2 van contentpijplijn-publicatiewaardig.md). Een
+   * echt model leest de genummerde lijst; deze stub doet dat met een paar vaste
+   * regels, zodat het scenario zelf bepaalt welke feiten botsen.
+   */
+  fact_classification: (user) => {
+    const feiten = user
+      .split("\n")
+      .map((r) => /^(\d+)\.\s(.*)$/.exec(r))
+      .filter((m): m is RegExpExecArray => Boolean(m));
+    return {
+      feiten: feiten.map((m) => {
+        const tekst = m[2];
+        const getallen = Array.from(tekst.matchAll(/\d{1,3}(?:\.\d{3})+|\d+/g)).map((g) =>
+          Number(g[0].replace(/\./g, "")),
+        );
+        const prijs = /€|euro/i.test(tekst);
+        const termijn = /week|weken|dag/i.test(tekst);
+        const geldtVoor = /intake op kantoor/i.test(tekst)
+          ? "intake op kantoor"
+          : /intake in de auto/i.test(tekst)
+            ? "intake in de auto"
+            : /intake/i.test(tekst)
+          ? "intake"
+          : /ketel/i.test(tekst)
+            ? "cv-ketel"
+            : /levertijd/i.test(tekst)
+              ? "levertijd"
+              : null;
+        return {
+          nummer: Number(m[1]),
+          soort: prijs ? "prijs" : termijn ? "termijn" : "overig",
+          waardeMin: getallen[0] ?? null,
+          waardeMax: getallen[1] ?? getallen[0] ?? null,
+          eenheid: prijs ? "EUR" : termijn ? "week" : null,
+          waardeTekst: null,
+          geldtVoor,
+          bewijskracht: "gewoon",
+        };
+      }),
+    };
+  },
+
 };
 
 
@@ -1069,7 +900,7 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
 /**
  * De boodschappenlijst uit de vragenprompt teruglezen.
  *
- * Dezelfde reden als bij `leesFeitenkaart` hierboven: een stub met vaste
+ * Een stub met vaste
  * antwoorden test of je goed geraden hebt, en niet of de bedrading klopt. De
  * vorm komt uit `bouwVragenVraag()`:
  *

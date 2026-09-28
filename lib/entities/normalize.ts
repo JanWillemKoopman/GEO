@@ -41,7 +41,13 @@ const TLDS = [
  * opgeschoonde vorm van vóór stap 5 terug, liever een rare sleutel dan een lege.
  */
 export function normalizeEntityName(input: string): string {
-  let s = input.trim().toLowerCase();
+  // 0. Een toevoeging tussen haakjes achteraan eraf: "Verwarming Service
+  //    Brabant (VSB)" is hetzelfde bedrijf als "Verwarming Service Brabant".
+  //    Stonden als twee concurrenten in het register van de installateur, en
+  //    de vermeldingen van dat bedrijf werden over twee namen verdeeld (punt 23
+  //    van de kwaliteitsdoorlichting). Alleen als er daarna iets overblijft.
+  const zonderHaakjes = input.trim().replace(/\s*\([^()]{1,30}\)\s*$/, "");
+  let s = (zonderHaakjes || input).trim().toLowerCase();
   if (!s) return "";
 
   // 1. URL-achtige invoer terugbrengen tot de hostnaam.

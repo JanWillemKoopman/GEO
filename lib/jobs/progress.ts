@@ -59,13 +59,16 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   aggregate_week: 3, // puur rekenwerk
   profile_competitors: 15, // één destillatie-aanroep over de antwoordfragmenten
   generate_report: 25, // gap-analyse + rapport
-  content_brief: 12, // één mini-aanroep voor de hele batch, geen web_search
-  content_plan: 35, // onderzoek met web_search plus het contract, twee goedkope aanroepen
-  content_draft: 50, // het premium model schrijft een volledige pagina
-  content_revise: 50,
-  // Alleen de vier beoordelaars, geen schrijfaanroep. Die draaien parallel, dus
-  // dit is de traagste van de vier plus wat marge.
-  content_recheck: 20,
+  // Tot twaalf batches indelen (vier tegelijk) plus twintig korte oordelen,
+  // allemaal op het goedkope model; de eerste run van een merk is de langste.
+  fact_register: 30,
+  // Eén aanroep op het sterke model met zoeken op het web (§10 van
+  // contentketen-opnieuw.md: ongeveer een minuut). Nog niet nagemeten.
+  pagina_brief: 90,
+  // Starten of één keer ophalen; het schrijven zelf loopt bij OpenAI door.
+  pagina_schrijven: 10,
+  pagina_controle: 60, // één beoordeling op het sterke model
+  pagina_herschrijven: 10,
   technical_audit: 10, // een handvol HTTP-verzoeken, geen AI
   verify_publication: 8, // één pagina ophalen en vergelijken
   measure_impact: 2, // plant alleen taken in
@@ -88,6 +91,12 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   reputation_evidence: 70,
   // Drie gegronde aanbevelingsvragen merkbreed, één per dienst.
   reputation_market: 50,
+
+  // ── Clusters ontdekken ────────────────────────────────────────────────────
+  discovery_collect: 25, // tot 48 pagina's Search Console plus één lichte aanroep
+  discovery_expand: 60, // tot 25 DataForSEO-aanroepen na elkaar, elk 1 tot 3 seconden
+  discovery_sift: 45, // één lichte aanroep over tot 400 zoektermen
+  discovery_bundle: 60, // de zware aanroep van de ronde
 
   // ── De Sales-module ──────────────────────────────────────────────────────
   // Eén gegronde onderzoeksaanroep met web-zoeken over een hele markt: dat is de
@@ -126,6 +135,10 @@ const TYPICAL_SECONDS: Record<JobType, number> = {
   // pagina's; dit is de schatting voor "normaal" op het standaardaantal.
   // Conservatief, net als profile_discover hierboven.
   crawl_inventory: 90,
+
+  // Eén abonnee aanroepen, geen AI. Kort, en toont sowieso nooit een
+  // voortgangsscherm (interne infrastructuur, geen klantactie).
+  gebeurtenis_verwerken: 3,
 };
 
 /**
@@ -216,6 +229,16 @@ const NON_BLOCKING_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   // alle dienstvragen geen corpus en vallen ze terug op zelf zoeken; dat werkt
   // nog wel maar het is duurder en de diensten worden onderling onvergelijkbaar.
   // Dat hoort zichtbaar te zijn.
+  //
+  // ── Clusters ontdekken ────────────────────────────────────────────────────
+  // Zelfde reden als bij de reputatierun: de ronde draagt zijn eigen status
+  // (`cluster_discovery_runs.status`) en zijn eigen scherm, en een mislukte
+  // ronde zet `scheduleFollowUpAfterFailure()` daar op 'mislukt' met de reden.
+  // Op het merkscherm hoort hij niet als rood kruis te verschijnen.
+  "discovery_collect",
+  "discovery_expand",
+  "discovery_sift",
+  "discovery_bundle",
 ]);
 
 /**
@@ -258,6 +281,22 @@ const EMPTY: JobProgress = {
   etaSeconds: null,
   pendingByType: {},
 };
+
+/**
+ * De geschatte resterende tijd, inclusief stappen die nog niet in de wachtrij
+ * staan omdat ze pas na de vorige worden ingepland (punt 14 van de
+ * kwaliteitsdoorlichting: "nog minder dan een minuut" bij acht open stappen,
+ * omdat alleen de taken telden die al klaarstonden). Die stappen draaien na
+ * elkaar, dus hun tijd telt op en wordt niet door de parallelliteit gedeeld.
+ */
+export function etaMetWachtendeStappen(
+  etaSeconds: number | null,
+  wachtend: readonly JobType[],
+): number | null {
+  const erbij = wachtend.reduce((som, t) => som + (TYPICAL_SECONDS[t] ?? 30), 0);
+  if (etaSeconds === null && erbij === 0) return null;
+  return (etaSeconds ?? SCHEDULING_LAG_SECONDS) + erbij;
+}
 
 function summarize(jobs: Job[]): JobProgress {
   if (jobs.length === 0) return EMPTY;

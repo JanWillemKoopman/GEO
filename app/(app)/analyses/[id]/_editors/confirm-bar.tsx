@@ -70,7 +70,7 @@ export function ConfirmBar({
     <>
       {/* Spacer, zodat de balk het einde van de inhoud nooit bedekt. */}
       <div className="no-print h-24" aria-hidden />
-      <div className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-3">
+      <div className="vaste-actiebalk no-print border-t border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-3">
         {/* Volgt de inhoudsbreedte van `.stand`, anders staat de knop niet onder
             de tekst waar hij bij hoort. */}
         <div
@@ -80,12 +80,12 @@ export function ConfirmBar({
           <button
             onClick={() => void confirm()}
             disabled={pending}
-            className="btn-primary btn-lg w-full disabled:opacity-60 sm:w-auto"
+            className="btn-primary btn-lg w-full sm:w-auto"
           >
             {pending ? "Meting starten…" : "Bevestig en start de meting"}
           </button>
           {error ? (
-            <span className="text-sm text-[var(--status-error)]" role="alert">
+            <span className="text-sm text-[var(--intent-danger-content)]" role="alert">
               {error}
             </span>
           ) : (

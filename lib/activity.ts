@@ -56,11 +56,13 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   aggregate_week: "de meetronde doorgerekend",
   profile_competitors: "uitgezocht waarom je concurrenten genoemd worden",
   generate_report: "je rapport geschreven",
-  content_brief: "de briefing voor een pagina opgesteld",
-  content_plan: "uitgezocht wat er op een pagina moet staan",
-  content_draft: "een pagina geschreven",
-  content_revise: "een pagina herschreven",
-  content_recheck: "een pagina opnieuw beoordeeld",
+  // Intern: de klant ziet het conflictscherm niet (§8.3 van
+  // contentpijplijn-publicatiewaardig.md), dus ook deze taak niet.
+  fact_register: null,
+  pagina_brief: "een pagina voorbereid en de vragen erbij opgesteld",
+  pagina_schrijven: "aan een pagina geschreven",
+  pagina_controle: "een geschreven pagina nagelezen",
+  pagina_herschrijven: "een pagina verbeterd",
   technical_audit: "gecontroleerd of AI-assistenten je site mogen lezen",
   verify_publication: "gecontroleerd of je pagina echt live staat",
   measure_impact: "een hermeting ingepland",
@@ -80,6 +82,12 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   reputation_synthesis: "je reputatieanalyse afgerond",
   reputation_evidence: "uitgezocht wat er online over je te vinden is",
   reputation_market: "gevraagd wie AI aanraadt in jouw markt",
+
+  // ── Clusters ontdekken ────────────────────────────────────────────────────
+  discovery_collect: "verzameld wat we al over je weten",
+  discovery_expand: "opgezocht waar in Google naar je aanbod gezocht wordt",
+  discovery_sift: "de zoektermen geschift op wat bij je past",
+  discovery_bundle: "nieuwe onderwerpen voor je gevonden",
 
   // ── De Sales-module: nooit zichtbaar voor een klant (plan §4.3) ───────────
   //
@@ -101,6 +109,10 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   sales_outreach_draft: null,
   sales_market_report: null,
   crawl_inventory: "meer pagina's van je website gelezen",
+
+  // Interne infrastructuur (G1): de klant ziet nooit welke gebeurtenis er
+  // achter de schermen verwerkt is.
+  gebeurtenis_verwerken: null,
 };
 
 export interface AfgerondeTaak {

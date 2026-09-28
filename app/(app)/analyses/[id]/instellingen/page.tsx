@@ -50,7 +50,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
   const prompts = (promptRows ?? []) as Prompt[];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Cluster</span>
         <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">

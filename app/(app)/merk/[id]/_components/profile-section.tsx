@@ -94,14 +94,14 @@ export function ProfileSection({
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="flex flex-wrap items-baseline gap-2">
             <h2 className="text-lg font-medium">{title}</h2>
-            {badge && <span className="mono-label text-muted">{badge}</span>}
+            {badge && <span className="mono-label">{badge}</span>}
           </span>
           {description && (
             <span className="text-sm text-muted">{description}</span>
           )}
         </span>
         <span
-          className={`mono-label shrink-0 text-muted ${altijdKlapbaar ? "" : "lg:hidden"}`}
+          className={`mono-label shrink-0 ${altijdKlapbaar ? "" : "lg:hidden"}`}
           aria-hidden
         >
           {open ? "sluit" : "open"}

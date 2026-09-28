@@ -86,42 +86,13 @@ export const dedupe = {
   aggregateWeek: (analysisId: string, weekNo: number) => `aggregate:${analysisId}:w${weekNo}`,
   competitorIntel: (analysisId: string, weekNo: number) => `compintel:${analysisId}:w${weekNo}`,
   generateReport: (analysisId: string, weekNo: number) => `report:${analysisId}:w${weekNo}`,
-  // Content is idempotent op de aanbeveling, niet op de pagina: twee keer op
-  // dezelfde knop drukken mag niet twee pagina's opleveren.
-  contentDraft: (analysisId: string, title: string) => `content:${analysisId}:${title}`,
-  // Eén briefing per BATCH (contentbriefing.md §2), dus de sleutel is de set
-  // gekozen titels, niet één titel. Kiest de klant dezelfde drie pagina's nog
-  // een keer, dan is dat dezelfde briefing; kiest hij er een vierde bij, dan is
-  // het een nieuwe vragenronde.
-  contentBrief: (analysisId: string, titles: string[]) =>
-    `brief:${analysisId}:${[...titles].sort().join("|")}`,
-  contentRevise: (contentPieceId: string) => `content_revise:${contentPieceId}`,
+
   /**
-   * Een herkeuring (migratie 0092). De REDEN zit in de sleutel, want dezelfde
-   * pagina mag meerdere keren herkeurd worden: één keer omdat een controle
-   * gerepareerd is, later nog eens omdat de klant zijn tekst aanpaste. Zonder
-   * die reden zou de tweede herkeuring als duplicaat van de eerste wegvallen en
-   * stil niets doen.
+   * Eén register-run per merk tegelijk. Na afloop mag er meteen een nieuwe
+   * komen: de index geldt alleen voor `queued` en `running`, en elke run doet
+   * alleen wat nog niet gedaan is.
    */
-  contentRecheck: (contentPieceId: string, reden: string) =>
-    `content_recheck:${contentPieceId}:${reden}`,
-  /**
-   * De planstap vóór het schrijven (A1/A2, migratie 0082).
-   *
-   * Zelfde vorm als `contentDraft`, met een eigen voorvoegsel: de plantaak en de
-   * schrijftaak zijn twee verschillende taken over dezelfde pagina, en met één
-   * sleutel zou de tweede als duplicaat van de eerste wegvallen.
-   */
-  contentPlan: (analysisId: string, title: string) => `content_plan:${analysisId}:${title}`,
-  /**
-   * De schrijftaak die uit één plantaak voortkomt.
-   *
-   * Op het TAAK-id van de plantaak en niet op de pagina, want de plantaak heeft
-   * de versie en het aantal beantwoorde vragen al in zijn eigen sleutel zitten.
-   * Eén plantaak hoort precies één schrijftaak op te leveren, ook als de werker
-   * hem opnieuw probeert nadat het inplannen halverwege strandde.
-   */
-  contentDraftNa: (planJobId: string) => `content_draft_na:${planJobId}`,
+  factRegister: (profileId: string) => `fact_register:${profileId}`,
   // Per DAG en per merk: twee rondes op dezelfde dag halen exact dezelfde
   // cijfers op, want Google levert pas definitieve data met twee dagen
   // vertraging (`lib/search-console/window.ts`).
@@ -144,6 +115,9 @@ export const dedupe = {
   measureImpact: (contentPieceId: string, wave: number) => `impact:${contentPieceId}:w${wave}`,
   measureImpactPrompt: (contentPieceId: string, wave: number, promptId: string) =>
     `impact_run:${contentPieceId}:w${wave}:${promptId}`,
+  /** Zelfde golf, via AI Overview (M3). Eigen voorvoegsel, zelfde reden als `measureAiOverview`. */
+  measureImpactAiOverview: (contentPieceId: string, wave: number, promptId: string) =>
+    `impact_run_aio:${contentPieceId}:w${wave}:${promptId}`,
   computeImpact: (contentPieceId: string, wave: number) => `impact_calc:${contentPieceId}:w${wave}`,
   // Per DAG: de scan mag opnieuw draaien na een nieuwe meting, maar niet twee
   // keer op dezelfde dag, de aanwezigheidscontrole kost een web-zoekactie.
@@ -171,6 +145,8 @@ export const dedupe = {
   reputationSources: (runId: string) => `rep_sources:${runId}`,
   reputationSynthesis: (runId: string) => `rep_synthesis:${runId}`,
   reputationEvidence: (runId: string) => `rep_evidence:${runId}`,
+  /** Eén taak per stap per ontdekkingsronde (migratie 0109). */
+  discovery: (stap: string, runId: string) => `discovery:${stap}:${runId}`,
   /**
    * ⚠️ Zelfde regel als bij de vergelijking: merkbreed eindigt op het woord
    * `merk` en niet op een lege string. Een sleutel die op `:` eindigt ziet er in
@@ -239,4 +215,28 @@ export const dedupe = {
    * vorige ronde nog loopt, mag geen tweede crawl van dezelfde site opleveren.
    */
   crawlInventory: (profileId: string) => `crawl_inventory:${profileId}`,
+
+  // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────
+  // Per pagina: een tweede start (vrijgeven en de ochtendcontrole) plant geen
+  // tweede brief zolang de eerste loopt, en de brief zelf slaat over als er al
+  // een `brief_json` staat (conventie 9).
+  paginaBrief: (pieceId: string) => `pagina_brief:${pieceId}`,
+  /** De start van het schrijven. Eén per pagina tegelijk. */
+  paginaSchrijven: (pieceId: string) => `pagina_schrijven:${pieceId}`,
+  /**
+   * Een ophaalronde van de achtergrondmodus. Het response-id en het
+   * rondenummer horen erin: ronde N plant ronde N+1 in terwijl hij zelf nog op
+   * 'running' staat, en zonder nummer zou die sleutel tegen zichzelf botsen.
+   */
+  paginaOphalen: (soort: string, pieceId: string, responseId: string, poging: number) =>
+    `${soort}:${pieceId}:${responseId}:p${poging}`,
+  paginaControle: (pieceId: string) => `pagina_controle:${pieceId}`,
+  paginaHerschrijven: (pieceId: string) => `pagina_herschrijven:${pieceId}`,
+
+  // ── De gebeurtenissenlaag (van-pijplijn-naar-kennissysteem.md, G1) ────────
+  // Per gebeurtenis én per abonnee: twee abonnees op dezelfde gebeurtenis zijn
+  // twee taken, en dezelfde abonnee op een latere, andere gebeurtenis (nieuw
+  // id) is geen duplicaat van de vorige.
+  gebeurtenisVerwerken: (gebeurtenisId: string, abonnee: string) =>
+    `gebeurtenis:${abonnee}:${gebeurtenisId}`,
 };

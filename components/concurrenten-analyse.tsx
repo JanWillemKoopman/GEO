@@ -85,7 +85,7 @@ export function ConcurrentenAnalyse({
       sortValue: (r) => r.mentionRate,
       render: (r) => (
         <span className="flex items-center justify-end gap-2">
-          <span className="h-2 w-24 overflow-hidden rounded-[var(--radius-pill)]" style={{ background: "var(--bg-elevated)" }} aria-hidden>
+          <span className="h-2 w-24 overflow-hidden rounded-[var(--radius-pill)]" style={{ background: "var(--bg-layer-2)" }} aria-hidden>
             <span
               className="block h-full rounded-[var(--radius-pill)]"
               style={{ width: `${r.mentionRate ?? 0}%`, background: "var(--chart-2)" }}
@@ -190,7 +190,7 @@ export function ConcurrentenAnalyse({
               )}
             </ul>
             {(kansen.length > 0 ? overig : bronnenMetScore.slice(5)).length > 0 && (
-              <details className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+              <details className="vlak">
                 <summary className="cursor-pointer text-sm text-secondary">
                   {kansen.length > 0 ? overig.length : bronnenMetScore.length - 5} overige bronnen
                 </summary>
@@ -217,7 +217,7 @@ function BronRegel({ bron: b, gemarkeerd, isKans }: { bron: BronRij; gemarkeerd:
   return (
     <li
       className="card flex flex-wrap items-center justify-between gap-3"
-      style={gemarkeerd ? { borderColor: "var(--intent-intelligence-border)", background: "var(--intent-intelligence-surface)" } : undefined}
+      style={gemarkeerd ? { borderColor: "var(--border-emphasis)", background: "var(--bg-surface-raised)" } : undefined}
     >
       <span className="min-w-0 flex-1">
         <span className="break-url block font-medium">{b.domain}</span>

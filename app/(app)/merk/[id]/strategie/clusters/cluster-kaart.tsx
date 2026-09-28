@@ -228,7 +228,10 @@ export function ClusterKaart({
   const kopLink =
     analyse.status === "concept_klaar"
       ? `/analyses/${analyse.id}/concept`
-      : analyse.status === "gemeten"
+      : // "gereed" hoort erbij: dat is de eindtoestand na het rapport. Zonder
+        // stond een klaar cluster op 24 september 2026 zonder enige link op de
+        // kaart; alleen het menu met de drie puntjes leidde nog ergens heen.
+        analyse.status === "gemeten" || analyse.status === "gereed"
         ? `/merk/${analyse.profile_id}/analytics?cluster=${analyse.id}`
         : null;
 
@@ -292,7 +295,7 @@ export function ClusterKaart({
                 aria-expanded={labelMenuOpen}
                 disabled={opSlot}
                 onClick={() => setLabelMenuOpen((o) => !o)}
-                className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                className="icon-btn"
               >
                 <Icon naam="label" size={16} />
               </button>
@@ -301,21 +304,19 @@ export function ClusterKaart({
                 <div
                   role="menu"
                   aria-label={`Label voor ${getClusterDisplayName(analyse.name)}`}
-                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)] p-1 text-left"
-                  style={{ boxShadow: "var(--shadow-overlay)" }}
+                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 text-left"
                 >
-                  <div className="px-2 pb-1 pt-1.5">
-                    <span className="mono-label text-muted">Label</span>
-                  </div>
+                  <span className="menu-kop">Label</span>
                   <button
                     type="button"
                     role="menuitemradio"
                     aria-checked={!analyse.label_id}
                     disabled={opSlot}
                     onClick={() => void zetLabel(null)}
-                    className="block w-full rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                    className="menu-item"
                   >
-                    Geen label
+                    <span className="flex-1">Geen label</span>
+                    {!analyse.label_id && <Icon naam="klaar" size={16} />}
                   </button>
                   {labels.map((l) => (
                     <button
@@ -325,9 +326,10 @@ export function ClusterKaart({
                       aria-checked={l.id === analyse.label_id}
                       disabled={opSlot}
                       onClick={() => void zetLabel(l.id)}
-                      className="block w-full rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                      className="menu-item"
                     >
-                      {l.name}
+                      <span className="flex-1 truncate">{l.name}</span>
+                      {l.id === analyse.label_id && <Icon naam="klaar" size={16} />}
                     </button>
                   ))}
 
@@ -336,12 +338,13 @@ export function ClusterKaart({
                       type="button"
                       disabled={opSlot}
                       onClick={() => setNieuwLabel("")}
-                      className="block w-full rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm text-secondary transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
+                      className="menu-item"
                     >
-                      + Nieuw label maken
+                      <Icon naam="toevoegen" size={16} />
+                      Nieuw label maken
                     </button>
                   ) : (
-                    <div className="flex flex-col gap-2 px-2 py-1.5">
+                    <div className="menu-sectie flex flex-col gap-2">
                       <input
                         type="text"
                         value={nieuwLabel}
@@ -385,7 +388,7 @@ export function ClusterKaart({
                 aria-expanded={meerMenuOpen}
                 disabled={opSlot}
                 onClick={() => setMeerMenuOpen((o) => !o)}
-                className="rounded-[var(--radius-xl)] p-1.5 text-muted transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                className="icon-btn"
               >
                 <Icon naam="meer" size={16} />
               </button>
@@ -394,25 +397,24 @@ export function ClusterKaart({
                 <div
                   role="menu"
                   aria-label={`Acties voor ${getClusterDisplayName(analyse.name)}`}
-                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)] p-1 text-left"
-                  style={{ boxShadow: "var(--shadow-overlay)" }}
+                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 text-left"
                 >
                   <Link
                     href={`/analyses/${analyse.id}/instellingen`}
                     role="menuitem"
                     onClick={() => setMeerMenuOpen(false)}
-                    className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)]"
+                    className="menu-item"
                   >
-                    <Icon naam="instellingen" size={14} />
+                    <Icon naam="instellingen" size={16} />
                     Cluster instellingen
                   </Link>
                   <Link
                     href={analyticsLink}
                     role="menuitem"
                     onClick={() => setMeerMenuOpen(false)}
-                    className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)]"
+                    className="menu-item"
                   >
-                    <Icon naam="analytics" size={14} />
+                    <Icon naam="analytics" size={16} />
                     AI zichtbaarheid
                   </Link>
                   <button
@@ -423,10 +425,9 @@ export function ClusterKaart({
                       setMeerMenuOpen(false);
                       setVraagPrullenbak(true);
                     }}
-                    className="flex w-full items-center gap-2 rounded-[var(--radius-xl)] px-2 py-1.5 text-left text-sm transition-colors hover:bg-[var(--wash-hover)] disabled:opacity-40"
-                    style={{ color: "var(--intent-danger-text)" }}
+                    className="menu-item menu-item-gevaar"
                   >
-                    <Icon naam="prullenbak" size={14} />
+                    <Icon naam="prullenbak" size={16} />
                     Naar de prullenbak
                   </button>
                 </div>
@@ -437,6 +438,30 @@ export function ClusterKaart({
       </div>
 
       {metrics && <AnalysisCardMetrics metrics={metrics} />}
+
+      {/* ── Waar de rest van dit cluster staat (UX-audit 23 september 2026, P2.11)
+          Een cluster heeft sinds 22 september 2026 bewust geen eigen pagina
+          meer; zijn cijfers staan op Analytics en zijn pagina's in de
+          Bibliotheek, allebei met een filter per cluster. Zonder deze twee
+          links moest de klant dat filter zelf vinden en instellen. Alleen bij
+          een gemeten cluster, want daarvoor staat er op die schermen nog niets. */}
+      {!gearchiveerd && (analyse.status === "gemeten" || analyse.status === "gereed") && (
+        <div
+          className="flex flex-wrap items-center gap-x-4 gap-y-1"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Link href={analyticsLink} className="link type-caption">
+            Cijfers van dit cluster
+          </Link>
+          <Link
+            href={`/merk/${analyse.profile_id}/strategie/bibliotheek?cluster=${analyse.id}`}
+            className="link type-caption"
+          >
+            Pagina&apos;s van dit cluster
+          </Link>
+        </div>
+      )}
 
       {/* ── Wat er nu gebeurt, in gewone taal ───────────────────────────────
           Sinds 22 september 2026 is dit kaartje de enige plek waar je een
@@ -483,7 +508,7 @@ export function ClusterKaart({
       )}
 
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}

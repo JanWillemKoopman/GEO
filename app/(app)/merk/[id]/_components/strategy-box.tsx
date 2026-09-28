@@ -131,11 +131,11 @@ export function StrategyBox({
         {factors.map((f, i) => (
           <div
             key={i}
-            className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
+            className="vlak flex flex-col gap-2"
           >
             <div className="flex flex-wrap gap-2">
               <select
-                className="field flex-1"
+                className="field field-select flex-1"
                 value={f.kind}
                 onChange={(e) =>
                   update(i, { kind: e.target.value as ContextFactorKind })
@@ -201,7 +201,7 @@ export function StrategyBox({
         </p>
       )}
       {error && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {error}
         </p>
       )}
@@ -213,7 +213,7 @@ export function StrategyBox({
       <div className="flex flex-col gap-1.5">
         <button
           type="button"
-          className="btn-primary w-fit disabled:opacity-60"
+          className="btn-primary w-fit"
           disabled={wacht}
           onClick={() => void save()}
         >

@@ -63,6 +63,7 @@
 import {
   Ellipsis,
   GripVertical,
+  Info,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -96,6 +97,7 @@ import {
   Orbit,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Radar,
   RotateCcw,
   RotateCw,
@@ -111,6 +113,7 @@ import {
   Upload,
   UserRound,
   Waypoints,
+  Boxes,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -122,6 +125,7 @@ import {
 export type IcoonNaam =
   // ── De zeven hoofdstukken van de zijbalk ────────────────────────────────
   | "overzicht"
+  | "clusters"
   | "strategie"
   | "analytics"
   | "merkprofiel"
@@ -131,6 +135,7 @@ export type IcoonNaam =
   // ── Bediening ───────────────────────────────────────────────────────────
   | "menu"
   | "sluiten"
+  | "toevoegen"
   | "uitklappen"
   | "inklappen"
   | "openen"
@@ -154,6 +159,7 @@ export type IcoonNaam =
   | "open"
   | "mislukt"
   | "letop"
+  | "info"
   | "nvt"
   | "stijging"
   | "daling"
@@ -218,6 +224,10 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // eerst `Route`, maar die leek op 18 pixels te veel op de schuifjes van
   // Instellingen, en juist ingeklapt staan die twee koppen vlak bij elkaar.
   strategie: Waypoints,
+  // Losse blokjes die bij elkaar horen: een cluster is precies dat, een groep
+  // vragen over één onderwerp. Toegevoegd op 23 september 2026, toen Clusters
+  // een eigen hoofdstuk werd (docs/tasks/clusters-ontdekken.md).
+  clusters: Boxes,
   analytics: ChartNoAxesCombined,
   // Merkprofiel gaat over identiteit: wie ben jij volgens ORBIT ENGINE. Een
   // vingerafdrukpatroon zegt dat abstract, zonder een persoon te tekenen (dit
@@ -240,6 +250,9 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── BEDIENING ───────────────────────────────────────────────────────────
   menu: Menu,
   sluiten: X,
+  // Iets nieuws aanmaken ("Nieuw merk", "Nieuw label maken"). Stond er tot
+  // 23 september 2026 als een los plusteken in de tekst, tegen §11 regel 9.
+  toevoegen: Plus,
   // De zijbalk klapt in en uit. Het paneel-icoon toont de handeling én de
   // richting, waar « en » alleen richting toonden.
   uitklappen: PanelLeftOpen,
@@ -293,6 +306,9 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   open: Circle,
   mislukt: X,
   letop: TriangleAlert,
+  // Ter informatie: een melding die niets vraagt en niets waarschuwt. Voor
+  // `Alert intent="info"` (23 september 2026).
+  info: Info,
   // Conventie 3: niet van toepassing is een streepje, nooit een 0 en nooit een
   // kruis. Een kruis zou "fout" zeggen over iets dat niet gemeten hoefde.
   nvt: Minus,

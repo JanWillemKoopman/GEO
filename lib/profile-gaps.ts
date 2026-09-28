@@ -28,6 +28,12 @@
  * van dingen die al klopten, en dat is precies het uur waar de klant voor
  * betaalt. De rangorde is niet willekeurig maar volgt wat een ontbrekend veld
  * kost, van duur naar goedkoop.
+ *
+ * Tot 27 september 2026 stond hier een vierde punt: minder dan drie
+ * bewijspunten (`proof_points`). Dat veld leest geen stap meer en is van het
+ * formulier gehaald (K8 van `docs/tasks/van-pijplijn-naar-kennissysteem.md`);
+ * welke kennis er voor een pagina ontbreekt, zegt nu het kennisgat van de kans
+ * (N6).
  */
 
 import { BRAND_FIELDS, CLIENT_STEPS } from "@/lib/pipeline/brand-fields";
@@ -48,7 +54,6 @@ export interface ProfileGap {
 /** Alleen de velden die dit oordeel dragen. Bewust smal, zodat de unittest niet een heel profiel hoeft na te bouwen. */
 export interface GapInput {
   aliases: string[];
-  proof_points: string[];
   service_scope: string | null;
   service_regions: string[];
   business_model: string | null;
@@ -107,18 +112,6 @@ export function findGaps(
     });
   }
 
-  // ── 40: de feiten ─────────────────────────────────────────────────────────
-  // Raakt de kwaliteit van elke pagina, maar pas op het moment dat er
-  // geschreven wordt, en dat is de stap die je sowieso nog nakijkt.
-  if (profile.proof_points.length < 3) {
-    gaps.push({
-      field: "proof_points",
-      label: "Concrete feiten over je bedrijf",
-      effect:
-        "Cijfers, jaartallen en termijnen zijn wat een AI-assistent aanhaalt. Zonder die feiten wordt elke tekst die ORBIT ENGINE schrijft noodgedwongen algemeen, en algemeen wordt niet geciteerd.",
-      weight: 40,
-    });
-  }
 
   const nvt = new Set(notApplicable);
   return gaps
@@ -130,7 +123,7 @@ export function findGaps(
  * Waar de knop "Invullen" bij een open punt heen wijst.
  *
  * ⚠️ De wizard toont maar één stap tegelijk, dus een anker alléén is niet
- * genoeg: `proof_points` staat in stap 7 en het anker zou landen op een veld dat
+ * genoeg: `summary` staat in stap 7 en het anker zou landen op een veld dat
  * niet in beeld staat. Vandaar de stap in de querystring én het anker erachter.
  *
  * Staat het veld niet in de klantstappen, dan is er niets om heen te wijzen en

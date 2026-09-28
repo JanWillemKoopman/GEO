@@ -1,0 +1,111 @@
+[
+ {
+  "key": "priority_offerings",
+  "kind": "lijst",
+  "value": [
+   "Hybride warmtepompen",
+   "Cv-ketelvervanging met onderhoudscontract"
+  ]
+ },
+ {
+  "key": "deprioritised_offerings",
+  "kind": "lijst",
+  "value": [
+   "Complete badkamerrenovaties"
+  ]
+ },
+ {
+  "key": "target_segments",
+  "kind": "lijst",
+  "value": [
+   "Particuliere woningeigenaren met een woning uit 1970 tot 2000 en een cv-ketel van 12 jaar of ouder",
+   "VvE's met collectieve installaties"
+  ]
+ },
+ {
+  "key": "growth_regions",
+  "kind": "lijst",
+  "value": [
+   "Mierlo",
+   "Heeze-Leende",
+   "Nuenen"
+  ]
+ },
+ {
+  "key": "deal_value_band",
+  "kind": "keuze",
+  "value": "Midden"
+ },
+ {
+  "key": "seasonality",
+  "kind": "lange-tekst",
+  "value": "oktober tot februari druk met storingen en vervanging. voorjaar rustiger, dan vooral warmtepompen en airco."
+ },
+ {
+  "key": "sales_objections",
+  "kind": "lijst",
+  "value": [
+   "Is mijn huis wel geschikt voor een warmtepomp?",
+   "Maakt een warmtepomp geen herrie?",
+   "Wat houd ik over na subsidie?",
+   "Kan ik nog wel een gewone ketel nemen?"
+  ]
+ },
+ {
+  "key": "forbidden_topics",
+  "kind": "lijst",
+  "value": [
+   "Gasleidingen afkoppelen en aansluiten op het net (doet de netbeheerder)",
+   "Hoogte van subsidie in euro's"
+  ]
+ },
+ {
+  "key": "offline_proof",
+  "kind": "lijst",
+  "value": [
+   "Twaalf monteurs in dienst",
+   "Storingsdienst voor contractklanten: binnen 24 uur bij een storing, ook in het weekend",
+   "Meer dan 1.800 onderhoudscontracten"
+  ]
+ },
+ {
+  "key": "name_exclusions",
+  "kind": "lijst",
+  "value": [
+   "WK Installaties (Weert)"
+  ]
+ },
+ {
+  "key": "respect_site_structure",
+  "kind": "keuze",
+  "value": "Ja, nieuwe pagina's mogen"
+ },
+ {
+  "key": "goal_12m",
+  "kind": "lange-tekst",
+  "value": "in geldrop, mierlo en nuenen het eerste adres zijn voor een hybride warmtepomp"
+ },
+ {
+  "key": "tone_of_voice",
+  "kind": "lange-tekst",
+  "value": "Zakelijk en betrouwbaar, geen vakjargon zonder uitleg."
+ },
+ {
+  "key": "pronoun_preference",
+  "kind": "keuze",
+  "value": "u en uw"
+ },
+ {
+  "key": "taboo_phrases",
+  "kind": "lijst",
+  "value": [
+   "de beste",
+   "goedkoop"
+  ]
+ },
+ {
+  "key": "__strategie",
+  "kind": "x",
+  "value": "Wesley wil het eerste adres worden voor hybride warmtepompen en ketelvervanging met onderhoudscontract in Geldrop, Mierlo en Nuenen. Badkamerrenovaties minder. Doelgroep woningen 1970-2000 met oude ketel, en VvEs."
+ }
+]

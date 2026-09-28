@@ -189,6 +189,100 @@ export function mergeOverlappingRecommendations(
 }
 
 /**
+ * Hoe zwaar een groeidoel telt tegenover een even zware gemiste vraag.
+ *
+ * De eigenaar besliste op 24 september 2026: groeidoelen tellen zwaar. Twee
+ * keer is zwaar genoeg om de hovenier zijn pagina's voor Best en Nuenen niet
+ * meer achteraan te zetten (daar kregen ze prioriteit 10 van 10, punt 24 van de
+ * kwaliteitsdoorlichting), en niet zo zwaar dat een groeipagina zonder één
+ * gemeten gemis een pagina met drie zware gemiste vragen voorbijgaat.
+ */
+export const GROEI_FACTOR = 2;
+
+export interface Groeidoel {
+  plaatsen: string[];
+  woorden: string[];
+}
+
+function tekstVan(r: StoredRecommendation): string {
+  return [r.title, r.targetIntent, r.why, ...r.targets.map((t) => t.text)].join(" \n ");
+}
+
+/**
+ * De volgorde van de aanbevelingen, in code en niet op het woord van het model.
+ *
+ * ⚠️ Punt 24 van de kwaliteitsdoorlichting: de code las "laagste getal is het
+ * belangrijkst", de instructie zei daar niets over, en de hovenier kreeg 9, 10,
+ * 10, 7 en 6. Nu: het gewicht van de gemiste vragen die een aanbeveling moet
+ * winnen, keer `GROEI_FACTOR` als hij een groeidoel raakt (punt 27). Het getal
+ * van het model is alleen nog de tweede sleutel. Daarna wordt opnieuw
+ * genummerd, 1 is het belangrijkst.
+ *
+ * Een aanbeveling over aanbod dat de klant juist NIET wil (`achteraan`) gaat
+ * eruit, tenzij hij ook een groeidoel raakt: "hybride warmtepomp in een
+ * badkamer" is geen badkamerrenovatie.
+ */
+export function rangschikAanbevelingen(
+  recommendations: StoredRecommendation[],
+  groeidoel: Groeidoel,
+  achteraan: string[],
+  raakt: (tekst: string, doel: Groeidoel) => boolean,
+): { aanbevelingen: StoredRecommendation[]; geschrapt: StoredRecommendation[] } {
+  const geschrapt: StoredRecommendation[] = [];
+  const gewogen: { rec: StoredRecommendation; score: number; index: number }[] = [];
+
+  recommendations.forEach((rec, index) => {
+    const groei = raakt(tekstVan(rec), groeidoel);
+    const kop = `${rec.title} ${rec.targetIntent}`;
+    if (!groei && achteraan.length > 0 && raakt(kop, { plaatsen: [], woorden: achteraan })) {
+      geschrapt.push(rec);
+      return;
+    }
+    const gewicht = rec.targets.reduce((som, t) => som + (Number.isFinite(t.weight) ? t.weight : 0), 0);
+    gewogen.push({ rec, score: gewicht * (groei ? GROEI_FACTOR : 1), index });
+  });
+
+  gewogen.sort(
+    (a, b) => b.score - a.score || a.rec.priority - b.rec.priority || a.index - b.index,
+  );
+  return {
+    aanbevelingen: gewogen.map((g, i) => ({ ...g.rec, priority: i + 1 })),
+    geschrapt,
+  };
+}
+
+/**
+ * Eén verbetering per bestaande pagina per rapport (punt 31 van de
+ * kwaliteitsdoorlichting, besluit eigenaar: hooguit één per drie maanden).
+ *
+ * Bij de installateur gingen vier van de vijf aanbevelingen over
+ * `/warmtepomp`: keuzehulp, controle vooraf, prijs en lokaal voor Geldrop, elk
+ * een aparte verbeteropdracht voor dezelfde pagina. De drie blinde lezers
+ * raadden alle drie aparte pagina's aan. Dus: de belangrijkste blijft de
+ * verbetering, de rest wordt een nieuwe pagina met die pagina als verwante
+ * pagina, zodat de schrijver zich ervan onderscheidt. Verwacht de lijst al op
+ * volgorde van belang (`rangschikAanbevelingen()`).
+ */
+export function eenVerbeteringPerAdres(
+  recommendations: StoredRecommendation[],
+  sleutel: (url: string) => string,
+): { aanbevelingen: StoredRecommendation[]; omgezet: string[] } {
+  const gezien = new Set<string>();
+  const omgezet: string[] = [];
+  const aanbevelingen = recommendations.map((r) => {
+    if (r.action !== "verbeteren" || !r.existingUrl) return r;
+    const k = sleutel(r.existingUrl);
+    if (!gezien.has(k)) {
+      gezien.add(k);
+      return r;
+    }
+    omgezet.push(r.title);
+    return { ...r, action: "nieuw" as ContentAction, relatedUrl: r.existingUrl, existingUrl: null };
+  });
+  return { aanbevelingen, omgezet };
+}
+
+/**
  * Getallen tot en met twaalf voluit, zoals `docs/schrijfstijl.md` voorschrijft
  * voor lopende tekst ("Eén van de zes" leest beter dan "1 van de 6").
  * Cijfers erboven blijven cijfers: niemand schrijft "zeventien" in een zin.

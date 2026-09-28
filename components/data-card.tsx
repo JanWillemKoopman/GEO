@@ -32,6 +32,7 @@ export function DataCard({
   waarde,
   toelichting,
   verschil,
+  children,
 }: {
   label: string;
   /** `null` betekent: niet gemeten. Zie regel 1 hierboven. */
@@ -41,10 +42,25 @@ export function DataCard({
   /**
    * De verandering ten opzichte van de vorige meting. Laat weg als er geen
    * vorige meting is: een verschil van nul tegenover niets is geen nul.
+   *
+   * `oordeel` is er voor een cijfer waar lager beter is (een positie in
+   * Google): het pijltje volgt de richting, de kleur volgt het oordeel. Zonder
+   * oordeel volgt de kleur de richting.
    */
-  verschil?: { tekst: string; richting: "omhoog" | "omlaag" | "vlak" };
+  verschil?: {
+    tekst: string;
+    richting: "omhoog" | "omlaag" | "vlak";
+    oordeel?: "beter" | "slechter";
+  };
+  /** Wat er verder bij het cijfer hoort, onder de toelichting (een verdeling, een lijstje). */
+  children?: React.ReactNode;
 }) {
   const gemeten = waarde !== null;
+  const kleur = verschil?.oordeel
+    ? verschil.oordeel === "beter"
+      ? "omhoog"
+      : "omlaag"
+    : verschil?.richting;
 
   return (
     <div className="data-card">
@@ -55,7 +71,7 @@ export function DataCard({
       </span>
 
       {verschil && gemeten && (
-        <span className={`data-card-verschil data-card-verschil-${verschil.richting}`}>
+        <span className={`data-card-verschil data-card-verschil-${kleur}`}>
           {/* Kleur en vorm samen, nooit kleur alleen: wie rood en groen niet uit
               elkaar houdt leest het pijltje. */}
           <Icon
@@ -77,18 +93,12 @@ export function DataCard({
       {!gemeten && <span className="type-caption text-muted">Nog niet gemeten</span>}
 
       {toelichting && gemeten && <span className="type-caption text-muted">{toelichting}</span>}
+
+      {children}
     </div>
   );
 }
 
-/**
- * De strook eromheen. Vier op een brede desktop, twee op een tablet, één op een
- * telefoon.
- *
- * Bestaat als eigen component zodat dat raster op één plek staat: het staat op
- * vijf schermen en het is precies het soort ding dat per scherm gaat afwijken
- * zodra je het overlaat aan wie het scherm bouwt.
- */
 export function DataCardRij({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{children}</div>

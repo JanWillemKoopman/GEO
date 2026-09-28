@@ -266,7 +266,6 @@ export async function generateAnalysisPrompts(
         // Gededupliceerde unie: onderwerp-specifieke concurrenten eerst, aangevuld
         // met de algemene bedrijfsconcurrenten uit het profiel.
         competitors: Array.from(new Set([...topicCompetitors, ...profile.competitors])),
-        toneOfVoice: profile.tone_of_voice,
         summary: profile.summary,
         serviceScope: profile.service_scope,
         serviceRegions: profile.service_regions,
@@ -274,6 +273,8 @@ export async function generateAnalysisPrompts(
         // Waar het merk heen wil (migratie 0060). Levert extra vragen op in een
         // gebied waar het vandaag nog niet gevonden wordt.
         growthRegions: profile.growth_regions,
+        // Punt 8: de twijfels van kopers als bron voor oriëntatievragen.
+        salesObjections: profile.sales_objections ?? [],
       };
 
       const mix = resolveMix(analysis);

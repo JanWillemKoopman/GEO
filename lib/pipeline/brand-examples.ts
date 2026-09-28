@@ -232,18 +232,10 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Automotive ────────────────────────────────────────────────────────────
   automotive: {
     industry: "Autodealer, universeel garagebedrijf, schadeherstel",
-    tone_of_voice: "Een ervaren monteur die het uitlegt zonder je dom te laten voelen",
-    brand_mission: "Wij zorgen dat iedereen in de regio zorgeloos blijft rijden",
     differentiator: "Bij ons staat er altijd iemand aan de balie die je herkent",
     intake_audience:
       "Particulieren uit de regio die hun auto laten onderhouden waar ze hem gekocht hebben",
     taboo_phrases: "goedkoop",
-    compliance_notes:
-      "Prijzen altijd inclusief btw, en bij een occasion de exacte uitvoering en kilometerstand erbij",
-    author_role: "Bedrijfsleider werkplaats",
-    usp: "Als enige in de regio eigen schadeherstel én vervangend vervoer",
-    key_messages: "Altijd een vervangende auto",
-    proof_points: "4.000 onderhoudsbeurten per jaar",
     products: "APK-keuring",
     priority_offerings: "Onderhoudsabonnementen",
     deprioritised_offerings: "Losse bandenwissel",
@@ -258,17 +250,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Zorg en gezondheid ────────────────────────────────────────────────────
   zorg: {
     industry: "Fysiotherapiepraktijk, tandartspraktijk, huisartsenpraktijk",
-    tone_of_voice: "Een behandelaar die de tijd neemt en niets belangrijker maakt dan het is",
-    brand_mission: "Wij zorgen dat mensen weer kunnen wat ze willen kunnen",
     differentiator: "Je ziet bij ons elke afspraak dezelfde behandelaar",
     intake_audience: "Mensen uit de buurt met klachten die hun dagelijks leven in de weg zitten",
     taboo_phrases: "gegarandeerd resultaat",
-    compliance_notes:
-      "Geen beloftes over genezing of resultaat, geen medisch advies in algemene teksten, en verwijs bij klachten altijd naar een afspraak",
-    author_role: "Fysiotherapeut en praktijkhouder",
-    usp: "De enige praktijk in de regio met bekkenfysiotherapie én zwangerschapsbegeleiding",
-    key_messages: "Binnen een week terecht, ook zonder verwijzing",
-    proof_points: "12 behandelaars in dienst",
     products: "Manuele therapie",
     priority_offerings: "Sportrevalidatie",
     deprioritised_offerings: "Losse massages",
@@ -282,17 +266,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Juridisch en financieel ───────────────────────────────────────────────
   juridisch_financieel: {
     industry: "Advocatenkantoor, accountantskantoor, hypotheekadvies",
-    tone_of_voice: "Een adviseur die in gewone taal uitlegt wat er op het spel staat",
-    brand_mission: "Wij zorgen dat een ondernemer weet waar hij aan toe is voordat het misgaat",
     differentiator: "Je spreekt bij ons altijd de specialist zelf, niet een assistent",
     intake_audience: "Ondernemers in het MKB die een vraag hebben waar ze zelf niet uitkomen",
     taboo_phrases: "gegarandeerd",
-    compliance_notes:
-      "Geen uitspraken over de afloop van een zaak of over rendement, geen advies zonder voorbehoud, en altijd verwijzen naar een gesprek",
-    author_role: "Advocaat arbeidsrecht",
-    usp: "Het enige kantoor in de regio dat arbeidsrecht en ondernemingsrecht onder één dak heeft",
-    key_messages: "Een vast tarief afgesproken vooraf, geen verrassingen achteraf",
-    proof_points: "Gemiddeld binnen twee dagen een eerste reactie",
     products: "Arbeidsrecht",
     priority_offerings: "Vaste juridische begeleiding op abonnement",
     deprioritised_offerings: "Losse contractcontroles",
@@ -306,17 +282,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Bouw, installatie en techniek ─────────────────────────────────────────
   bouw_installatie: {
     industry: "Installatiebedrijf, aannemer, elektrotechniek",
-    tone_of_voice: "Een vakman die zegt wat er nodig is en wat het gaat kosten",
-    brand_mission: "Wij zorgen dat een huis warm, veilig en zuinig is",
     differentiator: "Wij komen zelf kijken voordat we een prijs noemen",
     intake_audience: "Huiseigenaren in de regio die hun installatie willen vervangen of verduurzamen",
     taboo_phrases: "vanaf",
-    compliance_notes:
-      "Bij subsidies altijd de voorwaarden en het jaartal erbij, en geen besparingsbedragen noemen zonder de aannames",
-    author_role: "Werkvoorbereider en installateur",
-    usp: "Als enige in de regio eigen monteurs voor zowel warmtepompen als zonnepanelen",
-    key_messages: "Binnen 24 uur een monteur bij een storing",
-    proof_points: "4,7 op Google uit 180 beoordelingen",
     products: "Warmtepompen",
     priority_offerings: "Warmtepompen",
     deprioritised_offerings: "Losse kraanreparaties",
@@ -330,17 +298,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Retail en webshop ─────────────────────────────────────────────────────
   retail: {
     industry: "Webshop in woonaccessoires, modewinkel, speciaalzaak",
-    tone_of_voice: "Een verkoper met verstand van zaken die je niets aanpraat",
-    brand_mission: "Wij zorgen dat je thuis krijgt wat je in de winkel had verwacht",
     differentiator: "Wij hebben het echt op voorraad, dus je hebt het morgen in huis",
     intake_audience: "Particulieren die online kopen maar wel advies willen voordat ze bestellen",
     taboo_phrases: "laagste prijs",
-    compliance_notes:
-      "Prijzen inclusief btw en verzendkosten, en de bedenktijd van veertien dagen altijd noemen",
-    author_role: "Inkoper en productspecialist",
-    usp: "Het grootste voorraadassortiment in ons segment, meer dan 4.000 artikelen op voorraad",
-    key_messages: "Voor 22:00 besteld, morgen in huis",
-    proof_points: "9,1 op Kiyoh uit 2.400 beoordelingen",
     products: "Woontextiel",
     priority_offerings: "Eigen merk verlichting",
     deprioritised_offerings: "Kleine accessoires onder de tien euro",
@@ -354,17 +314,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Maakindustrie en groothandel ──────────────────────────────────────────
   maakindustrie: {
     industry: "Machinebouw, metaalbewerking, technische groothandel",
-    tone_of_voice: "Een technisch specialist die weet dat zijn lezer het vak kent",
-    brand_mission: "Wij zorgen dat de productielijn van onze klant blijft draaien",
     differentiator: "Wij tekenen, maken en monteren het zelf, dus er zit geen schakel tussen",
     intake_audience: "Technische inkopers en werkvoorbereiders bij producerende bedrijven",
     taboo_phrases: "standaard",
-    compliance_notes:
-      "Bij machines altijd de geldende norm en CE-markering noemen, en nooit specificaties zonder tolerantie",
-    author_role: "Hoofd engineering",
-    usp: "Van tekening tot montage binnen zes weken, ook bij enkelstuks",
-    key_messages: "Eén aanspreekpunt van ontwerp tot oplevering",
-    proof_points: "45 medewerkers in eigen productie",
     products: "Plaatbewerking",
     priority_offerings: "Onderhoudscontracten op geleverde machines",
     deprioritised_offerings: "Losse lasklussen",
@@ -378,17 +330,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Vastgoed en makelaardij ───────────────────────────────────────────────
   vastgoed: {
     industry: "Makelaardij, vastgoedbeheer, verhuurbemiddeling",
-    tone_of_voice: "Een makelaar die eerlijk zegt wat een huis waard is, ook als dat tegenvalt",
-    brand_mission: "Wij zorgen dat verhuizen een goede beslissing wordt in plaats van een gok",
     differentiator: "Wij doen de bezichtiging altijd zelf, nooit een collega die het huis niet kent",
     intake_audience: "Mensen in de regio die hun huis verkopen en tegelijk iets anders zoeken",
     taboo_phrases: "unieke kans",
-    compliance_notes:
-      "Geen uitspraken over waardestijging, en bij vraagprijzen altijd de peildatum erbij",
-    author_role: "Register makelaar en taxateur",
-    usp: "De enige in de regio met een eigen taxateur in dienst",
-    key_messages: "Gemiddeld binnen 21 dagen verkocht",
-    proof_points: "Gemiddeld 21 dagen op de markt",
     products: "Aankoopbegeleiding",
     priority_offerings: "Aankoopbegeleiding",
     deprioritised_offerings: "Losse taxaties voor derden",
@@ -402,17 +346,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Zakelijke dienstverlening ─────────────────────────────────────────────
   zakelijke_dienstverlening: {
     industry: "Adviesbureau, marketingbureau, detachering",
-    tone_of_voice: "Een adviseur die doorvraagt voordat hij met een oplossing komt",
-    brand_mission: "Wij zorgen dat een organisatie de keuze maakt die ze zelf niet durfde te maken",
     differentiator: "Wij leveren geen rapport maar blijven tot het ingevoerd is",
     intake_audience: "Directeuren en managers bij organisaties van 50 tot 500 medewerkers",
     taboo_phrases: "synergie",
-    compliance_notes:
-      "Geen namen van opdrachtgevers zonder toestemming, en geen cijfers uit een opdracht in een publieke tekst",
-    author_role: "Partner en organisatieadviseur",
-    usp: "Wij zetten geen adviseur in die zelf nooit in de uitvoering heeft gestaan",
-    key_messages: "Binnen zes weken van analyse naar eerste resultaat",
-    proof_points: "Gemiddeld een 8,7 als opdrachtgeverscijfer",
     products: "Procesbegeleiding",
     priority_offerings: "Meerjarige begeleidingstrajecten",
     deprioritised_offerings: "Losse workshops van een dagdeel",
@@ -426,17 +362,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Software en online diensten ───────────────────────────────────────────
   software: {
     industry: "B2B-software, SaaS-platform, online dienst",
-    tone_of_voice: "Een productspecialist die laat zien in plaats van belooft",
-    brand_mission: "Wij zorgen dat een team stopt met bijhouden in spreadsheets",
     differentiator: "Je bent bij ons binnen een dag live, zonder implementatietraject",
     intake_audience: "Operationeel managers die een proces beheren dat nu in Excel staat",
     taboo_phrases: "revolutionair",
-    compliance_notes:
-      "Bij persoonsgegevens altijd verwijzen naar de verwerkersovereenkomst, en geen beveiligingsclaims zonder certificering",
-    author_role: "Productmanager",
-    usp: "De enige die koppelt met de vier pakketten die deze branche echt gebruikt",
-    key_messages: "Geen implementatiekosten, opzeggen per maand",
-    proof_points: "99,9% beschikbaarheid over het afgelopen jaar",
     products: "Urenregistratie",
     priority_offerings: "Jaarabonnementen op het volledige pakket",
     deprioritised_offerings: "Maatwerkkoppelingen voor één klant",
@@ -450,17 +378,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Horeca, vrije tijd en toerisme ────────────────────────────────────────
   horeca_recreatie: {
     industry: "Restaurant, hotel, vakantiepark, cateraar",
-    tone_of_voice: "Een gastheer die je welkom heet zonder overdreven te doen",
-    brand_mission: "Wij zorgen dat mensen even helemaal weg zijn van hun dag",
     differentiator: "Wij koken alles zelf, ook het brood en de desserts",
     intake_audience: "Mensen uit de omgeving die uit eten gaan voor een gelegenheid",
     taboo_phrases: "ambiance",
-    compliance_notes:
-      "Allergenen altijd volledig vermelden, en bij prijzen het bedrag per persoon inclusief btw",
-    author_role: "Gastheer en eigenaar",
-    usp: "De enige in het dorp met een eigen kweektuin achter het pand",
-    key_messages: "Elke dag vers uit de eigen keuken",
-    proof_points: "4,6 op Google uit 1.100 beoordelingen",
     products: "Zaalverhuur",
     priority_offerings: "Zakelijke arrangementen en zaalverhuur",
     deprioritised_offerings: "Afhaalmaaltijden",
@@ -474,17 +394,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Opleiding en training ─────────────────────────────────────────────────
   opleiding: {
     industry: "Opleider, trainingsbureau, rijschool, cursusaanbieder",
-    tone_of_voice: "Een docent die uitlegt tot je het snapt en niet tot hij het gezegd heeft",
-    brand_mission: "Wij zorgen dat iemand na afloop echt iets kan wat hij eerst niet kon",
     differentiator: "Onze docenten staan zelf nog in het vak waarin ze lesgeven",
     intake_audience: "Werkenden die zich willen omscholen zonder te stoppen met werken",
     taboo_phrases: "gegarandeerd geslaagd",
-    compliance_notes:
-      "Bij slagingspercentages altijd het jaar en het aantal deelnemers erbij, en geen uitspraken over baankansen",
-    author_role: "Hoofddocent",
-    usp: "De enige in de regio met avondopleidingen die in vier maanden afgerond zijn",
-    key_messages: "Les in groepen van maximaal twaalf",
-    proof_points: "3.400 geslaagden sinds 2008",
     products: "Incompanytraining",
     priority_offerings: "Incompanytrainingen voor bedrijven",
     deprioritised_offerings: "Losse avondworkshops",
@@ -498,17 +410,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Persoonlijke verzorging en sport ──────────────────────────────────────
   persoonlijke_verzorging: {
     industry: "Kapsalon, schoonheidssalon, sportschool, wellness",
-    tone_of_voice: "Iemand die je op je gemak stelt en niets opdringt",
-    brand_mission: "Wij zorgen dat je met een beter gevoel de deur uitgaat dan je binnenkwam",
     differentiator: "Je krijgt bij ons altijd dezelfde specialist, ook als je een jaar wegblijft",
     intake_audience: "Mensen uit de buurt die vaste klant willen worden, geen eenmalige afspraak",
     taboo_phrases: "anti-aging",
-    compliance_notes:
-      "Geen medische claims over huid of gewicht, en bij behandelingen altijd de duur en de prijs erbij",
-    author_role: "Salonhouder en specialist",
-    usp: "De enige salon in de omgeving die zowel huidverbetering als permanente ontharing doet",
-    key_messages: "Altijd een gratis intake voordat je iets afspreekt",
-    proof_points: "4,9 op Google uit 640 beoordelingen",
     products: "Huidbehandelingen",
     priority_offerings: "Behandelabonnementen",
     deprioritised_offerings: "Losse producten aan de balie",
@@ -522,17 +426,9 @@ const EXAMPLES: Record<Exclude<BrandCategory, "algemeen">, FieldExamples> = {
   // ── Transport en logistiek ────────────────────────────────────────────────
   transport_logistiek: {
     industry: "Transportbedrijf, logistiek dienstverlener, verhuisbedrijf",
-    tone_of_voice: "Een planner die zegt wanneer het er is en zich daaraan houdt",
-    brand_mission: "Wij zorgen dat een lading aankomt op het moment dat het uitkomt",
     differentiator: "Wij rijden met eigen chauffeurs, dus je krijgt elke week hetzelfde gezicht",
     intake_audience: "Logistiek verantwoordelijken bij producenten en groothandels",
     taboo_phrases: "onvertraagd",
-    compliance_notes:
-      "Bij levertijden altijd de voorwaarde erbij, en geen uitspraken over aansprakelijkheid buiten de vervoersvoorwaarden",
-    author_role: "Planner en teamleider transport",
-    usp: "Als enige in de regio eigen opslag én dagelijks vervoer naar Duitsland",
-    key_messages: "Vandaag geladen, morgen gelost",
-    proof_points: "98,6% op tijd geleverd in het afgelopen jaar",
     products: "Distributie",
     priority_offerings: "Vaste distributieritten op contract",
     deprioritised_offerings: "Losse spoedritten",

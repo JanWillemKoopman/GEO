@@ -1,0 +1,121 @@
+[
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "cd70bb84-5d57-4c7d-a7ad-6a8288971fb1",
+  "status": 200,
+  "ms": 1285,
+  "antwoord": "{\"id\":\"cd70bb84-5d57-4c7d-a7ad-6a8288971fb1\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Geven jullie bij de oplevering uitleg over het gebruik en onderhoud van de zwemvijver?\",\"reason\":\"Zonder dit antwoord kan de pagina niet c"
+ },
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "d8530e3c-d311-48a6-8e83-919c614dee09",
+  "status": 200,
+  "ms": 466,
+  "antwoord": "{\"id\":\"d8530e3c-d311-48a6-8e83-919c614dee09\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Hebben jullie een bedrag voor het jaarlijkse onderhoud van een klein zwembad dat met jullie zwemvijveronderhoud te vergelijken is?\",\"reaso"
+ },
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "79e55d13-d177-430c-8767-7f0af047f793",
+  "status": 200,
+  "ms": 388,
+  "antwoord": "{\"id\":\"79e55d13-d177-430c-8767-7f0af047f793\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Hebben jullie een prijsvergelijking van een zwemvijver en een klein zwembad, inclusief aanleg en jaarlijks onderhoud?\",\"reason\":\"De kaart "
+ },
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "2f624038-cb5f-4ef8-8985-b95319523b12",
+  "status": 200,
+  "ms": 363,
+  "antwoord": "{\"id\":\"2f624038-cb5f-4ef8-8985-b95319523b12\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Hebben jullie een zwemvijverproject dat ik kan bekijken, ook enige tijd na de oplevering?\",\"reason\":\"Zonder een concreet voorbeeld kan de "
+ },
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "6640a018-8cf8-4645-a846-619d0dec716f",
+  "status": 200,
+  "ms": 412,
+  "antwoord": "{\"id\":\"6640a018-8cf8-4645-a846-619d0dec716f\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Nemen jullie ook opdrachten aan in Son en Breugel?\",\"reason\":\"Zonder bevestiging kan de pagina niet zeggen of de lezer in Son en Breugel b"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "cc35f486-4581-419e-9a6c-b5c0b3c09a58",
+  "status": 200,
+  "ms": 354,
+  "antwoord": "{\"id\":\"cc35f486-4581-419e-9a6c-b5c0b3c09a58\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Is het woningbezoek voor ketelvervanging gratis?\",\"reason\":\"Zonder antwoord blijft de kostenkant van deze sectie onbeantwoord. De vraag ov"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "b66a822d-e688-45fa-94dc-ffc03c16e75c",
+  "status": 200,
+  "ms": 342,
+  "antwoord": "{\"id\":\"b66a822d-e688-45fa-94dc-ffc03c16e75c\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Sluit u bij ketelvervanging de bestaande radiatoren en thermostaat weer aan?\",\"reason\":\"Zonder bevestiging kan de pagina niet zeggen dat d"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "8b8c44ac-a9d6-41cc-92fc-8512dc124e84",
+  "status": 200,
+  "ms": 355,
+  "antwoord": "{\"id\":\"8b8c44ac-a9d6-41cc-92fc-8512dc124e84\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Staat in uw offerte welke werkzaamheden inbegrepen zijn en welke extra kosten kunnen geven?\",\"reason\":\"De kaart bevat geen informatie over"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "91531d96-b21b-4e05-8351-d811c4ce1970",
+  "status": 200,
+  "ms": 736,
+  "antwoord": "{\"id\":\"91531d96-b21b-4e05-8351-d811c4ce1970\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Wat bekijkt u tijdens een woningbezoek voor ketelvervanging?\",\"reason\":\"Zonder concrete informatie over het bezoek blijft deze sectie leeg"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "e4b9f8f9-bedf-4fe8-be6a-3163a18d1651",
+  "status": 200,
+  "ms": 561,
+  "antwoord": "{\"id\":\"e4b9f8f9-bedf-4fe8-be6a-3163a18d1651\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Wat kost een diagnose van een cv-ketelstoring bij u?\",\"reason\":\"Zonder een diagnoseprijs blijft de kosteninformatie in deze sectie leeg. D"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "f5b9faa7-40a8-4a18-ab52-8a9508f46867",
+  "status": 200,
+  "ms": 588,
+  "antwoord": "{\"id\":\"f5b9faa7-40a8-4a18-ab52-8a9508f46867\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Wat spreekt u met de klant af als een ketel onveilig blijkt of de oorzaak van de storing niet duidelijk is?\",\"reason\":\"Zonder een beschrij"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "00815061-43ac-4b99-b7a5-c6ec9a6e696e",
+  "status": 200,
+  "ms": 345,
+  "antwoord": "{\"id\":\"00815061-43ac-4b99-b7a5-c6ec9a6e696e\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Welke werkzaamheden zijn standaard inbegrepen bij een ketelvervanging?\",\"reason\":\"Zonder een lijst van inbegrepen werkzaamheden blijft dez"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "ae350e33-e962-4d80-8526-e88a34ee5b09",
+  "status": 200,
+  "ms": 401,
+  "antwoord": "{\"id\":\"ae350e33-e962-4d80-8526-e88a34ee5b09\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Voert u de oude ketel af na vervanging?\",\"reason\":\"Zonder bevestiging kan de pagina niet beloven dat de oude ketel wordt afgevoerd. De vra"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "782f135e-f254-4be8-b621-cd70718d6d07",
+  "status": 200,
+  "ms": 369,
+  "antwoord": "{\"id\":\"782f135e-f254-4be8-b621-cd70718d6d07\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Welke werkzaamheden voert u zelf uit bij een volledige ketelvervanging?\",\"reason\":\"Zonder een concrete lijst kan de pagina niet uitleggen "
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "81038d1e-bf4a-4b12-b637-8ad40c923ba9",
+  "status": 200,
+  "ms": 302,
+  "antwoord": "{\"id\":\"81038d1e-bf4a-4b12-b637-8ad40c923ba9\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Controleert u bij ketelvervanging de rookgasafvoer?\",\"reason\":\"Zonder bevestiging kan de pagina niet zeggen dat het bedrijf de rookgasafvo"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "cdac1def-9116-4514-9f0e-a457df95d04c",
+  "status": 200,
+  "ms": 324,
+  "antwoord": "{\"id\":\"cdac1def-9116-4514-9f0e-a457df95d04c\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Welke controles voert u uit voordat u een nieuwe ketel in gebruik neemt?\",\"reason\":\"Zonder antwoord kan de pagina niet beschrijven hoe het"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "d35a4d97-907f-4e23-abac-89edb0444a7f",
+  "status": 200,
+  "ms": 310,
+  "antwoord": "{\"id\":\"d35a4d97-907f-4e23-abac-89edb0444a7f\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Welke onderdelen haalt u los en sluit u weer aan bij ketelvervanging?\",\"reason\":\"Zonder antwoord kan de pagina niet concreet maken welke w"
+ }
+]

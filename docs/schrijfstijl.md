@@ -98,15 +98,24 @@ draagt het model expliciet op om beide tekens weg te laten. Zonder die regel sch
 die er voor de lezer van de klant uitzien als AI-tekst, en dan lekt de stijl het product uit.
 
 ### 11. Vaste woordenlijst, één woord per begrip
+Aangescherpt in de UX-audit van 23 september 2026 (P1.10): een menu-item en de kop van de pagina
+waar het naartoe gaat dragen hetzelfde woord, en "vragen" betekent nooit twee dingen op één scherm.
+
 | Gebruik dit | Niet dit |
 |---|---|
 | ORBIT ENGINE | GEO Tracker, "de app", "het systeem", "de tool" |
 | zichtbaarheid, AI-zichtbaarheid | vindbaarheid, exposure |
 | AI-antwoorden, AI-assistenten | LLM's, chatbots, engines |
 | vermelding, genoemd worden | mention, citation |
-| vragen (die ORBIT ENGINE aan de AI stelt) | prompts, queries |
+| AI-vragen (die ORBIT ENGINE aan de AI stelt) | prompts, queries, en "vragen" zonder meer |
+| Openstaande vragen (wat de klant zelf beantwoordt) | input, taken, "vragen" voor de meetvragen |
 | merk | klantprofiel, account, klant |
-| merkdossier | brand DNA, knowledge base |
+| merkdossier | brand DNA, knowledge base, merkprofiel, profiel, dossier |
+| je consultant (bij Outer Orbit) | customer success manager, accountmanager, CSM |
+| het cluster, een nieuw cluster | de cluster, nieuwe cluster |
+| opslaan | bewaren |
+| meld dat hij live staat | zet live, markeer als geplaatst, publiceer (de klant plaatst zelf) |
+| Mijn account | Mijn instellingen |
 | meting, meetronde | run, tracking cycle |
 | concurrent | rival, competitor |
 | onderzoek | scan, crawl (behalve in technische audit-context) |

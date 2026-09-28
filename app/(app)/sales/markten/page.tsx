@@ -96,7 +96,7 @@ export default async function SalesMarktenPage() {
                     het detailscherm: wie hier een markt uitkiest om aan te werken,
                     moet nu al weten dat er een klant van ons in zit (plan 9.5). */}
                 {m.conflict_note && (
-                  <p className="text-sm text-[var(--intent-warning-text)]">
+                  <p className="text-sm text-[var(--intent-warning-content)]">
                     {m.conflict_note as string}
                   </p>
                 )}

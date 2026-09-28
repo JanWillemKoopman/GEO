@@ -30,7 +30,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { haalAiOverview } from "@/lib/ai-overview/client";
 import { AI_OVERVIEW_ENGINE } from "@/lib/ai-overview/types";
-import { judgeRun, loadMeasureContext } from "@/lib/pipeline/measure";
+import { judgeRun, loadMeasureContext, type MeasurePurpose } from "@/lib/pipeline/measure";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { promptWeight } from "@/lib/pipeline/prompt-weight";
 import { volumeBandOf } from "@/lib/pipeline/volume";
@@ -66,19 +66,28 @@ export async function meetViaAiOverview(
   prompt: Prompt,
   weekNo: number,
   repeatIndex: number,
+  /**
+   * Alleen bij een hermeting ná publicatie (M3, `van-pijplijn-naar-kennissysteem.md`).
+   * Zonder dit veld is het een gewone periodieke meting. Zelfde sleutel-logica
+   * als `measureOnePrompt()` in `measure.ts`: bij een impactmeting hoort de rij
+   * bij (pagina, golf, soort), niet bij (periode, herhaling).
+   */
+  impact?: MeasurePurpose,
 ): Promise<AiOverviewMeting> {
   // Idempotent, net als bij `measureOnePrompt`: staat de meting er al, dan
   // hooguit de beoordeling opnieuw. Meten is de betaalde stap.
-  const { data: bestaand } = await admin
-    .from("tracking_runs")
-    .select("*")
-    .eq("analysis_id", analysis.id)
-    .eq("prompt_id", prompt.id)
-    .eq("engine", AI_OVERVIEW_ENGINE)
-    .eq("week_no", weekNo)
-    .eq("purpose", "periodic")
-    .eq("repeat_index", repeatIndex)
-    .maybeSingle();
+  const findExisting = () => {
+    const q = admin
+      .from("tracking_runs")
+      .select("*")
+      .eq("analysis_id", analysis.id)
+      .eq("prompt_id", prompt.id)
+      .eq("engine", AI_OVERVIEW_ENGINE);
+    return impact
+      ? q.eq("content_piece_id", impact.contentPieceId).eq("impact_wave", impact.wave).eq("purpose", impact.purpose).maybeSingle()
+      : q.eq("week_no", weekNo).eq("purpose", "periodic").eq("repeat_index", repeatIndex).maybeSingle();
+  };
+  const { data: bestaand } = await findExisting();
 
   let run = bestaand as TrackingRun | null;
 
@@ -108,6 +117,7 @@ export async function meetViaAiOverview(
         costUsd: uitkomst.kostenUsd,
         responseId: null,
         raw: { status: uitkomst.status, bronnen: uitkomst.bronnen, melding: uitkomst.melding },
+        input: { user: prompt.text, webSearch: true },
       },
     );
 
@@ -143,8 +153,11 @@ export async function meetViaAiOverview(
         engine: AI_OVERVIEW_ENGINE,
         model_used: MODEL_NAAM,
         week_no: weekNo,
-        purpose: "periodic",
-        repeat_index: repeatIndex,
+        purpose: impact?.purpose ?? "periodic",
+        // Een impactmeting kent geen herhalingen, zelfde reden als bij `measureOnePrompt()`.
+        repeat_index: impact ? 0 : repeatIndex,
+        content_piece_id: impact?.contentPieceId ?? null,
+        impact_wave: impact?.wave ?? null,
         raw_response: uitkomst.tekst,
         raw_response_received_at: new Date().toISOString(),
         cost_usd: uitkomst.kostenUsd,
@@ -156,16 +169,7 @@ export async function meetViaAiOverview(
       // Een gelijktijdige tweede poging was ons net voor. De aanroep is al
       // betaald; de bestaande rij overnemen voorkomt dat we hem nog eens doen.
       if (error?.code === UNIQUE_VIOLATION) {
-        const { data: naRace } = await admin
-          .from("tracking_runs")
-          .select("*")
-          .eq("analysis_id", analysis.id)
-          .eq("prompt_id", prompt.id)
-          .eq("engine", AI_OVERVIEW_ENGINE)
-          .eq("week_no", weekNo)
-          .eq("purpose", "periodic")
-          .eq("repeat_index", repeatIndex)
-          .maybeSingle();
+        const { data: naRace } = await findExisting();
         if (!naRace) throw new Error(`Meting opslaan mislukt voor vraag ${prompt.id}: ${error.message}`);
         run = naRace as TrackingRun;
       } else {
@@ -197,6 +201,7 @@ export async function measureAiOverviewById(
   promptId: string,
   weekNo: number,
   repeatIndex = 0,
+  impact?: MeasurePurpose,
 ): Promise<AiOverviewMeting> {
   const admin = createAdminClient();
   const ctx = await loadMeasureContext(admin, analysisId);
@@ -213,5 +218,6 @@ export async function measureAiOverviewById(
     promptRow as Prompt,
     weekNo,
     repeatIndex,
+    impact,
   );
 }

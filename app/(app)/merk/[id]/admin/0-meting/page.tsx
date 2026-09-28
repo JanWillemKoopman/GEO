@@ -164,7 +164,7 @@ export default async function NulmetingPage({
               <p className="text-secondary">
                 ORBIT ENGINE vult deze lijst zelf aan zodra het merken in AI-antwoorden tegenkomt.
                 Staan er nu al een paar bekend, zet ze dan bij{" "}
-                <Link href={`/merk/${id}/merkprofiel/bewerken`} className="underline">
+                <Link href={`/merk/${id}/merkprofiel/bewerken`} className="link">
                   Merkdossier
                 </Link>{" "}
                 onder &ldquo;Met wie je vergeleken wordt&rdquo;.
@@ -181,7 +181,7 @@ export default async function NulmetingPage({
               </ul>
               <p className="text-sm text-muted">
                 Welke van deze merken meetellen in het aandeel bepaal je bij{" "}
-                <Link href={`/merk/${id}/analytics/concurrenten`} className="underline">
+                <Link href={`/merk/${id}/analytics/concurrenten`} className="link">
                   Analytics
                 </Link>
                 .

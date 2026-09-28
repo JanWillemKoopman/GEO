@@ -22,6 +22,16 @@ function decodeNumericEntity(codePoint: number): string {
   }
 }
 
+/** Het combinerende teken per soort accent: "&euml;" is e plus trema. */
+const ACCENT: Record<string, string> = {
+  uml: "\u0308",
+  acute: "\u0301",
+  grave: "\u0300",
+  circ: "\u0302",
+  cedil: "\u0327",
+  tilde: "\u0303",
+};
+
 /** Ruwe HTML → platte tekst: scripts/styles weg, tags → spaties, whitespace inklappen. */
 export function htmlToText(html: string): string {
   const withoutScripts = html
@@ -58,6 +68,15 @@ export function htmlToText(html: string): string {
     .replace(/&copy;/gi, "©")
     .replace(/&reg;/gi, "®")
     .replace(/&trade;/gi, "™")
+    // Punt 63 van de kwaliteitsdoorlichting (25 september 2026): het euroteken
+    // en de letters met een accent ontbraken. Op productie stonden daardoor
+    // "offici&euml;le CO-certificering" en "de intake &euro; 50" letterlijk op
+    // de feitenkaart van de installateur en de rijschool, en een bedrag met
+    // "&euro;" herkent de getallencontrole van de keuring niet als bedrag.
+    .replace(/&euro;/gi, "€")
+    .replace(/&([a-z])(uml|acute|grave|circ|cedil|tilde);/gi, (_, letter: string, soort: string) =>
+      `${letter}${ACCENT[soort.toLowerCase()]}`.normalize("NFC"),
+    )
     .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => decodeNumericEntity(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, dec: string) => decodeNumericEntity(Number(dec)))
     .replace(/\s+/g, " ")

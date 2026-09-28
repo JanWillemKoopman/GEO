@@ -83,7 +83,7 @@ export const MARKT_STAND_TEKST: Record<MarktStand, { label: string; uitleg: stri
   },
   klaar: {
     label: "Klaar",
-    uitleg: "De meting is rond. De kansen staan bij Opportunities.",
+    uitleg: "De meting is rond. Je vindt de kansen onder Sales, Kansen.",
   },
   mislukt: {
     label: "Niet gelukt",

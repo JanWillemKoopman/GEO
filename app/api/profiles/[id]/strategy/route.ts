@@ -10,6 +10,8 @@ import {
   parseContextFactors,
 } from "@/lib/pipeline/context-factors";
 import type { ContextFactor } from "@/lib/types/database";
+import { legGesprekVast, slaProfielOp } from "@/lib/kennis/uit-gesprek";
+import type { BronStrategie } from "@/lib/kennis/terugvullen";
 
 /**
  * De uitkomst van het gesprek vastleggen (docs/tasks/onboarding-2.0.md, blok C).
@@ -82,6 +84,14 @@ export async function PUT(
     }
   }
 
+  // Het gesprek zoals het vóór dit opslaan stond, voor de kennislaag hieronder:
+  // een gewijzigde aantekening is een nieuwe versie van de oude.
+  const { data: vorige } = await admin
+    .from("profile_strategy")
+    .select("profile_id, strategy_notes, context_factors")
+    .eq("profile_id", id)
+    .maybeSingle();
+
   const { error } = await admin.from("profile_strategy").upsert(
     {
       profile_id: id,
@@ -94,6 +104,20 @@ export async function PUT(
   );
   if (error)
     return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
+
+  // ── De kennislaag (K5 van van-pijplijn-naar-kennissysteem.md) ────────────
+  // De aantekeningen en de veranderingen worden verklaarde klantkennis, met de
+  // consultant als wie. Gooit nooit een fout: het gesprek is al opgeslagen.
+  const door = { actor: "mens" as const, gebruikerId: user.id };
+  await legGesprekVast(
+    admin,
+    {
+      profileId: id,
+      vorige: (vorige as BronStrategie | null) ?? null,
+      nu: { profile_id: id, strategy_notes: body.strategyNotes?.trim() || null, context_factors: factors },
+    },
+    door,
+  );
 
   // ── De definitieve onderwerpronde (migratie 0074) ────────────────────────
   // Het gesprek ligt nu vast. Staan er nog onbesliste conceptonderwerpen (van
@@ -118,16 +142,26 @@ export async function PUT(
   );
 
   if (nieuweAliassen.length > 0 || nieuweRegios.length > 0) {
-    await admin
-      .from("profiles")
-      .update({
-        aliases: [...profile.aliases, ...nieuweAliassen],
-        service_regions: [...profile.service_regions, ...nieuweRegios],
-        // Wat een mens in het gesprek zette, mag een volgende onderzoeksronde
-        // niet overschrijven (blok C, `profile_field_sources`).
-        edited_by_user: true,
-      })
-      .eq("id", id);
+    // Wat een mens in het gesprek zette, mag een volgende onderzoeksronde niet
+    // overschrijven (blok C, `profile_field_sources`). Dezelfde namen en plaatsen
+    // worden verklaarde kennis, zoals een veld dat in het gesprek werd ingevuld;
+    // de kolommen zijn de kopie die de meting leest (K8 deel 3, V22).
+    await slaProfielOp(
+      admin,
+      {
+        profileId: id,
+        url: profile.url,
+        kolommen: {
+          aliases: [...profile.aliases, ...nieuweAliassen],
+          service_regions: [...profile.service_regions, ...nieuweRegios],
+          edited_by_user: true,
+        },
+        oud: { aliases: profile.aliases, service_regions: profile.service_regions },
+        velden: ["aliases", "service_regions"],
+        bron: "gesprek",
+      },
+      door,
+    );
 
     for (const field of [
       ...(nieuweAliassen.length > 0 ? ["aliases"] : []),

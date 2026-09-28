@@ -1,0 +1,86 @@
+[
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "0ff2db06-5eb4-494e-8c25-fb8828b74c75",
+  "status": 200,
+  "ms": 1368,
+  "antwoord": "{\"id\":\"0ff2db06-5eb4-494e-8c25-fb8828b74c75\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Kunnen leerlingen uit Best bij Pompert rijles volgen?\",\"reason\":\"Zonder bevestiging van het werkgebied kan de Best-pagina niet eerlijk zeg"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "ce19fd79-36e3-4686-907e-ba5226639b7f",
+  "status": 200,
+  "ms": 543,
+  "antwoord": "{\"id\":\"ce19fd79-36e3-4686-907e-ba5226639b7f\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Kunnen leerlingen uit Son en Breugel bij Pompert rijles volgen?\",\"reason\":\"Zonder bevestiging van het werkgebied kan de pagina niet zeggen"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "23fd3223-00ae-417f-9907-348e2c288e18",
+  "status": 200,
+  "ms": 540,
+  "antwoord": "{\"id\":\"23fd3223-00ae-417f-9907-348e2c288e18\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Kunnen leerlingen uit Veldhoven bij Pompert rijles volgen?\",\"reason\":\"Zonder bevestiging van het werkgebied kan de pagina niet zeggen dat "
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "5f9f413f-9039-4105-8e64-38ecbe3a0727",
+  "status": 200,
+  "ms": 385,
+  "antwoord": "{\"id\":\"5f9f413f-9039-4105-8e64-38ecbe3a0727\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Hoe vaak per week kan een leerling op dit moment lessen en is er een wachtlijst voor vervolglessen?\",\"reason\":\"Zonder antwoord blijft de s"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "80a837df-9198-4b68-83d6-841823da3ab6",
+  "status": 200,
+  "ms": 463,
+  "antwoord": "{\"id\":\"80a837df-9198-4b68-83d6-841823da3ab6\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Is er op dit moment plek voor een intake in Waalre?\",\"reason\":\"Zonder actuele beschikbaarheid kan de pagina geen startmogelijkheid beloven"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "da82cd5a-84b3-48ed-ab1c-346f60d499ac",
+  "status": 200,
+  "ms": 543,
+  "antwoord": "{\"id\":\"da82cd5a-84b3-48ed-ab1c-346f60d499ac\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Is de intake bedoeld als kennismaking en lesplan, en niet als medische keuring?\",\"reason\":\"De kaart bevestigt een intake en lesplan, maar "
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "e03a82a6-bc70-498b-91e7-02724dae5384",
+  "status": 200,
+  "ms": 363,
+  "antwoord": "{\"id\":\"e03a82a6-bc70-498b-91e7-02724dae5384\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Hoe bepalen jullie samen of een leerling klaar is voor het praktijkexamen?\",\"reason\":\"Een lesplan is bevestigd, maar de kaart beschrijft n"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "27e4d857-9973-498b-a7f1-a4b31c3404c0",
+  "status": 200,
+  "ms": 386,
+  "antwoord": "{\"id\":\"27e4d857-9973-498b-a7f1-a4b31c3404c0\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Kan de leerling tijdens de eerste kennismaking rustig wennen aan de auto en instructeur?\",\"reason\":\"Zonder antwoord kan de pagina niet bel"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "dbeb2558-ce08-44b7-beae-08314c79353b",
+  "status": 200,
+  "ms": 429,
+  "antwoord": "{\"id\":\"dbeb2558-ce08-44b7-beae-08314c79353b\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Kan een leerling eerst een les in een automaat en een les in een schakelauto proberen voordat die kiest?\",\"reason\":\"Zonder bevestiging kan"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "6e796ce6-b479-4be6-9ef5-a485867ff693",
+  "status": 200,
+  "ms": 377,
+  "antwoord": "{\"id\":\"6e796ce6-b479-4be6-9ef5-a485867ff693\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Kan iemand een intake aanvragen zonder vooraf de ADHD-diagnose te delen?\",\"reason\":\"Zonder antwoord kan de pagina niet uitleggen welke inf"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "3a0fbae0-479d-461c-8fb5-2f1596b70545",
+  "status": 200,
+  "ms": 385,
+  "antwoord": "{\"id\":\"3a0fbae0-479d-461c-8fb5-2f1596b70545\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Mag een ouder bij de intake aanwezig zijn?\",\"reason\":\"Zonder antwoord kan de pagina niet vertellen of een ouder kan aansluiten bij de eers"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "ce6c5a16-4b3a-4a8e-83d9-16835d43a739",
+  "status": 200,
+  "ms": 407,
+  "antwoord": "{\"id\":\"ce6c5a16-4b3a-4a8e-83d9-16835d43a739\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Biedt Pompert persoonlijke hulp bij het leren van theorie?\",\"reason\":\"Zonder antwoord kan de pagina niet zeggen of er theoriehulp is naast"
+ }
+]

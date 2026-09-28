@@ -24,6 +24,9 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { crawlSite } from "@/lib/crawler";
 import { generateProfileResearch } from "@/lib/pipeline/profile-research";
+import { schoneWaardeproposities } from "@/lib/pipeline/waardeproposities";
+import { kennisUitMerkonderzoek } from "@/lib/kennis/onderzoek";
+import { legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
 import {
   filterProtectedFields,
   describeMerge,
@@ -41,7 +44,6 @@ const PROFILE_FIELD_LABELS: Record<string, string> = {
   brand_name: "de merknaam",
   industry: "de branche",
   business_model: "het bedrijfsmodel",
-  tone_of_voice: "de tone of voice",
   summary: "de samenvatting",
   products: "de producten en diensten",
   value_props: "de waardeproposities",
@@ -190,7 +192,6 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
         serviceScope: prof.service_scope,
         serviceRegions: prof.service_regions,
         marketLanguage: prof.market_language,
-        toneOfVoice: prof.tone_of_voice,
         audience: prof.intake_audience,
         sources: herkomstPerVeld,
       },
@@ -231,12 +232,13 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       business_model: filled(prof.business_model)
         ? prof.business_model
         : p.businessModel,
-      tone_of_voice: filled(prof.tone_of_voice)
-        ? prof.tone_of_voice
-        : p.toneOfVoice,
       summary: filled(prof.summary) ? prof.summary : p.summary,
       products: unionList(prof.products, p.products),
-      value_props: unionList(prof.value_props, p.valueProps),
+      // Geschoond en ontdubbeld (WP1 van contentpijplijn-publicatiewaardig.md):
+      // `unionList()` voegt alleen exact gelijke zinnen samen, en bij de hovenier
+      // stonden er na twee onderzoeksrondes 11 regels, waarvan 5 dubbel en 5 met
+      // "volgens de website" of "naar eigen zeggen" erin.
+      value_props: schoneWaardeproposities(unionList(prof.value_props, p.valueProps)),
       competitors: unionList(prof.competitors, p.competitors),
       personas: prof.personas?.length ? prof.personas : p.personas,
       // Klant leidend, net als hierboven: wie zelf 'landelijk' invulde, houdt
@@ -250,10 +252,10 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       market_language: filled(prof.market_language)
         ? prof.market_language
         : p.marketLanguage.trim() || null,
-      // Contentkwaliteit-grondslag (A2/A3): puur uit de site geëxtraheerd, geen
-      // klant-input, dus altijd de AI-waarde.
-      proof_points: p.proofPoints,
-      style_samples: p.styleSamples,
+      // Tot K8 kwamen hier ook de toon (`tone_of_voice`), voorbeeldzinnen
+      // (`style_samples`) en bewijspunten (`proof_points`) bij. Geen stap las ze
+      // nog (`kennismodel-inventaris.md` §2); de bewijspunten gaan hieronder
+      // alleen de kennislaag in, als vermoeden van het model.
     };
 
     // ── Een mens wint van een model ──────────────────────────────────────────
@@ -274,21 +276,45 @@ export async function prepareProfile(id: string): Promise<ProfileStatus> {
       );
     }
 
-    const { error: saveError } = await admin
-      .from("profiles")
-      .update({
+    // K4 en K8 deel 3: wat er op het profiel kwam (de kopie die de meting
+    // leest) en wat het model voorstelde (als vermoeden in de kennislaag), via
+    // één ingang. Alles afgeleid: het merkonderzoek geeft geen citaten.
+    const { error: saveError } = await legOnderzoeksveldenVast(admin, id, {
+      kolommen: {
         ...allowed,
-        // Deze twee gaan buiten de bescherming om: het zijn geen inhoudelijke
-        // velden maar boekhouding over de ronde zelf.
+        // Deze drie gaan buiten de bescherming om: het zijn geen inhoudelijke
+        // velden maar boekhouding over de ronde zelf. Een nieuwe ronde neemt
+        // alles mee wat een mens ondertussen zette, dus de lijst van G4 is
+        // weer leeg (`lib/gebeurtenissen/abonnees/onderzoek-refresh.ts`).
         raw_json: research.raw as never,
         deep_research_at: new Date().toISOString(),
         status: "klaar",
-      })
-      .eq("id", id);
+        velden_te_verversen: [],
+      },
+      items: kennisUitMerkonderzoek({
+        profileId: id,
+        model: {
+          brand_name: p.brandName,
+          industry: p.industry,
+          business_model: p.businessModel,
+          summary: p.summary,
+          market_language: p.marketLanguage,
+          service_scope: bereik.scope,
+          service_regions: bereik.regions,
+          products: p.products,
+          value_props: schoneWaardeproposities(p.valueProps),
+          competitors: p.competitors,
+          bewijspunten: p.proofPoints,
+          personas: p.personas,
+        },
+        geschreven: allowed,
+      }),
+      taak: "profile_research",
+    });
 
     if (saveError) {
       throw new Error(
-        `Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError.message}`,
+        `Profielonderzoek opslaan mislukt voor profiel ${id}: ${saveError}`,
       );
     }
 

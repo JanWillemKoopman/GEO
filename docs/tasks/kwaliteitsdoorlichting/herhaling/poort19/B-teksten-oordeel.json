@@ -1,0 +1,269 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "en zijn CO-gecertificeerd volgens de Gasketelwet",
+          "probleem": "Nergens in de waarheid staat dat het bedrijf CO-gecertificeerd is volgens de Gasketelwet. Wat wél bekend is: 'Erkend installateur (InstallQ)'. Dit is een verzonnen, en voor een veiligheids-/wettelijk keurmerk gevoelig, feit.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Wij plaatsen ketels van Intergas, Remeha, Nefit en Vaillant",
+          "probleem": "De waarheid zegt alleen dat het bedrijf official dealer is van Nefit en Remeha. Dat het ook Intergas en Vaillant plaatst, staat nergens.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Als prijsinformatie voor het traject is een levertijd van twee tot vier weken en een installatieduur van één dag opgegeven.",
+          "probleem": "In de waarheid horen 'installatie in één dag' en 'levertijd twee tot vier weken' expliciet bij de hybride warmtepomp, niet bij gewone ketelvervanging. Hier wordt dat cijfer zonder onderbouwing overgezet naar een ander product.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "De verzonnen CO-certificering/Gasketelwet-claim eruit halen (hij is InstallQ-erkend, niet CO-gecertificeerd) en de doorlooptijdcijfers corrigeren die eigenlijk over de warmtepomp gaan.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 3,
+      "copywriter_problemen": [
+        {
+          "citaat": "Deze gegevenslijst is geen opsomming van verplichte voorbereiding of vaste controles van ons.",
+          "probleem": "De tekst bestaat grotendeels uit dit soort juridisch aandoende disclaimers ('is niet vastgelegd', 'geen toezegging', 'staat niet als vaste werkwijze vast'), herhaald in bijna elke alinea. Dat leest als vrijwaring, niet als overtuigende verkoopcopy."
+        },
+        {
+          "citaat": "Hoe wij het vermogen precies bepalen, is niet beschreven; een opvallend hoger advies verdient daarom een duidelijke onderbouwing.",
+          "probleem": "Kromme, afstandelijke zin die de lezer meer onzekerheid geeft dan houvast; typisch voorbeeld van de hedge-stijl die de hele pagina domineert."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Wij plaatsen ketels van Intergas, Remeha, Nefit en Vaillant en zijn CO-gecertificeerd volgens de Gasketelwet.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 2,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "is CO-gecertificeerd volgens de Gasketelwet",
+          "probleem": "Verzonnen certificering; de waarheid noemt InstallQ, niet CO-certificering volgens de Gasketelwet.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Wij beschikken over een CO-certificering volgens de Gasketelwet.",
+          "probleem": "Herhaling van dezelfde verzonnen claim, nu als expliciete garantie in een veiligheidscontext (koolmonoxide) waar een onjuiste claim extra schadelijk is.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Wij plaatsen cv-ketels van Intergas, Remeha, Nefit en Vaillant",
+          "probleem": "Alleen Nefit en Remeha zijn bevestigd als merken waarvan het bedrijf dealer is; Intergas en Vaillant staan nergens in de waarheid.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "De CO-certificering/Gasketelwet-claim schrappen of vervangen door de echte InstallQ-erkenning, juist omdat dit een veiligheidspagina over koolmonoxide is.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {
+          "citaat": "Eerst moet duidelijk zijn of de installatie veilig is; daarna komt de keuze tussen repareren en vervangen.",
+          "probleem": "Zin komt in vrijwel identieke vorm meerdere keren terug in de tekst ('eerst veiligheid, dan de keuze'); onnodige herhaling van hetzelfde punt."
+        },
+        {
+          "citaat": "Een CO-vrij gecertificeerd bedrijf heeft de vereiste certificering voor dit werk.",
+          "probleem": "Kromme, tautologische zin (een gecertificeerd bedrijf heeft de vereiste certificering) die niets toevoegt."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Voor contractklanten geldt bij een storing een storingsdienst binnen 24 uur, ook in het weekend.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is contentloze marketingtaal zonder enige concrete informatie. De nieuwe tekst geeft bezoeker en AI-assistent bruikbare, concrete stappen, al moet de verzonnen certificering eerst gecorrigeerd worden. Wel is de nieuwe tekst veel smaller (alleen cv-ketelstoring) dan de brede 'service van al uw installaties' die de huidige pagina belooft.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 3,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Oude cv-ketel in Eindhoven of Nuenen? Vergelijk een nieuwe ketel met een hybride warmtepomp en laat uw woning beoordelen tijdens een gratis adviesbezoek.",
+          "probleem": "Eindhoven wordt als werkgebied gepresenteerd (ook in de Google-titel/omschrijving en de doelgroepomschrijving), terwijl de waarheid alleen Mierlo, Heeze-Leende en Nuenen noemt als plaatsen waar het bedrijf nog wil groeien. Eindhoven staat nergens.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Bij een gratis adviesbezoek bekijkt Wesley Keeris Installatietechniek uw isolatie, radiatoren en de leeftijd van uw ketel.",
+          "probleem": "Het woord 'gratis' staat expliciet op de lijst van woorden die niet mogen (uitgezonderd bij de offerte), en wordt hier meerdere keren gebruikt voor het adviesbezoek.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "Eindhoven weghalen (daar zit hij nog niet actief in) en het woord 'gratis' vervangen, want dat staat op zijn eigen verboden-woordenlijst.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {
+          "citaat": "Tijdens het gratis adviesbezoek bekijken wij de isolatie en radiatoren.",
+          "probleem": "Vrijwel identieke formulering ('isolatie, radiatoren, leeftijd van uw ketel') keert in bijna elke alinea en in meerdere FAQ-antwoorden terug, wat de tekst repetitief maakt."
+        },
+        {
+          "citaat": "Wij zorgen voor een professionele vervanging van uw oude ketel, zodat u weer jarenlang zorgeloos kunt genieten van een warm en behaaglijk thuis.",
+          "probleem": "Letterlijk overgenomen cliché-zin uit de oude site, functioneert hier als contentloze afsluiter."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Een hybride warmtepomp kost bij ons € 4.500 tot € 7.500 inclusief installatie, vóór subsidie.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is generieke productreclame zonder concrete cijfers of afwegingscriteria. De nieuwe tekst geeft echte beslisinformatie (prijzen, adviesbezoek, ISDE-verwijzing), maar voegt tegelijk een niet-bevestigd werkgebied (Eindhoven) toe.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 4,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Voor werk aan uw gasketel is onze CO-certificering volgens de Gasketelwet een relevant veiligheidsgegeven.",
+          "probleem": "Verzonnen certificering; alleen InstallQ-erkenning is bevestigd.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Wij plaatsen cv-ketels van Intergas, Remeha, Nefit en Vaillant en zijn officieel dealer van Nefit en Remeha.",
+          "probleem": "Het dealerschap van Nefit en Remeha klopt, maar dat het bedrijf ook Intergas en Vaillant plaatst, is nergens bevestigd.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "Voor de installatie wordt één dag genoemd.",
+          "probleem": "Dit cijfer hoort in de waarheid bij de hybride warmtepomp, niet bij gewone ketelvervanging, en wordt hier zonder bron op de ketelvervangingspagina toegepast.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "De verzonnen CO-certificering schrappen; dit is een kostenpagina die vertrouwen moet wekken, en een onjuiste certificeringsclaim ondermijnt dat direct als hij het leest.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 3,
+      "copywriter_problemen": [
+        {
+          "citaat": "Uit de genoemde bandbreedte valt niet af te leiden welke ketel of welke werkzaamheden voor uw woning zijn voorzien.",
+          "probleem": "Bijna elke sectie eindigt met een variant van 'dat volgt niet uit de prijsindicatie' / 'dat zegt de bandbreedte niet'; dit monotone patroon maakt de pagina vermoeiend om te lezen en voelt als juridische dekking in plaats van verkoopcopy."
+        },
+        {
+          "citaat": "In bedrijf stellen betekent dat de aangesloten ketel wordt klaargemaakt voor gebruik.",
+          "probleem": "Overbodige woordenboek-achtige uitleg van een op zichzelf simpel begrip, een stijlfiguur die op meerdere plekken in de tekst terugkeert en de leessnelheid vertraagt."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Wesley Keeris Installatietechniek noemt € 2.200 tot € 3.200 inclusief installatie.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 5,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Wesley Keeris Installatietechniek neemt opdrachten aan in Eindhoven, Mierlo en Nuenen.",
+          "probleem": "Eindhoven staat niet in de waarheid; alleen Mierlo, Heeze-Leende en Nuenen zijn genoemd als gebieden waar het bedrijf wil groeien. Dit keert terug in titel, omschrijving en meerdere alinea's, dus het is geen incident maar een structurele fout.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Wij zijn CO-gecertificeerd volgens de Gasketelwet.",
+          "probleem": "Verzonnen certificering, terwijl de waarheid InstallQ noemt.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Wij plaatsen ketels van Intergas, Remeha, Nefit en Vaillant",
+          "probleem": "Alleen Nefit en Remeha zijn bevestigd als dealerschap; Intergas en Vaillant zijn niet onderbouwd.",
+          "ernst": "middel"
+        },
+        {
+          "citaat": "De genoemde levertijd voor ketelvervanging is 2 tot 4 weken en de installatie duurt 1 dag.",
+          "probleem": "Dit cijfer is in de waarheid specifiek voor de hybride warmtepomp genoemd, niet voor gewone ketelvervanging, en wordt hier zonder onderbouwing overgenomen.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "Eindhoven overal weghalen (in titel, omschrijving en tekst) en de CO-certificering corrigeren naar wat hij daadwerkelijk heeft (InstallQ).",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {
+          "citaat": "Wij zorgen voor een professionele vervanging van uw oude ketel, zodat u weer jarenlang zorgeloos kunt genieten van een warm en behaaglijk thuis.",
+          "probleem": "Letterlijk dezelfde cliché-zin als op pagina 3 en 4; hergebruik van boilerplate in plaats van een op deze pagina toegespitste boodschap."
+        },
+        {
+          "citaat": "Wij kiezen het merk en type daarom samen met u op basis van uw woning, energieverbruik en wensen.",
+          "probleem": "Deze exacte formulering ('merk en type... woning, energieverbruik en wensen') komt in bijna elke alinea van de pagina terug, wat de tekst plat en herhalend maakt."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Voor ketelvervanging inclusief installatie geldt een prijsindicatie van € 2.200 tot € 3.200.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is inhoudsloze reclametaal ('topkwaliteit', 'gerust hart'). De nieuwe tekst geeft concrete prijzen en planning en is dus nuttiger voor bezoeker en AI-citatie, mits de verzonnen Eindhoven-claim en certificering eerst worden gecorrigeerd.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 6,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Wesley Keeris Installatietechniek vermeldt CO-certificering volgens de Gasketelwet.",
+          "probleem": "Verzonnen; de waarheid noemt InstallQ, niet CO-certificering. Extra ernstig omdat de hele pagina de bezoeker aanraadt juist déze certificering te controleren, terwijl niet bevestigd is dat het bedrijf hem heeft.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Zoek het bedrijf op in het Register gasverbrandingsinstallaties.",
+          "probleem": "Concreet register genoemd als verificatiemiddel voor een claim die zelf niet bevestigd is; dit suggereert een controleerbaarheid die op een verzonnen basis rust.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "De hele CO-certificering-insteek herzien naar de werkelijke InstallQ-erkenning, anders adviseert de pagina bezoekers om iets te controleren wat het bedrijf zelf niet kan aantonen.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {
+          "citaat": "Wij plaatsen cv-ketels van verschillende merken. U kunt daardoor verschillende ketelmerken bij de keuze betrekken.",
+          "probleem": "Twee opeenvolgende zinnen zeggen hetzelfde met andere woorden; overbodige herhaling zonder nieuwe informatie."
+        },
+        {
+          "citaat": "Twijfelt u of u nog een gewone cv-ketel kunt kiezen? Wij plaatsen cv-ketels; welk merk en type bij uw woning past, bekijken wij samen aan de hand van uw woning, energieverbruik en wensen.",
+          "probleem": "Deze exacte vraag-en-antwoordconstructie en formulering keert vrijwel letterlijk terug op andere pagina's (1, 3, 5, 7), wat op sjabloonmatige copy wijst."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Zoek het bedrijf op in het Register gasverbrandingsinstallaties. Controleer daar de actuele registratie en of het certificaat geldt voor de werkzaamheden die in uw woning nodig zijn.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres om mee te vergelijken.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 7,
+      "fout_of_verzonnen": [
+        {
+          "citaat": "Wesley Keeris Installatietechniek neemt in beide plaatsen opdrachten aan, vervangt cv-ketels en is CO-gecertificeerd volgens de Gasketelwet.",
+          "probleem": "Verzonnen certificering; de waarheid noemt InstallQ, niet CO-certificering volgens de Gasketelwet.",
+          "ernst": "hoog"
+        },
+        {
+          "citaat": "Als gepubliceerde indicatie noemen wij een levertijd van twee tot vier weken vanaf een offerteaanvraag en een installatie in één dag.",
+          "probleem": "Dit cijfer hoort in de waarheid bij de hybride warmtepomp, niet bij gewone ketelvervanging, en wordt hier zonder onderbouwing toegepast op een pagina die alleen over ketelvervanging gaat.",
+          "ernst": "middel"
+        }
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De CO-certificering corrigeren naar InstallQ en het doorlooptijdcijfer expliciet aan de juiste dienst koppelen.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {
+          "citaat": "Samen bekijken we welk merk en type past bij uw woning, uw energieverbruik en uw wensen.",
+          "probleem": "Vrijwel woordelijke herhaling van dezelfde zin uit pagina's 1, 5 en 6; sjabloontekst in plaats van pagina-specifieke copy."
+        },
+        {
+          "citaat": "Wij zorgen voor een professionele vervanging van uw oude ketel, zodat u weer jarenlang zorgeloos kunt genieten van een warm en behaaglijk thuis.",
+          "probleem": "Dezelfde afsluitende cliché-zin als op pagina 3, 4 en 5; geen eigen slotboodschap voor deze pagina."
+        }
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Voor ketelvervanging inclusief installatie noemen wij een prijsrange van € 2.200 tot € 3.200.",
+      "vergelijking_huidig": "geen_huidige",
+      "waarom_vergelijking": "Er is geen bestaande pagina op dit adres om mee te vergelijken.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "Alle zeven pagina's schrijven het bedrijf een CO-certificering volgens de Gasketelwet toe die nergens bevestigd is (de waarheid noemt alleen InstallQ-erkenning), en vier pagina's passen een levertijd/installatieduur die specifiek bij de hybride warmtepomp hoort zonder onderbouwing toe op gewone ketelvervanging. Daarnaast noemen meerdere pagina's Intergas en Vaillant als merken zonder bevestiging en claimt pagina 3 en 5 een werkgebied in Eindhoven dat niet in de waarheid staat.",
+  "niveau_professionele_copywriter": "nee"
+}

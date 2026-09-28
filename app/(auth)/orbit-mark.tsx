@@ -16,7 +16,8 @@
  * In de donkere stand is er geen verloop meer: daar staan de drie tokens die de
  * stops voeden alle drie op wit, en is het teken één witte baan met een witte
  * stip. Dat is hetzelfde besluit als bij het woordmerk ernaast, en het waarom
- * staat bij `--wordmark-1` in `app/globals.css`.
+ * stond bij `--wordmark-1` in `app/globals.css`; sinds 23 september 2026 staan
+ * de stops rechtstreeks op `--text-primary`.
  *
  * ⚠️ `gradientId` is geen sier maar een eis: het teken staat twee keer op de
  * inlogpagina (in de kop en in het paneel), en twee `<linearGradient>`-en met
@@ -52,9 +53,9 @@ export function OrbitMark({
               donkere stand staan alle drie de stops op wit en is het teken één
               witte baan. Een SVG dat in de pagina zelf staat leest een
               CSS-variabele gewoon uit, dus dit draait mee zonder eigen regel. */}
-          <stop offset="0%" stopColor="var(--wordmark-1)" />
-          <stop offset="55%" stopColor="var(--wordmark-mid)" />
-          <stop offset="100%" stopColor="var(--wordmark-2)" />
+          <stop offset="0%" stopColor="var(--text-primary)" />
+          <stop offset="55%" stopColor="var(--text-primary)" />
+          <stop offset="100%" stopColor="var(--text-primary)" />
         </linearGradient>
       </defs>
       <circle
@@ -68,7 +69,7 @@ export function OrbitMark({
         strokeDashoffset="-47.1"
         transform="rotate(-90 50 50)"
       />
-      <circle cx="75.5" cy="24.5" r="7" fill="var(--wordmark-2)" />
+      <circle cx="75.5" cy="24.5" r="7" fill="var(--text-primary)" />
     </svg>
   );
 }

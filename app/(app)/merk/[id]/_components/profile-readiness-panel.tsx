@@ -148,7 +148,7 @@ export function ProfileReadinessPanel({
             <span className="mono-label">ORBIT ENGINE onderzoekt · live</span>
           </div>
           {data?.etaText && (
-            <span className="mono-label text-muted">{data.etaText}</span>
+            <span className="mono-label">{data.etaText}</span>
           )}
         </div>
 
@@ -167,7 +167,7 @@ export function ProfileReadinessPanel({
                   s.state === "klaar"
                     ? "chip chip-success"
                     : s.state === "bezig"
-                      ? "chip chip-green"
+                      ? "chip chip-success"
                       : s.state === "overgeslagen"
                         ? "chip chip-warning"
                         : "chip chip-neutral"
@@ -208,7 +208,7 @@ export function ProfileReadinessPanel({
         <span className="mono-label">
           {readiness.compleet ? "Dossier compleet" : "Dossier niet compleet"}
         </span>
-        <span className="mono-label text-muted">
+        <span className="mono-label">
           {readiness.klaarAantal} van de {readiness.nodigAantal}
         </span>
       </div>
@@ -234,7 +234,7 @@ function Balk({ gedaan, totaal }: { gedaan: number; totaal: number }) {
   const pct = totaal === 0 ? 0 : Math.round((gedaan / totaal) * 100);
   return (
     <div
-      className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--bg-elevated)]"
+      className="h-1.5 w-full overflow-hidden rounded-[var(--radius-pill)] bg-[var(--bg-layer-2)]"
       role="progressbar"
       aria-valuenow={gedaan}
       aria-valuemin={0}
@@ -259,10 +259,10 @@ function Regel({ row }: { row: ReadinessRow }) {
     row.state === "klaar"
       ? "var(--trend-up-text)"
       : row.state === "loopt"
-        ? "var(--text-muted)"
+        ? "var(--text-tertiary)"
         : row.nodig
-          ? "var(--intent-warning-text)"
-          : "var(--text-muted)";
+          ? "var(--intent-warning-content)"
+          : "var(--text-tertiary)";
 
   return (
     <li className="flex flex-wrap items-baseline gap-2 text-sm">

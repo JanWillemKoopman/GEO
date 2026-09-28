@@ -126,7 +126,7 @@ export async function startReputationRun(admin: Admin, runId: string): Promise<S
       runId,
       "Dit merk heeft nog geen diensten of producten in zijn merkprofiel staan. " +
         "De reputatieanalyse meet per dienst, dus er valt nog niets te meten. " +
-        "Vul eerst het aanbod aan in het merkprofiel.",
+        "Vul eerst het aanbod aan in het merkdossier.",
     );
     return { nodes: 0, rivals: 0, planned: 0 };
   }

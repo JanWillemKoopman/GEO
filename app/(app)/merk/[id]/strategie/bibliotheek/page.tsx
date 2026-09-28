@@ -5,19 +5,28 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { laadPaginas } from "@/lib/pagina-data";
+import { groepVan } from "@/lib/pagina-lijst";
 import { LibraryView } from "./library-view";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bibliotheek" };
 
 /**
- * De bibliotheek van dit merk: elke pagina, van gepland tot live.
+ * De bibliotheek van dit merk: elke pagina vanaf het moment dat zijn maand is
+ * vrijgegeven, in drie groepen (`groepVan()`): wacht op jou, wordt binnenkort
+ * geschreven, staat live. Wat in een maand staat die nog niet vrij is, staat
+ * alleen in het contentplan.
  *
- * Sinds 23 september 2026 (`docs/tasks/contentflow-een-lijn.md` §4.6a) staan
- * hier ook de pagina's die nog geen tekst hebben, zodra ze in het plan staan,
- * met dezelfde stand als op het paginascherm, in het contentplan en in "Jouw
- * beurt". Eén lader (`laadPaginas()`), zodat die vier schermen nooit meer iets
- * anders zeggen over dezelfde pagina.
+ * Eén lader (`laadPaginas()`) voor de bibliotheek, het contentplan, "Openstaande
+ * vragen" en het paginascherm, zodat die vier nooit iets anders zeggen over
+ * dezelfde pagina.
+ *
+ * Op 23 september 2026 toonde dit scherm een paar uur alleen pagina's met
+ * tekst. Daardoor stond een pagina zonder plek in het plan ("Nog niet
+ * ingepland") op geen enkel scherm meer, en zag de eigenaar niet wat er
+ * binnenkort geschreven werd. De eigenaar wil elke pagina op het contentplan
+ * of hier zien; daarom staan ze terug, met per rij een zin die zegt waarop hij
+ * wacht (`statusRegel()`).
  */
 export default async function BibliotheekPage({
   params,
@@ -33,10 +42,7 @@ export default async function BibliotheekPage({
   const profile = await getOwnedProfile(admin, id, gebruiker.id);
   if (!profile) notFound();
 
-  // Alleen wat in een vrijgegeven maand staat, of al tekst heeft: een pagina
-  // die ergens in maand 7 gepland staat, hoort in het contentplan en nog niet
-  // in de bibliotheek.
-  const rows = (await laadPaginas(admin, id)).filter((r) => r.stand.sleutel !== "gepland");
+  const rows = (await laadPaginas(admin, id)).filter((r) => groepVan(r.stand) !== null);
 
   return (
     <div className="flex flex-col gap-6">

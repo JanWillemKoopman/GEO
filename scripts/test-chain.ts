@@ -129,6 +129,16 @@ async function main(): Promise<void> {
       [analysisId, userId, profileId],
     );
 
+    // Eén geschreven pagina onder deze analyse, voor de tests die een bestaande
+    // tekst nodig hebben (archiveren, het slot van de PATCH-route). De
+    // contentketen zelf wordt vanaf WP5 van contentketen-opnieuw.md getoetst.
+    await db.client.query(
+      `insert into public.content_pieces (analysis_id, title, type, status, version, is_current, body_markdown, needs_review)
+       values ($1, 'Pagina over hardloopblessures', 'article', 'ready', 1, true,
+               '# Hardloopblessures\n\nFysi-Unique behandelt runnersknie en shin splints in Amersfoort.', true)`,
+      [analysisId],
+    );
+
     const aanbeveling = {
       title: "Pagina over hardloopblessures",
       type: "article" as const,
@@ -148,362 +158,6 @@ async function main(): Promise<void> {
       ],
       revisionNote: null,
     };
-
-    // ── 1. De briefing ──────────────────────────────────────────────────────
-    console.log("\nDe briefing (content_brief)");
-    const { runBriefing } = await import("@/lib/pipeline/briefing");
-    const briefing = await runBriefing({ analysisId, recommendations: [aanbeveling] });
-
-    ok("de briefing maakt één pagina aan", briefing.contentPieceIds.length === 1);
-    ok("er wordt een vraag aan de klant gesteld", briefing.questions >= 1, `${briefing.questions}`);
-
-    // S1, het vangnet van de atomiseerstap. De stub bood twee zinnen aan;
-    // alleen de zin die letterlijk op de gecrawlde pagina staat mag doorkomen.
-    const kaart = await db.client.query(
-      `select briefing_snapshot_json from public.content_pieces where analysis_id = $1`,
-      [analysisId],
-    );
-    const snapshot = kaart.rows[0]?.briefing_snapshot_json as {
-      facts?: { text: string; citable: boolean }[];
-      plan?: unknown[];
-      contradictions?: unknown;
-    };
-    const citeerbaar = (snapshot?.facts ?? []).filter((f) => f.citable).map((f) => f.text);
-    ok(
-      "S1: de letterlijke sitezin staat als citeerbaar feit op de kaart",
-      citeerbaar.some((t) => t.includes("runnersknie")),
-      citeerbaar.join(" | "),
-    );
-    ok(
-      "S1: de verzonnen zin is door het vangnet tegengehouden",
-      !citeerbaar.some((t) => t.includes("beste praktijk van Nederland")),
-    );
-
-    // Bug 7, het auditplan werd weggegooid.
-    ok(
-      "bug 7: het paginaplan staat in de snapshot",
-      Array.isArray(snapshot?.plan) && snapshot.plan.length === 2,
-      `${snapshot?.plan?.length ?? 0} punten`,
-    );
-
-    // S8, de tegenspraken werden berekend en alleen gelogd. Dit scenario kent
-    // er geen (de klant heeft nog niets herzien), dus de lijst hoort leeg te
-    // zijn, maar hij moet er wél STAAN. Precies dát is de regressie die deze
-    // assertie bewaakt: verdwijnt het veld uit de snapshot, dan kan het
-    // briefingscherm het nooit tonen en merkt niemand het.
-    ok(
-      "S8: het tegenspraakveld staat in de snapshot",
-      Array.isArray(snapshot?.contradictions),
-      `${JSON.stringify(snapshot?.contradictions)}`,
-    );
-
-    // ── 2. De klant beantwoordt ─────────────────────────────────────────────
-    console.log("\nDe klant beantwoordt (twee vragen, één merkbreed)");
-    const { data: vragen } = (await (admin.from("fact_requests") as never as {
-      select: (k: string) => { eq: (a: string, b: string) => Promise<{ data: { id: string }[] }> };
-    })
-      .select("id")
-      .eq("profile_id", profileId)) as { data: { id: string }[] };
-    ok("de vraag staat in fact_requests", (vragen ?? []).length >= 1);
-
-    // Het antwoord dat de contentronde nooit bereikte: een bevestigd feit dat
-    // ná de bevroren kaart binnenkomt.
-    await db.client.query(
-      `update public.fact_requests
-          set answer = 'Ja, met een nazorgprogramma van zes weken', status = 'beantwoord',
-              answered_at = now()
-        where profile_id = $1`,
-      [profileId],
-    );
-    // En een merkbreed antwoord (analysis_id is null). Dat is wat bug 6 miste.
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
-          answer_type, required, claim_key)
-       values ($1, null, 'Wat is jullie telefoonnummer?', 'praktisch', '033 - 123 45 67',
-               'beantwoord', now(), 'merk', 'praktisch', 'tekst_kort', true, 'telefoonnummer')`,
-      [profileId],
-    );
-
-    // Bug 6, telt een merkbreed antwoord mee in de dedupe-sleutel?
-    const { planContentDraft } = await import("@/lib/jobs/content-jobs");
-    const eerste = await planContentDraft(admin as never, {
-      analysisId,
-      userId,
-      recommendation: aanbeveling,
-    });
-    ok("er wordt een schrijftaak ingepland", eerste.created);
-
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
-          answer_type, required, claim_key)
-       values ($1, null, 'Wat is jullie adres?', 'praktisch', 'Vondelplein 4c',
-               'beantwoord', now(), 'merk', 'praktisch', 'tekst_kort', true, 'adres')`,
-      [profileId],
-    );
-    const tweede = await planContentDraft(admin as never, {
-      analysisId,
-      userId,
-      recommendation: aanbeveling,
-    });
-    ok(
-      "bug 6: een merkbreed antwoord levert een nieuwe schrijftaak op",
-      tweede.created,
-      "de dedupe-sleutel telde merkbrede antwoorden niet mee",
-    );
-
-    // ── 3. Schrijven ────────────────────────────────────────────────────────
-    console.log("\nSchrijven (content_draft)");
-
-    // De klant corrigeert twee velden in de samengevoegde merkprofiel-editor,
-    // vlak vóór er geschreven wordt. Dezelfde kolommen die de PATCH-route zet
-    // (`EDITABLE_PROFILE_FIELDS`), zodat de assertie verderop toetst of een
-    // verse waarde de schrijver bereikt en niet een gecachete.
-    await db.client.query(
-      `update public.profiles
-          set tone_of_voice = 'Een ervaren fysiotherapeut die het rustig uitlegt',
-              taboo_phrases = array['spotgoedkoop'],
-              edited_by_user = true
-        where id = $1`,
-      [profileId],
-    );
-
-    const { draftContentPiece } = await import("@/lib/pipeline/content");
-    const draft = await draftContentPiece({
-      analysisId,
-      userId,
-      reportId: null,
-      recommendation: aanbeveling,
-    });
-
-    const na = await db.client.query(
-      `select id, version, is_current, status, body_markdown, source_coverage, needs_review,
-              briefing_snapshot_json, writer_brief_json
-         from public.content_pieces where analysis_id = $1 order by version`,
-      [analysisId],
-    );
-
-    // Bug 1, 'briefing' gold als "al af".
-    ok(
-      "bug 1: er staat tekst in de pagina",
-      Boolean(na.rows[0]?.body_markdown),
-      "de briefing-rij werd als 'al af' behandeld",
-    );
-
-    // Bug 2, de versiesprong met een lege spookrij ernaast.
-    ok("bug 2: precies één rij voor deze titel", na.rows.length === 1, `${na.rows.length} rijen`);
-    ok("bug 2: het is nog steeds versie 1", na.rows[0]?.version === 1);
-    ok("bug 2: en die rij is de huidige", na.rows[0]?.is_current === true);
-
-    // Bug 3, het antwoord van de klant moet in de gebruikte kaart staan.
-    const gebruikt = na.rows[0]?.briefing_snapshot_json as { facts?: { text: string }[] };
-    ok(
-      "bug 3: het antwoord van de klant staat op de gebruikte feitenkaart",
-      (gebruikt?.facts ?? []).some((f) => f.text.includes("nazorgprogramma van zes weken")),
-      "de bevroren kaart werd blind hergebruikt",
-    );
-
-    // Bug 7, kreeg de schrijver het plan te zien?
-    const schrijfprompt = log.filter((l) => l.schemaName === "content_piece").at(-1)?.user ?? "";
-    ok(
-      "bug 7: het paginaplan gaat mee de schrijfprompt in",
-      schrijfprompt.includes("PAGINAPLAN"),
-      "het plan werd na de briefing weggegooid",
-    );
-
-    // ── De schrijfopdracht gaat vóór het schrijven (optimalisatie 5) ─────
-    //
-    // Alleen in de keten te zien: de opdracht wordt gemaakt in de stap die de
-    // feitenkaart samenstelt, en moet daarna bovenaan de schrijfprompt landen
-    // én naast de pagina bewaard worden. Blijft hij hangen, dan is dit een
-    // negentiende promptblok dat niets stuurt, en dat is precies wat de experts
-    // afraadden.
-    ok(
-      "de schrijfopdracht is gemaakt vóór het schrijven",
-      log.some((l) => l.schemaName === "writer_brief"),
-      "er is geen schrijfopdracht aangevraagd",
-    );
-    ok(
-      "en hij staat bovenaan de schrijfprompt",
-      schrijfprompt.includes("DE SCHRIJFOPDRACHT VOOR DEZE PAGINA"),
-      schrijfprompt.slice(0, 200),
-    );
-    ok(
-      "de opdracht noemt waarom deze lezer juist dit bedrijf zou kiezen",
-      schrijfprompt.includes("WAAROM DEZE LEZER JUIST DIT BEDRIJF ZOU KIEZEN"),
-    );
-    ok(
-      "en hij is bewaard naast de pagina, zodat de reparatie hem later ook heeft",
-      Boolean(
-        (na.rows[0]?.writer_brief_json as { lezer?: string } | null)?.lezer,
-      ),
-      JSON.stringify(na.rows[0]?.writer_brief_json ?? null).slice(0, 160),
-    );
-    // ⚠️ 4 september 2026: de stub levert de kernfeiten in het formaat dat het
-    // echte model teruggaf ("F1: het hele feit"). Blijft er hier een lege lijst
-    // over, dan valt de hele opdracht om en schrijft de app zonder, precies
-    // zoals op productie gebeurde bij alle zes de pagina's.
-    ok(
-      "de kernfeiten zijn teruggebracht tot hun nummer",
-      ((na.rows[0]?.writer_brief_json as { kernfeiten?: string[] } | null)?.kernfeiten ?? []).every(
-        (f) => /^F\d+$/.test(f),
-      ) &&
-        ((na.rows[0]?.writer_brief_json as { kernfeiten?: string[] } | null)?.kernfeiten ?? [])
-          .length >= 3,
-      JSON.stringify((na.rows[0]?.writer_brief_json as { kernfeiten?: string[] } | null)?.kernfeiten),
-    );
-
-    // ── Haalt een gecorrigeerd merkveld de schrijfprompt? (17 aug 2026) ───
-    //
-    // De wizard van 27 velden en de platte editor van 41 zijn samengevoegd tot
-    // één formulier. `scripts/test-unit.ts` bewaakt dat alle 41 velden een stap
-    // hebben, maar dat toetst de lijst en niet de kéten: een veld kan keurig in
-    // een stap staan, netjes opgeslagen worden, en alsnog nooit bij het model
-    // aankomen. Dat is precies het soort fout dat pas bij de volgende
-    // contentronde opvalt, en dan zonder foutmelding.
-    //
-    // `tone_of_voice` en `taboo_phrases` staan in twee verschillende stappen
-    // ("Hoe je klinkt" en "Je woorden") en gaan langs twee verschillende
-    // plekken in de prompt, dus samen dekken ze het pad breed genoeg.
-    ok(
-      "de tone of voice uit het merkprofiel staat in de schrijfprompt",
-      schrijfprompt.includes("Tone of voice:"),
-      "het profiel bereikte de schrijver niet",
-    );
-    ok(
-      "en het verboden woord dat de klant invulde ook",
-      schrijfprompt.includes("spotgoedkoop"),
-      "taboo_phrases bereikte de schrijver niet",
-    );
-    ok(
-      "S2: een weerlegd of ongedekt punt staat als zodanig in het plan",
-      /GEDEKT|GEEN BRON|WEERLEGD/.test(schrijfprompt),
-    );
-
-
-    // Bug 4, "F1, F2" moet als onderbouwd tellen.
-    ok(
-      "bug 4: een samengestelde bronverwijzing telt als onderbouwd",
-      Number(na.rows[0]?.source_coverage ?? 0) > 0,
-      `dekking ${na.rows[0]?.source_coverage}`,
-    );
-
-    // S3, de zin zonder bron ("binnen 24 uur terecht") hoort opgemerkt te zijn.
-    const notities = await db.client.query(
-      `select review_notes from public.content_pieces where analysis_id = $1`,
-      [analysisId],
-    );
-    const regels = (notities.rows[0]?.review_notes ?? []) as string[];
-    ok(
-      "S3: een uitspraak zonder bron wordt gemeld",
-      regels.some((r) => r.includes("zonder bron")),
-      regels.join(" | "),
-    );
-
-    // S6, 'ready' betekent niet 'vrijgegeven'.
-    ok("S6: de pagina staat op nakijken", na.rows[0]?.needs_review === true);
-
-    // ── 4. Nog een antwoord, dan opnieuw genereren ──────────────────────────
-    console.log("\nOpnieuw genereren na een nieuw antwoord (bug 5)");
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
-          answer_type, required, claim_key)
-       values ($1, null, 'Hoe snel kan ik terecht?', 'praktisch', 'Binnen 24 uur',
-               'beantwoord', now(), 'merk', 'aanvulling', 'tekst_kort', false, 'wachttijd')`,
-      [profileId],
-    );
-
-    await draftContentPiece({
-      analysisId,
-      userId,
-      reportId: null,
-      recommendation: aanbeveling,
-      regenerate: true,
-    });
-
-    const opnieuw = await db.client.query(
-      `select briefing_snapshot_json from public.content_pieces
-        where analysis_id = $1 and is_current = true`,
-      [analysisId],
-    );
-    const kaartNa = opnieuw.rows[0]?.briefing_snapshot_json as { facts?: { text: string }[] };
-    ok(
-      "bug 5: een nieuw antwoord bereikt ook een hergenereerde pagina",
-      (kaartNa?.facts ?? []).some((f) => f.text.includes("Binnen 24 uur")),
-      "de bevroren kaart plantte zichzelf voort over versies",
-    );
-
-    // ── De feitenbank (migratie 0036) ───────────────────────────────────────
-    const bank = await db.client.query(
-      `select id, text, analysis_id, kind, allowed from public.brand_facts
-        where profile_id = $1 and superseded_by is null order by created_at`,
-      [profileId],
-    );
-    ok(
-      "0036: de feiten staan in de feitenbank",
-      bank.rows.length >= 3,
-      `${bank.rows.length} feiten`,
-    );
-    ok(
-      "0036: klantantwoorden zijn merkbreed",
-      bank.rows.some((r) => r.kind === "klant" && r.analysis_id === null),
-    );
-    ok(
-      "0036: de geatomiseerde sitezin hangt aan deze analyse",
-      bank.rows.some((r) => r.analysis_id === analysisId && String(r.text).includes("runnersknie")),
-    );
-
-    // Elke bewering wijst naar een FEIT-ID en niet alleen naar een plek in een
-    // lijst. Dat is het hele punt van 0036: een F-nummer is een positie.
-    const metId = await db.client.query(
-      `select claims_json from public.content_pieces where analysis_id = $1 and is_current = true`,
-      [analysisId],
-    );
-    const claims = (metId.rows[0]?.claims_json ?? []) as { factRef: string; factId: string | null }[];
-    ok(
-      "0036: elke onderbouwde bewering draagt een feit-id",
-      claims.length > 0 && claims.every((c) => typeof c.factId === "string" && c.factId.length > 0),
-      JSON.stringify(claims.map((c) => ({ ref: c.factRef, id: c.factId ? "ja" : "nee" }))),
-    );
-
-    // ── V9 (migratie 0093): de bewijspunten komen mee tot in de kolom ────────
-    //
-    // Eind tot eind, want dit is de schakel die het verschil maakt tussen
-    // "het feit staat er" en "het feit is een argument geworden". Blijft hij
-    // onderweg liggen, dan meet de keuring straks een lege lijst en verdwijnt
-    // de bevinding zonder dat iemand het ziet.
-    const metBewijs = await db.client.query(
-      `select proof_points_json from public.content_pieces
-         where analysis_id = $1 and is_current = true`,
-      [analysisId],
-    );
-    const bewijspunten = (metBewijs.rows[0]?.proof_points_json ?? []) as {
-      factRef: string;
-      betekenis: string;
-    }[];
-    ok(
-      "0093: de bewijspunten staan in hun eigen kolom",
-      bewijspunten.length >= 3,
-      JSON.stringify(bewijspunten.map((b) => b.factRef)),
-    );
-    ok(
-      "en elk punt draagt een F-nummer en een betekeniszin",
-      bewijspunten.every((b) => Boolean(b.factRef?.trim()) && Boolean(b.betekenis?.trim())),
-      JSON.stringify(bewijspunten),
-    );
-
-    ok(
-      "de unieke index laat maar één huidige versie toe",
-      (
-        await db.client.query(
-          `select count(*)::int as n from public.content_pieces
-            where analysis_id = $1 and is_current = true`,
-          [analysisId],
-        )
-      ).rows[0].n === 1,
-    );
 
     // ══════════════════════════════════════════════════════════════════════
     // Eigenaarschap en de beheerdersrol (migratie 0038, blok A)
@@ -780,8 +434,19 @@ async function main(): Promise<void> {
     // bescherming mag geen slot op het hele profiel worden.
     ok(
       "wat hij leeg liet vult het onderzoek wél",
-      (naOnderzoek[0].summary ?? "").includes("Amersfoort") &&
-        naOnderzoek[0].proof_points.length > 0,
+      (naOnderzoek[0].summary ?? "").includes("Amersfoort"),
+    );
+    // Sinds K8 komen de bewijspunten van het model niet meer op het profiel
+    // (niemand las ze), alleen als vermoeden in de kennislaag.
+    const { rows: bewijspunten } = await db.client.query(
+      "select status, gebruik from public.klantkennis where profile_id = $1 and soort = 'bewijspunt'",
+      [preboardId],
+    );
+    ok("de bewijspunten niet meer op het profiel", (naOnderzoek[0].proof_points ?? []).length === 0);
+    ok(
+      "maar als vermoeden in de kennislaag",
+      bewijspunten.length > 0 && bewijspunten.every((r) => r.status === "afgeleid" && r.gebruik === "intern"),
+      JSON.stringify(bewijspunten),
     );
     ok("en het profiel staat op klaar", naOnderzoek[0].status === "klaar");
 
@@ -1370,235 +1035,36 @@ async function main(): Promise<void> {
       besluit.schrijven === true && besluit.analysisId === analysisId,
     );
 
-    // ── De terugkoppeling: schrijft de handler het plan bij? ────────────────
-    //
-    // ⚠️ De eigenaar komt uit de database en niet uit een variabele. De analyse
-    // is hierboven toegewezen aan een andere gebruiker (0038), en de
-    // contentpijplijn weigert te schrijven voor iemand die geen eigenaar is.
-    // Dat is precies waarom `/api/cron/plan` `analyses.user_id` uitleest in
-    // plaats van de klant af te leiden uit het profiel.
-    const { rows: eigenaarRij } = await db.client.query(
-      "select user_id from public.analyses where id = $1",
-      [analysisId],
-    );
-    const planUserId = eigenaarRij[0].user_id as string;
-
     const { runJob } = await import("@/lib/jobs/handlers");
-    const { rows: taakRij } = await db.client.query(
-      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status)
-       values ($1, 'content_draft', $2, $3, 'running') returning *`,
-      [
-        analysisId,
-        JSON.stringify({
-          userId: planUserId,
-          plannedPageId: binnenVenster,
-          recommendation: { ...aanbeveling, title: "Hardloopblessures · Oriëntatie" },
-        }),
-        `chain-plan:${binnenVenster}`,
-      ],
-    );
-    await runJob({ admin: admin as never, job: taakRij[0] });
-
-    const { rows: naSchrijven } = await db.client.query(
-      "select status, content_piece_id from public.planned_pages where id = $1",
-      [binnenVenster],
-    );
-    ok(
-      "de plan-pagina weet welke tekst het geworden is",
-      Boolean(naSchrijven[0].content_piece_id),
-      "content_piece_id bleef leeg: het plan verwijst nergens naar",
-    );
-    ok(
-      "en staat niet meer op 'gepland'",
-      naSchrijven[0].status !== "gepland",
-      `status is ${naSchrijven[0].status}`,
-    );
-
-    // ── Het vangnet: een definitief mislukte taak ──────────────────────────
-    // Zonder deze regel blijft een pagina op "ORBIT ENGINE is bezig" staan terwijl er
-    // niets meer gebeurt: de status die om geduld vraagt dat nergens toe leidt.
-    const { rows: mislukteTaak } = await db.client.query(
-      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, attempts)
-       values ($1, 'content_draft', $2, $3, 'running', 4) returning *`,
-      [
-        analysisId,
-        JSON.stringify({
-          userId: planUserId,
-          plannedPageId: buitenVenster,
-          recommendation: aanbeveling,
-        }),
-        `chain-plan-fout:${buitenVenster}`,
-      ],
-    );
     const { handleFailure } = await import("@/lib/jobs/worker");
-    await handleFailure(admin as never, mislukteTaak[0], "de stub weigerde");
 
-    const { rows: naFout } = await db.client.query(
-      "select status from public.planned_pages where id = $1",
-      [buitenVenster],
-    );
-    ok(
-      "een definitief mislukte schrijftaak is zichtbaar in het plan",
-      naFout[0].status === "mislukt",
-      `status is ${naFout[0].status}`,
-    );
-
-    // ── Eén live-handeling (contentflow-een-lijn.md fase A) ─────────────────
-    //
-    // Tot 23 september 2026 zette "Markeer als geplaatst" in het plan alleen
-    // het label. Geen publicatiecontrole, geen nameting: het plan was een
-    // weg naar "Staat live" waarop het effect nooit gemeten werd.
+    // ── Een definitief mislukte Gemini-meting laat de analyse niet hangen ──
+    // Gevonden op 24 september 2026 in de kwaliteitsdoorlichting: alle 90
+    // Gemini-taken van drie clusters gaven op (limiet bij DataForSEO) en de
+    // analyses bleven op 'meten' staan, omdat alleen een opgegeven
+    // `measure_prompt` de aggregatie inplande.
     {
-      const { markPosted } = await import("@/lib/plans");
-      const stukId = naSchrijven[0].content_piece_id as string;
-      await db.client.query("update public.content_pieces set needs_review = true where id = $1", [stukId]);
-      const { rows: merkRij } = await db.client.query(
-        "select url from public.profiles where id = $1",
-        [profileId],
+      const week = 97;
+      const { rows: geminiTaak } = await db.client.query(
+        `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, attempts)
+         values ($1, 'measure_llm_response', $2, $3, 'running', 4) returning *`,
+        [
+          analysisId,
+          JSON.stringify({ promptId: "00000000-0000-0000-0000-000000000097", weekNo: week }),
+          `chain-gemini-fout:${analysisId}`,
+        ],
       );
-      const nietGoedgekeurd = await markPosted(admin as never, binnenVenster, {
-        url: "/hardloopblessures",
-        userId: planUserId,
-      });
-      ok("fase A: een tekst die niet goedgekeurd is gaat via het plan niet live", !nietGoedgekeurd.ok);
-
-      // Fase C: goedkeuren via de gedeelde functie werkt beide rijen bij.
-      const { keurTekstGoed } = await import("@/lib/content-approve");
-      const goed = await keurTekstGoed(admin as never, { pieceId: stukId, analysisId, userId: planUserId });
-      ok("fase C: goedkeuren lukt", goed.ok, JSON.stringify(goed));
-      const { rows: naGoed } = await db.client.query(
-        `select c.needs_review, p.status from public.content_pieces c
-           join public.planned_pages p on p.content_piece_id = c.id where c.id = $1`,
-        [stukId],
-      );
-      ok("fase C: de tekst is vrijgegeven", naGoed[0].needs_review === false);
-      eqc("fase C: en het plan zegt hetzelfde", String(naGoed[0].status), "goedgekeurd");
-      const uitkomst = await markPosted(admin as never, binnenVenster, {
-        url: "/hardloopblessures",
-        userId: planUserId,
-      });
-      ok(
-        "fase A: geplaatst markeren in het plan lukt",
-        uitkomst.ok && uitkomst.effectmeting === "gepland",
-        JSON.stringify(uitkomst),
-      );
-      const { rows: stukNa } = await db.client.query(
-        "select status, published_url from public.content_pieces where id = $1",
-        [stukId],
-      );
-      ok("fase A: en zet de tekst zelf op gepubliceerd", stukNa[0].status === "published", String(stukNa[0].status));
-      ok(
-        "fase A: op het volledige adres van het merk",
-        String(stukNa[0].published_url).endsWith("/hardloopblessures") &&
-          String(stukNa[0].published_url).startsWith("https://"),
-        `${stukNa[0].published_url} (merk ${merkRij[0].url})`,
-      );
-      const { rows: controle } = await db.client.query(
-        "select count(*)::int as n from public.jobs where type = 'verify_publication' and payload_json->>'contentPieceId' = $1",
-        [stukId],
-      );
-      ok("fase A: en de publicatiecontrole staat klaar", controle[0].n === 1, `${controle[0].n} taken`);
-      const { rows: planNa } = await db.client.query(
-        "select status from public.planned_pages where id = $1",
-        [binnenVenster],
-      );
-      eqc("fase A: de plan-pagina staat op geplaatst", String(planNa[0].status), "geplaatst");
-    }
-
-    // ── Fase D: eerst voorbereiden, schrijven pas na de laatste vraag ────────
-    //
-    // Het besluit van 23 september 2026 (contentflow-een-lijn.md §1): er wordt
-    // pas geschreven als elke vraag van de pagina beantwoord of overgeslagen
-    // is. Dit scenario loopt de hele lijn door met de echte functies.
-    {
-      const { startVoorbereiding, probeerTeSchrijven, probeerNaAntwoord, laadSchrijfpagina } =
-        await import("@/lib/plan-write-start");
-      const titel = "Hardloopblessures · Vragen eerst";
-      const { rows: nieuw } = await db.client.query(
-        `insert into public.planned_pages
-           (plan_month_id, profile_id, title, page_type, funnel_stage_id, topic_id,
-            sort_order, is_buffer, scheduled_for, source)
-         values ($1, $2, $3, 'informatief', $4, $5, 5, false, current_date + 20, 'plan')
-         returning id`,
-        [maandRij[0].id, profileId, titel, funnelRij[0].id, topicRij[0].id],
-      );
-      const paginaId = nieuw[0].id as string;
-      const laad = async () => (await laadSchrijfpagina(admin as never, { id: paginaId }))!;
-      const tijdstip = new Date();
-
-      const uitkomsten = await startVoorbereiding(admin as never, [await laad()], tijdstip);
-      const u = uitkomsten.get(paginaId);
-      ok("fase D: vrijgeven start de voorbereiding", u?.uitkomst === "gestart", JSON.stringify(u));
-      const { rows: gekoppeld } = await db.client.query(
-        `select p.content_piece_id, c.status from public.planned_pages p
-           left join public.content_pieces c on c.id = p.content_piece_id where p.id = $1`,
-        [paginaId],
-      );
-      const stukId = gekoppeld[0].content_piece_id as string;
-      ok("fase D: het plan kent zijn rij al tijdens de voorbereiding", Boolean(stukId));
-      eqc("fase D: en die rij wacht op vragen, niet op tekst", String(gekoppeld[0].status), "briefing");
-      const { rows: taken } = await db.client.query(
-        `select type, dedupe_key from public.jobs where payload_json->'recommendation'->>'title' = $1`,
-        [titel],
+      await handleFailure(admin as never, geminiTaak[0], "rate_limit_exceeded");
+      const { rows: aggregatie } = await db.client.query(
+        `select id from public.jobs
+          where analysis_id = $1 and type = 'aggregate_week' and payload_json->>'weekNo' = $2`,
+        [analysisId, String(week)],
       );
       ok(
-        "fase D: er staat een voorbereidingstaak klaar",
-        taken.some((t: { type: string; dedupe_key: string }) => t.type === "content_plan" && t.dedupe_key.endsWith(":briefing")),
-        JSON.stringify(taken),
+        "een opgegeven Gemini-meting plant de aggregatie alsnog in",
+        aggregatie.length === 1,
+        `aantal aggregatietaken: ${aggregatie.length}`,
       );
-      ok(
-        "fase D: en nog geen schrijftaak",
-        !taken.some(
-          (t: { type: string; dedupe_key: string }) =>
-            t.type === "content_draft" || (t.type === "content_plan" && !t.dedupe_key.endsWith(":briefing")),
-        ),
-      );
-
-      // De voorbereiding is klaar en stelde één vraag.
-      await db.client.query(
-        `update public.content_pieces set briefing_snapshot_json = '{"facts":[]}'::jsonb where id = $1`,
-        [stukId],
-      );
-      const { rows: vraag } = await db.client.query(
-        `insert into public.fact_requests
-           (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required, content_piece_ids)
-         values ($1, $2, 'Hoe snel kan iemand bij jullie terecht?', 'wachttijd', 'open',
-                 'pagina', 'praktisch', 'tekst_kort', true, array[$3::uuid])
-         returning id`,
-        [profileId, analysisId, stukId],
-      );
-      const wacht = await probeerTeSchrijven(admin as never, stukId, tijdstip);
-      ok(
-        "fase D: met een open vraag wordt er niet geschreven",
-        wacht.uitkomst === "wacht" && wacht.reden === "vragen_open",
-        JSON.stringify(wacht),
-      );
-
-      // Overslaan telt als antwoord; de datum ligt nog ver weg.
-      await db.client.query("update public.fact_requests set status = 'overgeslagen' where id = $1", [vraag[0].id]);
-      await probeerNaAntwoord(admin as never, [vraag[0].id as string], tijdstip);
-      const { rows: naOverslaan } = await db.client.query(
-        "select status from public.planned_pages where id = $1",
-        [paginaId],
-      );
-      eqc("fase D: alles gedaan maar weken te vroeg: nog niet schrijven", String(naOverslaan[0].status), "gepland");
-
-      // De datum komt binnen tien dagen: de cron vraagt het opnieuw.
-      await db.client.query("update public.planned_pages set scheduled_for = current_date + 5 where id = $1", [paginaId]);
-      const nuWel = await probeerTeSchrijven(admin as never, stukId, tijdstip);
-      ok("fase D: binnen tien dagen en alles gedaan: schrijven", nuWel.uitkomst === "geschreven_ingepland", JSON.stringify(nuWel));
-      const { rows: naStart } = await db.client.query(
-        "select status from public.planned_pages where id = $1",
-        [paginaId],
-      );
-      eqc("fase D: het plan staat op schrijven", String(naStart[0].status), "schrijven");
-      const { rows: schrijftaak } = await db.client.query(
-        `select count(*)::int as n from public.jobs
-          where type = 'content_plan' and payload_json->'recommendation'->>'title' = $1
-            and not dedupe_key like '%:briefing'`,
-        [titel],
-      );
-      ok("fase D: en de schrijftaak staat in de rij", schrijftaak[0].n === 1, `${schrijftaak[0].n} taken`);
     }
 
 
@@ -2025,6 +1491,89 @@ async function main(): Promise<void> {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // Toewijzen per e-mailadres, zonder eerst in Supabase een gebruiker aan
+    // te maken (28 september 2026, `lib/profile-assign.ts`)
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nToewijzen per e-mailadres");
+    {
+      const { wijsToeAanGebruiker, wijsToeAanNieuwAccount } = await import("@/lib/profile-assign");
+      const { findUserByEmail } = await import("@/lib/invites");
+
+      const consultantId = randomUUID();
+      const profielNieuwEmail = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        consultantId,
+        "consultant-email-toewijzen@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Nog geen accountklant', 'https://nog-geen-account.nl', 'Nog geen accountklant', 'klaar')`,
+        [profielNieuwEmail, consultantId],
+      );
+
+      // Een e-mailadres zonder gebruiker: er moet een nieuw account komen, met
+      // een uitnodiging, geen 500 en geen halve toewijzing.
+      ok("dit adres heeft nog geen gebruiker", (await findUserByEmail("nieuwe-klant@voorbeeld.nl")) === null);
+
+      const nieuw = await wijsToeAanNieuwAccount(adminClient, {
+        profileId: profielNieuwEmail,
+        profileName: "Nog geen accountklant",
+        email: "nieuwe-klant@voorbeeld.nl",
+        invitedBy: consultantId,
+      });
+      ok("het nieuwe account wordt aangemaakt", nieuw.ok, nieuw.error ?? "");
+      ok(
+        "er komt een uitnodigingslink terug",
+        typeof nieuw.inviteLink === "string" && nieuw.inviteLink.includes("/uitnodiging/"),
+        nieuw.inviteLink ?? "geen link",
+      );
+
+      const { rows: naNieuwAccount } = await db.client.query(
+        `select account_id, assigned_at from public.profiles where id = $1`,
+        [profielNieuwEmail],
+      );
+      ok("het profiel staat op een account", naNieuwAccount[0]?.account_id != null);
+      ok("de toewijsdatum is gezet", naNieuwAccount[0]?.assigned_at != null);
+
+      const { rows: uitnodigingRijen } = await db.client.query(
+        `select account_id, email, role from public.account_invites where account_id = $1`,
+        [naNieuwAccount[0]?.account_id],
+      );
+      ok("er staat precies één uitnodiging voor dit account", uitnodigingRijen.length === 1);
+      ok(
+        "op het opgegeven adres, als beheerder",
+        uitnodigingRijen[0]?.email === "nieuwe-klant@voorbeeld.nl" && uitnodigingRijen[0]?.role === "admin",
+      );
+
+      // Een adres dat al een gebruiker heeft: geen tweede account, gewoon
+      // dezelfde toewijzing als de keuzelijst zou geven.
+      const bestaandeKlantId = randomUUID();
+      const profielBestaandeEmail = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        bestaandeKlantId,
+        "bestaande-klant-email@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Al een accountklant', 'https://al-een-account.nl', 'Al een accountklant', 'klaar')`,
+        [profielBestaandeEmail, consultantId],
+      );
+
+      const gevondenUserId = await findUserByEmail("bestaande-klant-email@voorbeeld.nl");
+      ok("dit adres heeft al een gebruiker", gevondenUserId === bestaandeKlantId);
+
+      const bestaand = await wijsToeAanGebruiker(adminClient, profielBestaandeEmail, gevondenUserId as string);
+      ok("de toewijzing aan de bestaande gebruiker lukt", bestaand.ok, bestaand.error ?? "");
+      ok("er komt geen uitnodigingslink bij, die gebruiker kan al inloggen", bestaand.inviteLink === undefined);
+
+      const { rows: naBestaandeGebruiker } = await db.client.query(
+        `select user_id from public.profiles where id = $1`,
+        [profielBestaandeEmail],
+      );
+      ok("het profiel staat op de bestaande gebruiker", naBestaandeGebruiker[0]?.user_id === bestaandeKlantId);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // Het budgetplafond (F1, migratie 0053; herstelplan na audit T5, migratie
     // 0089: het accountplafond is een dagplafond geworden, `daily_budget_eur`
     // in plaats van `monthly_budget_eur`)
@@ -2358,6 +1907,66 @@ async function main(): Promise<void> {
       [archiefAnalyse],
     );
     ok("en er is geen betaald werk gedaan", rapporten.length === 0);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Punt 56: een mislukte rapportpoging is nog geen vastgelopen meting
+    //
+    // De AI-stub kent de rapportschema's niet en gooit dus, precies zoals
+    // OpenAI toen het tegoed op was. Na de eerste poging moet de analyse op
+    // 'gemeten' blijven staan (de wachtrij probeert het opnieuw); pas na de
+    // laatste toegestane poging mag de klant "vastgelopen" zien.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nPunt 56: een mislukte rapportpoging is nog geen vastgelopen meting");
+
+    const rapportAnalyse = randomUUID();
+    await db.client.query(
+      `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+       values ($1, $2, $3, 'Rapport faalt', 'https://fysi-unique.nl', 'iets', 'gemeten')`,
+      [rapportAnalyse, userId, profileId],
+    );
+    await db.client.query(
+      "insert into public.visibility_scores (analysis_id, week_no, score) values ($1, 0, 40)",
+      [rapportAnalyse],
+    );
+    await db.client.query(
+      `insert into public.jobs (analysis_id, type, payload_json, dedupe_key, status, scheduled_for)
+       values ($1, 'generate_report', '{"weekNo":0}'::jsonb, $2, 'queued', now())`,
+      [rapportAnalyse, `chain-rapport-faalt:${rapportAnalyse}`],
+    );
+
+    await runWorker();
+    const { rows: rapportNaEerste } = await db.client.query(
+      `select a.status as analyse, j.status as taak, j.attempts
+         from public.analyses a join public.jobs j on j.analysis_id = a.id where a.id = $1`,
+      [rapportAnalyse],
+    );
+    ok(
+      "punt 56: na de eerste mislukte poging probeert de wachtrij het opnieuw",
+      rapportNaEerste[0]?.taak === "queued" && rapportNaEerste[0]?.attempts === 1,
+      JSON.stringify(rapportNaEerste[0] ?? null),
+    );
+    ok(
+      "punt 56: en ziet de klant nog geen vastgelopen meting",
+      rapportNaEerste[0]?.analyse === "gemeten",
+      JSON.stringify(rapportNaEerste[0] ?? null),
+    );
+
+    // De laatste poging: nu mag, en moet, de klant het zien.
+    await db.client.query(
+      "update public.jobs set attempts = 3, scheduled_for = now() where analysis_id = $1",
+      [rapportAnalyse],
+    );
+    await runWorker();
+    const { rows: rapportNaLaatste } = await db.client.query(
+      `select a.status as analyse, j.status as taak, j.attempts
+         from public.analyses a join public.jobs j on j.analysis_id = a.id where a.id = $1`,
+      [rapportAnalyse],
+    );
+    ok(
+      "punt 56: na de laatste poging staat de analyse wel op mislukt",
+      rapportNaLaatste[0]?.taak === "failed" && rapportNaLaatste[0]?.analyse === "mislukt",
+      JSON.stringify(rapportNaLaatste[0] ?? null),
+    );
 
     // ══════════════════════════════════════════════════════════════════════
     // Labels op clusters, en wat de prullenbak echt stopt (migratie 0083)
@@ -3296,6 +2905,14 @@ async function main(): Promise<void> {
         bundelMetVoorraad?.backlog[0]?.potentie === null,
       `type was ${typeof bundelMetVoorraad?.backlog[0]?.potentie}`,
     );
+    // N6: de voorraadkaart weet uit welke kans hij komt, en het plan geeft het
+    // kennisgat van die kans mee (dit merk heeft geen kennis, dus alles ontbreekt).
+    const kansVanKaart = bundelMetVoorraad?.backlog[0]?.kansId ?? "";
+    ok(
+      "de voorraadkaart wijst naar zijn kans, en het plan kent het kennisgat ervan",
+      kansVanKaart !== "" && (bundelMetVoorraad?.kennisgat[kansVanKaart] ?? []).join(",") === "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs",
+      JSON.stringify(bundelMetVoorraad?.kennisgat[kansVanKaart] ?? null),
+    );
     const voorraad = [{ id: bundelMetVoorraad!.backlog[0]!.id }];
 
     // ── Idempotentie (conventie 9) ──────────────────────────────────────────
@@ -3555,6 +3172,39 @@ async function main(): Promise<void> {
         versies[1]?.maandenGoedgekeurd === 1 && versies[1]?.maandenTotaal === 12,
       );
       ok("het nieuwe voorstel heeft nog geen enkele maand vrijgegeven", versies[0]?.maandenGoedgekeurd === 0);
+
+      // Punt 32 van de kwaliteitsdoorlichting: nog een keer opzetten ZONDER
+      // nieuwe kans. Alle kansen staan in het tweede voorstel; vroeger
+      // antwoordde dit "er zijn nog geen gemeten kansen om in te plannen".
+      const { rows: inVoorstel2 } = await db.client.query(
+        `select pp.id from public.planned_pages pp
+           join public.plan_months m on m.id = pp.plan_month_id
+           join public.content_plans c on c.id = m.plan_id
+          where c.profile_id = $1 and c.version = 2 and m.status <> 'goedgekeurd' and pp.status = 'gepland'`,
+        [planPotProfileId],
+      );
+      const derdeVersie = await createPlan(admin as never, {
+        profileId: planPotProfileId,
+        pagesPerMonth: 1,
+        startedOn: new Date("2027-06-10T00:00:00Z"),
+      });
+      ok(
+        "punt 32: opnieuw opzetten lukt ook als alle kansen al in het plan staan",
+        derdeVersie.ok && inVoorstel2.length > 0,
+        JSON.stringify({ derdeVersie, inVoorstel2: inVoorstel2.length }),
+      );
+      const { rows: waarNu } = await db.client.query(
+        `select c.version from public.planned_pages pp
+           join public.plan_months m on m.id = pp.plan_month_id
+           join public.content_plans c on c.id = m.plan_id
+          where pp.id = any($1)`,
+        [inVoorstel2.map((r: { id: string }) => r.id)],
+      );
+      ok(
+        "punt 32: en de kansen uit het vorige voorstel staan nu in het nieuwe",
+        waarNu.length > 0 && waarNu.every((r: { version: number }) => r.version === 3),
+        JSON.stringify(waarNu),
+      );
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -5319,14 +4969,9 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // De open punten uit de synthese worden vragen die de klant kan
-    // beantwoorden (24 augustus 2026).
-    //
-    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: de synthese schrijft de rij, het
-    // scherm leest hem met een heel andere query. Stond er een `analysis_id`
-    // in, of een andere `scope`, dan verdwijnt de vraag uit beeld zonder dat er
-    // iets misgaat. Bij Van den Udenhout stonden tien open punten in beeld
-    // zonder invoerveld, precies omdat ze nooit een rij wáren.
+    // De open punten uit de synthese (24 augustus 2026 vragen aan de klant,
+    // sinds A3 van `van-pijplijn-naar-kennissysteem.md` onderwerpen voor het
+    // gesprek op het kennisoverzicht, besluit V3).
     {
       console.log("\nDe open punten uit de synthese (gap-questions)");
       const gapProfileId = randomUUID();
@@ -5346,85 +4991,21 @@ async function main(): Promise<void> {
       const eerste = await synthesiseProfile(gapProfileId);
       ok("de synthese draait en slaat niet over", eerste.skipped === false);
 
+      // Sinds A3 (besluit V3) worden de open punten geen vragen aan de klant meer:
+      // ze staan in het verslag, en het kennisoverzicht toont ze de consultant.
+      const { rows: vragen } = await db.client.query("select count(*)::int as n from public.fact_requests where profile_id = $1", [gapProfileId]);
+      eqc("de synthese stelt de klant geen vragen meer (A3)", String(vragen[0].n), "0");
+      const { rows: facet } = await db.client.query("select facet, raw_json from public.profile_facets where profile_id = $1 and facet = 'synthese'", [gapProfileId]);
+      const { openPuntenUitOnderzoek } = await import("@/lib/kennis/overzicht");
+      const punten = openPuntenUitOnderzoek(facet as { facet: string; raw_json: unknown }[]);
       // De vier gaps uit de stub: één dubbele (hoofdletters), één met een
       // opsomteken, één leeg. Er horen er dus twee over te blijven.
-      const { rows: vragen } = await db.client.query(
-        `select question, reason, status, scope, kind, analysis_id, answer_type,
-                raw_json->>'bron' as bron
-           from public.fact_requests where profile_id = $1 order by question`,
-        [gapProfileId],
-      );
-      ok("twee van de vier open punten worden een vraag", vragen.length === 2, String(vragen.length));
-      ok(
-        "het opsomteken staat niet in de kolom",
-        vragen.some((r) => r.question === "In welk jaar is de praktijk opgericht?"),
-        vragen.map((r) => r.question).join(" | "),
-      );
-      ok("elke vraag staat open", vragen.every((r) => r.status === "open"));
-      ok("en zegt waarom hij gesteld wordt", vragen.every((r) => (r.reason as string).length > 10));
-      ok(
-        "merkbreed, dus zonder cluster",
-        vragen.every((r) => r.analysis_id === null && r.scope === "merk"),
-      );
-      ok(
-        "en van de soort waar de klant een tekstantwoord op geeft",
-        vragen.every((r) => r.kind === "aanvulling" && r.answer_type === "tekst_kort"),
-      );
-      // ⚠️ Het merkje waaraan de facts-route ziet dat dit antwoord géén tweede,
-      // verkeerd gelabelde kopie in `proof_points` hoort te krijgen. Zonder dit
-      // zou een antwoord dat de klant net gaf in de feitenbank verschijnen met
-      // de bron "site", en dat is precies de soort onwaarheid die de
-      // claimvalidator niet kan zien.
-      ok(
-        "elke rij draagt zijn herkomst",
-        vragen.every((r) => r.bron === "synthese-gap"),
-        vragen.map((r) => String(r.bron)).join(" | "),
-      );
+      eqc("de open punten staan in het verslag, zonder dubbele en zonder opsomteken", String(punten.length), "2");
+      ok("het opsomteken staat er niet in", punten.some((p) => p.punt === "In welk jaar is de praktijk opgericht?"), punten.map((p) => p.punt).join(" | "));
 
-      // ⚠️ Dezelfde query als "Openstaande vragen" doet. Een rij die de synthese
-      // schrijft maar dit filter niet overleeft, staat nergens.
-      const { rows: opHetScherm } = await db.client.query(
-        `select id from public.fact_requests
-          where profile_id = $1 and analysis_id is null
-            and status in ('open', 'beantwoord', 'overgeslagen')`,
-        [gapProfileId],
-      );
-      ok("het klantscherm vindt ze allebei", opHetScherm.length === 2, String(opHetScherm.length));
-
-      // Idempotentie (conventie 9), langs twee wegen. Eerst de goedkope: de
-      // synthese slaat over omdat het facet er al staat.
+      // Idempotentie (conventie 9): de synthese slaat over omdat het facet er al staat.
       const tweede = await synthesiseProfile(gapProfileId);
       ok("een tweede synthese slaat over", tweede.skipped === true);
-
-      // En de dure: zou de stap tóch opnieuw draaien, dan houdt de unieke index
-      // op (profile_id, question) de vraag tegen. Dat is wat een herdraai na een
-      // storing veilig maakt.
-      await db.client.query(
-        "delete from public.profile_facets where profile_id = $1 and facet = 'synthese'",
-        [gapProfileId],
-      );
-      const derde = await synthesiseProfile(gapProfileId);
-      ok("een herdraai stelt geen enkele vraag opnieuw", derde.gaps === 0, String(derde.gaps));
-      const { rows: naHerdraai } = await db.client.query(
-        "select count(*)::int as n from public.fact_requests where profile_id = $1",
-        [gapProfileId],
-      );
-      ok("en er staan er nog steeds twee", naHerdraai[0].n === 2, String(naHerdraai[0].n));
-
-      // Een beantwoorde vraag verdwijnt uit de teller in de kop, want die telt
-      // alleen wat nog open staat.
-      await db.client.query(
-        `update public.fact_requests set status = 'beantwoord', answer = 'Vier',
-                answered_at = now()
-          where profile_id = $1 and question like 'Hoeveel%'`,
-        [gapProfileId],
-      );
-      const { rows: nogOpen } = await db.client.query(
-        `select count(*)::int as n from public.fact_requests
-          where profile_id = $1 and analysis_id is null and status = 'open'`,
-        [gapProfileId],
-      );
-      ok("wat beantwoord is telt niet meer mee als open", nogOpen[0].n === 1, String(nogOpen[0].n));
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -5474,7 +5055,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: gapMetClaim,
         answer: "Wij zijn de snelste van de regio en reageren sneller dan elke concurrent.",
-        existingProofPoints: [],
+        gebruikerId: userId,
       });
       ok(
         "een gapvraag met een superlatief levert needsEvidence op",
@@ -5491,7 +5072,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: gapZonderClaim,
         answer: "1998",
-        existingProofPoints: [],
+        gebruikerId: userId,
       });
       ok(
         "een gapvraag met een gewoon antwoord levert geen needsEvidence op",
@@ -5508,7 +5089,7 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: clusterMetClaim,
         answer: "Omdat wij marktleider zijn in de regio.",
-        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+        gebruikerId: userId,
       });
       ok(
         "een clustervraag met een superlatief levert óók needsEvidence op",
@@ -5530,17 +5111,23 @@ async function main(): Promise<void> {
         profileId: marktclaimProfileId,
         factId: clusterZonderClaim,
         answer: "Al 25 jaar.",
-        existingProofPoints: await proofPointsVan(marktclaimProfileId),
+        gebruikerId: userId,
       });
       ok(
-        "een clustervraag met een gewoon antwoord komt wél in proof_points",
+        "een clustervraag met een gewoon antwoord levert geen needsEvidence op",
         uitkomst4.ok && uitkomst4.outcome.needsEvidence === false,
       );
-      const puntenNaVier = await proofPointsVan(marktclaimProfileId);
+      // Sinds K8 gaat geen antwoord meer naar proof_points (niemand las ze);
+      // het antwoord staat verklaard in de kennislaag, en zo bereikt het de schrijver.
+      ok("en komt niet meer in proof_points (K8)", (await proofPointsVan(marktclaimProfileId)).length === 0);
+      const { rows: kennisVier } = await db.client.query(
+        "select status, bewering from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests' and herkomst_id = $2",
+        [marktclaimProfileId, clusterZonderClaim],
+      );
       ok(
-        "het proof point staat er echt, met de vraag en het antwoord erbij",
-        puntenNaVier.length === 1 && puntenNaVier[0].includes("Al 25 jaar."),
-        puntenNaVier.join(" | "),
+        "maar staat verklaard in de kennislaag, met vraag en antwoord",
+        kennisVier.length === 1 && kennisVier[0].status === "verklaard" && String(kennisVier[0].bewering).includes("Al 25 jaar."),
+        JSON.stringify(kennisVier),
       );
 
       async function proofPointsVan(profileId: string): Promise<string[]> {
@@ -5550,6 +5137,602 @@ async function main(): Promise<void> {
         );
         return (rows[0]?.proof_points as string[] | null) ?? [];
       }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // De open vraag per pagina (contentketen-opnieuw.md WP4, besluit B3)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: de voorbereiding kan twee keer
+    // starten (vrijgeven en de nachtelijke controle). Er mag dan nog steeds
+    // één open vraag per pagina staan, en een lang antwoord erop hoort bij die
+    // pagina en niet als bewijspunt in het merkprofiel.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nDe open vraag per pagina (WP4)");
+    {
+      const { maakOpenVraag } = await import("@/lib/pagina/open-vraag");
+      const { answerFact } = await import("@/lib/facts");
+      const { rows: stuk } = await db.client.query(
+        "select id from public.content_pieces where analysis_id = $1 limit 1",
+        [analysisId],
+      );
+      const pieceId = stuk[0].id as string;
+      const invoer = { profileId, analysisId, pieceId, paginaTitel: "Pagina over hardloopblessures", onderwerp: "hardloopblessures" };
+      await maakOpenVraag(admin as never, invoer);
+      await maakOpenVraag(admin as never, invoer);
+      const { rows: vragen } = await db.client.query(
+        "select id, answer_type from public.fact_requests where open_vraag and $1 = any(content_piece_ids)",
+        [pieceId],
+      );
+      ok("twee keer voorbereiden geeft één open vraag", vragen.length === 1, String(vragen.length));
+      ok("met ruimte voor een lang antwoord", vragen[0]?.answer_type === "tekst_lang");
+
+      const { rows: voor } = await db.client.query("select proof_points from public.profiles where id = $1", [profileId]);
+      const lang = "Wij begonnen in 2004 in een garagebox. ".repeat(65).trim();
+      ok("het antwoord is echt lang", lang.length > 2400, String(lang.length));
+      const uitkomst = await answerFact(admin as never, {
+        profileId,
+        factId: vragen[0].id as string,
+        answer: lang,
+        gebruikerId: userId,
+      });
+      ok("het antwoord wordt opgeslagen", uitkomst.ok);
+      const { rows: na } = await db.client.query(
+        "select p.proof_points, f.answer, f.status from public.profiles p, public.fact_requests f where p.id = $1 and f.id = $2",
+        [profileId, vragen[0].id],
+      );
+      ok("helemaal, niet ingekort", (na[0]?.answer as string)?.length === lang.length);
+      ok(
+        "en het merkprofiel blijft zoals het was",
+        JSON.stringify(na[0]?.proof_points) === JSON.stringify(voor[0]?.proof_points),
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // De content brief (contentketen-opnieuw.md WP5, §6.1)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: de briefs van een maand draaien na
+    // elkaar, zodat de tweede de vragen van de eerste ziet. Draaien ze naast
+    // elkaar, of ziet de tweede de eerste niet, dan stellen vijf pagina's
+    // dezelfde vraag in vijf varianten. En een brief die opgeeft mag de rij
+    // en de pagina niet ophouden.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nDe content brief (WP5)");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { handleFailure } = await import("@/lib/jobs/worker");
+      const { planBriefs } = await import("@/lib/pagina/start");
+      const { maakOpenVraag } = await import("@/lib/pagina/open-vraag");
+      const { MAX_ATTEMPTS } = await import("@/lib/jobs/types");
+
+      const eigenaar = randomUUID();
+      const merk = randomUUID();
+      const ander = randomUUID();
+      const cluster = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, 'brieftest@example.com')", [eigenaar]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, service_regions, verhalen)
+         values ($1, $3, 'Rijschool Rem', 'https://rijschool-rem.nl', 'Rijschool Rem', 'klaar', '{Zwolle}',
+                 'Onze eerste leerling was de buurvrouw.'),
+                ($2, $3, 'Ander Merk', 'https://ander-merk.nl', 'Ander Merk', 'klaar', '{}', null)`,
+        [merk, ander, eigenaar],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Rijschool Rem, rijlessen', 'https://rijschool-rem.nl', 'rijlessen', 'gereed')`,
+        [cluster, eigenaar, merk],
+      );
+      await db.client.query(
+        `insert into public.brand_facts (profile_id, text, source, kind, fact_key)
+         values ($1, 'Een rijles duurt 60 minuten.', 'site', 'site', 'rijles-duur')`,
+        [merk],
+      );
+      const { rows: bestaand } = await db.client.query(
+        `insert into public.fact_requests (profile_id, question, reason, status, scope, answer)
+         values ($1, 'Hoeveel lessen heeft een leerling gemiddeld nodig?', 'test', 'open', 'merk', null),
+                ($1, 'Wat kost een rijles?', 'test', 'beantwoord', 'merk', 'Een rijles kost 62 euro.'),
+                ($2, 'Een vraag van een ander merk?', 'test', 'open', 'merk', null)
+         returning id, profile_id, question`,
+        [merk, ander],
+      );
+      // K6 (B20): blok A komt uit de kennislaag. Daar komt dit in het echt via het
+      // terugvullen (K3) en de antwoordroute (K5); hier via dezelfde schrijfingang.
+      {
+        const { legVast } = await import("@/lib/kennis/vastleggen");
+        const beantwoord = bestaand.find((r) => r.question.startsWith("Wat kost")).id as string;
+        const kennis = [
+          [{ profileId: merk, domein: "aanbod", soort: "termijn", bewering: "Een rijles duurt 60 minuten.", status: "waargenomen", bron: "website", bronUrl: "https://rijschool-rem.nl/les", citaat: "Elke les duurt 60 minuten", gebruik: "content", herkomst: { tabel: "brand_facts", id: randomUUID() } }, { actor: "code", taak: "kennis_terugvullen" }],
+          [{ profileId: merk, domein: "verhaal", soort: "verhalen van de ondernemer", bewering: "Onze eerste leerling was de buurvrouw.", status: "verklaard", bron: "gesprek", gebruik: "content" }, { actor: "mens", gebruikerId: eigenaar }],
+          [{ profileId: merk, domein: "aanbod", soort: "antwoord", bewering: "Wat kost een rijles?\nEen rijles kost 62 euro.", status: "verklaard", bron: "klant", gebruik: "content", herkomst: { tabel: "fact_requests", id: beantwoord } }, { actor: "mens", gebruikerId: eigenaar }],
+        ] as const;
+        for (const [item, door] of kennis) {
+          const uit = await legVast(admin as never, item as never, door as never);
+          if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        }
+      }
+      const openVanMerk = bestaand.find((r) => r.question.startsWith("Hoeveel")).id as string;
+      const vanAnder = bestaand.find((r) => r.profile_id === ander).id as string;
+
+      const stukken: string[] = [];
+      for (const titel of ["Rijles in Zwolle", "Faalangst bij rijles", "Spoedcursus rijbewijs"]) {
+        const { rows } = await db.client.query(
+          `insert into public.content_pieces (analysis_id, title, type, status, action)
+           values ($1, $2, 'landing', 'briefing', 'nieuw') returning id`,
+          [cluster, titel],
+        );
+        stukken.push(rows[0].id as string);
+        await maakOpenVraag(admin as never, { profileId: merk, analysisId: cluster, pieceId: rows[0].id, paginaTitel: titel, onderwerp: titel });
+      }
+
+      const briefLog: string[] = [];
+      const brief = (vragen: { vraag: string; merkbreed?: boolean }[], ookVoor: string[]) => ({
+        zoekintentie: "Een goede rijschool in de buurt vinden",
+        deelvragen: ["Hoeveel lessen heb ik nodig?"],
+        concurrentie: { goed: ["Duidelijke prijzen"], gaten: ["Geen uitleg over het examen"] },
+        vakkennis: [
+          { uitleg: "Het praktijkexamen duurt 55 minuten.", bron_url: "https://www.cbr.nl/nl/rijbewijs-halen" },
+          { uitleg: "Een uitleg zonder bron.", bron_url: "" },
+        ],
+        valkuilen: ["Denken dat een pakket altijd goedkoper is"],
+        vragen: vragen.map((v) => ({
+          vraag: v.vraag,
+          waarom: "Dan staat er een echt voorbeeld op de pagina.",
+          soort: "praktijk",
+          antwoord_type: "tekst_lang",
+          opties: null,
+          merkbreed: v.merkbreed ?? false,
+        })),
+        ook_voor_deze_pagina: ookVoor,
+      });
+      let beurt = 0;
+      __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
+        if (opts.schemaName !== "content_brief") throw new Error(`onverwacht schema ${opts.schemaName}`);
+        briefLog.push(opts.user);
+        beurt++;
+        const antwoord =
+          beurt === 1
+            ? brief(
+                [
+                  { vraag: "Wat kost een rijles." },
+                  ...Array.from({ length: 10 }, (_, i) => ({ vraag: `Welk voorbeeld nummer ${i + 1} kun je geven?` })),
+                ],
+                [openVanMerk, vanAnder, "verzonnen-id"],
+              )
+            : brief([{ vraag: "Welk voorbeeld nummer 1 kun je geven?" }, { vraag: "Hoe begin je met een bange leerling?", merkbreed: true }], []);
+        return { parsed: opts.schema.parse(antwoord), raw: { stub: true } };
+      }) as never);
+
+      async function briefTaken(): Promise<{ id: string; payload_json: { pieceId: string } }[]> {
+        const { rows } = await db.client.query(
+          "select * from public.jobs where type = 'pagina_brief' and status = 'queued' order by created_at asc",
+        );
+        return rows;
+      }
+      async function draaiEen(): Promise<void> {
+        const [taak] = await briefTaken();
+        await db.client.query("update public.jobs set status = 'running' where id = $1", [taak.id]);
+        await runJob({ admin: admin as never, job: { ...(taak as never as object), status: "running" } as never });
+        await db.client.query("update public.jobs set status = 'done' where id = $1", [taak.id]);
+      }
+
+      await planBriefs(admin as never, stukken);
+      const eerste = await briefTaken();
+      ok("de briefs van een maand staan na elkaar: één taak in de rij", eerste.length === 1, String(eerste.length));
+      ok("en die taak is voor de eerste pagina", eerste[0]?.payload_json.pieceId === stukken[0]);
+
+      await draaiEen();
+      const { rows: na1 } = await db.client.query("select brief_json from public.content_pieces where id = $1", [stukken[0]]);
+      const b1 = na1[0].brief_json as { onderzoek: { vakkennis: { bron_url: string }[] }; versie: number };
+      const { BRIEF_VERSIE } = await import("@/lib/pagina/brief-regels");
+      ok("de brief is bewaard, met het versienummer", Boolean(b1?.onderzoek) && b1.versie === BRIEF_VERSIE);
+      ok("vakkennis zonder adres valt weg", b1.onderzoek.vakkennis.length === 1);
+      const { rows: vragen1 } = await db.client.query(
+        `select question, reason from public.fact_requests
+          where $1 = any(content_piece_ids) and not open_vraag and profile_id = $2 and question like 'Welk%'`,
+        [stukken[0], merk],
+      );
+      ok("hooguit 8 vragen", vragen1.length === 8, String(vragen1.length));
+      ok("elk met een reden", vragen1.every((v) => Boolean(v.reason)));
+      const { rows: dubbel } = await db.client.query(
+        "select count(*)::int as n from public.fact_requests where profile_id = $1 and lower(question) like 'wat kost een rijles%'",
+        [merk],
+      );
+      ok("een vraag die het merk al kreeg, komt er niet nog eens", dubbel[0].n === 1, String(dubbel[0].n));
+      const { rows: koppeling } = await db.client.query(
+        "select id, content_piece_ids from public.fact_requests where id = any($1::uuid[])",
+        [[openVanMerk, vanAnder]],
+      );
+      ok(
+        "een open vraag uit ook_voor_deze_pagina hangt nu ook aan de pagina",
+        (koppeling.find((r) => r.id === openVanMerk)?.content_piece_ids as string[]).includes(stukken[0]),
+      );
+      ok(
+        "een vraag van een ander merk niet",
+        !((koppeling.find((r) => r.id === vanAnder)?.content_piece_ids as string[]) ?? []).includes(stukken[0]),
+      );
+      ok("het model kreeg blok A mee", briefLog[0].includes("Een rijles duurt 60 minuten.") && briefLog[0].includes("Onze eerste leerling"));
+      ok("en het merkbrede antwoord", briefLog[0].includes("Een rijles kost 62 euro."));
+
+      const tweede = await briefTaken();
+      ok("daarna is de volgende pagina aan de beurt", tweede.length === 1 && tweede[0].payload_json.pieceId === stukken[1]);
+      await draaiEen();
+      ok("de tweede brief ziet de vragen van de eerste", briefLog[1].includes("Welk voorbeeld nummer 3 kun je geven?"));
+      const { rows: vragen2 } = await db.client.query(
+        "select question, scope, analysis_id from public.fact_requests where $1 = any(content_piece_ids) and not open_vraag",
+        [stukken[1]],
+      );
+      ok("en stelt de vraag van de eerste niet opnieuw", vragen2.length === 1, vragen2.map((v) => v.question).join(" | "));
+      ok("een merkbrede vraag hangt aan geen cluster", vragen2[0]?.scope === "merk" && vragen2[0]?.analysis_id === null);
+
+      const aantalAanroepen = briefLog.length;
+      await db.client.query(
+        "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_brief', $1, $2, 'test-herhaal', 'queued')",
+        [JSON.stringify({ pieceId: stukken[0], rij: [] }), cluster],
+      );
+      const herhaal = (await briefTaken()).find((t) => t.payload_json.pieceId === stukken[0])!;
+      await db.client.query("update public.jobs set status = 'running' where id = $1", [herhaal.id]);
+      await runJob({ admin: admin as never, job: { ...(herhaal as never as object), status: "running" } as never });
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [herhaal.id]);
+      ok("een tweede run doet geen aanroep", briefLog.length === aantalAanroepen);
+
+      // De derde brief geeft definitief op: de rij loopt af, de pagina gaat door.
+      const [derde] = await briefTaken();
+      ok("de derde pagina is aan de beurt", derde?.payload_json.pieceId === stukken[2]);
+      await handleFailure(admin as never, { ...(derde as never as object), attempts: MAX_ATTEMPTS } as never, "model onbereikbaar");
+      const { rows: na3 } = await db.client.query("select brief_json from public.content_pieces where id = $1", [stukken[2]]);
+      ok("een opgegeven brief krijgt een brief zonder onderzoek", na3[0].brief_json && na3[0].brief_json.onderzoek === null);
+      const { rows: vragen3 } = await db.client.query(
+        "select open_vraag from public.fact_requests where $1 = any(content_piece_ids)",
+        [stukken[2]],
+      );
+      ok("en heeft alleen de open vraag", vragen3.length === 1 && vragen3[0].open_vraag === true);
+
+      __setTestTransport(createOpenAiStub(log));
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Van plan tot goedgekeurde pagina (contentketen-opnieuw.md WP6 en WP7)
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: zes ingangen kunnen een pagina aan
+    // het schrijven zetten (vrijgeven, inplannen, antwoord, overslaan, de
+    // ochtendronde, "nu laten schrijven"), en geen van allen mag dat doen zolang
+    // er een vraag open staat. Daarna: schrijven in de achtergrondmodus zonder
+    // dubbele aanroep, één controle, hooguit één herschrijving, en goedkeuren
+    // pas als elke gele zin bevestigd is.
+    // ════════════════════════════════════════════════════════════════════════
+    console.log("\nVan plan tot goedgekeurde pagina (WP6 en WP7)");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { handleFailure } = await import("@/lib/jobs/worker");
+      const { MAX_ATTEMPTS } = await import("@/lib/jobs/types");
+      const { bereidMaandVoor, bereidVoor, probeerTeSchrijven, probeerNaAntwoord, ochtendronde } = await import("@/lib/pagina/start");
+      const { answerFact } = await import("@/lib/facts");
+      const { bevestigZin, keurGoed } = await import("@/lib/pagina/goedkeuren");
+      const { __aantalAchtergrondStarts, __zetAchtergrondBezig } = await import("@/lib/openai/structured");
+
+      const eigenaar = randomUUID();
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, 'plantest@example.com')", [eigenaar]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, stem_voorbeelden, taboo_phrases)
+         values ($1, $2, 'Hovenier Groen', 'https://hovenier-groen.nl', 'Hovenier Groen', 'klaar', $3::jsonb, '{tuinman}')`,
+        [merk, eigenaar, JSON.stringify([{ url: "https://hovenier-groen.nl/over", tekst: "Wij zijn nuchtere tuinmensen uit Ede.", opgehaald_op: "2026-09-25", fout: null }])],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Hovenier Groen, tuinen', 'https://hovenier-groen.nl', 'tuinen', 'gereed')`,
+        [cluster, eigenaar, merk],
+      );
+      await db.client.query(
+        `insert into public.brand_facts (profile_id, text, source, kind, fact_key)
+         values ($1, 'Een tuinontwerp kost vanaf 450 euro.', 'site', 'site', 'ontwerp-prijs')`,
+        [merk],
+      );
+      // Een vraag uit het rapport van dit cluster, al beantwoord, en een uit een
+      // ander cluster (besluit B17): de eerste hoort bij de schrijver, de tweede niet.
+      const anderCluster = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Hovenier Groen, vijvers', 'https://hovenier-groen.nl', 'vijvers', 'gereed')`,
+        [anderCluster, eigenaar, merk],
+      );
+      const { rows: rapportVragen } = await db.client.query(
+        `insert into public.fact_requests (profile_id, analysis_id, question, reason, status, answer)
+         values ($1, $2, 'Hoeveel tuinen leggen jullie per jaar aan?', 'test', 'beantwoord', 'Ongeveer veertig tuinen per jaar.'),
+                ($1, $3, 'Graven jullie ook vijvers uit?', 'test', 'beantwoord', 'Alleen kleine vijvers tot vier meter.')
+         returning id, analysis_id`,
+        [merk, cluster, anderCluster],
+      );
+      // K6 (B20): dezelfde kennis in de kennislaag, zoals het terugvullen (K3) en
+      // de antwoordroute (K5) hem daar zetten; blok A leest nu alleen daar.
+      {
+        const { legVast } = await import("@/lib/kennis/vastleggen");
+        const vraagVan = (a: string) => rapportVragen.find((r: { analysis_id: string }) => r.analysis_id === a).id as string;
+        const kennis = [
+          [{ profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een tuinontwerp kost vanaf 450 euro.", status: "waargenomen", bron: "website", bronUrl: "https://hovenier-groen.nl/ontwerp", citaat: "Een tuinontwerp vanaf 450 euro", gebruik: "content", herkomst: { tabel: "brand_facts", id: randomUUID() } }, { actor: "code", taak: "kennis_terugvullen" }],
+          [{ profileId: merk, domein: "aanbod", soort: "antwoord", bewering: "Hoeveel tuinen leggen jullie per jaar aan?\nOngeveer veertig tuinen per jaar.", status: "verklaard", bron: "klant", gebruik: "content", analysisId: cluster, herkomst: { tabel: "fact_requests", id: vraagVan(cluster) } }, { actor: "mens", gebruikerId: eigenaar }],
+          [{ profileId: merk, domein: "aanbod", soort: "antwoord", bewering: "Graven jullie ook vijvers uit?\nAlleen kleine vijvers tot vier meter.", status: "verklaard", bron: "klant", gebruik: "content", analysisId: anderCluster, herkomst: { tabel: "fact_requests", id: vraagVan(anderCluster) } }, { actor: "mens", gebruikerId: eigenaar }],
+        ] as const;
+        for (const [item, door] of kennis) {
+          const uit = await legVast(admin as never, item as never, door as never);
+          if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        }
+      }
+      const { rows: plan } = await db.client.query(
+        "insert into public.content_plans (profile_id, pages_per_month, status) values ($1, 3, 'actief') returning id",
+        [merk],
+      );
+      const { rows: maanden } = await db.client.query(
+        `insert into public.plan_months (plan_id, month_number, status) values ($1, 1, 'goedgekeurd'), ($1, 2, 'concept')
+         returning id, month_number`,
+        [plan[0].id],
+      );
+      const vrij = maanden.find((m) => m.month_number === 1).id as string;
+      const dicht = maanden.find((m) => m.month_number === 2).id as string;
+      const dag = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+      const { rows: planPaginas } = await db.client.query(
+        `insert into public.planned_pages (plan_month_id, profile_id, title, page_type, status, source_analysis_id, scheduled_for, sort_order)
+         values ($1, $3, 'Tuinontwerp laten maken', 'dienst', 'gepland', $4, $5, 1),
+                ($1, $3, 'Onderhoud van je tuin', 'dienst', 'gepland', $4, $6, 2),
+                ($2, $3, 'Schutting plaatsen', 'dienst', 'gepland', $4, $6, 1)
+         returning id, title`,
+        [vrij, dicht, merk, cluster, dag(3), dag(40)],
+      );
+      const planId = (t: string) => planPaginas.find((r) => r.title === t).id as string;
+
+      const aanroepen: { schema: string; user: string }[] = [];
+      const tekstEen = "## Tuinontwerp\n\nEen goed ontwerp begint bij hoe je je tuin gebruikt—en dat vragen we eerst. Een tuinontwerp kost vanaf 450 euro. Wij geven 10 jaar garantie op elke tuin.";
+      const tekstTwee = "## Tuinontwerp\n\nEen goed ontwerp begint bij hoe je je tuin gebruikt. Een tuinontwerp kost vanaf 450 euro.";
+      __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
+        aanroepen.push({ schema: opts.schemaName, user: opts.user });
+        // Op de kop van de invoer en niet op de hele tekst: de titels van de
+        // andere pagina's van het merk staan er ook in.
+        const isOnderhoud = /[Pp]agina: Onderhoud van je tuin/.test(opts.user);
+        const isSlechter = /[Pp]agina: Borders aanleggen/.test(opts.user);
+        let antwoord: unknown;
+        if (opts.schemaName === "content_brief") {
+          antwoord = {
+            zoekintentie: "Een tuin laten ontwerpen",
+            deelvragen: [],
+            concurrentie: { goed: [], gaten: [] },
+            vakkennis: [],
+            valkuilen: [],
+            vragen: isOnderhoud
+              ? []
+              : [{ vraag: "Hoe verloopt een eerste gesprek bij jullie?", waarom: "Dan weet de lezer wat hij kan verwachten.", soort: "werkwijze", antwoord_type: "tekst_lang", opties: null, merkbreed: false }],
+            ook_voor_deze_pagina: [],
+          };
+        } else if (opts.schemaName === "pagina") {
+          const herschrijf = opts.user.includes("SCHRIJF EEN BETERE VERSIE");
+          const klant = opts.user.includes("Wat de ondernemer anders wil");
+          antwoord = {
+            titel: "Tuinontwerp laten maken",
+            meta_titel: "Tuinontwerp laten maken",
+            meta_beschrijving: "Een tuin die past bij hoe je leeft.",
+            tekst_markdown: isSlechter
+              ? "## Borders\n\nWij leggen borders aan binnen 3 dagen. Wij zijn de beste van Ede."
+              : isOnderhoud
+                ? "## Onderhoud\n\nEen tuin vraagt elk seizoen iets anders."
+                : klant
+                  ? `${tekstTwee}\n\nWe beginnen altijd met koffie.`
+                  : herschrijf
+                    ? tekstTwee
+                    : tekstEen,
+            faq: [],
+            notitie_voor_ondernemer: null,
+          };
+        } else if (opts.schemaName === "pagina_controle") {
+          antwoord = isOnderhoud
+            ? { oordeel: "goed", verzonnen: [], punten: [] }
+            : {
+                oordeel: "niet_goed",
+                verzonnen: [{ zin: "Wij geven 10 jaar garantie op elke tuin.", waarom: "Staat nergens." }],
+                punten: [{ waar: "de opening", probleem: "te algemeen", hoe: "begin met de vraag van de bezoeker" }],
+              };
+        } else throw new Error(`onverwacht schema ${opts.schemaName}`);
+        return { parsed: opts.schema.parse(antwoord), raw: { stub: true } };
+      }) as never);
+
+      async function wachtrij(type: string): Promise<Record<string, unknown>[]> {
+        const { rows } = await db.client.query(
+          "select * from public.jobs where type = $1 and status = 'queued' and analysis_id = $2 order by created_at asc",
+          [type, cluster],
+        );
+        return rows;
+      }
+      async function draai(type: string): Promise<number> {
+        let n = 0;
+        for (let i = 0; i < 20; i++) {
+          const [taak] = await wachtrij(type);
+          if (!taak) break;
+          await db.client.query("update public.jobs set status = 'running' where id = $1", [taak.id]);
+          await runJob({ admin: admin as never, job: { ...taak, status: "running" } as never });
+          await db.client.query("update public.jobs set status = 'done' where id = $1", [taak.id]);
+          n++;
+        }
+        return n;
+      }
+      async function stuk(pieceId: string): Promise<Record<string, unknown>> {
+        const { rows } = await db.client.query("select * from public.content_pieces where id = $1", [pieceId]);
+        return rows[0];
+      }
+      async function stukVan(planPaginaId: string): Promise<string | null> {
+        const { rows } = await db.client.query("select content_piece_id from public.planned_pages where id = $1", [planPaginaId]);
+        return rows[0]?.content_piece_id ?? null;
+      }
+      const geenSchrijftaak = async () => (await wachtrij("pagina_schrijven")).length === 0;
+
+      // ── Vrijgeven: rijen, open vragen, briefs na elkaar ─────────────────────
+      const uitslag = await bereidMaandVoor(admin as never, vrij);
+      ok("vrijgeven bereidt de twee pagina's van de maand voor", uitslag.voorbereid === 2, JSON.stringify(uitslag));
+      const ontwerp = (await stukVan(planId("Tuinontwerp laten maken")))!;
+      const onderhoud = (await stukVan(planId("Onderhoud van je tuin")))!;
+      ok("elke plan-pagina wijst naar zijn rij", Boolean(ontwerp && onderhoud));
+      ok("een pagina in een maand die niet vrij is, niet", (await stukVan(planId("Schutting plaatsen"))) === null);
+      await bereidVoor(admin as never, [planId("Schutting plaatsen")]);
+      ok("inplannen in een maand die niet vrij is, doet niets", (await stukVan(planId("Schutting plaatsen"))) === null);
+      const { rows: registers } = await db.client.query("select count(*)::int as n from public.jobs where type = 'fact_register' and profile_id = $1", [merk]);
+      ok("het feitenregister gaat vóór de briefs", registers[0].n === 1);
+
+      await draai("pagina_brief");
+      ok("na de briefs geen schrijftaak: er staan vragen open", await geenSchrijftaak());
+
+      // ── Elke ingang, met open vragen: geen schrijftaak ─────────────────────
+      const nuSchrijven = await probeerTeSchrijven(admin as never, ontwerp, { negeerDatum: true });
+      ok("nu laten schrijven met een open vraag: wacht", nuSchrijven.uitkomst === "wacht" && nuSchrijven.reden === "vragen_open");
+      await ochtendronde(admin as never);
+      ok("de ochtendronde met open vragen: geen schrijftaak", await geenSchrijftaak());
+      await bereidVoor(admin as never, [planId("Tuinontwerp laten maken")]);
+      ok("opnieuw inplannen: geen schrijftaak, geen tweede brief", (await geenSchrijftaak()) && (await wachtrij("pagina_brief")).length === 0);
+
+      const { rows: vragenOntwerp } = await db.client.query(
+        "select id, open_vraag from public.fact_requests where $1 = any(content_piece_ids) order by open_vraag desc",
+        [ontwerp],
+      );
+      ok("de ontwerppagina heeft de open vraag en één gerichte vraag", vragenOntwerp.length === 2);
+      const openVraag = vragenOntwerp.find((v) => v.open_vraag).id as string;
+      const gericht = vragenOntwerp.find((v) => !v.open_vraag).id as string;
+      await answerFact(admin as never, { profileId: merk, factId: openVraag, answer: "We tekenen altijd met de klant samen aan de keukentafel.", gebruikerId: userId });
+      await probeerNaAntwoord(admin as never, openVraag);
+      ok("een antwoord met nog één open vraag: geen schrijftaak", await geenSchrijftaak());
+
+      await db.client.query("update public.fact_requests set status = 'overgeslagen' where id = $1", [gericht]);
+      await probeerNaAntwoord(admin as never, gericht);
+      const schrijfTaken = await wachtrij("pagina_schrijven");
+      ok("overslaan van de laatste vraag start het schrijven", schrijfTaken.length === 1);
+      ok("de pagina staat op schrijven", (await stuk(ontwerp)).status === "draft");
+      const { rows: planStand } = await db.client.query("select status from public.planned_pages where id = $1", [planId("Tuinontwerp laten maken")]);
+      ok("en de plan-pagina ook", planStand[0].status === "schrijven");
+      await probeerNaAntwoord(admin as never, gericht);
+      ok("een tweede keer vragen levert geen tweede schrijftaak", (await wachtrij("pagina_schrijven")).length === 1);
+
+      // De onderhoudspagina heeft alleen de open vraag, en een datum over 40 dagen.
+      const { rows: vragenOnderhoud } = await db.client.query("select id from public.fact_requests where $1 = any(content_piece_ids)", [onderhoud]);
+      ok("de onderhoudspagina heeft alleen de open vraag", vragenOnderhoud.length === 1);
+      await db.client.query("update public.fact_requests set status = 'overgeslagen' where id = $1", [vragenOnderhoud[0].id]);
+      const teVroeg = await probeerTeSchrijven(admin as never, onderhoud);
+      ok("vragen klaar, datum ver weg: wachten", teVroeg.uitkomst === "wacht" && teVroeg.reden === "nog_niet_aan_de_beurt");
+
+      // ── Schrijven in de achtergrondmodus ──────────────────────────────────
+      const startsVoor = __aantalAchtergrondStarts();
+      await draai("pagina_schrijven");
+      // Die ene ronde startte de aanroep en plande de ophaalronde; de lus hierboven
+      // draaide die meteen mee. Opnieuw, nu met een ophaalronde die nog bezig is.
+      ok("schrijven start precies één aanroep", __aantalAchtergrondStarts() === startsVoor + 1);
+      ok("de tekst staat er", Boolean((await stuk(ontwerp)).body_markdown));
+
+      const nu = await probeerTeSchrijven(admin as never, onderhoud, { negeerDatum: true });
+      ok("nu laten schrijven zonder open vraag: ingepland", nu.uitkomst === "ingepland");
+      const [start] = await wachtrij("pagina_schrijven");
+      await db.client.query("update public.jobs set status = 'running' where id = $1", [start.id]);
+      await runJob({ admin: admin as never, job: { ...start, status: "running" } as never });
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [start.id]);
+      const na = __aantalAchtergrondStarts();
+      __zetAchtergrondBezig(1);
+      const [ophaal] = await wachtrij("pagina_schrijven");
+      await db.client.query("update public.jobs set status = 'running' where id = $1", [ophaal.id]);
+      await runJob({ admin: admin as never, job: { ...ophaal, status: "running" } as never });
+      await db.client.query("update public.jobs set status = 'done' where id = $1", [ophaal.id]);
+      const volgende = await wachtrij("pagina_schrijven");
+      ok("een ophaalronde die nog bezig is, plant zichzelf opnieuw in", volgende.length === 1 && (volgende[0].payload_json as { poging: number }).poging === 1);
+      ok("zonder tweede aanroep", __aantalAchtergrondStarts() === na);
+      await draai("pagina_schrijven");
+
+      const geschreven = await stuk(ontwerp);
+      ok("een verboden teken is gerepareerd", !(geschreven.body_markdown as string).includes("—"));
+      const { SCHRIJFOPDRACHT_VERSIE } = await import("@/lib/pagina/schrijfopdracht");
+      ok("de ruwe uitvoer en het versienummer van de opdracht zijn bewaard", (geschreven.raw_json as { schrijfopdracht_versie: number }).schrijfopdracht_versie === SCHRIJFOPDRACHT_VERSIE);
+      ok("versie 1", geschreven.version === 1);
+      ok("de schrijver kreeg het eigen verhaal letterlijk", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("aan de keukentafel")));
+      ok("en de stemvoorbeelden", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("nuchtere tuinmensen")));
+      ok("een beantwoorde vraag uit het rapport van dit cluster gaat mee naar de schrijver (B17)", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("veertig tuinen per jaar")));
+      ok("en naar de brief", aanroepen.some((a) => a.schema === "content_brief" && a.user.includes("veertig tuinen per jaar")));
+      ok("een antwoord uit een ander cluster niet", !aanroepen.some((a) => a.user.includes("kleine vijvers")));
+      ok("de controle is ingepland", (await wachtrij("pagina_controle")).length === 2);
+
+      // ── Controle en hooguit één herschrijving ─────────────────────────────
+      await draai("pagina_controle");
+      const goed = await stuk(onderhoud);
+      ok("goed zonder ongedekte zinnen: klaar zonder herschrijving", goed.status === "ready" && goed.needs_review === true && !(goed.controle_json as { herschreven: boolean }).herschreven);
+      ok("niet goed: er komt precies één herschrijving", (await wachtrij("pagina_herschrijven")).length === 1);
+      await draai("pagina_herschrijven");
+      const herschreven = await stuk(ontwerp);
+      const cj = herschreven.controle_json as { herschreven: boolean; herschrijving: { behouden: string }; gele_zinnen: string[] };
+      ok("de herschreven versie is bewaard", cj.herschreven && cj.herschrijving.behouden === "nieuw" && !(herschreven.body_markdown as string).includes("garantie"));
+      ok("en staat klaar om te lezen", herschreven.status === "ready" && herschreven.needs_review === true);
+      ok("geen tweede controle, geen tweede herschrijving", (await wachtrij("pagina_controle")).length === 0 && (await wachtrij("pagina_herschrijven")).length === 0);
+      const { rows: planKlaar } = await db.client.query("select status from public.planned_pages where id = $1", [planId("Tuinontwerp laten maken")]);
+      ok("de plan-pagina staat op goedkeuren", planKlaar[0].status === "ter_goedkeuring");
+
+      // ── Een herschrijving met meer ongedekte zinnen blijft niet ───────────
+      const { rows: border } = await db.client.query(
+        `insert into public.content_pieces (analysis_id, title, type, status, action, body_markdown, brief_json, controle_json)
+         values ($1, 'Borders aanleggen', 'landing', 'draft', 'nieuw', 'Een border geeft kleur aan je tuin.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}',
+                 '{"ongedekt":[],"beoordeling":{"oordeel":"niet_goed","verzonnen":[],"punten":[]},"herschreven":false,"gele_zinnen":[],"bevestigd":[]}')
+         returning id`,
+        [cluster],
+      );
+      await enqueueHerschrijven(border[0].id);
+      await draai("pagina_herschrijven");
+      const slechter = await stuk(border[0].id);
+      ok("een herschrijving met meer ongedekte zinnen wordt niet bewaard", (slechter.body_markdown as string) === "Een border geeft kleur aan je tuin." && (slechter.controle_json as { herschrijving: { behouden: string } }).herschrijving.behouden === "vorige");
+
+      // ── Een mislukte controle: klaar, met gele zinnen ─────────────────────
+      const { rows: mislukt } = await db.client.query(
+        `insert into public.content_pieces (analysis_id, title, type, status, action, body_markdown, brief_json)
+         values ($1, 'Vijver aanleggen', 'landing', 'draft', 'nieuw', 'Wij leggen een vijver aan in 2 dagen. Onze tuinman denkt graag met je mee.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
+         returning id`,
+        [cluster],
+      );
+      const { rows: controleTaak } = await db.client.query(
+        `insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status, attempts)
+         values ('pagina_controle', $1, $2, 'test-controle-mislukt', 'running', $3) returning *`,
+        [JSON.stringify({ pieceId: mislukt[0].id }), cluster, MAX_ATTEMPTS],
+      );
+      await handleFailure(admin as never, controleTaak[0], "model onbereikbaar");
+      const vijver = await stuk(mislukt[0].id);
+      const vcj = vijver.controle_json as { beoordeling: unknown; gele_zinnen: string[] };
+      ok("een mislukte controle gaat naar klaar", vijver.status === "ready" && vcj.beoordeling === null);
+      ok("met de ongedekte zin geel", vcj.gele_zinnen.some((z) => z.includes("2 dagen")));
+      ok("en de zin met een verboden woord ook (B16)", vcj.gele_zinnen.length === 2 && vcj.gele_zinnen.some((z) => z.includes("tuinman")));
+
+      // ── Goedkeuren pas als elke gele zin bevestigd is ─────────────────────
+      const eerst = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
+      ok("goedkeuren met een gele zin kan niet", !eerst.ok && eerst.status === 409);
+      const vreemd = await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: "Een zin die niet geel is." });
+      ok("een zin die niet geel is, kan niet bevestigd worden", !vreemd.ok);
+      await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: vcj.gele_zinnen[0] });
+      const halverwege = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
+      ok("met één van de twee bevestigd kan het nog niet", !halverwege.ok);
+      await bevestigZin(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, zin: vcj.gele_zinnen[1] });
+      const daarna = await keurGoed(admin as never, { pieceId: mislukt[0].id, analysisId: cluster, userId: eigenaar });
+      ok("na bevestigen wel", daarna.ok && (await stuk(mislukt[0].id)).needs_review === false);
+
+      // ── Een aanpassing van de klant: versie 2, zonder nieuwe beoordeling ──
+      await db.client.query(
+        "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_herschrijven', $1, $2, 'test-klant', 'queued')",
+        [JSON.stringify({ pieceId: ontwerp, klantNotitie: "Vertel ook dat we met koffie beginnen." }), cluster],
+      );
+      const controlesVoor = aanroepen.filter((a) => a.schema === "pagina_controle").length;
+      await draai("pagina_herschrijven");
+      const { rows: versies } = await db.client.query(
+        "select id, version, is_current, supersedes_id, status, revision_note from public.content_pieces where analysis_id = $1 and title = 'Tuinontwerp laten maken' order by version",
+        [cluster],
+      );
+      ok("een aanpassing maakt versie 2", versies.length === 2 && versies[1].version === 2 && versies[1].supersedes_id === ontwerp);
+      ok("de wens van de klant staat bij de nieuwe versie", versies[1].revision_note === "Vertel ook dat we met koffie beginnen.");
+      ok("de nieuwe is de actuele", versies[1].is_current === true && versies[0].is_current === false && versies[1].status === "ready");
+      ok("zonder nieuwe beoordeling", aanroepen.filter((a) => a.schema === "pagina_controle").length === controlesVoor && (await wachtrij("pagina_controle")).length === 0);
+      ok("de plan-pagina wijst naar versie 2", (await stukVan(planId("Tuinontwerp laten maken"))) === versies[1].id);
+
+      async function enqueueHerschrijven(pieceId: string): Promise<void> {
+        await db.client.query(
+          "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_herschrijven', $1, $2, $3, 'queued')",
+          [JSON.stringify({ pieceId }), cluster, `test-herschrijven-${pieceId}`],
+        );
+      }
+
+      __setTestTransport(createOpenAiStub(log));
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -5818,492 +6001,164 @@ async function main(): Promise<void> {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    // Een pagina uit het contentplan kan nu wél gemeten worden
-    // (doorloop-huyberts.md punt 2).
+    // Clusters ontdekken (docs/tasks/clusters-ontdekken.md, migratie 0109)
     //
-    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `/api/cron/plan` bouwde zijn
-    // schrijfopdracht uit `planBriefing()` en vulde `why`, `targetIntent`,
-    // `action` en `existingUrl` aan, maar zette geen `targets`. `saveTargets()`
-    // in content.ts schreef dan nul rijen in `content_piece_targets`, en
-    // `planImpactWaves()` sloeg de effectmeting stilzwijgend over met "geen
-    // doelvragen". Fase 5 bestond zo niet voor een pagina die via het
-    // contentplan geschreven is, en dat is sinds migratie 0065 de normale
-    // route. `targetsFromSourceRef()` leest de doelvragen nu terug uit het
-    // rapport waar `source_ref` ("<rapport-id>#<volgnummer>") naar wijst.
-    {
-      console.log("\nHet contentplan geeft zijn doelvragen mee aan de schrijftaak (punt 2)");
-      const ptUserId = randomUUID();
-      const ptProfileId = randomUUID();
-      const ptAnalysisId = randomUUID();
-      const ptPromptId = randomUUID();
-
-      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
-        ptUserId,
-        "plantargets@example.com",
-      ]);
-      await db.client.query(
-        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
-         values ($1, $2, 'Plantargets BV', 'https://plantargets-bv.nl', 'Plantargets BV',
-                 array['Sinds 2010 actief', 'Meer dan 500 klanten geholpen'], 'klaar')`,
-        [ptProfileId, ptUserId],
-      );
-      await db.client.query(
-        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
-         values ($1, $2, $3, 'Plantargets — onderwerp', 'https://plantargets-bv.nl', 'onderwerp', 'gereed')`,
-        [ptAnalysisId, ptUserId, ptProfileId],
-      );
-      await db.client.query(
-        `insert into public.prompts (id, analysis_id, text, category, active)
-         values ($1, $2, 'Waar vind ik dit onderwerp?', 'Beslissing', true)`,
-        [ptPromptId, ptAnalysisId],
-      );
-      const { rows: ptReportRows } = await db.client.query(
-        `insert into public.reports (analysis_id, period, recommendations_json)
-         values ($1, 'week 0', $2::jsonb) returning id`,
-        [
-          ptAnalysisId,
-          JSON.stringify([
-            {
-              title: "Kans pagina",
-              why: "De AI noemt ons niet bij dit onderwerp.",
-              type: "landing",
-              action: "nieuw",
-              targetIntent: "Iemand die dit onderwerp zoekt",
-              targets: [{ promptId: ptPromptId, weight: 0.7, text: "Waar vind ik dit onderwerp?" }],
-            },
-          ]),
-        ],
-      );
-      const ptReportId = ptReportRows[0].id as string;
-
-      // ── De leesfunctie zelf: drie gevallen ──────────────────────────────
-      const { targetsFromSourceRef } = await import("@/lib/plan-backlog-data");
-      const gevonden = await targetsFromSourceRef(admin as never, `${ptReportId}#0`);
-      ok(
-        "de doelvraag van de aanbeveling wordt teruggevonden uit het rapport",
-        gevonden.targets.length === 1 && gevonden.targets[0]?.promptId === ptPromptId,
-        JSON.stringify(gevonden),
-      );
-      ok("en het rapport-id komt mee, voor content_pieces.report_id", gevonden.reportId === ptReportId);
-
-      const zonderRef = await targetsFromSourceRef(admin as never, null);
-      ok(
-        "zonder source_ref blijft de doelvragenlijst leeg (oude planpagina's)",
-        zonderRef.targets.length === 0 && zonderRef.reportId === null,
-      );
-
-      const onbekendRapport = await targetsFromSourceRef(admin as never, `${randomUUID()}#0`);
-      ok(
-        "een onbekend rapport levert geen gooi op, alleen een lege lijst",
-        onbekendRapport.targets.length === 0,
-      );
-
-      // ── De volledige keten: schrijftaak inplannen mét de teruggevonden
-      // doelvragen, echt schrijven, en controleren wat er in
-      // content_piece_targets terechtkomt. ──────────────────────────────
-      const { planContentDraft } = await import("@/lib/jobs/content-jobs");
-      const { created: ptCreated } = await planContentDraft(admin as never, {
-        analysisId: ptAnalysisId,
-        userId: ptUserId,
-        recommendation: {
-          title: "Kans pagina",
-          type: "landing",
-          targetIntent: "Iemand die dit onderwerp zoekt",
-          why: "De AI noemt ons niet bij dit onderwerp.",
-          action: "nieuw",
-          existingUrl: null,
-          reportId: gevonden.reportId,
-          targets: gevonden.targets,
-        },
-      });
-      ok("de schrijftaak wordt ingepland", ptCreated);
-
-      // ── Eerst de planstap, dan het schrijven (A1/A2, migratie 0082) ────────
-      //
-      // `planContentDraft()` plant sinds dit werk `content_plan` in; die taak
-      // zoekt uit wat er op de pagina moet staan en plant daarna zelf
-      // `content_draft` in. De keten toetst hier dus precies de bedrading die
-      // veranderd is: zonder de plantaak komt er geen schrijftaak.
-      const { runJob } = await import("@/lib/jobs/handlers");
-      const { rows: ptPlanRows } = await db.client.query(
-        `select * from public.jobs where analysis_id = $1 and type = 'content_plan'
-          order by created_at desc limit 1`,
-        [ptAnalysisId],
-      );
-      ok("de planstap staat vóór het schrijven in de rij", ptPlanRows.length === 1);
-      await runJob({ admin: admin as never, job: { ...ptPlanRows[0], status: "running" } });
-
-      const { rows: ptJobRows } = await db.client.query(
-        `select * from public.jobs where analysis_id = $1 and type = 'content_draft'
-          order by created_at desc limit 1`,
-        [ptAnalysisId],
-      );
-      ok("de plantaak plant het schrijven in", ptJobRows.length === 1);
-      await runJob({ admin: admin as never, job: { ...ptJobRows[0], status: "running" } });
-
-      const { rows: ptStukRows } = await db.client.query(
-        `select id, report_id from public.content_pieces where analysis_id = $1
-          order by created_at desc limit 1`,
-        [ptAnalysisId],
-      );
-      const ptContentPieceId = ptStukRows[0]?.id as string | undefined;
-      ok("de pagina is geschreven", Boolean(ptContentPieceId));
-      ok(
-        "en draagt het rapport waar hij uit voortkomt",
-        ptStukRows[0]?.report_id === ptReportId,
-      );
-
-      const { rows: ptDoelvraagRows } = await db.client.query(
-        `select prompt_id from public.content_piece_targets where content_piece_id = $1`,
-        [ptContentPieceId],
-      );
-      ok(
-        "de doelvraag staat in content_piece_targets in plaats van leeg te blijven",
-        ptDoelvraagRows.length === 1 && ptDoelvraagRows[0]?.prompt_id === ptPromptId,
-        `${ptDoelvraagRows.length} doelvra(a)g(en)`,
-      );
-
-      // ── Het contract landt bij de pagina, en de reparatie is gericht ─────
-      //
-      // (docs/tasks/contentpijplijn-herontwerp.md A2/A3/A6). Twee dingen die
-      // alleen in de keten te zien zijn: dat de plantaak zijn contract echt
-      // doorgeeft aan de geschreven pagina, en dat een reparatieronde alleen
-      // de genoemde sectie aanraakt en de rest letterlijk laat staan.
-      const { rows: ptContractRows } = await db.client.query(
-        `select contract_json, dossier_json, coverage_score, body_markdown
-           from public.content_pieces where id = $1`,
-        [ptContentPieceId],
-      );
-      const ptContract = ptContractRows[0]?.contract_json as { sections?: unknown[] } | null;
-      ok("het contract staat bij de geschreven pagina", (ptContract?.sections ?? []).length === 2);
-      ok("de dekking is berekend", ptContractRows[0]?.coverage_score !== null);
-      // ⚠️ De uitleg uit het dossier haalde de controle NIET (de bron bestaat
-      // niet in de ketentest), en dat hoort zo: niet-geverifieerde uitleg mag de
-      // pagina niet op (A7).
-      const ptDossier = ptContractRows[0]?.dossier_json as
-        | { explainers?: { verified?: boolean }[] }
-        | null;
-      ok(
-        "uitleg zonder werkende bron gaat niet mee",
-        (ptDossier?.explainers ?? []).every((e) => e.verified !== true),
-      );
-
-      const ptVoorReparatie = (ptContractRows[0]?.body_markdown as string) ?? "";
-      await db.client.query(`update public.content_pieces set status = 'draft' where id = $1`, [
-        ptContentPieceId,
-      ]);
-      const { reviseContentPiece } = await import("@/lib/pipeline/content");
-      const ptReparatie = await reviseContentPiece({
-        analysisId: ptAnalysisId,
-        userId: ptUserId,
-        contentPieceId: ptContentPieceId as string,
-        recommendation: {
-          title: "Kans pagina",
-          type: "landing",
-          targetIntent: "Iemand die dit onderwerp zoekt",
-          why: "De AI noemt ons niet bij dit onderwerp.",
-          targets: gevonden.targets,
-        },
-        issues: ['In de sectie "Afspraak maken": zeg hoe snel iemand terecht kan.'],
-      });
-      const { rows: ptNaRows } = await db.client.query(
-        `select body_markdown, repair_round from public.content_pieces where id = $1`,
-        [ptContentPieceId],
-      );
-      const ptNa = (ptNaRows[0]?.body_markdown as string) ?? "";
-      ok("de reparatieronde is geteld", ptNaRows[0]?.repair_round === 1 && ptReparatie.ronde === 1);
-
-      // ── Optimalisatie 4 (4 september 2026): de reparatie kent de grenzen ──
-      //
-      // ⚠️ De samenhang die hier fout ging. Van de vijf blokken die op
-      // 3 september aan de SCHRIJFopdracht zijn toegevoegd, zat er geen enkele
-      // in de REPARATIEopdracht. Vier ervan hebben een blokkerende controle
-      // achter zich (aanspreekvorm, verboden woorden, de adresinstructie,
-      // zelfondermijnend advies), dus een reparatieronde kon een pagina die
-      // door de keuring kwam alsnog onpubliceerbaar maken. Alleen in de keten te
-      // zien, want het gaat om wat de tweede taak van de eerste meekrijgt.
-      const ptReparatiePrompt = log.filter((l) => l.schemaName === "content_patch").at(-1)?.user ?? "";
-      ok(
-        "de reparatieopdracht noemt de gekozen aanspreekvorm",
-        /aanspreekvorm|spreek de lezer/i.test(ptReparatiePrompt),
-        ptReparatiePrompt.slice(0, 200),
-      );
-      ok(
-        "en zegt voor wie de pagina geschreven is",
-        ptReparatiePrompt.includes("DE LEZER VAN DEZE PAGINA"),
-      );
-      ok(
-        "en dat dit de site van de ondernemer is en geen consumentengids",
-        ptReparatiePrompt.includes("geen consumentengids"),
-      );
-      ok(
-        "en hij krijgt nog steeds niet de doellengte, want dit is geen tweede schrijfronde",
-        !ptReparatiePrompt.includes("Doellengte"),
-      );
-      ok("de genoemde sectie is herschreven", ptNa.includes("Bel of mail voor een afspraak"));
-      ok(
-        "de andere sectie staat er letterlijk nog",
-        ptNa.includes("runnersknie") && ptVoorReparatie.includes("runnersknie"),
-      );
-
-      // ── Verbetering 1: een paginagebonden antwoord bereikt zijn eigen kaart ──
-      //
-      // ⚠️ DE SAMENHANG DIE HIER FOUT GING. De briefing stelt vragen met drie
-      // reikwijdtes, en `scope = 'pagina'` hangt aan één content_piece via
-      // `content_piece_ids`. Beide plekken die antwoorden inlazen filterden die
-      // reikwijdte weg, en het commentaar zei dat zo'n antwoord "daar apart mee
-      // gaat" terwijl niets dat deed. Gemeten op 1 september 2026: 9 van de 16
-      // briefingvragen waren paginagebonden en 4 van de 8 gegeven antwoorden
-      // verdwenen. Eén ervan was "Werken jullie momenteel in Tilburg en plaatsen
-      // jullie daar hybride warmtepompen: ja", terwijl de pagina die eruit kwam
-      // schreef dat het bedrijf daar niet kon worden aanbevolen.
-      await db.client.query(
-        `insert into public.fact_requests
-           (profile_id, analysis_id, question, reason, answer, status, answered_at, scope, kind,
-            answer_type, required, claim_key, content_piece_ids)
-         values ($1, $2, 'Werken jullie in Tilburg en plaatsen jullie daar warmtepompen?',
-                 'verificatie', 'Ja, Tilburg valt binnen het werkgebied', 'beantwoord', now(),
-                 'pagina', 'verificatie', 'ja_nee', true, 'werkgebied-tilburg', $3)`,
-        [ptProfileId, ptAnalysisId, [ptContentPieceId]],
-      );
-
-      const { buildFactBase } = await import("@/lib/pipeline/factbase");
-      const kaartMetPagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, [], [
-        ptContentPieceId as string,
-      ]);
-      // Een ja-of-nee-antwoord wordt "vraag: ja" (zie `factFromAnswer`): los is
-      // "ja" nietszeggend, dus de vraag hoort erbij.
-      ok(
-        "een paginagebonden antwoord staat op de kaart van díe pagina",
-        kaartMetPagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
-      );
-      ok(
-        "en het is citeerbaar, dus de schrijver mag het gebruiken",
-        kaartMetPagina.some((f) => f.text.includes("Werken jullie in Tilburg") && f.citable),
-      );
-
-      const kaartAnderePagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, [], [
-        randomUUID(),
-      ]);
-      ok(
-        "maar niet op de kaart van een andere pagina",
-        !kaartAnderePagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
-      );
-
-      const kaartZonderPagina = await buildFactBase(admin as never, ptProfileId, ptAnalysisId, []);
-      ok(
-        "en niet als er helemaal geen pagina in beeld is",
-        !kaartZonderPagina.some((f) => f.text.includes("Werken jullie in Tilburg")),
-      );
-
-      await db.client.query(`update public.content_pieces set status = 'ready' where id = $1`, [
-        ptContentPieceId,
-      ]);
-
-      // ── En de effectmeting mag nu wél twee golven plannen ───────────────
-      // (voorheen: "geen doelvragen", nul golven, fase 5 bestond niet voor
-      // een pagina uit het contentplan).
-      await db.client.query(
-        `update public.content_pieces
-            set status = 'published', published_at = now(),
-                published_url = 'https://plantargets-bv.nl/kans'
-          where id = $1`,
-        [ptContentPieceId],
-      );
-      const { planImpactWaves } = await import("@/lib/pipeline/impact");
-      const ptGolven = await planImpactWaves(admin as never, {
-        analysisId: ptAnalysisId,
-        contentPieceId: ptContentPieceId as string,
-        publishedAt: new Date(),
-      });
-      ok(
-        "de effectmeting plant nu twee golven in plaats van 'geen doelvragen'",
-        ptGolven.planned === 2,
-        `${ptGolven.planned} golf/golven`,
-      );
-    }
-
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: vier taken die elkaar via de
+    // status van de ronde inplannen. Plant een stap zijn opvolger niet in, of
+    // geeft hij op zonder de ronde af te sluiten, dan blijft het scherm eeuwig
+    // op "Ontdekkingsronde loopt" staan. En het model mag bundelen maar niet
+    // verzinnen: een kandidaat met alleen onbestaande zoektermen hoort nooit
+    // bij de consultant aan te komen.
+    //
+    // Zonder CLUSTER_DISCOVERY_ENABLED draait de ronde op Search Console en het
+    // aanbod alleen; dat is ook precies wat hier getest wordt (geen netwerk).
     // ════════════════════════════════════════════════════════════════════════
-    // Een pagina VERBETEREN gebruikt de echte, volledige tekst van de klant
-    // (docs/tasks/paginakeuze-nieuw-of-verbeteren.md O1 tot en met O5,
-    // migratie 0083).
-    //
-    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: bijna de helft van wat de app
-    // voorstelt is het verbeteren van een pagina die de klant al heeft (59 van
-    // de 129 aanbevelingen over 20 rapporten, nagerekend op productie op
-    // 1 september 2026). Drie schakels moesten daarvoor samenwerken en deden
-    // dat geen van drieën:
-    //
-    //   1. de koppeling van het adres aan `profile_pages` was een exacte
-    //      stringvergelijking, dus een pad zonder domein vond niets;
-    //   2. de schrijver kreeg alleen het crawl-excerpt van 1500 tekens, tot
-    //      weken oud, terwijl het scherm de klant vertelde de pagina te
-    //      vervangen;
-    //   3. het contract werd opgesteld alsof de pagina niet bestond, dus er was
-    //      geen enkel oordeel over wat er nu eigenlijk aan schortte.
-    //
-    // Dit scenario draait de hele keten met een gestubde site: het adres komt
-    // binnen als PAD (zoals het model het in productie teruggaf), de pagina
-    // staat met een afgekapt excerpt in de inventaris, en de verse ophaling
-    // levert meer tekst op dan dat excerpt.
     {
-      console.log("\nEen bestaande pagina verbeteren (O1 tot en met O5, migratie 0083)");
-      const vbUserId = randomUUID();
-      const vbProfileId = randomUUID();
-      const vbAnalysisId = randomUUID();
-      const vbUrl = "https://verbeterbv.nl/warmtepomp-tilburg/";
-
-      // De echte pagina: langer dan het excerpt, en met een alinea die ALLEEN
-      // in de verse tekst staat. Daarmee is te bewijzen dat de schrijfstap de
-      // verse tekst gebruikt en niet de crawltekst.
-      const vbVerseTekst =
-        "Wij plaatsen warmtepompen in Tilburg en omgeving. " +
-        "De montage duurt meestal een dag. ".repeat(20) +
-        "Onze garantie op de installatie loopt vijf jaar.";
-      const vbExcerpt = "Wij plaatsen warmtepompen in Tilburg en omgeving.";
-
-      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
-        vbUserId,
-        "verbeteren@example.com",
-      ]);
+      console.log("\nClusters ontdekken: van ronde tot kandidaten (0109)");
+      const cd = await import("@/lib/pipeline/cluster-discovery");
+      const cdProfileId = randomUUID();
+      const cdAnalysisId = randomUUID();
       await db.client.query(
-        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
-         values ($1, $2, 'Verbeter BV', 'https://verbeterbv.nl', 'Verbeter BV',
-                 array['Sinds 2010 actief', 'Meer dan 500 installaties gedaan'], 'klaar')`,
-        [vbProfileId, vbUserId],
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, gsc_property, service_regions)
+         values ($1, $2, 'Klimaat BV', 'https://www.klimaat-bv.nl', 'Klimaat BV', 'klaar',
+                 'https://www.klimaat-bv.nl/', array['Tilburg'])`,
+        [cdProfileId, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_offerings (profile_id, kind, name, source, sort_order)
+         values ($1, 'dienst', 'CV-ketel onderhoud', 'ai', 0), ($1, 'dienst', 'Airco', 'ai', 1)`,
+        [cdProfileId],
       );
       await db.client.query(
         `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
-         values ($1, $2, $3, 'Verbeter BV, warmtepomp', 'https://verbeterbv.nl', 'warmtepomp', 'gereed')`,
-        [vbAnalysisId, vbUserId, vbProfileId],
+         values ($1, $2, $3, 'CV-ketel onderhoud', 'https://klimaat-bv.nl', 'CV-ketel onderhoud', 'gereed')`,
+        [cdAnalysisId, userId, cdProfileId],
       );
+      const vandaag = new Date().toISOString().slice(0, 10);
       await db.client.query(
-        `insert into public.profile_pages (profile_id, url, title, text_excerpt, source)
-         values ($1, $2, 'Warmtepomp Tilburg', $3, 'crawl')`,
-        [vbProfileId, vbUrl, vbExcerpt],
+        `insert into public.search_console_queries (profile_id, day, query, page, clicks, impressions, position) values
+           ($1, $2, 'airco laten plaatsen tilburg', 'https://www.klimaat-bv.nl/airco', 3, 300, 8),
+           ($1, $2, 'airco installeren kosten', 'https://www.klimaat-bv.nl/airco', 1, 200, 12),
+           ($1, $2, 'cv ketel onderhoud tilburg', 'https://www.klimaat-bv.nl/cv', 9, 150, 5),
+           ($1, $2, 'capcut apk', 'https://www.klimaat-bv.nl/', 0, 90, 30),
+           ($1, $2, 'klimaat bv', 'https://www.klimaat-bv.nl/', 40, 500, 1)`,
+        [cdProfileId, vandaag],
       );
 
-      // ── O1: het adres komt binnen als PAD, zonder domein ─────────────────
-      const { planContentDraft: vbPlan } = await import("@/lib/jobs/content-jobs");
-      await vbPlan(admin as never, {
-        analysisId: vbAnalysisId,
-        userId: vbUserId,
-        recommendation: {
-          title: "Warmtepomp in Tilburg: prijs en montage",
-          type: "landing",
-          targetIntent: "Iemand die een warmtepomp wil laten plaatsen",
-          why: "De AI noemt ons niet bij deze vraag.",
-          action: "verbeteren",
-          // ⚠️ Precies de vorm die in productie 5 van de 8 koppelingen liet
-          // mislukken: het pad zonder schema en domein.
-          existingUrl: "/warmtepomp-tilburg/",
-          reportId: null,
-          targets: [],
-        },
-      });
-
-      const { runJob: vbRunJob } = await import("@/lib/jobs/handlers");
-      const { rows: vbPlanRows } = await db.client.query(
-        `select * from public.jobs where analysis_id = $1 and type = 'content_plan'
-          order by created_at desc limit 1`,
-        [vbAnalysisId],
+      const { rows: rondeRij } = await db.client.query(
+        `insert into public.cluster_discovery_runs (profile_id, started_by, status, theme)
+         values ($1, $2, 'verzamelen', 'Airco') returning id`,
+        [cdProfileId, userId],
       );
-      ok("de planstap staat klaar", vbPlanRows.length === 1);
+      const runId = rondeRij[0].id as string;
 
-      // ── O3: de site wordt vers opgehaald ────────────────────────────────
-      const vbOrigineleFetch = globalThis.fetch;
-      let vbOpgehaald = 0;
-      globalThis.fetch = (async (input: RequestInfo | URL) => {
-        const url = String(input);
-        if (url === vbUrl) {
-          vbOpgehaald++;
-          return {
-            ok: true,
-            status: 200,
-            headers: new Headers(),
-            text: async () => `<html><body><p>${vbVerseTekst}</p></body></html>`,
-          };
-        }
-        return { ok: false, status: 404, headers: new Headers(), text: async () => "" };
-      }) as typeof globalThis.fetch;
+      await cd.discoveryCollect(admin as never, runId);
+      const { rows: naVerzamelen } = await db.client.query(
+        "select status, input_json from public.cluster_discovery_runs where id = $1",
+        [runId],
+      );
+      eqc("na verzamelen staat de ronde op verbreden", naVerzamelen[0].status, "verbreden");
+      const invoer = naVerzamelen[0].input_json as {
+        thema: string | null;
+        beginpunten: string[];
+        gsc: { keyword: string }[];
+        bestaand: string[];
+      };
+      // Het thema (migratie 0111) moet elke stap bereiken, anders zoekt de
+      // ronde toch weer over het hele aanbod.
+      eqc("het thema gaat mee in de invoer van de ronde", String(invoer.thema), "Airco");
+      ok(
+        "de beginpunten krijgen het thema",
+        log.some((l) => l.schemaName === "discovery_seeds" && l.user.includes("THEMA: Airco")),
+      );
+      ok(
+        "een beginpunt met de merknaam valt eruit",
+        !invoer.beginpunten.some((b) => b.includes("klimaat bv")),
+        invoer.beginpunten.join(", "),
+      );
+      ok("Search Console gaat mee", invoer.gsc.length === 5, String(invoer.gsc.length));
+      ok("het lopende cluster staat bij wat er al is", invoer.bestaand.includes("CV-ketel onderhoud"));
 
-      try {
-        await vbRunJob({ admin: admin as never, job: { ...vbPlanRows[0], status: "running" } });
+      const { rows: volgendeTaak } = await db.client.query(
+        "select type from public.jobs where profile_id = $1 and type like 'discovery_%'",
+        [cdProfileId],
+      );
+      ok("verzamelen plant verbreden in", volgendeTaak.some((j) => j.type === "discovery_expand"));
 
-        ok(
-          "het pad zonder domein vindt de bestaande pagina alsnog",
-          vbOpgehaald === 1,
-          `${vbOpgehaald} ophaling(en)`,
-        );
+      // Nog een keer verzamelen: de ronde is al verder, dus er gebeurt niets.
+      const aanroepenVoor = log.filter((l) => l.schemaName === "discovery_seeds").length;
+      await cd.discoveryCollect(admin as never, runId);
+      ok(
+        "een herhaalde taak doet geen tweede aanroep",
+        log.filter((l) => l.schemaName === "discovery_seeds").length === aanroepenVoor,
+      );
 
-        // ⚠️ De rij in `content_pieces` bestaat op dit moment nog NIET: deze
-        // pagina is niet via de briefing binnengekomen, dus de schrijfstap maakt
-        // hem straks pas aan. Daarom loopt de opgehaalde tekst hier via de
-        // payload, en controleren we de kolommen verderop, ná het schrijven.
-        const { rows: vbDraftRows } = await db.client.query(
-          `select * from public.jobs where analysis_id = $1 and type = 'content_draft'
-            order by created_at desc limit 1`,
-          [vbAnalysisId],
-        );
-        ok("de plantaak plant het schrijven in", vbDraftRows.length === 1);
-        const vbPayload = vbDraftRows[0]?.payload_json as {
-          voorbereid?: { existingText?: string | null };
-        };
-        ok(
-          "de verse tekst gaat mee in de payload van de schrijftaak",
-          (vbPayload?.voorbereid?.existingText ?? "").includes("garantie op de installatie"),
-        );
+      await cd.discoveryExpand(admin as never, runId);
+      await cd.discoverySift(admin as never, runId);
+      const { rows: naSchiften } = await db.client.query(
+        "select status, status_note, sifted_json from public.cluster_discovery_runs where id = $1",
+        [runId],
+      );
+      eqc("na schiften staat de ronde op bundelen", naSchiften[0].status, "bundelen");
+      ok(
+        "zonder zoekdata zegt de ronde dat erbij",
+        String(naSchiften[0].status_note ?? "").includes("stond uit"),
+        String(naSchiften[0].status_note),
+      );
+      const geschift = naSchiften[0].sifted_json as { keyword: string }[];
+      ok("de merkterm is er vóór het model al uit", !geschift.some((t) => t.keyword === "klimaat bv"));
+      ok("de homoniem is eruit geschift", !geschift.some((t) => t.keyword.includes("capcut")));
+      ok("een onbestaand nummer van het model telt niet", geschift.length === 3, String(geschift.length));
 
-        await vbRunJob({ admin: admin as never, job: { ...vbDraftRows[0], status: "running" } });
+      ok(
+        "het schiften krijgt het thema",
+        log.some((l) => l.schemaName === "discovery_sift" && l.user.includes("THEMA: Airco")),
+      );
+      await cd.discoveryBundle(admin as never, runId);
+      ok(
+        "het bundelen krijgt het thema",
+        log.some((l) => l.schemaName === "discovery_bundle" && l.user.includes("THEMA: Airco")),
+      );
+      const { rows: kand } = await db.client.query(
+        `select title, kind, overlaps_with, total_volume, own_position, terms_json
+           from public.cluster_discovery_candidates where run_id = $1 order by score desc`,
+        [runId],
+      );
+      ok("de verzonnen kandidaat sneuvelt", !kand.some((k) => k.title === "Zonnepanelen"), kand.map((k) => k.title).join(", "));
+      const airco = kand.find((k) => k.title === "Airco laten installeren");
+      ok("de airco-kandidaat is er", Boolean(airco));
+      eqc("met plek 8 is dat snelle winst", String(airco?.kind), "snelle_winst");
+      ok("zonder zoekdata is het volume onbekend, niet nul", airco?.total_volume === null, String(airco?.total_volume));
+      const ketel = kand.find((k) => k.title === "CV-ketel onderhoud in Tilburg");
+      ok(
+        "een verzonnen term binnen een echte kandidaat valt weg, de kandidaat niet",
+        ketel === undefined || !(ketel.terms_json as { keyword: string }[]).some((t) => t.keyword.includes("verzonnen")),
+      );
+      const { rows: rondeKlaar } = await db.client.query(
+        "select status, finished_at from public.cluster_discovery_runs where id = $1",
+        [runId],
+      );
+      eqc("de ronde is klaar", rondeKlaar[0].status, "klaar");
 
-        const { rows: vbGeschreven } = await db.client.query(
-          `select action, existing_url, related_url, existing_page_text,
-                  existing_page_fetched_at, contract_json
-             from public.content_pieces where analysis_id = $1
-            order by created_at desc limit 1`,
-          [vbAnalysisId],
-        );
-
-        // ── De bron van de verbetering staat bij de tekst (conventie 8) ────
-        const vbBewaard = (vbGeschreven[0]?.existing_page_text as string | null) ?? "";
-        ok("de verse tekst is bewaard bij de geschreven pagina", vbBewaard.length > 0);
-        ok(
-          "en hij is langer dan het crawl-excerpt",
-          vbBewaard.length > vbExcerpt.length,
-          `${vbBewaard.length} tegenover ${vbExcerpt.length} tekens`,
-        );
-        ok("met het moment erbij", Boolean(vbGeschreven[0]?.existing_page_fetched_at));
-
-        // ── O4: het contract oordeelt per sectie over de bestaande pagina ──
-        //
-        // De stub geeft `niet_van_toepassing` terug. Dat mag hier niet blijven
-        // staan: er ÍS een bestaande pagina, dus "niet van toepassing" is geen
-        // geldig oordeel. `normaliseerContract()` zet het om naar `ontbreekt`
-        // met een zin voor de klant. Dat is het vangnet van conventie 1, en het
-        // is alleen in de keten te zien, want het hangt aan de tekst die de
-        // planstap net heeft opgehaald.
-        const { describeImprovements: vbLijst } = await import("@/lib/pipeline/contract-format");
-        const vbVerbeteringen = vbLijst(vbGeschreven[0]?.contract_json as never);
-        ok("het contract draagt een verbeterplan", vbVerbeteringen.length > 0);
-        ok(
-          "en geen enkele sectie blijft op 'niet van toepassing' staan",
-          vbVerbeteringen.every((v) => v.stand !== ("niet_van_toepassing" as never)),
-        );
-        ok("elke regel zegt wat er moet veranderen", vbVerbeteringen.every((v) => v.wat.length > 0));
-        ok("de pagina blijft een verbetering", vbGeschreven[0]?.action === "verbeteren");
-        ok(
-          "en het opgeslagen adres is de echte URL uit de inventaris",
-          vbGeschreven[0]?.existing_url === "/warmtepomp-tilburg/" ||
-            vbGeschreven[0]?.existing_url === vbUrl,
-          String(vbGeschreven[0]?.existing_url),
-        );
-        // ⚠️ Bij een verbetering hoort `related_url` leeg te blijven: de
-        // bestaande pagina ÍS deze pagina, en een waarschuwing "er staat al
-        // iets" zou dan tegen zichzelf ingaan.
-        ok("zonder waarschuwing voor een tweede pagina", vbGeschreven[0]?.related_url === null);
-      } finally {
-        globalThis.fetch = vbOrigineleFetch;
-      }
+      // Een tweede ronde waarvan een stap definitief opgeeft.
+      const { rows: tweede } = await db.client.query(
+        `insert into public.cluster_discovery_runs (profile_id, started_by, status)
+         values ($1, $2, 'verbreden') returning id`,
+        [cdProfileId, userId],
+      );
+      const { rows: taak } = await db.client.query(
+        `insert into public.jobs (profile_id, type, payload_json, dedupe_key, status, attempts)
+         values ($1, 'discovery_expand', $2, $3, 'running', 4) returning *`,
+        [cdProfileId, JSON.stringify({ runId: tweede[0].id }), `chain-discovery-fout:${tweede[0].id}`],
+      );
+      const { handleFailure } = await import("@/lib/jobs/worker");
+      await handleFailure(admin as never, taak[0], "DataForSEO lag eruit");
+      const { rows: naFout } = await db.client.query(
+        "select status, status_note from public.cluster_discovery_runs where id = $1",
+        [tweede[0].id],
+      );
+      eqc("een opgegeven stap zet de ronde op mislukt", naFout[0].status, "mislukt");
+      ok("met een zin voor het scherm", String(naFout[0].status_note ?? "").length > 20);
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -6531,134 +6386,6 @@ async function main(): Promise<void> {
       eqc("en de tweede bron ook", String(perEngine.gemini?.score), "0");
       eqc("elk met één beoordeelde vraag", String(perEngine.gemini?.judged_runs), "1");
     }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // DE EINDPOORT: geen definitieve versie zolang er vragen open staan
-    // (28 augustus 2026, `lib/content-final-gate.ts`)
-    //
-    // Dit hoort in de KETENTEST en niet in de unittest: de poort is een
-    // samenspel tussen twee tabellen die niets van elkaar weten. De rekenkant
-    // (`eindpoort`) staat in `scripts/test-unit.ts`; wat hier getoetst wordt is
-    // of de telling de goede rijen pakt, en vooral welke rijen NIET.
-    // ══════════════════════════════════════════════════════════════════════
-    console.log("\nDe eindpoort telt de juiste vragen");
-
-    const poortProfiel = randomUUID();
-    await db.client.query(
-      `insert into public.profiles (id, user_id, name, url, status)
-       values ($1, $2, 'Poortmerk', 'https://poortmerk.nl', 'klaar')`,
-      [poortProfiel, userId],
-    );
-    const { rows: poortAnalyses } = await db.client.query(
-      `insert into public.analyses (user_id, profile_id, url, topic, name, status)
-       values ($1, $2, 'https://poortmerk.nl', 'onderhoud', 'Onderhoud', 'gereed'),
-              ($1, $2, 'https://poortmerk.nl', 'installatie', 'Installatie', 'gereed')
-       returning id`,
-      [userId, poortProfiel],
-    );
-    const poortCluster = poortAnalyses[0].id as string;
-    const anderCluster = poortAnalyses[1].id as string;
-
-    const { rows: poortPagina } = await db.client.query(
-      `insert into public.content_pieces (analysis_id, type, title, status, action)
-       values ($1, 'article', 'Wat kost een onderhoudsbeurt', 'ready', 'nieuw') returning id`,
-      [poortCluster],
-    );
-    const poortPieceId = poortPagina[0].id as string;
-
-    const { countBlockingQuestions } = await import("@/lib/open-questions");
-    const { eindpoort } = await import("@/lib/content-final-gate");
-
-    ok(
-      "zonder vragen staat de poort open",
-      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
-    );
-
-    // 1. Een open vraag van DEZE pagina blokkeert. Een open vraag van het
-    //    cluster die aan geen pagina hangt (een aanvulling uit een meting) niet
-    //    meer: sinds 23 september 2026 tellen schrijfpoort en eindpoort precies
-    //    dezelfde vragen (`openVragenVanPagina`, contentflow-een-lijn.md §4.1).
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
-       values ($1, $2, 'Op welke locaties doen jullie onderhoud?', 'meting', 'open',
-               'analyse', 'aanvulling', 'tekst_kort', true)`,
-      [poortProfiel, poortCluster],
-    );
-    ok(
-      "een losse clustervraag uit een meting houdt deze pagina niet tegen",
-      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
-    );
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required,
-          content_piece_ids)
-       values ($1, $2, 'Wat kost een onderhoudsbeurt bij jullie?', 'prijs', 'open',
-               'analyse', 'bewijs', 'tekst_kort', true, array[$3::uuid])`,
-      [poortProfiel, poortCluster, poortPieceId],
-    );
-    ok(
-      "een open vraag van deze pagina houdt de definitieve versie tegen",
-      !eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
-    );
-    const { openVragenVanPagina } = await import("@/lib/open-questions");
-    eqc("en de schrijfpoort telt precies dezelfde vraag", String(await openVragenVanPagina(admin as never, poortPieceId)), "1");
-
-    // 2. Een open vraag uit een ANDER cluster blokkeert deze pagina niet.
-    //    Zonder deze grens zet één vraag over installaties de onderhoudspagina
-    //    dicht, en dan wacht de klant op werk dat er niets mee te maken heeft.
-    await db.client.query(
-      `update public.fact_requests set status = 'overgeslagen' where analysis_id = $1`,
-      [poortCluster],
-    );
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
-       values ($1, $2, 'Welke merken installeren jullie?', 'aanbod', 'open',
-               'analyse', 'aanvulling', 'tekst_kort', true)`,
-      [poortProfiel, anderCluster],
-    );
-    ok(
-      "overslaan telt als antwoord, en een ander cluster telt niet mee",
-      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
-    );
-
-    // 3. Een MERKBREDE vraag die aan déze pagina hangt blokkeert wél. Die komt
-    //    uit de claim-audit: de tekst beweert iets, dus het feit moet kloppen.
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type,
-          required, content_piece_ids)
-       values ($1, null, 'In welk jaar zijn jullie opgericht?', 'de tekst noemt het', 'open',
-               'merk', 'verificatie', 'tekst_kort', true, array[$2::uuid])`,
-      [poortProfiel, poortPieceId],
-    );
-    ok(
-      "een merkbrede vraag die aan deze pagina hangt telt wél mee",
-      !eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
-    );
-
-    // 4. Een merkbrede vraag die NERGENS aan hangt blokkeert niets. Zonder deze
-    //    grens zet één onbeantwoorde vraag uit de onboarding élke pagina van
-    //    élk cluster voorgoed dicht, en dan is de poort een slot.
-    await db.client.query(
-      `update public.fact_requests set status = 'beantwoord', answer = '1974'
-        where profile_id = $1 and analysis_id is null`,
-      [poortProfiel],
-    );
-    await db.client.query(
-      `insert into public.fact_requests
-         (profile_id, analysis_id, question, reason, status, scope, kind, answer_type, required)
-       values ($1, null, 'Hoeveel monteurs hebben jullie?', 'onboarding', 'open',
-               'merk', 'aanvulling', 'tekst_kort', false)`,
-      [poortProfiel],
-    );
-    ok(
-      "een losse merkvraag blokkeert deze pagina niet",
-      eindpoort(await countBlockingQuestions(admin as never, poortCluster, poortPieceId)).mag,
-    );
-
-    await db.client.query("delete from public.profiles where id = $1", [poortProfiel]);
 
     // ══════════════════════════════════════════════════════════════════════
     // HERSTELPLAN NA AUDIT T3.2: de controle op de publicatie grijpt in
@@ -8226,717 +7953,6 @@ async function main(): Promise<void> {
       }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // De vragen komen NA het plan, en overslaan haalt de sectie eruit
-    // (docs/tasks/vragen-voor-het-schrijven.md)
-    //
-    // ⚠️ DE SAMENHANG DIE HIER FOUT GING. De briefing stelde zijn vragen vóórdat
-    // de app wist wat de pagina moest behandelen: de claim-audit draaide zonder
-    // inhoudsopgave, en het contract werd pas daarna opgesteld, met een prompt
-    // die letterlijk zei "daar mag je omheen plannen, niet doorheen". Gemeten op
-    // 1 september 2026 rustten daardoor 18 van de 25 secties van één pagina op
-    // geen enkel feit over het bedrijf, en verdween een overgeslagen vraag
-    // spoorloos: de sectie bleef staan en werd volgeschreven met zinnen die de
-    // lezer opdragen iets na te vragen.
-    //
-    // Deze test volgt de nieuwe volgorde helemaal door, want geen van de
-    // schakels is in isolatie te zien: plannen, dan vragen uit het gat, dan
-    // overslaan, dan de sectie die vervalt.
-    {
-      console.log("\nDe juiste vragen vóór het schrijven (plan, briefing, overslaan)");
-      const vpUserId = randomUUID();
-      const vpProfileId = randomUUID();
-      const vpAnalysisId = randomUUID();
-
-      await db.client.query(`insert into auth.users (id, email) values ($1, $2)`, [
-        vpUserId,
-        `vragen-${vpUserId.slice(0, 8)}@voorbeeld.nl`,
-      ]);
-      // Hetzelfde bewijspunt als het hoofdscenario, want daar leunt F1 op: de
-      // eerste sectie van het contract van de stub verwijst ernaar en telt
-      // daardoor als gedekt.
-      await db.client.query(
-        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
-         values ($1, $2, 'Fysi-Unique', 'https://fysi-unique.nl', 'Fysi-Unique',
-                 array['Wordt met een 9,4 beoordeeld op Zorgkaart'], 'klaar')`,
-        [vpProfileId, vpUserId],
-      );
-      await db.client.query(
-        `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
-         ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten Amersfoort',
-          'Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints. Wij zitten in Amersfoort.')`,
-        [vpProfileId],
-      );
-      await db.client.query(
-        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
-         values ($1, $2, $3, 'Fysi-Unique hardloopblessures', 'https://fysi-unique.nl',
-                 'hardloopblessure behandelen', 'gereed')`,
-        [vpAnalysisId, vpUserId, vpProfileId],
-      );
-
-      const vpAanbeveling = {
-        title: "Pagina over hardloopblessures",
-        type: "article" as const,
-        targetIntent: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
-        why: "De AI noemt hier andere praktijken.",
-        action: "nieuw" as const,
-        existingUrl: null,
-        reportId: null,
-        targets: [
-          {
-            promptId: null,
-            runId: null,
-            text: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
-            cluster: "hardloop",
-            weight: 1,
-          },
-        ],
-        revisionNote: null,
-      };
-
-      // ── 1. De briefing inplannen start het PLAN, niet de vragen ───────────
-      const { planContentBriefing } = await import("@/lib/jobs/content-jobs");
-      await planContentBriefing(admin as never, {
-        analysisId: vpAnalysisId,
-        userId: vpUserId,
-        recommendations: [vpAanbeveling],
-      });
-
-      const { rows: vpTaken } = await db.client.query(
-        `select id, type, payload_json from public.jobs where analysis_id = $1 order by created_at`,
-        [vpAnalysisId],
-      );
-      ok(
-        "er staat een plantaak in de rij en nog geen briefing",
-        vpTaken.length === 1 && vpTaken[0].type === "content_plan",
-        vpTaken.map((t: { type: string }) => t.type).join(", "),
-      );
-      ok(
-        "die plantaak weet dat hij vóór de briefing draait",
-        Boolean((vpTaken[0].payload_json as { voorBriefing?: unknown })?.voorBriefing),
-      );
-
-      const { rows: vpRijen } = await db.client.query(
-        `select id, status from public.content_pieces where analysis_id = $1`,
-        [vpAnalysisId],
-      );
-      ok(
-        "de pagina bestaat al, zodat de plantaak zijn contract kwijt kan",
-        vpRijen.length === 1 && vpRijen[0].status === "briefing",
-      );
-      const vpPieceId = vpRijen[0].id as string;
-
-      // ── 2. De plantaak draaien: contract eerst, dan pas de briefing ───────
-      const { runJob } = await import("@/lib/jobs/handlers");
-      await runJob({
-        admin: admin as never,
-        job: {
-          id: vpTaken[0].id as string,
-          analysis_id: vpAnalysisId,
-          type: "content_plan",
-          payload_json: vpTaken[0].payload_json,
-          attempts: 0,
-        } as never,
-      });
-
-      const { rows: vpNaPlan } = await db.client.query(
-        `select type from public.jobs where analysis_id = $1 and type = 'content_brief'`,
-        [vpAnalysisId],
-      );
-      ok(
-        "de laatste plantaak start de briefing",
-        vpNaPlan.length === 1,
-        "zonder deze stap wacht de klant op vragen die nooit komen",
-      );
-
-      const { rows: vpContractRijen } = await db.client.query(
-        `select contract_json, input_coverage from public.content_pieces where id = $1`,
-        [vpPieceId],
-      );
-      const vpContract = vpContractRijen[0]?.contract_json as {
-        sections: { id: string; needsBrandFact: boolean }[];
-      };
-      ok(
-        "het contract ligt er vóór de briefing",
-        (vpContract?.sections ?? []).length === 2,
-        `${vpContract?.sections?.length ?? 0} secties`,
-      );
-
-      // ── 3. De briefing meet het gat en vraagt naar de juiste sectie ───────
-      const { runBriefing: vpRunBriefing } = await import("@/lib/pipeline/briefing");
-      await vpRunBriefing({ analysisId: vpAnalysisId, recommendations: [vpAanbeveling] });
-
-      const { rows: vpDekking } = await db.client.query(
-        `select input_coverage from public.content_pieces where id = $1`,
-        [vpPieceId],
-      );
-      // Twee merkgebonden secties, waarvan er één een bestaand F-nummer heeft:
-      // de onderbouwingsgraad is dus 50%. Dat cijfer is wat de inputpoort weegt.
-      ok(
-        "de onderbouwingsgraad is gemeten en bewaard",
-        Number(vpDekking[0]?.input_coverage) === 50,
-        `${vpDekking[0]?.input_coverage}`,
-      );
-
-      const { rows: vpVragen } = await db.client.query(
-        `select id, question, section_refs from public.fact_requests
-          where profile_id = $1 and status = 'open'`,
-        [vpProfileId],
-      );
-      const vpSectieVraag = vpVragen.find((v: { section_refs: string[] }) =>
-        (v.section_refs ?? []).includes(`${vpPieceId}:s2`),
-      );
-      ok(
-        "de vraag hangt aan de sectie die hem nodig heeft",
-        Boolean(vpSectieVraag),
-        vpVragen.map((v: { section_refs: string[] }) => (v.section_refs ?? []).join("|")).join(" / "),
-      );
-
-      // ── 4. Overslaan haalt de sectie eruit ────────────────────────────────
-      //
-      // De ondergrens van drie secties uit `zetContractVast` geldt hier niet:
-      // dit contract heeft er twee, dus we toetsen de snoeifunctie los op een
-      // contract dat groot genoeg is, en daarna de keten met de echte grens.
-      const { zetContractVast } = await import("@/lib/pipeline/input-coverage");
-      const vpRuim = {
-        ...vpContract,
-        sections: [
-          ...vpContract.sections,
-          { ...vpContract.sections[0], id: "s3" },
-          { ...vpContract.sections[0], id: "s4" },
-        ],
-      } as never;
-      ok(
-        "een overgeslagen vraag laat zijn sectie vervallen",
-        (zetContractVast(vpRuim, ["s2"])?.sections ?? []).every(
-          (sec: { id: string }) => sec.id !== "s2",
-        ),
-      );
-      ok(
-        "maar een pagina wordt nooit kleiner dan drie secties",
-        (zetContractVast(vpRuim, ["s1", "s2", "s3"])?.sections ?? []).length === 4,
-      );
-
-      // ── 5. De inputpoort houdt een te dunne pagina tegen ──────────────────
-      const { beoordeelPagina } = await import("@/lib/pipeline/input-gate");
-      const { rows: vpPoortRij } = await db.client.query(
-        `select id, title, contract_json, write_mode, briefing_snapshot_json, target_intent
-           from public.content_pieces where id = $1`,
-        [vpPieceId],
-      );
-      const vpOordeel = await beoordeelPagina(admin as never, {
-        analysisId: vpAnalysisId,
-        profileId: vpProfileId,
-        piece: vpPoortRij[0] as never,
-      });
-      ok(
-        "bij 50% mag de pagina geschreven worden, met een waarschuwing",
-        vpOordeel.mag && vpOordeel.stand === "waarschuwing",
-        `${vpOordeel.stand} bij ${vpOordeel.graad}%`,
-      );
-      ok(
-        "en de melding noemt de sectie die eruit valt",
-        vpOordeel.melding.includes("Afspraak maken"),
-        vpOordeel.melding,
-      );
-
-      // Kiest de klant voor een algemene pagina, dan gaat de poort open en
-      // vervalt de sectie waar hij niets voor heeft.
-      await db.client.query(
-        `update public.content_pieces set write_mode = 'algemeen' where id = $1`,
-        [vpPieceId],
-      );
-      const vpAlgemeen = await beoordeelPagina(admin as never, {
-        analysisId: vpAnalysisId,
-        profileId: vpProfileId,
-        piece: { ...(vpPoortRij[0] as object), write_mode: "algemeen" } as never,
-      });
-      ok(
-        "wie kiest voor een algemene pagina komt door de poort",
-        vpAlgemeen.mag && vpAlgemeen.stand === "schrijven",
-        vpAlgemeen.stand,
-      );
-
-      // ── 6. V7: een pagina zonder lezer wordt niet geschreven ─────────────
-      //
-      // Deze pagina heeft geen `target_intent`, maar wel doelvragen in zijn
-      // bevroren aanbeveling, en die vullen de lezersopdracht. Dat is precies
-      // de terugval die `bepaalLezersopdracht()` bedoelt, en hij is hier eind
-      // tot eind te zien: dezelfde pagina zonder doelvragen komt er niet door.
-      const { bepaalLezersopdracht } = await import("@/lib/lezersopdracht");
-      const { recommendationFromSnapshot } = await import("@/lib/pipeline/briefing");
-      const vpSnapshot = recommendationFromSnapshot(
-        (vpPoortRij[0] as { briefing_snapshot_json: unknown }).briefing_snapshot_json,
-      );
-      const vpDoelvragen = (vpSnapshot?.targets ?? []).map((t) => t.text).filter(Boolean);
-      ok(
-        "zonder doelomschrijving valt de lezer terug op de gemeten vraag",
-        bepaalLezersopdracht({ targetIntent: null, doelvragen: vpDoelvragen }).bron === "meting",
-        `doelvragen: ${vpDoelvragen.length}`,
-      );
-
-      const vpZonderVragen = await beoordeelPagina(admin as never, {
-        analysisId: vpAnalysisId,
-        profileId: vpProfileId,
-        piece: {
-          ...(vpPoortRij[0] as object),
-          write_mode: null,
-          target_intent: null,
-          briefing_snapshot_json: null,
-        } as never,
-        bewaar: false,
-      });
-      ok(
-        "maar zonder doelomschrijving én zonder gemeten vraag gaat de poort dicht",
-        vpZonderVragen.mag === false && vpZonderVragen.stand === "tegenhouden",
-        `${vpZonderVragen.stand} bij ${vpZonderVragen.graad}%`,
-      );
-      ok(
-        "en de melding zegt dat we niet weten voor wie de pagina is",
-        vpZonderVragen.melding.includes("voor wie deze pagina is"),
-        vpZonderVragen.melding,
-      );
-    }
-
-
-    // ════════════════════════════════════════════════════════════════════════
-    // HET KWALITEITSRAAMWERK, EIND TOT EIND (migratie 0091)
-    // ════════════════════════════════════════════════════════════════════════
-    //
-    // De scenario's uit docs/tasks/contentkwaliteit-framework.md §7. Ze draaien
-    // op een EIGEN merk, zodat elke schakel in isolatie te zien is: een
-    // kernsectie zonder bewijs, een gevallen beoordelaar, en de rondes die de
-    // versiekeuze voeden.
-    {
-      console.log("\nHet kwaliteitsraamwerk: blokkade, zekerheid en versiekeuze");
-      const kwUserId = randomUUID();
-      const kwProfileId = randomUUID();
-      const kwAnalysisId = randomUUID();
-
-      await db.client.query(`insert into auth.users (id, email) values ($1, $2)`, [
-        kwUserId,
-        `kwaliteit-${kwUserId.slice(0, 8)}@voorbeeld.nl`,
-      ]);
-      await db.client.query(
-        `insert into public.profiles (id, user_id, name, url, brand_name, proof_points, status)
-         values ($1, $2, 'Fysi-Unique', 'https://fysi-unique.nl', 'Fysi-Unique',
-                 array['Wordt met een 9,4 beoordeeld op Zorgkaart'], 'klaar')`,
-        [kwProfileId, kwUserId],
-      );
-      await db.client.query(
-        `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
-         ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten Amersfoort',
-          'Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints. Wij zitten in Amersfoort.')`,
-        [kwProfileId],
-      );
-      await db.client.query(
-        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
-         values ($1, $2, $3, 'Fysi-Unique hardloopblessures', 'https://fysi-unique.nl',
-                 'hardloopblessure behandelen', 'gereed')`,
-        [kwAnalysisId, kwUserId, kwProfileId],
-      );
-
-      const kwAanbeveling = {
-        title: "Kwaliteitspagina hardloopblessures",
-        type: "article" as const,
-        targetIntent: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
-        why: "De AI noemt hier andere praktijken.",
-        action: "nieuw" as const,
-        existingUrl: null,
-        reportId: null,
-        targets: [
-          {
-            promptId: null,
-            runId: null,
-            text: "Waar kan ik in Amersfoort terecht voor een hardloopblessure?",
-            cluster: "hardloop",
-            weight: 1,
-          },
-        ],
-        revisionNote: null,
-      };
-
-      // ── Het contract klaarzetten via de echte planstap ────────────────────
-      const { planContentBriefing } = await import("@/lib/jobs/content-jobs");
-      await planContentBriefing(admin as never, {
-        analysisId: kwAnalysisId,
-        userId: kwUserId,
-        recommendations: [kwAanbeveling],
-      });
-      const { rows: kwPlanTaken } = await db.client.query(
-        `select id, payload_json from public.jobs
-          where analysis_id = $1 and type = 'content_plan' order by created_at limit 1`,
-        [kwAnalysisId],
-      );
-      const { runJob } = await import("@/lib/jobs/handlers");
-      await runJob({
-        admin: admin as never,
-        job: {
-          id: kwPlanTaken[0].id as string,
-          analysis_id: kwAnalysisId,
-          type: "content_plan",
-          payload_json: kwPlanTaken[0].payload_json,
-          attempts: 0,
-        } as never,
-      });
-
-      const { rows: kwContractRij } = await db.client.query(
-        `select id, contract_json from public.content_pieces where analysis_id = $1`,
-        [kwAnalysisId],
-      );
-      const kwPieceId = kwContractRij[0].id as string;
-      const kwSecties = (kwContractRij[0].contract_json as { sections: { importance: string }[] })
-        ?.sections ?? [];
-      ok(
-        "het contract draagt het belang per sectie",
-        kwSecties.length > 0 && kwSecties.every((s) => Boolean(s.importance)),
-      );
-      ok(
-        "en er staat precies één kernsectie in",
-        kwSecties.filter((s) => s.importance === "kern").length === 1,
-        `${kwSecties.filter((s) => s.importance === "kern").length} kernsecties`,
-      );
-
-      // ── De briefing draaien: zonder claim-audit is er geen paginaplan ─────
-      //
-      // De echte volgorde is plannen, dan de briefing, dan schrijven. De
-      // claim-audit uit de briefing levert het PAGINAPLAN, en dat is waar de
-      // kernbeweringen in staan. Sla je hem over, dan is er geen plan en telt
-      // de claimdekking nergens in mee: correct gedrag, maar dan toetst dit
-      // scenario R1 niet.
-      const { rows: kwBriefTaken } = await db.client.query(
-        `select id, payload_json from public.jobs
-          where analysis_id = $1 and type = 'content_brief' order by created_at limit 1`,
-        [kwAnalysisId],
-      );
-      ok("de plantaak heeft de briefing ingepland", kwBriefTaken.length === 1);
-      await runJob({
-        admin: admin as never,
-        job: {
-          id: kwBriefTaken[0].id as string,
-          analysis_id: kwAnalysisId,
-          type: "content_brief",
-          payload_json: kwBriefTaken[0].payload_json,
-          attempts: 0,
-        } as never,
-      });
-
-      const { rows: kwPlanRij } = await db.client.query(
-        `select briefing_snapshot_json from public.content_pieces where id = $1`,
-        [kwPieceId],
-      );
-      const kwPaginaplan = (kwPlanRij[0].briefing_snapshot_json as { plan?: unknown[] } | null)?.plan ?? [];
-      ok(
-        "en het paginaplan staat bij de pagina",
-        kwPaginaplan.length > 0,
-        `${kwPaginaplan.length} beweringen`,
-      );
-
-      // ══ SCENARIO 3: kritieke claim zonder bewijs → de pagina wordt geblokkeerd
-      //
-      // De kernsectie van het contract ("Afspraak maken") heeft geen F-nummer,
-      // dus er is geen enkel feit dat hem kan waarmaken. Dat is precies het
-      // geval uit punt 15 van de opdracht: de pagina kan verder prima scoren en
-      // hoort tóch niet naar de site van de klant.
-      await db.client.query(`update public.content_pieces set status = 'draft' where id = $1`, [
-        kwPieceId,
-      ]);
-      const { draftContentPiece } = await import("@/lib/pipeline/content");
-      const kwDraft = await draftContentPiece({
-        analysisId: kwAnalysisId,
-        userId: kwUserId,
-        reportId: null,
-        recommendation: kwAanbeveling,
-      });
-
-      const { rows: kwNa } = await db.client.query(
-        `select quality_verdict, quality_confidence, quality_json, needs_review, status,
-                critical_evidence_coverage, weighted_evidence_coverage, quality_profile
-           from public.content_pieces where id = $1`,
-        [kwDraft.contentPieceId],
-      );
-      const kwOordeel = kwNa[0];
-      const kwJson = kwOordeel.quality_json as {
-        issues?: { blocking?: boolean; dimension?: string; section?: string; phase?: string; finding?: string }[];
-        rootCause?: { fase: string }[];
-        score?: number | null;
-      };
-      const kwBlokkades = (kwJson.issues ?? []).filter((i) => i.blocking);
-
-      ok("scenario 3: het oordeel is 'block'", kwOordeel.quality_verdict === "block", String(kwOordeel.quality_verdict));
-      ok(
-        "scenario 3: de blokkade wijst naar de kernsectie zonder bewijs",
-        kwBlokkades.some((i) => i.dimension === "bewijs"),
-        kwBlokkades.map((i) => i.dimension).join(", "),
-      );
-      ok(
-        "scenario 3: de kritieke dekking staat op nul en niet op leeg",
-        Number(kwOordeel.critical_evidence_coverage) === 0,
-        String(kwOordeel.critical_evidence_coverage),
-      );
-      // ⚠️ Een geblokkeerde pagina mag NOOIT als "klaar om te publiceren" op het
-      // scherm komen. Vóór dit raamwerk kwam hij op `ready` met needs_review, en
-      // dat las in de bibliotheek als af.
-      ok("scenario 3: de pagina heet niet klaar", kwOordeel.needs_review === true);
-      ok("scenario 3: en blijft in concept staan", kwOordeel.status === "draft");
-      ok(
-        "scenario 3: het cijfer staat er gewoon naast",
-        kwJson.score !== null && kwJson.score !== undefined,
-        "score en blokkade zijn twee getallen, geen één",
-      );
-
-      // ══ R1: de KERNBEWERING blokkeert, ook zonder eigen sectie ════════════
-      //
-      // De claim-audit van de stub levert een kernbewering ("Fysi-Unique biedt
-      // een preventief nazorgprogramma") die door geen enkel feit gedekt wordt.
-      // Tot 3 september 2026 bereikte dat gegeven de kwaliteitspoort nooit: de
-      // audit wist het, en de poort keek alleen naar SECTIES. Een kernbewering
-      // die aan geen enkele sectie hangt, glipte er dus langs.
-      const kwClaimBlokkades = kwBlokkades.filter((i) =>
-        (i as { finding?: string }).finding?.includes("leunt op een bewering"),
-      );
-      ok(
-        "R1: een kernbewering zonder bewijs levert een eigen blokkade op",
-        kwClaimBlokkades.length > 0,
-        kwBlokkades.map((i) => (i as { finding?: string }).finding ?? "").join(" | "),
-      );
-      ok(
-        "R1: en die noemt de bewering letterlijk",
-        kwClaimBlokkades.some((i) =>
-          (i as { finding?: string }).finding?.includes("nazorgprogramma"),
-        ),
-      );
-      const kwClaimdekking = (
-        kwOordeel.quality_json as { claimdekking?: { kritiekOnbewezen?: number } }
-      ).claimdekking;
-      ok(
-        "R1: de claimdekking staat in de opgeslagen evaluatie",
-        (kwClaimdekking?.kritiekOnbewezen ?? 0) > 0,
-        JSON.stringify(kwClaimdekking),
-      );
-
-      // ══ SCENARIO 5: het profiel van het contenttype heeft gewogen ══════════
-      ok(
-        "scenario 5: het gewogen profiel staat bij de pagina",
-        kwOordeel.quality_profile === "article",
-        String(kwOordeel.quality_profile),
-      );
-
-      // ══ ROOT CAUSE: dit is een kennisprobleem en geen schrijfprobleem ══════
-      //
-      // De feitenkaart heeft niets voor deze sectie. Herschrijven levert dan
-      // dezelfde pagina in andere woorden op, en dat is precies wat de rondes
-      // van 1 september 2026 deden: 0,78 dollar per pagina, kwaliteit van 78
-      // naar 52.
-      ok(
-        "de root cause noemt een fase",
-        (kwJson.rootCause ?? []).length > 0,
-        JSON.stringify(kwJson.rootCause ?? []),
-      );
-
-      // ══ De ronde is bewaard, zodat de versiekeuze hem kan wegen ════════════
-      const { rows: kwRondes } = await db.client.query(
-        `select repair_round, score, verdict, blocking_count, retained
-           from public.content_quality_runs where content_piece_id = $1 order by repair_round`,
-        [kwDraft.contentPieceId],
-      );
-      ok("de eerste keuring staat als ronde 0 in de geschiedenis", kwRondes.length === 1);
-      ok("met het aantal blokkades erbij", Number(kwRondes[0]?.blocking_count) > 0);
-      ok("en gemarkeerd als behouden", kwRondes[0]?.retained === true);
-
-      // ══ HERKEURING: hetzelfde stuk tekst, een nieuw oordeel (migratie 0092) ═
-      //
-      // De aanleiding was R0: alle twaalf benchmarkpagina's van 3 september 2026
-      // werden geblokkeerd op zinnen die geen zin waren, en nameten kon alleen
-      // door ze opnieuw te laten schrijven. Dat kost ongeveer $1,00 per pagina
-      // tegen ongeveer $0,013 voor de vier beoordelaars, en het verandert de
-      // tekst, waardoor de vergelijking nergens meer over gaat.
-      const kwTekstVoor = (
-        await db.client.query(`select body_markdown, repair_round, version from public.content_pieces where id = $1`, [
-          kwDraft.contentPieceId,
-        ])
-      ).rows[0];
-
-      const { herkeurContentPiece } = await import("@/lib/pipeline/content");
-      const kwHerkeuring = await herkeurContentPiece({
-        analysisId: kwAnalysisId,
-        userId: kwUserId,
-        contentPieceId: kwDraft.contentPieceId,
-        recommendation: kwAanbeveling,
-      });
-
-      const kwTekstNa = (
-        await db.client.query(`select body_markdown, repair_round, version from public.content_pieces where id = $1`, [
-          kwDraft.contentPieceId,
-        ])
-      ).rows[0];
-
-      ok(
-        "een herkeuring laat de tekst met rust",
-        kwTekstNa.body_markdown === kwTekstVoor.body_markdown,
-      );
-      ok(
-        "en ook het rondenummer en de versie",
-        kwTekstNa.repair_round === kwTekstVoor.repair_round && kwTekstNa.version === kwTekstVoor.version,
-      );
-
-      const { rows: kwNaHerkeuring } = await db.client.query(
-        `select repair_round, herkeuring, blocking_count
-           from public.content_quality_runs where content_piece_id = $1 order by repair_round`,
-        [kwDraft.contentPieceId],
-      );
-      ok("de herkeuring komt ernaast te staan", kwNaHerkeuring.length === 2);
-      ok(
-        "de oorspronkelijke ronde 0 blijft ongemoeid",
-        kwNaHerkeuring[0]?.herkeuring === false &&
-          Number(kwNaHerkeuring[0]?.blocking_count) === Number(kwRondes[0]?.blocking_count),
-      );
-      ok(
-        "en de nieuwe rij is als herkeuring gemarkeerd",
-        kwNaHerkeuring[1]?.herkeuring === true && Number(kwNaHerkeuring[1]?.repair_round) === kwHerkeuring.ronde,
-      );
-
-      // ⚠️ Het belangrijkste van deze vier: de versiekeuze mag een herkeuring
-      // niet als extra versie zien. Zou hij dat wel doen, dan zou een goedkope
-      // herbeoordeling de dure reparatielus kunnen aftrappen.
-      const { leesKwaliteitsrondes } = await import("@/lib/pipeline/quality-run");
-      const kwZichtbaar = await leesKwaliteitsrondes(admin as never, kwDraft.contentPieceId);
-      ok("de versiekeuze telt alleen echte rondes", kwZichtbaar.length === 1);
-
-      // ══ SCENARIO 10: de klant beantwoordt de vraag, de dekking stijgt ══════
-      //
-      // Hetzelfde feit, nu wél op de kaart. De kritieke dekking hoort dan op
-      // honderd te staan en de blokkade op bewijs hoort te verdwijnen.
-      await db.client.query(
-        `insert into public.brand_facts
-           (profile_id, analysis_id, text, source, kind, citable, allowed, fact_key)
-         values ($1, $2, 'Bij Fysi-Unique kun je binnen 24 uur terecht voor een intake.',
-                 'klant, bevestigd', 'klant', true, true, 'intaketermijn')`,
-        [kwProfileId, kwAnalysisId],
-      );
-      const { berekenGewogenDekking } = await import("@/lib/pipeline/evidence-weight");
-      const { buildFactBase } = await import("@/lib/pipeline/factbase");
-      const kwFeiten = await buildFactBase(
-        admin as never,
-        kwProfileId,
-        kwAnalysisId,
-        [kwAanbeveling.targetIntent],
-        [kwPieceId],
-      );
-      // Het contract van de stub hangt zijn kernsectie aan géén F-nummer, dus de
-      // dekking stijgt pas zodra het contract er ook naar verwijst. Dat is
-      // precies de bedoeling: een feit dat nergens aan een sectie hangt maakt
-      // die sectie niet onderbouwd, en dat is wat `isSupported` al afdwong.
-      const { rows: kwContract2 } = await db.client.query(
-        `select contract_json from public.content_pieces where id = $1`,
-        [kwPieceId],
-      );
-      const kwContractObj = kwContract2[0].contract_json as {
-        sections: { importance: string; factRefs: string[] }[];
-      };
-      const kwKernFeit = kwFeiten.find((f) => f.text.includes("binnen 24 uur"));
-      const kwMetVerwijzing = {
-        ...kwContractObj,
-        sections: kwContractObj.sections.map((s) =>
-          s.importance === "kern" ? { ...s, factRefs: [kwKernFeit?.ref ?? "F1"] } : s,
-        ),
-      };
-      const kwNieuweDekking = berekenGewogenDekking(kwMetVerwijzing as never, kwFeiten);
-      ok(
-        "scenario 10: zodra het feit aan de kernsectie hangt, is de kritieke dekking volledig",
-        kwNieuweDekking.kritiek === 100,
-        String(kwNieuweDekking.kritiek),
-      );
-      ok(
-        "en de gewogen dekking stijgt mee",
-        (kwNieuweDekking.gewogen ?? 0) > (kwNieuweDekking.graad ?? 0) - 0.01,
-      );
-
-      // ══ SCENARIO 11: een beoordelaar valt uit ═════════════════════════════
-      //
-      // Het gevaarlijkste geval van allemaal: als een keuring stilletjes
-      // wegvalt, mag de pagina nooit als goedgekeurd lezen. Vóór dit raamwerk
-      // werd de feitelijkheidsbeoordelaar bij een fout `null` en verdween hij
-      // uit de bevindingen; daarna kon de pagina op `ready` eindigen alsof hij
-      // gekeurd was.
-      const { __setTestTransport: zetTransport } = await import("@/lib/openai/structured");
-      const kwHeelStub = createOpenAiStub(log);
-      zetTransport(async (opts: { schemaName: string }) => {
-        if (opts.schemaName === "content_factuality" || opts.schemaName === "content_craft") {
-          throw new Error("beoordelaar tijdelijk niet bereikbaar");
-        }
-        return kwHeelStub(opts as never);
-      });
-
-      await db.client.query(
-        `update public.content_pieces set status = 'draft', quality_json = null,
-                quality_verdict = null, quality_confidence = null
-          where id = $1`,
-        [kwPieceId],
-      );
-      const kwDraft2 = await draftContentPiece({
-        analysisId: kwAnalysisId,
-        userId: kwUserId,
-        reportId: null,
-        recommendation: kwAanbeveling,
-      });
-      zetTransport(kwHeelStub);
-
-      const { rows: kwNa2 } = await db.client.query(
-        `select quality_verdict, quality_confidence, quality_json
-           from public.content_pieces where id = $1`,
-        [kwDraft2.contentPieceId],
-      );
-      const kwJson2 = kwNa2[0].quality_json as {
-        beoordelaars?: { geslaagd: number; gevraagd: number };
-      };
-      ok(
-        "scenario 11: twee van de vier beoordelaars vielen uit",
-        kwJson2.beoordelaars?.geslaagd === 2 && kwJson2.beoordelaars?.gevraagd === 4,
-        JSON.stringify(kwJson2.beoordelaars),
-      );
-      ok(
-        "scenario 11: de zekerheid daalt daardoor onder de honderd",
-        Number(kwNa2[0].quality_confidence) < 100,
-        String(kwNa2[0].quality_confidence),
-      );
-      ok(
-        "scenario 11: en de pagina heet niet goedgekeurd",
-        kwNa2[0].quality_verdict !== "pass",
-        String(kwNa2[0].quality_verdict),
-      );
-
-      // ══ SCENARIO 12: het kostenplafond ════════════════════════════════════
-      //
-      // Loopt de pagina over haar budget, dan wordt dat gemeld en niet verzwegen.
-      // De kwaliteitsstand blijft daarbij staan zoals hij is: een pagina die
-      // duur was, is niet daarom slecht, en andersom.
-      await db.client.query(
-        `insert into public.ai_calls (kind, model, input_tokens, output_tokens, cost_usd,
-                                      analysis_id, content_piece_id)
-         values ('content_draft', 'gpt-5.6-terra', 20000, 6000, 2.50, $1, $2)`,
-        [kwAnalysisId, kwPieceId],
-      );
-      const { rows: kwKosten } = await db.client.query(
-        `select coalesce(sum(cost_usd), 0)::float as totaal from public.ai_calls
-          where content_piece_id = $1`,
-        [kwPieceId],
-      );
-      ok(
-        "scenario 12: de kosten van een pagina zijn per pagina op te tellen",
-        Number(kwKosten[0].totaal) >= 2.5,
-        String(kwKosten[0].totaal),
-      );
-      const { rows: kwNa3 } = await db.client.query(
-        `select quality_verdict from public.content_pieces where id = $1`,
-        [kwPieceId],
-      );
-      ok(
-        "en het kwaliteitsoordeel verandert daar niet van",
-        kwNa3[0].quality_verdict === kwNa2[0].quality_verdict,
-      );
-    }
-
     // ══ SCENARIO 13: de zoekvolumelaag staat uit, en blijft uit ══════════════
     //
     // De garantie waar lib/search-demand/ op rust (docs/tasks/
@@ -9323,6 +8339,2371 @@ async function main(): Promise<void> {
           [stuk.body_markdown, stuk.id],
         );
       }
+    }
+
+    // ── Scenario 18: sitefeiten indelen in de kennislaag (WP2, sinds K8 deel 2) ──
+    //
+    // Het feitenregister deelde tot K8 feiten in op `brand_facts` en liet een
+    // model elk paar beoordelen. Nu deelt de taak `fact_register` de sitefeiten
+    // in op het kennisitem zelf, en zoekt de code de botsingen (V14): twee
+    // intakes voor verschillende producten botsen niet, twee ketelprijzen wel.
+    // Een tweede run deelt niets opnieuw in, en een ingedeeld item houdt zijn
+    // bewering, citaat en status.
+    console.log("\nScenario 18: sitefeiten indelen in de kennislaag (K8 deel 2)");
+    {
+      const { deelKennisIn, nogInTeDelen } = await import("@/lib/kennis/indelen");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { kennisUitSynthese } = await import("@/lib/kennis/onderzoek");
+      const reg = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Registertest', 'https://registertest.nl', 'Registertest', 'klaar')`,
+        [reg, userId],
+      );
+      const shim = createShimClient(db.client) as never;
+      const code = { actor: "code", taak: "test" } as const;
+      // Twee producten in het aanbod, met een kennisitem, zoals het onderzoek ze vastlegt.
+      for (const naam of ["Intake op kantoor", "Intake in de auto", "CV-ketel vervangen"]) {
+        const { rows } = await db.client.query(
+          `insert into public.profile_offerings (profile_id, kind, name, source) values ($1, 'dienst', $2, 'ai') returning id`,
+          [reg, naam],
+        );
+        const u = await legVast(shim, {
+          profileId: reg, domein: "aanbod", soort: "dienst", bewering: naam, status: "waargenomen", bron: "website",
+          bronUrl: "https://registertest.nl/aanbod", citaat: naam, gebruik: "content", herkomst: { tabel: "profile_offerings", id: rows[0].id },
+        } as never, code);
+        if (u.soort !== "vastgelegd") throw new Error(`Testaanbod: ${u.soort}`);
+      }
+      const { rows: facet } = await db.client.query(
+        `insert into public.profile_facets (profile_id, facet, raw_json) values ($1, 'synthese', '{}'::jsonb) returning id`,
+        [reg],
+      );
+      const zinnen = [
+        "Een intake op kantoor kost € 50.",
+        "Een intake in de auto kost € 80.",
+        "Een nieuwe cv-ketel kost € 2.200.",
+        "Een cv-ketel vervangen kost bij ons € 2.500.",
+      ];
+      for (const item of kennisUitSynthese(facet[0].id as string, zinnen.map((z) => ({ text: z, sourceUrl: "https://registertest.nl/prijzen", quote: z })))) {
+        await legVast(shim, {
+          profileId: reg, domein: item.domein, soort: item.soort, bewering: item.bewering, status: item.status, bron: item.bron,
+          bronUrl: item.bronUrl, citaat: item.citaat, gebruik: item.gebruik, herkomst: item.herkomst,
+        } as never, code);
+      }
+      eqc("scenario 18: vier sitefeiten wachten op een indeling", String(await nogInTeDelen(shim, reg)), "4");
+      const indelingenVoor = log.filter((l) => l.schemaName === "fact_classification").length;
+      const eerste = await deelKennisIn(shim, reg);
+      eqc("scenario 18: alle vier ingedeeld", String(eerste.ingedeeld), "4");
+      eqc("scenario 18: en er wacht er geen meer", String(await nogInTeDelen(shim, reg)), "0");
+      const { rows: feiten } = await db.client.query(
+        `select k.bewering, k.soort, k.domein, k.status, k.citaat, k.waarde, k.sleutel,
+                (select string_agg(a.bewering, ',' order by a.bewering) from public.klantkennis a where a.id = any(k.geldt_voor)) as voor
+           from public.klantkennis k where k.profile_id = $1 and k.herkomst_tabel = 'profile_facets' order by k.bewering`,
+        [reg],
+      );
+      ok("scenario 18: een prijs is een prijs, met waarde", feiten.every((f) => f.soort === "prijs" && f.waarde && f.waarde.min > 0), JSON.stringify(feiten));
+      ok("scenario 18: bewering, citaat en status blijven zoals ze waren", feiten.every((f) => f.status === "waargenomen" && f.citaat === f.bewering));
+      ok("scenario 18: met een nieuwe sleutel die de soort draagt", feiten.every((f) => String(f.sleutel).startsWith("aanbod|prijs|")), JSON.stringify(feiten.map((f) => f.sleutel)));
+      eqc(
+        "scenario 18: elke intake hangt aan zijn eigen product",
+        feiten.filter((f) => /intake/.test(f.bewering)).map((f) => f.voor).join(" / "),
+        "Intake in de auto / Intake op kantoor",
+      );
+      const { rows: botsingen } = await db.client.query(
+        `select k.bewering from public.fact_conflicts c join public.klantkennis k on k.id = any(c.kennis_ids)
+          where c.profile_id = $1 and c.status = 'open' order by k.bewering`,
+        [reg],
+      );
+      eqc(
+        "scenario 18: de twee ketelprijzen botsen, de intakes niet",
+        botsingen.map((b) => b.bewering).join(" | "),
+        "Een cv-ketel vervangen kost bij ons € 2.500. | Een nieuwe cv-ketel kost € 2.200.",
+      );
+      const tweede = await deelKennisIn(shim, reg);
+      eqc("scenario 18: een tweede run deelt niets opnieuw in", String(tweede.ingedeeld), "0");
+      eqc(
+        "scenario 18: en roept het model niet opnieuw aan (conventie 9)",
+        String(log.filter((l) => l.schemaName === "fact_classification").length - indelingenVoor),
+        "1",
+      );
+      eqc("scenario 18: er schrijft niemand meer in brand_facts", String((await db.client.query("select count(*)::int as n from public.brand_facts where profile_id = $1", [reg])).rows[0].n), "0");
+    }
+
+    // ── Scenario 19: de schrijfingang van de kennislaag (K2) ───────────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K2, "klaar als": vastleggen,
+    // vervangen en bevestigen, met de herkomst intact. Daarbij: ontdubbelen, een
+    // botsing op de conflictlijst, afwijzen, en dat een model niets verklaart.
+    console.log("\nScenario 19: de schrijfingang van de kennislaag (K2)");
+    {
+      const { legVast, bevestig, wijsAf, vervang } = await import("@/lib/kennis/vastleggen");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Kennistest', 'https://kennistest.nl', 'Kennistest', 'klaar')`,
+        [merk, userId],
+      );
+      const shim = createShimClient(db.client) as never;
+      const feitId = randomUUID();
+      const mens = { actor: "mens" as const, gebruikerId: userId };
+      const code = { actor: "code" as const, taak: "kennis_terugvullen" };
+
+      const eerste = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 45.",
+        waarde: { min: 45, max: 45, eenheid: "EUR" }, status: "waargenomen", bron: "website",
+        bronUrl: "https://kennistest.nl/prijzen", citaat: "Proefles € 45", gebruik: "content",
+        herkomst: { tabel: "brand_facts", id: feitId },
+      }, code);
+      eqc("scenario 19: vastgelegd", eerste.soort, "vastgelegd");
+      const eersteId = eerste.soort === "vastgelegd" ? eerste.item.id : "";
+
+      const nogmaals = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Kost een proefles € 45?",
+        waarde: { min: 45, max: 45, eenheid: "EUR" }, status: "waargenomen", bron: "website",
+        bronUrl: "https://kennistest.nl/prijzen", citaat: "Proefles € 45", gebruik: "content",
+        herkomst: { tabel: "brand_facts", id: randomUUID() },
+      }, code);
+      eqc("scenario 19: dezelfde bewering in andere woorden wordt niet dubbel vastgelegd", nogmaals.soort, "bestond");
+
+      const model = await legVast(shim, {
+        profileId: merk, domein: "positionering", bewering: "Klanten kiezen voor de vaste instructeur.",
+        status: "verklaard", bron: "ai", gebruik: "intern", herkomst: { tabel: "profile_facets", id: randomUUID() },
+      }, { actor: "model", taak: "profile_market" });
+      eqc("scenario 19: een model kan niets verklaren", model.soort, "geweigerd");
+      let dbWeigert = false;
+      try {
+        await db.client.query(
+          `insert into public.klantkennis (profile_id, domein, bewering, status, bron, gebruik, vastgelegd_door_taak)
+           values ($1, 'positionering', 'x', 'verklaard', 'ai', 'intern', 'omweg')`,
+          [merk],
+        );
+      } catch {
+        dbWeigert = true;
+      }
+      ok("scenario 19: en de database weigert het ook buiten de schrijfingang om", dbWeigert);
+
+      const botsend = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "prijs", bewering: "De proefles kost bij ons € 50.",
+        waarde: { min: 50, max: 50, eenheid: "EUR" }, status: "verklaard", bron: "gesprek", gebruik: "content",
+        herkomst: { tabel: "fact_requests", id: randomUUID() },
+      }, mens);
+      eqc("scenario 19: een tweede prijs voor hetzelfde botst", botsend.soort === "vastgelegd" ? String(botsend.botsingen) : botsend.soort, "1");
+      const { rows: conflict } = await db.client.query(
+        "select feit_ids, kennis_ids, status, soort from public.fact_conflicts where profile_id = $1",
+        [merk],
+      );
+      eqc("scenario 19: de botsing staat open op de conflictlijst, met verwijzingen naar de kennis", conflict.map((c) => `${c.status}/${c.soort}/${(c.kennis_ids ?? []).length}/${(c.feit_ids ?? []).length}`).join(","), "open/prijs/2/0");
+
+      const nieuw = await vervang(shim, {
+        profileId: merk, oudId: eersteId,
+        nieuw: {
+          profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 50.",
+          waarde: { min: 50, max: 50, eenheid: "EUR" }, status: "waargenomen", bron: "website",
+          bronUrl: "https://kennistest.nl/prijzen", citaat: "Proefles € 50", gebruik: "content",
+          herkomst: { tabel: "brand_facts", id: feitId },
+        },
+      }, code);
+      ok("scenario 19: vervangen", nieuw.ok, nieuw.ok ? "" : nieuw.fout);
+      const nieuwId = nieuw.ok ? nieuw.item.id : "";
+      const bevestigd = await bevestig(shim, { profileId: merk, itemId: nieuwId }, mens);
+      ok("scenario 19: bevestigd door een mens", bevestigd.ok, bevestigd.ok ? "" : bevestigd.fout);
+
+      const { rows: rijen } = await db.client.query(
+        "select id, status, vervangen_door, herkomst_tabel, herkomst_id, bevestigd_door, vastgelegd_door_taak, sleutel from public.klantkennis where profile_id = $1 and domein = 'aanbod' order by created_at",
+        [merk],
+      );
+      const oud = rijen.find((r) => r.id === eersteId);
+      const nw = rijen.find((r) => r.id === nieuwId);
+      eqc("scenario 19: de oude versie bestaat nog en wijst naar de nieuwe", String(oud?.vervangen_door), nieuwId);
+      eqc("scenario 19: de herkomst van de oude versie is intact", `${oud?.herkomst_tabel}/${oud?.herkomst_id}`, `brand_facts/${feitId}`);
+      eqc("scenario 19: de nieuwe versie heeft zijn eigen herkomst", `${nw?.herkomst_tabel}/${nw?.herkomst_id}`, `brand_facts/${feitId}`);
+      eqc("scenario 19: de nieuwe versie is bevestigd, door deze mens", `${nw?.status}/${nw?.bevestigd_door}`, `bevestigd/${userId}`);
+      eqc("scenario 19: wie hem vastlegde blijft zichtbaar", String(nw?.vastgelegd_door_taak), "kennis_terugvullen");
+      ok("scenario 19: de nieuwe versie is de ontdubbelingsrij", Boolean(nw?.sleutel));
+
+      const nogEensBevestigen = await bevestig(shim, { profileId: merk, itemId: eersteId }, mens);
+      ok("scenario 19: een vervangen versie kan niet meer bevestigd worden", !nogEensBevestigen.ok);
+
+      const gedacht = await legVast(shim, {
+        profileId: merk, domein: "positionering", bewering: "Klanten kiezen vooral op prijs.",
+        status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profile_facets", id: randomUUID() },
+      }, { actor: "model", taak: "profile_market" });
+      eqc("scenario 19: een model legt een vermoeden vast", gedacht.soort, "vastgelegd");
+      const gedachtId = gedacht.soort === "vastgelegd" ? gedacht.item.id : "";
+      const af = await wijsAf(shim, { profileId: merk, itemId: gedachtId }, mens);
+      ok("scenario 19: een mens wijst het af", af.ok && Boolean(af.item.afgewezen_op));
+      const terug = await legVast(shim, {
+        profileId: merk, domein: "positionering", bewering: "Klanten kiezen vooral op prijs.",
+        status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profile_facets", id: randomUUID() },
+      }, { actor: "model", taak: "profile_market" });
+      eqc("scenario 19: bij een volgende ronde komt het niet stil terug", terug.soort, "eerder_afgewezen");
+      const { rows: telling } = await db.client.query("select count(*)::int as n from public.klantkennis where profile_id = $1", [merk]);
+      eqc("scenario 19: er is niets verwijderd", String(telling[0].n), "4");
+    }
+
+    // ── Scenario 20: het terugvullen van de kennislaag (K3) ────────────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K3, route van besluit V15:
+    // de leesquery, het plan, dezelfde controles als legVast(), de schrijfquery.
+    // Tegen de echte constraints van 0116 en 0117. Daarna een tweede run die
+    // niets schrijft, en een antwoord dat aan een verwijderde pagina hing.
+    console.log("\nScenario 20: het terugvullen van de kennislaag (K3)");
+    {
+      const { EXPORT_SQL, INSERT_SQL, maakTerugvulplan, dekking, zetOm } = await import("@/lib/kennis/terugvullen");
+      const merk = randomUUID();
+      const analyse = randomUUID();
+      const pagina = randomUUID();
+      const weg = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, aliases, service_regions, growth_regions, taboo_phrases, value_props, proof_points, verhalen, pronoun_preference)
+         values ($1, $2, 'Terugvultest', 'https://terugvul.nl', 'Terugvultest', 'klaar', '{TV}', '{Eindhoven}', '{Eindhoven}', '{gratis}',
+                 '{Persoonlijk}', '{"Hoe lang duurt een les? Een uur","Al 20 jaar actief"}', 'We begonnen in 2004.', 'je')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_field_sources (profile_id, field, source, set_by) values
+         ($1, 'aliases', 'gesprek', $2), ($1, 'taboo_phrases', 'gesprek', $2), ($1, 'verhalen', 'gesprek', $2),
+         ($1, 'service_regions', 'gesprek', $2), ($1, 'growth_regions', 'gesprek', $2), ($1, 'pronoun_preference', 'consultant', $2)`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Terugvultest', 'https://terugvul.nl', 'rijlessen', 'gereed')`,
+        [analyse, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, version, is_current) values ($1, $2, 'Rijlessen', 'article', 'ready', 1, true)`,
+        [pagina, analyse],
+      );
+      const knoop = randomUUID();
+      await db.client.query(
+        `insert into public.profile_offerings (id, profile_id, kind, name, description, price_indication, evidence_url, evidence_quote, confidence, source, sort_order)
+         values ($1, $2, 'dienst', 'Rijlessen', 'Lessen in een Golf.', '€ 55', 'https://terugvul.nl/les', 'Een rijles kost € 55', 0.9, 'ai', 1)`,
+        [knoop, merk],
+      );
+      const feit = randomUUID();
+      await db.client.query(
+        `insert into public.brand_facts (id, profile_id, text, source, source_url, kind, fact_key, soort, geldt_voor, stand, bewijskracht)
+         values ($1, $2, 'Een rijles duurt 60 minuten.', 'site /les', 'https://terugvul.nl/les', 'site', 'duurt minuten rijle', 'termijn', 'rijlessen', 'site', 'gewoon')`,
+        [feit, merk],
+      );
+      await db.client.query(
+        `insert into public.profile_facets (profile_id, facet, summary, raw_json, engine, cost_usd, researched_at)
+         values ($1, 'synthese', 's', $2, 'test', 0, now())`,
+        [merk, JSON.stringify({ output_parsed: { facts: [{ text: "Een rijles duurt 60 minuten.", quote: "Elke les duurt 60 minuten", sourceUrl: "https://terugvul.nl/les" }] } })],
+      );
+      await db.client.query(
+        `insert into public.fact_requests (profile_id, analysis_id, question, reason, answer, status, scope, content_piece_ids, open_vraag, answered_at)
+         values ($1, null, 'Hoe lang duurt een les?', 'r', 'Een uur', 'beantwoord', 'merk', '{}', false, now()),
+                ($1, $2, 'Wat wil je zelf vertellen?', 'r', 'Onze eerste leerling slaagde in één keer.', 'beantwoord', 'pagina', $3, true, now())`,
+        [merk, analyse, [pagina, weg]],
+      );
+
+      const leesMerk = async () => {
+        const { rows } = await db.client.query(`select * from (${EXPORT_SQL.replace(/;\s*$/, "")}) x where (x.merk->'profiel'->>'id') = $1`, [merk]);
+        return rows[0].merk;
+      };
+      const bron = await leesMerk();
+      const plan = maakTerugvulplan(bron);
+      eqc("scenario 20: elke oude rij is een item of een bewuste uitsluiting", dekking(bron, plan).join(", "), "");
+      const om = zetOm(plan, randomUUID, new Map(Object.entries(bron.bestaandeSleutels ?? {})));
+      eqc("scenario 20: alles haalt de regels van legVast()", om.geweigerd.map((g) => g.ref).join(", "), "");
+      const eerste = await db.client.query(INSERT_SQL, [JSON.stringify(om.rijen)]);
+      eqc("scenario 20: de database neemt elke rij aan", String(eerste.rowCount), String(om.rijen.length));
+
+      const { rows: feitRij } = await db.client.query(
+        "select status, citaat, geldt_voor from public.klantkennis where herkomst_tabel = 'brand_facts' and herkomst_id = $1",
+        [feit],
+      );
+      const { rows: knoopRij } = await db.client.query(
+        "select id from public.klantkennis where herkomst_tabel = 'profile_offerings' and herkomst_id = $1 and soort = 'dienst'",
+        [knoop],
+      );
+      eqc("scenario 20: het sitefeit is waargenomen, met het citaat uit de samenvatting", `${feitRij[0]?.status}/${feitRij[0]?.citaat}`, "waargenomen/Elke les duurt 60 minuten");
+      eqc("scenario 20: en geldt voor de dienst Rijlessen", (feitRij[0]?.geldt_voor ?? []).join(","), knoopRij[0]?.id ?? "?");
+      const { rows: verhaal } = await db.client.query(
+        "select content_piece_id from public.klantkennis where profile_id = $1 and domein = 'verhaal' and herkomst_tabel = 'fact_requests'",
+        [merk],
+      );
+      eqc("scenario 20: het verhaal hangt alleen aan de pagina die nog bestaat", verhaal.map((r) => r.content_piece_id).join(","), pagina);
+      ok("scenario 20: en de verdwenen pagina staat op de lijst voor de consultant", plan.voorConsultant.some((c) => c.reden.includes("niet meer bestaan")));
+      const { rows: kopie } = await db.client.query(
+        "select count(*)::int as n from public.klantkennis where profile_id = $1 and bewering like 'Hoe lang duurt een les? Een uur%' and herkomst_tabel = 'profiles'",
+        [merk],
+      );
+      eqc("scenario 20: de kopie van het antwoord in proof_points gaat niet dubbel mee", String(kopie[0].n), "0");
+      const { rows: vp } = await db.client.query(
+        "select status, gebruik from public.klantkennis where profile_id = $1 and soort = 'waardepropositie'",
+        [merk],
+      );
+      eqc("scenario 20: een waardepropositie van het model wordt geen paginatekst", vp.map((r) => `${r.status}/${r.gebruik}`).join(","), "afgeleid/intern");
+
+      const tweedeBron = await leesMerk();
+      const tweede = zetOm(maakTerugvulplan(tweedeBron), randomUUID, new Map(Object.entries(tweedeBron.bestaandeSleutels ?? {})));
+      eqc("scenario 20: een tweede run heeft niets nieuws", String(tweede.rijen.length), "0");
+      const nogmaals = await db.client.query(INSERT_SQL, [JSON.stringify(om.rijen.map((r) => ({ ...r, id: randomUUID() })))]);
+      eqc("scenario 20: en ook dezelfde rijen nog eens schrijven doet niets", String(nogmaals.rowCount), "0");
+    }
+
+    // ── Scenario 21: het onderzoek schrijft in de kennislaag (K4) ──────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K4: de vijf onderzoeks-
+    // stappen draaien echt, met de gestubde AI, en daarna staat in de
+    // kennislaag wat ze vonden, met de goede status en herkomst. Waargenomen
+    // alleen waar de code het citaat op de pagina terugvond. De oude tabellen
+    // worden tijdens de overgang nog gewoon geschreven.
+    console.log("\nScenario 21: het onderzoek schrijft in de kennislaag (K4)");
+    {
+      const { prepareProfile: onderzoek } = await import("@/lib/pipeline/prepare-profile");
+      const { buildOfferingTree } = await import("@/lib/pipeline/offering");
+      const { researchMarket } = await import("@/lib/pipeline/market");
+      const { runLlmBaseline } = await import("@/lib/pipeline/llm-baseline");
+      const { synthesiseProfile } = await import("@/lib/pipeline/synthesis");
+      const { legOnderzoekVast } = await import("@/lib/kennis/uit-onderzoek");
+      const { kennisUitAanbod } = await import("@/lib/kennis/onderzoek");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, status)
+         values ($1, $2, 'Fysi-Unique', 'https://fysi-unique.nl', 'bezig')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.profile_pages (profile_id, url, title, text_excerpt) values
+         ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten',
+          'Wij zitten in Amersfoort. Hardloopklachten behandelen wij met dry needling en oefentherapie.'),
+         ($1, 'https://fysi-unique.nl/dry-needling', 'Dry needling',
+          'Dry needling voor sporters kost € 65 per behandeling van een half uur.')`,
+        [merk],
+      );
+      const kennis = async (taak: string) =>
+        (await db.client.query(
+          `select id, domein, soort, bewering, status, bron, bron_url, citaat, gebruik, geldt_voor, herkomst_tabel, herkomst_id
+           from public.klantkennis where profile_id = $1 and vastgelegd_door_taak = $2 order by vastgelegd_op, bewering`,
+          [merk, taak],
+        )).rows as { id: string; domein: string; soort: string | null; bewering: string; status: string; bron: string; bron_url: string | null; citaat: string | null; gebruik: string; geldt_voor: string[]; herkomst_tabel: string; herkomst_id: string }[];
+
+      await onderzoek(merk);
+      const merkonderzoek = await kennis("profile_research");
+      ok("scenario 21: het merkonderzoek legde kennis vast", merkonderzoek.length > 0);
+      eqc("scenario 21: alles uit het merkonderzoek is een vermoeden van het model", [...new Set(merkonderzoek.map((r) => `${r.status}/${r.bron}/${r.gebruik}`))].join(","), "afgeleid/ai/intern");
+      eqc("scenario 21: de waardepropositie staat erin, als vermoeden", merkonderzoek.filter((r) => r.soort === "waardepropositie").map((r) => r.bewering).join(","), "Ruime openingstijden");
+      ok("scenario 21: met het profiel als herkomst", merkonderzoek.every((r) => r.herkomst_tabel === "profiles" && r.herkomst_id === merk));
+
+      await buildOfferingTree(merk);
+      const aanbod = await kennis("profile_offering");
+      const knoop = (soort: string, begin: string) => aanbod.find((r) => r.soort === soort && r.bewering.startsWith(begin));
+      const needling = knoop("dienst", "Dry needling");
+      eqc("scenario 21: een dienst waarvan de code het citaat vond is waargenomen", `${needling?.status}/${needling?.citaat}/${needling?.bron_url}`, "waargenomen/Dry needling voor sporters kost € 65/https://fysi-unique.nl/dry-needling");
+      eqc("scenario 21: en hangt aan zijn categorie", (needling?.geldt_voor ?? []).join(","), knoop("categorie", "Behandelingen")?.id ?? "?");
+      eqc("scenario 21: de prijs uit dat citaat is waargenomen", knoop("prijs", "Dry needling")?.status ?? "", "waargenomen");
+      const massage = knoop("dienst", "Sportmassage");
+      eqc("scenario 21: een citaat dat niet op de pagina staat maakt een vermoeden", `${massage?.status}/${massage?.citaat}/${massage?.gebruik}`, "afgeleid/null/intern");
+      const { rows: oudAanbod } = await db.client.query("select count(*)::int as n from public.profile_offerings where profile_id = $1", [merk]);
+      eqc("scenario 21: de oude tabel wordt tijdens de overgang nog geschreven", String(oudAanbod[0].n), "3");
+
+      await researchMarket(merk);
+      const markt = await kennis("profile_market");
+      const { rows: marktFacet } = await db.client.query("select id from public.profile_facets where profile_id = $1 and facet = 'markt'", [merk]);
+      eqc("scenario 21: de markt legt positie en redenen vast", markt.filter((r) => r.soort !== "concurrent").map((r) => r.soort).sort().join(","), "positie in de markt,waarom een concurrent wint,waarom een concurrent wint");
+      ok("scenario 21: allemaal als vermoeden, met het marktverslag als herkomst", markt.length > 0 && markt.every((r) => r.status === "afgeleid" && r.herkomst_tabel === "profile_facets" && r.herkomst_id === marktFacet[0]?.id));
+
+      // De kennistest zonder budget: geen vragen, maar het voorstel voor de
+      // gelijknamige bedrijven komt uit wat er al gemeten was.
+      await db.client.query("update public.profiles set onboarding_budget_usd = 0 where id = $1", [merk]);
+      await db.client.query(
+        `insert into public.profile_llm_baseline (profile_id, engine, block, question, verdict_json)
+         values ($1, 'openai', 'verwarring', 'Welke Fysi-Unique bedoel je?', '{"confusions": ["Fysi-Unique Rotterdam"]}')`,
+        [merk],
+      );
+      await runLlmBaseline(merk);
+      const test = await kennis("profile_llm_baseline");
+      eqc("scenario 21: het gelijknamige bedrijf uit de kennistest is een vermoeden", test.map((r) => `${r.soort}/${r.bewering}/${r.status}/${r.gebruik}`).join(","), "niet ons merk/Fysi-Unique Rotterdam/afgeleid/intern");
+      await db.client.query("update public.profiles set onboarding_budget_usd = 2.15 where id = $1", [merk]);
+
+      await synthesiseProfile(merk);
+      const synthese = await kennis("profile_synthesis");
+      const { rows: feit } = await db.client.query("select id from public.profile_facets where profile_id = $1 and facet = 'synthese'", [merk]);
+      eqc("scenario 21: het sitefeit is waargenomen, met het gevonden citaat", synthese.map((r) => `${r.bewering}/${r.status}/${r.citaat}/${r.gebruik}`).join(","), "De praktijk zit in Amersfoort./waargenomen/Wij zitten in Amersfoort./content");
+      eqc("scenario 21: en verwijst naar het verslag van de samenvatting (sinds K8 deel 2)", `${synthese[0]?.herkomst_tabel}/${synthese[0]?.herkomst_id}`, `profile_facets/${feit[0]?.id}`);
+
+      const { rows: alles } = await db.client.query("select status from public.klantkennis where profile_id = $1", [merk]);
+      ok("scenario 21: het onderzoek zet nooit verklaard of bevestigd", alles.length > 0 && alles.every((r: { status: string }) => r.status === "waargenomen" || r.status === "afgeleid"));
+
+      const { rows: knopen } = await db.client.query("select * from public.profile_offerings where profile_id = $1", [merk]);
+      const tweede = await legOnderzoekVast(createShimClient(db.client) as never, merk, kennisUitAanbod(knopen), "profile_offering");
+      eqc("scenario 21: dezelfde knopen nog eens vastleggen legt niets nieuws vast", String(tweede.vastgelegd), "0");
+    }
+
+    // ── Scenario 22: het gesprek en de antwoorden schrijven in de kennislaag (K5) ──
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md K5: de ondernemer beantwoordt
+    // een gerichte vraag, de open vraag en een vraag voor het hele merk via
+    // `answerFact()`, precies wat de route voor klantantwoorden aanroept. Daarna
+    // staan ze in de kennislaag als verklaard, met de reikwijdte van de vraag.
+    // Dan het gesprek (velden, aantekeningen) en de keuze bij een
+    // tegenstrijdigheid, met dezelfde functies die de routes aanroepen.
+    console.log("\nScenario 22: het gesprek en de antwoorden schrijven in de kennislaag (K5)");
+    {
+      const { answerFact } = await import("@/lib/facts");
+      const { legProfielVast, legGesprekVast } = await import("@/lib/kennis/uit-gesprek");
+      const { losKennisconflictOp } = await import("@/lib/kennis/uit-overzicht");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { setVoorBlokA } = await import("@/lib/kennis/regels");
+      const shim = createShimClient(db.client) as never;
+      const mens = { actor: "mens" as const, gebruikerId: userId };
+      const merk = randomUUID();
+      const analyse = randomUUID();
+      const pagina = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, value_props, service_regions)
+         values ($1, $2, 'Gesprektest', 'https://gesprek.nl', 'Gesprektest', 'klaar', '{Persoonlijk}', '{Eindhoven}')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Gesprektest', 'https://gesprek.nl', 'rijlessen', 'gereed')`,
+        [analyse, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, version, is_current) values ($1, $2, 'Rijlessen', 'article', 'ready', 1, true)`,
+        [pagina, analyse],
+      );
+      const { rows: vragen } = await db.client.query(
+        `insert into public.fact_requests (profile_id, analysis_id, question, reason, status, scope, content_piece_ids, open_vraag, raw_json) values
+           ($1, $2, 'Hoe ziet een eerste les eruit?', 'r', 'open', 'pagina', $3, false, '{"bron": "pagina_brief", "soort": "werkwijze"}'),
+           ($1, $2, 'Wat wil je zelf op deze pagina vertellen?', 'r', 'open', 'pagina', $3, true, null),
+           ($1, null, 'Hoeveel leerlingen slagen in één keer?', 'r', 'open', 'merk', '{}', false, '{"bron": "pagina_brief"}')
+         returning id, question`,
+        [merk, analyse, [pagina]],
+      );
+      const vraagId = (begin: string) => vragen.find((v: { question: string }) => v.question.startsWith(begin))!.id as string;
+      const antwoord = (factId: string, answer: string) =>
+        answerFact(shim, { profileId: merk, factId, answer, gebruikerId: userId });
+
+      await antwoord(vraagId("Hoe ziet"), "We rijden eerst op een rustig industrieterrein.");
+      await antwoord(vraagId("Wat wil je"), "Onze oudste instructeur geeft al dertig jaar les en kent elke rotonde in Eindhoven.");
+      await antwoord(vraagId("Hoeveel"), "80 procent");
+
+      type KennisRij = { id: string; domein: string; soort: string | null; bewering: string; status: string; bron: string; gebruik: string; geldt_voor: string[]; analysis_id: string | null; content_piece_id: string | null; herkomst_tabel: string | null; herkomst_id: string | null; vastgelegd_door: string | null; vervangen_door: string | null; afgewezen_op: string | null; bevestigd_door: string | null; bevestigd_op: string | null; citaat: string | null; bron_url: string | null; verloopt_op: string | null; bewijskracht: string | null };
+      const kennis = async () => (await db.client.query("select * from public.klantkennis where profile_id = $1 order by vastgelegd_op, bewering", [merk])).rows as KennisRij[];
+      const vanVraag = (rijen: KennisRij[], id: string) => rijen.filter((r) => r.herkomst_tabel === "fact_requests" && r.herkomst_id === id);
+
+      let rijen = await kennis();
+      const gericht = vanVraag(rijen, vraagId("Hoe ziet"));
+      eqc("scenario 22: de gerichte vraag is één item", String(gericht.length), "1");
+      eqc("scenario 22: verklaard, door de klant, als paginatekst", `${gericht[0]?.status}/${gericht[0]?.bron}/${gericht[0]?.gebruik}`, "verklaard/klant/content");
+      eqc("scenario 22: met de reikwijdte van de vraag: deze pagina, in dit cluster", `${gericht[0]?.content_piece_id}/${gericht[0]?.analysis_id}`, `${pagina}/${analyse}`);
+      eqc("scenario 22: geldt voor verwijst naar geen ander item (V13)", (gericht[0]?.geldt_voor ?? []).join(","), "");
+      eqc("scenario 22: vastgelegd door wie antwoordde", String(gericht[0]?.vastgelegd_door), userId);
+      eqc("scenario 22: met vraag en antwoord samen", gericht[0]?.bewering ?? "", "Hoe ziet een eerste les eruit?\nWe rijden eerst op een rustig industrieterrein.");
+
+      const open = vanVraag(rijen, vraagId("Wat wil je"));
+      eqc(
+        "scenario 22: de open vraag is een verhaal, letterlijk, verklaard",
+        `${open[0]?.domein}/${open[0]?.status}/${open[0]?.bewering}`,
+        "verhaal/verklaard/Onze oudste instructeur geeft al dertig jaar les en kent elke rotonde in Eindhoven.",
+      );
+      eqc("scenario 22: alleen voor deze pagina (B3)", `${open[0]?.content_piece_id}/${open[0]?.analysis_id}`, `${pagina}/${analyse}`);
+      const { rows: oudePlek } = await db.client.query("select proof_points from public.profiles where id = $1", [merk]);
+      ok("scenario 22: de open vraag gaat nog steeds niet naar de oude bewijspunten", !(oudePlek[0].proof_points ?? []).some((p: string) => p.includes("oudste instructeur")));
+
+      const merkbreed = vanVraag(rijen, vraagId("Hoeveel"));
+      eqc("scenario 22: een vraag voor het hele merk geldt merkbreed", `${merkbreed[0]?.status}/${merkbreed[0]?.content_piece_id}/${merkbreed[0]?.analysis_id}`, "verklaard/null/null");
+
+      // Blok A (K6) zal alle drie mogen gebruiken: gezegd door de klant.
+      const blokA = setVoorBlokA(rijen, new Date());
+      eqc("scenario 22: alle drie mogen straks op een pagina", String(blokA.beweringen.length), "3");
+
+      // Een gewijzigd antwoord: een nieuwe versie, de oude blijft bewaard.
+      await antwoord(vraagId("Hoeveel"), "85 procent");
+      rijen = await kennis();
+      const versies = vanVraag(rijen, vraagId("Hoeveel"));
+      const actueel = versies.filter((r) => !r.vervangen_door);
+      eqc("scenario 22: een gewijzigd antwoord is een nieuwe versie", actueel.map((r) => r.bewering).join(","), "Hoeveel leerlingen slagen in één keer?\n85 procent");
+      eqc("scenario 22: de oude versie wijst naar de nieuwe", String(versies.find((r) => r.vervangen_door)?.vervangen_door), actueel[0]?.id ?? "?");
+      const aantal = rijen.length;
+      await antwoord(vraagId("Hoeveel"), "85 procent");
+      eqc("scenario 22: hetzelfde antwoord opnieuw opslaan legt niets vast", String((await kennis()).length), String(aantal));
+
+      // Het gespreksscherm: een vermoeden van het model weghalen, een plaats
+      // toevoegen, en het onderscheid invullen en daarna aanpassen.
+      const vermoeden = await legVast(shim, {
+        profileId: merk, domein: "positionering", soort: "waardepropositie", bewering: "Persoonlijk",
+        status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profiles", id: merk },
+      }, { actor: "model", taak: "profile_research" });
+      eqc("scenario 22: het model dacht iets", vermoeden.soort, "vastgelegd");
+      const profiel = { value_props: ["Persoonlijk"], service_regions: ["Eindhoven"], differentiator: null as string | null };
+      const naGesprek = { value_props: [] as string[], service_regions: ["Eindhoven", "Best"], differentiator: "Elke leerling houdt dezelfde instructeur." };
+      const t1 = await legProfielVast(shim, {
+        profileId: merk, url: "https://gesprek.nl", velden: ["value_props", "service_regions", "differentiator"],
+        oud: profiel, nieuw: naGesprek, bron: "gesprek",
+      }, mens);
+      eqc("scenario 22: het gesprek: twee nieuw, één weggehaald", `${t1.vastgelegd}/${t1.afgewezen}/${t1.geweigerd}`, "2/1/0");
+      rijen = await kennis();
+      const best = rijen.find((r) => r.soort === "werkgebied" && r.bewering === "Best");
+      eqc("scenario 22: een plaats uit het gesprek is verklaard, door het gesprek", `${best?.status}/${best?.bron}/${best?.gebruik}`, "verklaard/gesprek/content");
+      ok("scenario 22: het vermoeden dat de consultant weghaalde, is afgewezen en blijft bewaard", Boolean(rijen.find((r) => r.soort === "waardepropositie")?.afgewezen_op));
+      const t2 = await legProfielVast(shim, {
+        profileId: merk, url: "https://gesprek.nl", velden: ["differentiator"],
+        oud: naGesprek, nieuw: { ...naGesprek, differentiator: "Elke leerling houdt van begin tot eind dezelfde instructeur." }, bron: "gesprek",
+      }, mens);
+      eqc("scenario 22: een aangepast veld is een nieuwe versie", String(t2.vervangen), "1");
+      const onderscheid = (await kennis()).filter((r) => r.soort === "onderscheid");
+      eqc("scenario 22: één actuele versie, de oude bewaard", `${onderscheid.length}/${onderscheid.filter((r) => !r.vervangen_door).map((r) => r.bewering).join(",")}`, "2/Elke leerling houdt van begin tot eind dezelfde instructeur.");
+      const t3 = await legProfielVast(shim, {
+        profileId: merk, url: "https://gesprek.nl", velden: ["service_regions"], oud: naGesprek, nieuw: naGesprek, bron: "gesprek",
+      }, mens);
+      eqc("scenario 22: een veld opslaan zonder wijziging doet niets", `${t3.vastgelegd}/${t3.vervangen}/${t3.afgewezen}`, "0/0/0");
+
+      // De aantekeningen van het gesprek.
+      await legGesprekVast(shim, { profileId: merk, vorige: null, nu: { profile_id: merk, strategy_notes: "Focus op spoedcursussen in de zomer.", context_factors: [] } }, mens);
+      const notitie = (await kennis()).find((r) => r.herkomst_tabel === "profile_strategy");
+      eqc("scenario 22: de aantekening is verklaard, door het gesprek", `${notitie?.domein}/${notitie?.status}/${notitie?.bron}/${notitie?.vastgelegd_door}`, `positionering/verklaard/gesprek/${userId}`);
+
+      // De keuze bij een tegenstrijdigheid: twee prijzen van de site, die in de
+      // kennislaag botsen (sinds K8 deel 2 de enige conflictlijst).
+      const feitA = randomUUID();
+      const feitB = randomUUID();
+      const prijsIds: Record<string, string> = {};
+      for (const [id, tekst, url, bedrag] of [[feitA, "Een proefles kost € 45.", "https://gesprek.nl/prijzen", 45], [feitB, "Een proefles kost € 50.", "https://gesprek.nl/acties", 50]] as const) {
+        const u = await legVast(shim, {
+          profileId: merk, domein: "aanbod", soort: "prijs", bewering: tekst, waarde: { min: bedrag, max: bedrag, eenheid: "EUR" }, status: "waargenomen", bron: "website",
+          bronUrl: url, citaat: tekst, gebruik: "content", herkomst: { tabel: "profile_facets", id },
+        }, { actor: "code", taak: "profile_synthesis" });
+        eqc(`scenario 22: de prijs ${tekst} staat apart in de kennislaag`, u.soort, "vastgelegd");
+        if (u.soort === "vastgelegd") prijsIds[id] = u.item.id;
+      }
+      const { rows: botsing } = await db.client.query("select id from public.fact_conflicts where profile_id = $1 and status = 'open' and kennis_ids is not null", [merk]);
+      eqc("scenario 22: de twee prijzen botsen", String(botsing.length), "1");
+      const fout = await losKennisconflictOp(shim, { profileId: merk, conflictId: botsing[0].id, winnaarId: prijsIds[feitB] }, userId);
+      const keuze = { bevestigd: fout ? 0 : 1, afgewezen: fout ? 0 : 1, geweigerd: fout ? 1 : 0 };
+      eqc("scenario 22: de keuze bevestigt er één en wijst er één af", `${keuze.bevestigd}/${keuze.afgewezen}/${keuze.geweigerd}`, "1/1/0");
+      rijen = await kennis();
+      const prijzen = rijen.filter((r) => r.soort === "prijs");
+      const gekozen = prijzen.find((r) => r.herkomst_id === feitB);
+      eqc("scenario 22: de gekozen prijs is bevestigd, door de consultant", `${gekozen?.status}/${gekozen?.bevestigd_door}`, `bevestigd/${userId}`);
+      ok("scenario 22: de andere prijs is afgewezen, en bewaard", Boolean(prijzen.find((r) => r.herkomst_id === feitA)?.afgewezen_op));
+      eqc("scenario 22: en alleen de gekozen prijs mag straks op een pagina", setVoorBlokA(prijzen, new Date()).beweringen.map((r) => r.bewering).join(","), "Een proefles kost € 50.");
+
+      const { rows: statussen } = await db.client.query(
+        "select distinct status, case when status = 'bevestigd' then bevestigd_door::text else vastgelegd_door::text end as wie from public.klantkennis where profile_id = $1 and status in ('verklaard', 'bevestigd')",
+        [merk],
+      );
+      ok("scenario 22: verklaard en bevestigd komen alleen van een mens", statussen.length === 2 && statussen.every((r: { wie: string }) => r.wie === userId), JSON.stringify(statussen));
+    }
+
+    // ── Scenario 23: van meting naar kans naar voorraad (N2) ──────────────────
+    //
+    // docs/tasks/van-pijplijn-naar-kennissysteem.md N2: een gemeten cluster met
+    // een rapport van twee aanbevelingen. `legKansenVast()` is precies de aanroep
+    // die `generateReport()` doet na het opslaan (de AI-stub kent het
+    // rapportschema niet, en punt 56 hierboven leunt daarop, dus het rapport zelf
+    // staat hier als rij). Dan de voorraad: dezelfde kaarten als vóór N2, nu met
+    // hun kans erbij, en een kaart die al bestond vindt zijn kans terug.
+    console.log("\nScenario 23: van meting naar kans naar voorraad (N2)");
+    {
+      const { legKansenVast } = await import("@/lib/kansen/uit-rapport");
+      const { syncBacklog } = await import("@/lib/plan-backlog-data");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const analyse = randomUUID();
+      const aanbod = randomUUID();
+      const [p1, p2] = [randomUUID(), randomUUID()];
+      const rapport = randomUUID();
+
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, priority_offerings)
+         values ($1, $2, 'Kansentest', 'https://kansentest.nl', 'Kansentest', 'klaar', '{Rijles}')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status)
+         values ($1, $2, $3, 'Rijles', 'https://kansentest.nl', 'rijles', 'gereed')`,
+        [analyse, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.profile_topics (profile_id, analysis_id, title, priority, status, offering_ids, offering_names)
+         values ($1, $2, 'Rijles', 5, 'goedgekeurd', $3, '{Rijles}')`,
+        [merk, analyse, [aanbod]],
+      );
+      // De kennislaag: de dienst van het onderwerp, en twee plaatsen.
+      const { rows: kennisRijen } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, gebruik, vastgelegd_door_taak, herkomst_tabel, herkomst_id) values
+           ($1, 'aanbod', 'dienst', 'Rijles', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profile_offerings', $2),
+           ($1, 'identiteit', 'werkgebied', 'Best', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profiles', null),
+           ($1, 'identiteit', 'werkgebied', 'Veldhoven', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profiles', null)
+         returning id, bewering`,
+        [merk, aanbod],
+      );
+      const kennisId = (b: string) => kennisRijen.find((r: { bewering: string }) => r.bewering === b)!.id as string;
+
+      // De meting: ChatGPT mist p1 (en noemt twee concurrenten), noemt p2;
+      // AI Overview meet p1 drie keer en mist hem twee keer.
+      const meting = async (prompt: string, tekst: string, engine: string, herhaling: number, genoemd: boolean, anderen: string[]): Promise<string> => {
+        const run = randomUUID();
+        await db.client.query(
+          `insert into public.tracking_runs (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose, engine, repeat_index, brands_in_answer)
+           values ($1, $2, $3, $4, 'Beslissing', 0, 'periodic', $5, $6, $7)`,
+          [run, analyse, prompt, tekst, engine, herhaling, anderen.length + (genoemd ? 1 : 0)],
+        );
+        await db.client.query(
+          "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, 'Kansentest', true, $2)",
+          [run, genoemd],
+        );
+        for (const a of anderen) {
+          await db.client.query(
+            "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, $2, false, true)",
+            [run, a],
+          );
+        }
+        return run;
+      };
+      await db.client.query(
+        `insert into public.prompts (id, analysis_id, text, category, active) values
+           ($1, $3, 'Welke rijschool in Best is goed?', 'Beslissing', true),
+           ($2, $3, 'Wat kost rijles?', 'Beslissing', true)`,
+        [p1, p2, analyse],
+      );
+      const chatgptP1 = await meting(p1, "Welke rijschool in Best is goed?", "openai", 0, false, ["Rijschool Wit", "Rijschool Zwart"]);
+      // Terloops genoemd (de examenorganisatie): geen concurrent.
+      await db.client.query(
+        "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned, mention_role) values ($1, 'CBR', false, true, 'zijdelings')",
+        [chatgptP1],
+      );
+      await meting(p2, "Wat kost rijles?", "openai", 0, true, []);
+      await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 0, false, ["Rijschool Wit"]);
+      await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 1, false, ["Rijschool Wit"]);
+      await meting(p1, "Welke rijschool in Best is goed?", "google_ai_overview", 2, true, []);
+
+      await db.client.query(
+        `insert into public.reports (id, analysis_id, period, week_no, recommendations_json) values ($1, $2, 'nulmeting', 0, $3::jsonb)`,
+        [
+          rapport,
+          analyse,
+          JSON.stringify([
+            {
+              title: "Rijles in Best",
+              why: "ChatGPT noemt ons niet in Best.",
+              type: "landing",
+              action: "nieuw",
+              existingUrl: "null",
+              targetIntent: "Iemand uit Best die een rijschool zoekt",
+              targets: [
+                { promptId: p1, weight: 0.5, text: "Welke rijschool in Best is goed?" },
+                { promptId: p2, weight: 0.3, text: "Wat kost rijles?" },
+              ],
+            },
+            {
+              title: "Tarievenpagina verbeteren",
+              why: "De prijzen staan verstopt.",
+              type: "article",
+              action: "verbeteren",
+              existingUrl: "https://kansentest.nl/tarieven/",
+              targetIntent: "Iemand die wil weten wat rijles kost",
+              targets: [{ promptId: p2, weight: 0.3, text: "Wat kost rijles?" }],
+            },
+          ]),
+        ],
+      );
+
+      // Een kaart van vóór N2: hij stond al in de voorraad, zonder kans.
+      const { rows: oudeKaart } = await db.client.query(
+        `insert into public.planned_pages (profile_id, title, page_type, status, sort_order, is_buffer, source, source_analysis_id, source_ref, recommendation_action)
+         values ($1, 'Rijles in Best', 'dienst', 'gepland', 0, false, 'aanbeveling', $2, $3, 'nieuw') returning id`,
+        [merk, analyse, `${rapport}#0`],
+      );
+
+      const eerste = await legKansenVast(shim, rapport);
+      eqc("scenario 23: twee aanbevelingen, twee kansen", `${eerste.aangemaakt}/${eerste.bestond}/${eerste.mislukt}`, "2/0/0");
+      const tweede = await legKansenVast(shim, rapport);
+      eqc("scenario 23: nog een keer maakt niets dubbel (conventie 9)", `${tweede.aangemaakt}/${tweede.bestond}/${tweede.ververst}`, "0/2/0");
+
+      type KansRij = { id: string; sleutel: string; titel: string; lezer: string | null; handeling: string; bestaande_url: string | null; geldt_voor: string[]; commerciele_waarde: string | null; status: string; uitleg: string | null; rapport_id: string; analysis_id: string; vastgelegd_door_taak: string; potentie: string | null };
+      const kansen = (await db.client.query("select * from public.kansen where profile_id = $1 order by sleutel", [merk])).rows as KansRij[];
+      eqc("scenario 23: de sleutels zijn de oude source_ref", kansen.map((k) => k.sleutel).join(","), `${rapport}#0,${rapport}#1`);
+      const [best, tarieven] = kansen;
+      eqc("scenario 23: een nieuwe pagina, zonder het adres 'null'", `${best?.handeling}/${best?.bestaande_url}`, "nieuwe_pagina/null");
+      eqc("scenario 23: verbeteren met zijn adres", `${tarieven?.handeling}/${tarieven?.bestaande_url}`, "pagina_verbeteren/https://kansentest.nl/tarieven/");
+      eqc("scenario 23: met herkomst: rapport, cluster, taak", `${best?.rapport_id}/${best?.analysis_id}/${best?.vastgelegd_door_taak}`, `${rapport}/${analyse}/generate_report`);
+      eqc("scenario 23: de dienst heeft voorrang bij dit merk", String(best?.commerciele_waarde), "voorrang");
+      eqc("scenario 23: geldt voor de dienst en de plaats uit de titel, niet voor een andere plaats", [...(best?.geldt_voor ?? [])].sort().join(","), [kennisId("Rijles"), kennisId("Best")].sort().join(","));
+      eqc("scenario 23: de tarievenkans geldt alleen voor de dienst", (tarieven?.geldt_voor ?? []).join(","), kennisId("Rijles"));
+
+      type BewijsRij = { kans_id: string; bron: string; vragen_gemeten: number; vragen_genoemd: number; concurrenten: string[]; run_ids: string[] };
+      const bewijs = (await db.client.query("select * from public.kans_bewijs where profile_id = $1 order by bron", [merk])).rows as BewijsRij[];
+      const vanKans = (id: string | undefined) => bewijs.filter((b) => b.kans_id === id);
+      eqc(
+        "scenario 23: het bewijs per bron, met de meerderheid binnen AI Overview",
+        vanKans(best?.id).map((b) => `${b.bron}:${b.vragen_genoemd}/${b.vragen_gemeten}:${(b.concurrenten ?? []).join("+")}`).join(" "),
+        "ai_overview:0/1:Rijschool Wit chatgpt:1/2:Rijschool Wit+Rijschool Zwart",
+      );
+      ok("scenario 23: een terloops genoemde naam is geen concurrent", !bewijs.some((b) => (b.concurrenten ?? []).includes("CBR")));
+      eqc("scenario 23: het bewijs draagt de regel waarmee het geteld is", String((await db.client.query("select count(*)::int n from public.kans_bewijs where profile_id = $1 and (ruw->>'regel')::int = 2", [merk])).rows[0].n), String(bewijs.length));
+
+      // Bewijs van een oudere regel wordt één keer opnieuw geteld.
+      await db.client.query(
+        "update public.kans_bewijs set concurrenten = '{CBR}', ruw = '{\"regel\": 1}'::jsonb where kans_id = $1 and bron = 'chatgpt'",
+        [best?.id],
+      );
+      await db.client.query("update public.kansen set uitleg = 'oud' where id = $1", [best?.id]);
+      const derde = await legKansenVast(shim, rapport);
+      eqc("scenario 23: een kans met oud bewijs wordt opnieuw geteld", `${derde.aangemaakt}/${derde.ververst}`, "0/1");
+      const { rows: ververst } = await db.client.query("select b.concurrenten, k.uitleg from public.kans_bewijs b join public.kansen k on k.id = b.kans_id where b.kans_id = $1 and b.bron = 'chatgpt'", [best?.id]);
+      eqc("scenario 23: met de juiste concurrenten, en de uitleg mee", `${(ververst[0]?.concurrenten ?? []).join("+")}|${ververst[0]?.uitleg !== "oud"}`, "Rijschool Wit+Rijschool Zwart|true");
+      const vierde = await legKansenVast(shim, rapport);
+      eqc("scenario 23: en daarna niet nog eens", String(vierde.ververst), "0");
+
+      eqc("scenario 23: de metingen zelf staan erbij", String(vanKans(best?.id).reduce((n, b) => n + (b.run_ids ?? []).length, 0)), "5");
+      eqc(
+        "scenario 23: de uitleg komt uit het bewijs",
+        String(best?.uitleg),
+        "ChatGPT noemt je bij 1 van de 2 vragen en noemt twee concurrenten wel. Google AI Overview noemt je niet bij de enige gemeten vraag en noemt één concurrent wel en citeert je site niet.",
+      );
+      eqc(
+        "scenario 23: zonder gemis zegt de uitleg dat ook",
+        String(tarieven?.uitleg),
+        "ChatGPT noemt je al bij de enige gemeten vraag. Je huidige pagina gaat er deels over.",
+      );
+
+      // ── De voorraad ──
+      await syncBacklog(shim, merk);
+      await syncBacklog(shim, merk);
+      type KaartRij = { id: string; title: string; source_ref: string; kans_id: string | null; recommendation_action: string; existing_url: string | null; why: string | null; target_intent: string | null; potential: string | null; target_count: number | null };
+      const kaarten = (await db.client.query("select * from public.planned_pages where profile_id = $1 order by source_ref", [merk])).rows as KaartRij[];
+      eqc("scenario 23: twee kaarten, geen dubbele na twee rondes", String(kaarten.length), "2");
+      eqc("scenario 23: de oude kaart vond zijn kans terug", `${kaarten[0]?.id}/${kaarten[0]?.kans_id}`, `${oudeKaart[0].id}/${best?.id}`);
+      eqc("scenario 23: de nieuwe kaart komt uit zijn kans", `${kaarten[1]?.kans_id}/${kaarten[1]?.source_ref}`, `${tarieven?.id}/${rapport}#1`);
+      eqc(
+        "scenario 23: dezelfde kaart als vóór N2: handeling, adres, tekst, lezer, doelvragen",
+        `${kaarten[1]?.recommendation_action}|${kaarten[1]?.existing_url}|${kaarten[1]?.why}|${kaarten[1]?.target_intent}|${kaarten[1]?.target_count}`,
+        "verbeteren|https://kansentest.nl/tarieven/|De prijzen staan verstopt.|Iemand die wil weten wat rijles kost|1",
+      );
+      const naSync = (await db.client.query("select id, potentie from public.kansen where profile_id = $1", [merk])).rows as { id: string; potentie: string | null }[];
+      for (const k of kaarten) {
+        const kans = naSync.find((r) => r.id === k.kans_id);
+        eqc(`scenario 23: de potentie op de kans is die van de kaart (${k.title})`, String(kans?.potentie === null || kans?.potentie === undefined ? null : Number(kans.potentie)), String(k.potential === null ? null : Number(k.potential)));
+      }
+
+      // ── Het kennisgat (N6) ──
+      const gatVan = async (id: string | undefined) =>
+        (await db.client.query("select kennis_ontbreekt, kennis_bekend from public.kansen where id = $1", [id])).rows[0] as { kennis_ontbreekt: string[] | null; kennis_bekend: string[] | null };
+      eqc("scenario 23: na de synchronisatie is het kennisgat uitgerekend: bij dit merk ontbreekt alles", (await gatVan(best?.id)).kennis_ontbreekt?.join(",") ?? "null", "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs");
+      // De klant vertelt hoe het werkt; het model vermoedt een prijs; en er is een
+      // verhaal bij een eerdere versie van de pagina van deze kaart.
+      const [v1, v2] = [randomUUID(), randomUUID()];
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, version, is_current) values
+           ($1, $3, 'Rijles in Best', 'landing', 'ready', 1, false),
+           ($2, $3, 'Rijles in Best', 'landing', 'ready', 2, true)`,
+        [v1, v2, analyse],
+      );
+      await db.client.query("update public.planned_pages set content_piece_id = $1 where id = $2", [v2, oudeKaart[0].id]);
+      const { rows: nieuweKennis } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, gebruik, vastgelegd_door, vastgelegd_door_taak, geldt_voor, analysis_id, content_piece_id) values
+           ($1, 'aanbod', 'werkwijze', 'Eerst een proefles.', 'verklaard', 'klant', 'content', $2, null, '{}', null, null),
+           ($1, 'aanbod', 'prijs', 'Ongeveer € 60 per les.', 'afgeleid', 'ai', 'intern', null, 'profile_offering', $3, null, null),
+           ($1, 'verhaal', 'eigen verhaal', 'Een leerling uit Best slaagde na twee keer.', 'verklaard', 'klant', 'content', $2, null, '{}', $4, $5)
+         returning id, soort`,
+        [merk, userId, [kennisId("Rijles")], analyse, v1],
+      );
+      await syncBacklog(shim, merk);
+      const naAntwoord = await gatVan(best?.id);
+      eqc("scenario 23: wat de klant vertelde, telt; een vermoeden niet", naAntwoord.kennis_ontbreekt?.join(",") ?? "null", "prijs,termijn,voor_wie_niet,bewijs");
+      eqc(
+        "scenario 23: het verhaal bij de eerdere versie van de pagina telt mee (gevonden in K5)",
+        [...(naAntwoord.kennis_bekend ?? [])].sort().join(","),
+        nieuweKennis.filter((r: { soort: string }) => r.soort !== "prijs").map((r: { id: string }) => r.id).sort().join(","),
+      );
+      eqc("scenario 23: de tarievenkans (een artikel) heeft geen verhaal van een andere pagina", (await gatVan(tarieven?.id)).kennis_ontbreekt?.join(",") ?? "null", "voorbeeld,bewijs");
+
+      // A1: de brief van de pagina krijgt dit gat mee, in woorden.
+      const { kennisgatVoorPagina } = await import("@/lib/kennis/voor-pagina");
+      const { briefInvoer } = await import("@/lib/pagina/brief-opdracht");
+      const gatVoorBrief = await kennisgatVoorPagina(shim, v2);
+      eqc("scenario 23: de brief krijgt het kennisgat van de kans (A1)", (gatVoorBrief ?? ["null"]).join(" | "), "een prijsindicatie | een termijn | voor wie het niet is | bewijs");
+      const invoer = briefInvoer({
+        titel: "Rijles in Best", paginasoort: "dienstpagina", handeling: "nieuw", zoekintentie: null, waarom: null, doelvragen: [],
+        merknaam: "Kansentest", werkgebied: [], bedrijf: "-", huidigeTekst: null, eerdereVragen: [], kennisgat: gatVoorBrief,
+      });
+      ok("scenario 23: en zet het in de invoer van de brief", invoer.includes("Wat we voor deze pagina nog niet weten over het bedrijf:\n- een prijsindicatie"), invoer);
+      eqc("scenario 23: een pagina zonder kans heeft geen kennisgat", String(await kennisgatVoorPagina(shim, v1)), "null");
+
+      // Een rapport zonder kansen (van vóór N2): de voorraad maakt ze alsnog.
+      const analyse2 = randomUUID();
+      const rapport2 = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Theorie', 'https://kansentest.nl', 'theorie', 'gereed')`,
+        [analyse2, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.reports (id, analysis_id, period, recommendations_json) values ($1, $2, 'nulmeting', $3::jsonb)`,
+        [rapport2, analyse2, JSON.stringify([{ title: "Theorie-examen oefenen", action: "nieuw", type: "article" }])],
+      );
+      await syncBacklog(shim, merk);
+      const { rows: vangnet } = await db.client.query(
+        "select k.id as kans, p.kans_id from public.kansen k left join public.planned_pages p on p.kans_id = k.id where k.rapport_id = $1",
+        [rapport2],
+      );
+      eqc("scenario 23: een rapport van vóór N2 krijgt zijn kans bij de volgende synchronisatie, met kaart", `${vangnet.length}/${vangnet[0]?.kans === vangnet[0]?.kans_id}`, "1/true");
+      const { rows: zonderBewijs } = await db.client.query("select uitleg from public.kansen where rapport_id = $1", [rapport2]);
+      eqc("scenario 23: zonder meting: geen gegevens, geen nul", String(zonderBewijs[0]?.uitleg), "Voor deze kans zijn er nog geen gegevens.");
+    }
+
+    // ── Scenario 24: blok A leest uit de kennislaag (K6, B20) ─────────────────
+    //
+    // De echte `laadSchrijfbasis()`: wat de schrijver en de controle krijgen. Een
+    // vermoeden van het model komt er niet in, wat de klant zei wel; de prijs van
+    // de dienst van de kans wel, die van een andere dienst niet; het verhaal bij
+    // een eerdere versie van de pagina wel (gevonden in K5); een verbod uit de
+    // kennislaag gaat als verbod mee.
+    console.log("\nScenario 24: blok A leest uit de kennislaag (K6)");
+    {
+      const { laadSchrijfbasis } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const [v1, v2] = [randomUUID(), randomUUID()];
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, value_props)
+         values ($1, $2, 'Blok A Test', 'https://blok-a.nl', 'Blok A Test', 'klaar', '{"Snelle service volgens het model"}')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Blok A', 'https://blok-a.nl', 'ketels', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values
+           ($1, $3, 'Cv-ketel vervangen', 'landing', 'ready', 'nieuw', 1, false),
+           ($2, $3, 'Cv-ketel vervangen', 'landing', 'briefing', 'nieuw', 2, true)`,
+        [v1, v2, cluster],
+      );
+      const site = (bewering: string, extra: Record<string, unknown> = {}) => ({
+        profileId: merk, domein: "aanbod", bewering, status: "waargenomen", bron: "website", bronUrl: "https://blok-a.nl", citaat: bewering, gebruik: "content",
+        herkomst: { tabel: "profile_offerings", id: randomUUID() }, ...extra,
+      });
+      const code = { actor: "code", taak: "kennis_terugvullen" } as const;
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const leg = async (item: Record<string, unknown>, door: unknown) => {
+        const uit = await legVast(shim, item as never, door as never);
+        if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        return uit.item.id;
+      };
+      const cv = await leg(site("CV-ketel vervangen: een oude ketel vervangen.", { soort: "dienst" }), code);
+      const zon = await leg(site("Zonnepanelen: leggen op het dak.", { soort: "dienst" }), code);
+      await leg(site("Een nieuwe cv-ketel kost € 2.400.", { soort: "prijs", geldtVoor: [cv] }), code);
+      await leg(site("Zonnepanelen kosten € 4.000.", { soort: "prijs", geldtVoor: [zon] }), code);
+      await leg({ profileId: merk, domein: "positionering", soort: "waardepropositie", bewering: "Waarschijnlijk is snelheid het belangrijkste.", status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profiles", id: merk } }, { actor: "model", taak: "profile_research" });
+      await leg({ profileId: merk, domein: "doelgroep", soort: "bezwaar", bewering: "Klanten vinden een ketel duur; wij leggen het verschil in verbruik uit.", status: "verklaard", bron: "gesprek", gebruik: "content" }, mens);
+      await leg({ profileId: merk, domein: "verhaal", soort: "eigen verhaal", bewering: "Vorige winter vervingen we in één dag de ketel van een bakkerij.", status: "verklaard", bron: "klant", gebruik: "content", analysisId: cluster, contentPieceId: v1 }, mens);
+      await leg({ profileId: merk, domein: "grens", soort: "verboden woord", bewering: "goedkoopste", status: "verklaard", bron: "gesprek", gebruik: "verboden" }, mens);
+      const { rows: kans } = await db.client.query(
+        `insert into public.kansen (profile_id, analysis_id, titel, handeling, geldt_voor, vastgelegd_door_taak) values ($1, $2, 'Cv-ketel vervangen', 'nieuwe_pagina', $3, 'test') returning id`,
+        [merk, cluster, [cv]],
+      );
+      await db.client.query(
+        `insert into public.planned_pages (profile_id, title, page_type, status, sort_order, is_buffer, content_piece_id, kans_id) values ($1, 'Cv-ketel vervangen', 'dienst', 'gepland', 0, false, $2, $3)`,
+        [merk, v2, kans[0].id],
+      );
+
+      const basis = await laadSchrijfbasis(shim, v2);
+      const a = basis?.blokken.bedrijf ?? "";
+      ok("scenario 24: een vermoeden van het model komt niet bij de schrijver", !a.includes("Waarschijnlijk") && !a.includes("volgens het model"), a);
+      ok("scenario 24: wat de klant in het gesprek zei wel", a.includes("wij leggen het verschil in verbruik uit"));
+      ok("scenario 24: de prijs van de dienst van de kans wel, van een andere dienst niet", a.includes("€ 2.400") && !a.includes("€ 4.000"), a);
+      ok("scenario 24: het verhaal bij een eerdere versie van de pagina telt mee", a.includes("bakkerij"));
+      ok("scenario 24: het verbod gaat mee als verbod, niet als bewering", (basis?.merk.verbodenWoorden ?? []).includes("goedkoopste") && !a.includes("goedkoopste"));
+      ok("scenario 24: de controle op harde beweringen gebruikt dezelfde set", (basis?.bronnen ?? []).some((b) => b.includes("€ 2.400")) && !(basis?.bronnen ?? []).some((b) => b.includes("€ 4.000")));
+    }
+
+    // ── Scenario 25: het kennisoverzicht (K7) ─────────────────────────────────
+    //
+    // De vier handelingen van de consultant via `handelOpOverzicht()`, en wat de
+    // schrijver daarna krijgt (de echte `laadSchrijfbasis()`): bevestigen zet de
+    // status, afwijzen haalt een item uit blok A, aanpassen maakt een nieuwe
+    // versie die wel meegaat, "niet op de site" houdt het eruit, en een bevestigd
+    // vermoeden mag op een pagina.
+    console.log("\nScenario 25: het kennisoverzicht (K7)");
+    {
+      const { laadSchrijfbasis } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { handelOpOverzicht } = await import("@/lib/kennis/uit-overzicht");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Overzicht Test', 'https://overzicht.nl', 'Overzicht Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Overzicht', 'https://overzicht.nl', 'dakgoten', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values ($1, $2, 'Dakgoot vervangen', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [stuk, cluster],
+      );
+      const code = { actor: "code", taak: "kennis_terugvullen" } as const;
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const leg = async (item: Record<string, unknown>, door: unknown) => {
+        const uit = await legVast(shim, { profileId: merk, domein: "aanbod", ...item } as never, door as never);
+        if (uit.soort === "geweigerd") throw new Error(`Testkennis geweigerd: ${uit.fouten.join(" ")}`);
+        return uit.item.id;
+      };
+      const site = { status: "waargenomen", bron: "website", bronUrl: "https://overzicht.nl", gebruik: "content", herkomst: { tabel: "profiles", id: merk } };
+      const gezien = await leg({ bewering: "Wij werken al 22 jaar in de regio.", citaat: "Wij werken al 22 jaar in de regio.", ...site }, code);
+      const fout = await leg({ bewering: "Wij leveren ook zonnepanelen.", citaat: "Wij leveren ook zonnepanelen.", ...site }, code);
+      const oud = await leg({ bewering: "Een dakgoot vervangen duurt een dag.", status: "verklaard", bron: "gesprek", gebruik: "content" }, mens);
+      const geheim = await leg({ bewering: "Wij werken met onderaannemers uit Polen.", status: "verklaard", bron: "gesprek", gebruik: "content" }, mens);
+      const vermoeden = await leg({ domein: "positionering", bewering: "Het bedrijf is sterk in spoedreparaties.", status: "afgeleid", bron: "ai", gebruik: "intern", herkomst: { tabel: "profiles", id: merk } }, { actor: "model", taak: "profile_research" });
+      const doe = (itemId: string, actie: string, bewering?: string) => handelOpOverzicht(shim, { profileId: merk, itemId, actie: actie as never, bewering }, userId);
+      const rij = async (id: string) => (await db.client.query(`select * from public.klantkennis where id = $1`, [id])).rows[0];
+
+      const bevestigd = await doe(gezien, "bevestigen");
+      const r1 = await rij(gezien);
+      ok("scenario 25: bevestigen zet de status, met wie en wanneer", bevestigd.ok && r1.status === "bevestigd" && r1.bevestigd_door === userId && r1.bevestigd_op != null, JSON.stringify(bevestigd));
+      ok("scenario 25: nog eens bevestigen kan niet", !(await doe(gezien, "bevestigen")).ok);
+
+      const afgewezen = await doe(fout, "afwijzen");
+      ok("scenario 25: afwijzen bewaart het item met wie", afgewezen.ok && (await rij(fout)).afgewezen_door === userId);
+      ok("scenario 25: een afgewezen item kan niet meer bevestigd worden", !(await doe(fout, "bevestigen")).ok);
+
+      ok("scenario 25: aanpassen zonder nieuwe tekst kan niet", !(await doe(oud, "aanpassen", "  ")).ok);
+      const aangepast = await doe(oud, "aanpassen", "Een dakgoot vervangen duurt meestal twee dagen.");
+      const r3 = await rij(oud);
+      const nieuw = aangepast.ok ? await rij(aangepast.item.id) : null;
+      ok(
+        "scenario 25: aanpassen maakt een nieuwe versie, verklaard uit het gesprek",
+        aangepast.ok && r3.vervangen_door === nieuw?.id && nieuw?.status === "verklaard" && nieuw?.bron === "gesprek" && nieuw?.gebruik === "content",
+        JSON.stringify({ r3, nieuw }),
+      );
+      ok("scenario 25: de oude versie kan niet meer aangepast worden", !(await doe(oud, "aanpassen", "Iets anders.")).ok);
+
+      const eraf = await doe(geheim, "niet_op_site");
+      const r4 = await rij(geheim);
+      ok("scenario 25: niet op de site zet het gebruik op intern, zelfde rij en status", eraf.ok && r4.gebruik === "intern" && r4.status === "verklaard" && r4.vervangen_door == null);
+
+      const zeker = await doe(vermoeden, "bevestigen");
+      const r5 = await rij(vermoeden);
+      ok("scenario 25: een bevestigd vermoeden is een feit en mag op een pagina", zeker.ok && r5.status === "bevestigd" && r5.gebruik === "content", r5);
+
+      const ander = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Ander', 'https://ander.nl', 'Ander', 'klaar')`,
+        [ander, userId],
+      );
+      const vreemd = await handelOpOverzicht(shim, { profileId: ander, itemId: gezien, actie: "afwijzen" }, userId);
+      ok("scenario 25: een item van een ander merk bestaat hier niet", !vreemd.ok && (await rij(gezien)).afgewezen_op == null);
+
+      const basis = await laadSchrijfbasis(shim, stuk);
+      const a = basis?.blokken.bedrijf ?? "";
+      ok("scenario 25: het bevestigde item gaat naar de schrijver", a.includes("22 jaar"), a);
+      ok("scenario 25: het afgewezen item niet", !a.includes("zonnepanelen"), a);
+      ok("scenario 25: de aangepaste tekst wel, de oude niet", a.includes("meestal twee dagen") && !a.includes("duurt een dag"), a);
+      ok("scenario 25: wat niet op de site mag niet", !a.includes("Polen"), a);
+      ok("scenario 25: het bevestigde vermoeden wel", a.includes("spoedreparaties"), a);
+    }
+
+    // ── Scenario 26: tegenstrijdigheden en "niet van toepassing" (K7 deel 2) ──
+    //
+    // Sinds K6 leest blok A uit de kennislaag. Wat op de conflictlijst staat,
+    // mag daar niet in: sinds K8 deel 2 is dat een botsing tussen kennisitems
+    // (het oude feitenregister is weg). De consultant lost een
+    // botsing op het conflictscherm op; daarna gaat de gekozen versie wel mee.
+    // En "niet van toepassing" op het gespreksscherm wijst af wat er stond.
+    console.log("\nScenario 26: tegenstrijdigheden en niet van toepassing (K7)");
+    {
+      const { laadSchrijfbasis } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { losKennisconflictOp } = await import("@/lib/kennis/uit-overzicht");
+      const { legProfielVast } = await import("@/lib/kennis/uit-gesprek");
+      const { nietVanToepassingVelden, zonderNietVanToepassing } = await import("@/lib/kennis/gesprek");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, differentiator) values ($1, $2, 'Conflict Test', 'https://conflict.nl', 'Conflict Test', 'klaar', 'Wij komen altijd binnen een uur.')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Conflict', 'https://conflict.nl', 'lekkage', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values ($1, $2, 'Lekkage verhelpen', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [stuk, cluster],
+      );
+      const code = { actor: "code", taak: "profile_synthesis" } as const;
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      // Sinds K8 deel 2 is er geen oud feitenregister meer dat iets betwist of
+      // vervangen noemt; alleen een botsing in de kennislaag houdt iets tegen.
+      const siteFeit = async (tekst: string) => {
+        const u = await legVast(shim, {
+          profileId: merk, domein: "aanbod", soort: "termijn", bewering: tekst, status: "waargenomen", bron: "website",
+          bronUrl: "https://conflict.nl", citaat: tekst, gebruik: "content", herkomst: { tabel: "profile_facets", id: randomUUID() },
+        } as never, code);
+        if (u.soort !== "vastgelegd") throw new Error(`Testkennis: ${u.soort}`);
+      };
+      await siteFeit("Wij geven vijf jaar garantie.");
+
+      const prijs = (bedrag: number, bron: "website" | "gesprek") =>
+        legVast(shim, {
+          profileId: merk, domein: "aanbod", soort: "prijs", bewering: `Een lekkage opsporen kost € ${bedrag}.`,
+          waarde: { min: bedrag, max: bedrag, eenheid: "EUR" }, status: bron === "website" ? "waargenomen" : "verklaard", bron,
+          ...(bron === "website" ? { bronUrl: "https://conflict.nl/prijzen", citaat: `Een lekkage opsporen kost € ${bedrag}.` } : {}),
+          gebruik: "content", herkomst: { tabel: "fact_requests", id: randomUUID() },
+        } as never, bron === "website" ? code : mens);
+      const p1 = await prijs(95, "website");
+      const p2 = await prijs(120, "gesprek");
+      eqc("scenario 26: twee prijzen voor hetzelfde botsen", p2.soort === "vastgelegd" ? String(p2.botsingen) : p2.soort, "1");
+
+      let a = (await laadSchrijfbasis(shim, stuk))?.blokken.bedrijf ?? "";
+      ok("scenario 26: een botsing tussen kennisitems: geen van beide", !a.includes("€ 95") && !a.includes("€ 120"), a);
+      ok("scenario 26: wat nergens op botst, gaat wel mee", a.includes("vijf jaar garantie"), a);
+
+      const { rows: botsing } = await db.client.query(`select id from public.fact_conflicts where profile_id = $1 and kennis_ids is not null`, [merk]);
+      const winnaarId = p2.soort === "vastgelegd" ? p2.item.id : "";
+      const verliezerId = p1.soort === "vastgelegd" ? p1.item.id : "";
+      ok("scenario 26: kiezen voor iets buiten de botsing kan niet", Boolean(await losKennisconflictOp(shim, { profileId: merk, conflictId: botsing[0].id, winnaarId: randomUUID() }, userId)));
+      const fout = await losKennisconflictOp(shim, { profileId: merk, conflictId: botsing[0].id, winnaarId }, userId);
+      const { rows: na } = await db.client.query(`select id, status, afgewezen_op from public.klantkennis where id = any($1)`, [[winnaarId, verliezerId]]);
+      const { rows: c2 } = await db.client.query(`select status, opgelost_door from public.fact_conflicts where id = $1`, [botsing[0].id]);
+      ok(
+        "scenario 26: de keuze bevestigt de ene prijs, wijst de andere af en lost de botsing op",
+        !fout && na.find((r) => r.id === winnaarId)?.status === "bevestigd" && Boolean(na.find((r) => r.id === verliezerId)?.afgewezen_op) && c2[0].status === "opgelost" && c2[0].opgelost_door === userId,
+        JSON.stringify({ fout, na, c2 }),
+      );
+      ok("scenario 26: een opgeloste botsing nog eens oplossen kan niet", Boolean(await losKennisconflictOp(shim, { profileId: merk, conflictId: botsing[0].id, winnaarId }, userId)));
+      a = (await laadSchrijfbasis(shim, stuk))?.blokken.bedrijf ?? "";
+      ok("scenario 26: daarna gaat de gekozen prijs mee, de andere niet", a.includes("€ 120") && !a.includes("€ 95"), a);
+
+      // "Niet van toepassing" op het gespreksscherm.
+      const profiel = { differentiator: "Wij komen altijd binnen een uur." };
+      await legProfielVast(shim, { profileId: merk, url: "https://conflict.nl", velden: ["differentiator"], oud: {}, nieuw: profiel, bron: "gesprek" }, mens);
+      const nvt = nietVanToepassingVelden({ differentiator: true, bestaat_niet: true, value_props: false });
+      eqc("scenario 26: alleen de velden die op niet van toepassing gaan", nvt.join(","), "differentiator");
+      const t = await legProfielVast(shim, {
+        profileId: merk, url: "https://conflict.nl", velden: nvt, oud: profiel, nieuw: zonderNietVanToepassing(profiel, nvt), bron: "gesprek",
+      }, mens);
+      const { rows: onderscheid } = await db.client.query(
+        `select afgewezen_door from public.klantkennis where profile_id = $1 and soort = 'onderscheid' and vervangen_door is null`,
+        [merk],
+      );
+      ok("scenario 26: niet van toepassing wijst af wat er stond, door wie het aanvinkte", t.afgewezen === 1 && onderscheid.length === 1 && onderscheid[0].afgewezen_door === userId, JSON.stringify({ t, onderscheid }));
+      a = (await laadSchrijfbasis(shim, stuk))?.blokken.bedrijf ?? "";
+      ok("scenario 26: en de schrijver krijgt het niet meer", !a.includes("binnen een uur"), a);
+    }
+
+    // ── Scenario 27: stemvoorbeelden en merkdossier in de kennislaag (K8 deel 1) ──
+    //
+    // Twee plekken schreven klantkennis tot K8 alleen in de oude tabel. De tekst
+    // van een stemvoorbeeld wordt waargenomen, een nieuwe tekst op hetzelfde
+    // adres een nieuwe versie, een weggehaald adres afgewezen door de mens. Een
+    // feit uit een aangeleverd document wordt verklaard met de zin als citaat,
+    // en een latere wijziging van dat antwoord een nieuwe versie van dat item.
+    console.log("\nScenario 27: stemvoorbeelden en merkdossier in de kennislaag (K8)");
+    {
+      const { legStemVast } = await import("@/lib/kennis/uit-stem");
+      const { legDocumentVast } = await import("@/lib/kennis/uit-gesprek");
+      const { answerFact } = await import("@/lib/facts");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Stem Test', 'https://stem.nl', 'Stem Test', 'klaar')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const stemItems = async () =>
+        (
+          await db.client.query(
+            `select id, bron_url, bewering, status, vastgelegd_door_taak, afgewezen_door, vervangen_door from public.klantkennis where profile_id = $1 and soort = 'stemvoorbeeld' order by vastgelegd_op`,
+            [merk],
+          )
+        ).rows;
+      const a = "https://stem.nl/over-ons";
+      const b = "https://stem.nl/werkwijze";
+      const vb = (url: string, tekst: string) => ({ url, tekst, opgehaald_op: new Date().toISOString(), fout: null });
+      // Zoals de profielroute: eerst de adressen op het profiel, dan het ophalen.
+      const kies = (adressen: string[]) =>
+        db.client.query("update public.profiles set stem_voorbeelden = $1::jsonb where id = $2", [JSON.stringify(adressen.map((url) => ({ url, tekst: null, opgehaald_op: null, fout: null }))), merk]);
+      const verkeerd = await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Oud.")], gekozen: [a] }, mens);
+      ok("scenario 27: kloppen de adressen niet meer met het profiel, dan wordt niets bewaard", !verkeerd.bewaard && verkeerd.vastgelegd === 0);
+      await kies([a, b]);
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Wij zijn een familiebedrijf."), vb(b, "Eerst kijken, dan pas prijzen.")], gekozen: [a, b] }, mens);
+      const { rows: kopie } = await db.client.query("select stem_voorbeelden from public.profiles where id = $1", [merk]);
+      ok("scenario 27: de opgehaalde tekst staat ook op het profiel, de kopie voor de schrijver", (kopie[0].stem_voorbeelden ?? []).every((v: { tekst: string | null }) => v.tekst), JSON.stringify(kopie[0].stem_voorbeelden));
+      let rijen = await stemItems();
+      ok(
+        "scenario 27: twee stemvoorbeelden, waargenomen, vastgelegd door de code",
+        rijen.length === 2 && rijen.every((r) => r.status === "waargenomen" && r.vastgelegd_door_taak === "stemvoorbeelden"),
+        JSON.stringify(rijen),
+      );
+      await kies([a]);
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Wij zijn al dertig jaar een familiebedrijf.")], gekozen: [a] }, mens);
+      rijen = await stemItems();
+      const actueel = rijen.filter((r) => !r.vervangen_door && !r.afgewezen_door);
+      ok("scenario 27: een nieuwe tekst op hetzelfde adres wordt een nieuwe versie", rijen.some((r) => r.bron_url === a && r.vervangen_door) && actueel.some((r) => r.bron_url === a && String(r.bewering).includes("dertig")), JSON.stringify(rijen));
+      ok("scenario 27: een weggehaald adres wijst de mens af", rijen.some((r) => r.bron_url === b && r.afgewezen_door === userId), JSON.stringify(rijen));
+      eqc("scenario 27: er is één actueel stemvoorbeeld", String(actueel.length), "1");
+      await kies([a]);
+      await legStemVast(shim, { profileId: merk, url: "https://stem.nl", voorbeelden: [vb(a, "Wij zijn al dertig jaar een familiebedrijf.")], gekozen: [a] }, mens);
+      eqc("scenario 27: nog eens opslaan verandert niets", String((await stemItems()).length), String(rijen.length));
+
+      const vraag = randomUUID();
+      const documentId = randomUUID();
+      await db.client.query(
+        `insert into public.brand_documents (id, profile_id, body, content_hash, chars) values ($1, $2, 'Een proefles kost € 45.', 'hash-k8', 23)`,
+        [documentId, merk],
+      );
+      await db.client.query(
+        `insert into public.fact_requests (id, profile_id, question, reason, answer, status, scope, raw_json) values ($1, $2, 'Wat kost een proefles?', 'test', '€ 45', 'beantwoord', 'merk', $3::jsonb)`,
+        [vraag, merk, JSON.stringify({ bron: "merkdossier" })],
+      );
+      await legDocumentVast(shim, { profileId: merk, documentId, feiten: [{ vraagId: vraag, question: "Wat kost een proefles?", answer: "€ 45", zin: "Een proefles kost € 45.", verlooptOp: "2027-03-27" }] }, mens);
+      const { rows: doc } = await db.client.query(
+        `select id, status, bron, citaat, herkomst_tabel, herkomst_id, vastgelegd_door, verloopt_op::text as verloopt_op from public.klantkennis where profile_id = $1 and bron = 'document'`,
+        [merk],
+      );
+      ok(
+        "scenario 27: het documentfeit is verklaard, met de zin als citaat en het document als herkomst",
+        doc.length === 1 && doc[0].status === "verklaard" && doc[0].citaat === "Een proefles kost € 45." && doc[0].herkomst_tabel === "brand_documents" && doc[0].herkomst_id === documentId && doc[0].vastgelegd_door === userId,
+        JSON.stringify(doc),
+      );
+      ok("scenario 27: en verloopt zoals het document het zei", String(doc[0]?.verloopt_op).startsWith("2027-03-27"), String(doc[0]?.verloopt_op));
+      await answerFact(shim, { profileId: merk, factId: vraag, answer: "€ 50", gebruikerId: userId });
+      const { rows: na } = await db.client.query(
+        `select bewering, bron, vervangen_door from public.klantkennis where profile_id = $1 and (herkomst_tabel = 'fact_requests' or bron = 'document') order by vastgelegd_op`,
+        [merk],
+      );
+      ok(
+        "scenario 27: een gewijzigd antwoord wordt een nieuwe versie van het documentfeit",
+        na.length === 2 && na[0].bron === "document" && na[0].vervangen_door && na[1].bron === "klant" && String(na[1].bewering).includes("€ 50"),
+        JSON.stringify(na),
+      );
+    }
+
+    // ── Scenario 28: het merkprofiel als kopie van de kennislaag (K8 deel 3) ──
+    //
+    // Alleen lib/kennis/ schrijft een kennisveld op profiles (V22). Het
+    // gespreksscherm slaat de kopie en de kennis in één handeling op; wijst de
+    // consultant op het kennisoverzicht een naam af, of past hij een concurrent
+    // aan, dan volgt de kopie die de meting leest.
+    console.log("\nScenario 28: het merkprofiel als kopie van de kennislaag (K8 deel 3)");
+    {
+      const { slaProfielOp } = await import("@/lib/kennis/uit-gesprek");
+      const { handelOpOverzicht } = await import("@/lib/kennis/uit-overzicht");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Kopie Test', 'https://kopie.nl', 'Kopie Test', 'klaar')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const { error } = await slaProfielOp(shim, {
+        profileId: merk, url: "https://kopie.nl",
+        kolommen: { aliases: ["Kopie", "KT Installatie"], competitors: ["Warmte Oost"], edited_by_user: true },
+        oud: { aliases: [], competitors: [] }, velden: ["aliases", "competitors"], bron: "gesprek",
+      }, mens);
+      ok("scenario 28: opslaan lukt", error === null, String(error));
+      const profiel = async () => (await db.client.query("select aliases, competitors, edited_by_user from public.profiles where id = $1", [merk])).rows[0];
+      const p1 = await profiel();
+      ok("scenario 28: de kopie staat op het profiel", JSON.stringify(p1.aliases) === JSON.stringify(["Kopie", "KT Installatie"]) && p1.edited_by_user === true, JSON.stringify(p1));
+      const item = async (bewering: string) =>
+        (await db.client.query("select id, status from public.klantkennis where profile_id = $1 and bewering = $2 and vervangen_door is null", [merk, bewering])).rows[0];
+      eqc("scenario 28: en de kennis is verklaard", String((await item("KT Installatie"))?.status), "verklaard");
+
+      const af = await handelOpOverzicht(shim, { profileId: merk, itemId: (await item("KT Installatie")).id, actie: "afwijzen" }, userId);
+      ok("scenario 28: de consultant wijst een naam af", af.ok);
+      eqc("scenario 28: de meting telt er niet meer op", JSON.stringify((await profiel()).aliases), JSON.stringify(["Kopie"]));
+      const aan = await handelOpOverzicht(shim, { profileId: merk, itemId: (await item("Warmte Oost")).id, actie: "aanpassen", bewering: "Warmte Oost BV" }, userId);
+      ok("scenario 28: de consultant past een concurrent aan", aan.ok);
+      eqc("scenario 28: de kopie volgt", JSON.stringify((await profiel()).competitors), JSON.stringify(["Warmte Oost BV"]));
+    }
+
+    // ── Scenario 29: de aanbodboom via de kennislaag (K8 deel 4) ─────────────
+    //
+    // Een mens voegt een dienst toe onder een categorie, past hem aan, haalt hem
+    // weg en zet hem terug. Elke stap verandert de tabel (de kopie die de
+    // onderwerpen lezen) en de kennislaag: toevoegen en aanpassen is verklaard,
+    // met de ouder in geldt_voor; weghalen wijst af, door wie het deed.
+    console.log("\nScenario 29: de aanbodboom via de kennislaag (K8 deel 4)");
+    {
+      const { voegKnoopToe, werkKnoopBij, haalKnopenWeg, zetKnoopTerug } = await import("@/lib/kennis/uit-aanbod");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Aanbod Test', 'https://aanbod.nl', 'Aanbod Test', 'klaar')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+      const cat = await voegKnoopToe(shim, { profileId: merk, rij: { kind: "categorie", name: "Verwarming", source: "consultant", sort_order: 0 } }, mens);
+      const dienst = await voegKnoopToe(shim, { profileId: merk, rij: { kind: "dienst", name: "Warmtepomp", price_indication: "vanaf € 9.500", parent_id: cat.id, source: "consultant", sort_order: 1 } }, mens);
+      ok("scenario 29: twee knopen toegevoegd", Boolean(cat.id && dienst.id), JSON.stringify({ cat, dienst }));
+      const items = async () =>
+        (
+          await db.client.query(
+            `select id, soort, bewering, status, geldt_voor, vervangen_door, afgewezen_door from public.klantkennis where profile_id = $1 and herkomst_tabel = 'profile_offerings' order by vastgelegd_op, bewering`,
+            [merk],
+          )
+        ).rows;
+      let rijen = await items();
+      const catItem = rijen.find((r) => r.bewering === "Verwarming");
+      const dienstItem = rijen.find((r) => r.soort === "dienst" && !r.vervangen_door);
+      const prijsItem = rijen.find((r) => r.soort === "prijs");
+      ok("scenario 29: de dienst is verklaard en hangt aan zijn categorie", dienstItem?.status === "verklaard" && (dienstItem?.geldt_voor ?? []).includes(catItem?.id), JSON.stringify(rijen));
+      ok("scenario 29: de prijs hangt aan de dienst", (prijsItem?.geldt_voor ?? []).includes(dienstItem?.id), JSON.stringify(prijsItem));
+
+      // Een sitefeit dat bij de dienst hoort (zoals de indeling hem koppelt).
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { naarActueleVersies } = await import("@/lib/kennis/versies");
+      const feit = await legVast(shim, {
+        profileId: merk, domein: "aanbod", soort: "termijn", bewering: "Een warmtepomp hangt binnen twee weken.", status: "waargenomen", bron: "website",
+        bronUrl: "https://aanbod.nl/warmtepomp", citaat: "binnen twee weken", gebruik: "content", geldtVoor: [dienstItem!.id], herkomst: { tabel: "profile_facets", id: randomUUID() },
+      } as never, { actor: "code", taak: "test" });
+      await werkKnoopBij(shim, { profileId: merk, knoopId: dienst.id!, wijziging: { name: "Hybride warmtepomp", source: "consultant" } }, mens);
+      rijen = await items();
+      const nieuweDienst = rijen.find((r) => r.soort === "dienst" && !r.vervangen_door && !r.afgewezen_door);
+      eqc("scenario 29: aanpassen maakt een nieuwe versie", String(nieuweDienst?.bewering), "Hybride warmtepomp");
+      ok("scenario 29: de oude versie blijft bewaard", rijen.some((r) => r.bewering === "Warmtepomp" && r.vervangen_door));
+      const { rows: tabel } = await db.client.query("select name from public.profile_offerings where id = $1", [dienst.id]);
+      eqc("scenario 29: en de tabel volgt", String(tabel[0]?.name), "Hybride warmtepomp");
+      const { rows: feitNa } = await db.client.query("select geldt_voor from public.klantkennis where id = $1", [feit.soort === "vastgelegd" ? feit.item.id : ""]);
+      ok("scenario 29: wat bij de dienst hoorde, wijst nu naar de nieuwe versie", (feitNa[0]?.geldt_voor ?? []).includes(nieuweDienst?.id), JSON.stringify(feitNa));
+      eqc("scenario 29: en een kans die de oude versie noemt, vindt de nieuwe", (await naarActueleVersies(shim, merk, [dienstItem!.id])).join(","), String(nieuweDienst?.id));
+
+      await haalKnopenWeg(shim, { profileId: merk, knoopIds: [dienst.id!] }, mens);
+      rijen = await items();
+      ok("scenario 29: weghalen wijst de dienst en zijn prijs af, door wie het deed", rijen.filter((r) => !r.vervangen_door && r.bewering !== "Verwarming").every((r) => r.afgewezen_door === userId), JSON.stringify(rijen));
+      await zetKnoopTerug(shim, { profileId: merk, knoopId: dienst.id! }, mens);
+      rijen = await items();
+      ok("scenario 29: terugzetten maakt hem weer actueel", rijen.some((r) => r.soort === "dienst" && r.bewering === "Hybride warmtepomp" && !r.vervangen_door && !r.afgewezen_door), JSON.stringify(rijen));
+    }
+
+    // ── Scenario 30: één keer vertellen, altijd gebruikt (A2) ───────────────
+    //
+    // Twee pagina's over dezelfde dienst. De ondernemer beantwoordt een vraag
+    // van de eerste over hoe het in zijn werk gaat, en vertelt een voorbeeld uit
+    // de praktijk. Het antwoord over de werkwijze geldt voor de dienst: de
+    // tweede pagina krijgt het in blok A, en het kennisgat van haar kans vraagt
+    // er niet meer naar. Het voorbeeld blijft bij de eerste pagina (B3).
+    console.log("\nScenario 30: één keer vertellen, altijd gebruikt (A2)");
+    {
+      const { answerFact } = await import("@/lib/facts");
+      const { kennisVoor } = await import("@/lib/kennis/voor-pagina");
+      const { werkKennisgatBij } = await import("@/lib/kansen/uit-rapport");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const [p1, p2] = [randomUUID(), randomUUID()];
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Dienst Test', 'https://dienst.nl', 'Dienst Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Warmtepompen', 'https://dienst.nl', 'warmtepomp', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values
+           ($1, $3, 'Warmtepomp installeren', 'landing', 'briefing', 'nieuw', 1, true),
+           ($2, $3, 'Warmtepomp onderhoud', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [p1, p2, cluster],
+      );
+      const { rows: dienst } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, bron_url, citaat, gebruik, vastgelegd_door_taak, herkomst_tabel) values
+           ($1, 'aanbod', 'dienst', 'Warmtepomp', 'waargenomen', 'website', 'https://dienst.nl', 'Warmtepomp', 'content', 'test', 'profile_offerings')
+         returning id`,
+        [merk],
+      );
+      const dienstId = dienst[0].id as string;
+      const kans = async (titel: string, stuk: string) => {
+        const { rows } = await db.client.query(
+          `insert into public.kansen (profile_id, analysis_id, titel, handeling, geldt_voor, ruw, vastgelegd_door_taak) values ($1, $2, $3, 'nieuwe_pagina', $4, '{"type":"landing"}'::jsonb, 'test') returning id`,
+          [merk, cluster, titel, [dienstId]],
+        );
+        await db.client.query(`insert into public.planned_pages (profile_id, title, content_piece_id, kans_id) values ($1, $2, $3, $4)`, [merk, titel, stuk, rows[0].id]);
+        return rows[0].id as string;
+      };
+      await kans("Warmtepomp installeren", p1);
+      const kans2 = await kans("Warmtepomp onderhoud", p2);
+      const vraag = async (tekst: string, soort: string) => {
+        const { rows } = await db.client.query(
+          `insert into public.fact_requests (profile_id, analysis_id, question, reason, status, scope, content_piece_ids, raw_json) values ($1, $2, $3, 'test', 'open', 'pagina', $4, $5::jsonb) returning id`,
+          [merk, cluster, tekst, [p1], JSON.stringify({ bron: "pagina_brief", soort })],
+        );
+        return rows[0].id as string;
+      };
+      const werkwijze = await vraag("Hoe verloopt een installatie bij jullie?", "werkwijze");
+      const praktijk = await vraag("Kun je een voorbeeld geven van een recente installatie?", "praktijk");
+      await answerFact(shim, { profileId: merk, factId: werkwijze, answer: "Eerst een adviesbezoek, dan binnen twee weken de installatie in één dag.", gebruikerId: userId });
+      await answerFact(shim, { profileId: merk, factId: praktijk, answer: "Vorige maand een jaren-dertigwoning in Tiel, met vloerverwarming beneden.", gebruikerId: userId });
+
+      const { rows: items } = await db.client.query(
+        `select herkomst_id, geldt_voor, content_piece_id, soort from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests'`,
+        [merk],
+      );
+      const vanVraag = (id: string) => items.find((r) => r.herkomst_id === id);
+      ok("scenario 30: het antwoord over de werkwijze geldt voor de dienst", (vanVraag(werkwijze)?.geldt_voor ?? []).includes(dienstId) && !vanVraag(werkwijze)?.content_piece_id, JSON.stringify(items));
+      eqc("scenario 30: het voorbeeld blijft bij de eerste pagina", String(vanVraag(praktijk)?.content_piece_id), p1);
+
+      const blokA2 = await kennisVoor(shim, { profileId: merk, analysisId: cluster, pieceId: p2, titel: "Warmtepomp onderhoud", zoekintentie: null });
+      const teksten2 = blokA2.beweringen.map((b) => b.bewering).join(" | ");
+      ok("scenario 30: de tweede pagina krijgt het antwoord in blok A", teksten2.includes("adviesbezoek"), teksten2);
+      ok("scenario 30: maar niet het voorbeeld van de eerste", !teksten2.includes("Tiel"), teksten2);
+
+      await werkKennisgatBij(shim, merk);
+      const { rows: gat } = await db.client.query("select kennis_ontbreekt from public.kansen where id = $1", [kans2]);
+      ok("scenario 30: het kennisgat van de tweede kans vraagt niet meer naar de werkwijze", !(gat[0]?.kennis_ontbreekt ?? ["werkwijze"]).includes("werkwijze"), JSON.stringify(gat));
+      ok("scenario 30: wel nog naar een eigen voorbeeld", (gat[0]?.kennis_ontbreekt ?? []).includes("voorbeeld"), JSON.stringify(gat));
+      // De brief van de tweede pagina (A1) krijgt daardoor één punt minder om naar te vragen.
+      const { kennisgatVoorPagina } = await import("@/lib/kennis/voor-pagina");
+      const gatBrief = (await kennisgatVoorPagina(shim, p2)) ?? [];
+      ok("scenario 30: de brief van de tweede pagina vraagt niet meer hoe het in zijn werk gaat", !gatBrief.includes("hoe het in zijn werk gaat") && gatBrief.includes("een voorbeeld uit de praktijk"), gatBrief.join(" | "));
+
+      // Een gewijzigd antwoord blijft voor de dienst gelden, als nieuwe versie.
+      await answerFact(shim, { profileId: merk, factId: werkwijze, answer: "Eerst een adviesbezoek, dan binnen drie weken de installatie in één dag.", gebruikerId: userId });
+      const { rows: versies } = await db.client.query(
+        `select bewering, geldt_voor, vervangen_door from public.klantkennis where profile_id = $1 and herkomst_id = $2 order by vastgelegd_op`,
+        [merk, werkwijze],
+      );
+      ok(
+        "scenario 30: een gewijzigd antwoord is een nieuwe versie, weer voor de dienst",
+        versies.length === 2 && Boolean(versies[0].vervangen_door) && (versies[1].geldt_voor ?? []).includes(dienstId) && String(versies[1].bewering).includes("drie weken"),
+        JSON.stringify(versies),
+      );
+    }
+
+    // ── Scenario 31: de controle leest ook de FAQ en de metabeschrijving (C1, B19) ──
+    //
+    // Een verzonnen prijs die alleen in een FAQ-antwoord staat, en een verzonnen
+    // belofte die alleen in de metabeschrijving staat: allebei worden ze geel,
+    // net als een zin in de hoofdtekst. De eindredacteur krijgt de FAQ en de
+    // metabeschrijving in zijn invoer. Goedkeuren kan pas als ook die gele
+    // zinnen bevestigd zijn.
+    console.log("\nScenario 31: de controle leest ook de FAQ en de metabeschrijving (C1, B19)");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { bevestigZin, keurGoed } = await import("@/lib/pagina/goedkeuren");
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Hovenier C1', 'https://hovenier-c1.nl', 'Hovenier C1', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Hovenier C1, tuinen', 'https://hovenier-c1.nl', 'tuinen', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      const { rows: stuk } = await db.client.query(
+        `insert into public.content_pieces
+           (analysis_id, title, type, status, action, version, is_current, body_markdown, meta_description, faq_json, brief_json)
+         values ($1, 'Tuinontwerp laten maken', 'landing', 'draft', 'nieuw', 1, true,
+           'Wij ontwerpen tuinen op maat, passend bij hoe je leeft.',
+           'Tuinontwerp met 10 jaar garantie.',
+           $2::jsonb,
+           '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
+         returning id`,
+        [cluster, JSON.stringify([{ q: "Wat kost een tuinontwerp?", a: "Een tuinontwerp kost € 900." }])],
+      );
+      const pieceId = stuk[0].id as string;
+
+      const aanroepen: { schema: string; user: string }[] = [];
+      __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
+        aanroepen.push({ schema: opts.schemaName, user: opts.user });
+        let antwoord: unknown;
+        if (opts.schemaName === "pagina_controle") {
+          antwoord = { oordeel: "goed", verzonnen: [], punten: [] };
+        } else if (opts.schemaName === "pagina") {
+          // De herschrijving houdt dezelfde onbewezen prijs en belofte vast: de
+          // schrijver corrigeert niet vanzelf, en dat is precies waarom code het
+          // moet vinden.
+          antwoord = {
+            titel: "Tuinontwerp laten maken",
+            meta_titel: "Tuinontwerp laten maken",
+            meta_beschrijving: "Tuinontwerp met 10 jaar garantie.",
+            tekst_markdown: "Wij ontwerpen tuinen op maat, passend bij hoe je leeft.",
+            faq: [{ vraag: "Wat kost een tuinontwerp?", antwoord: "Een tuinontwerp kost € 900." }],
+            notitie_voor_ondernemer: null,
+          };
+        } else throw new Error(`onverwacht schema ${opts.schemaName}`);
+        return { parsed: opts.schema.parse(antwoord), raw: { stub: true } };
+      }) as never);
+
+      async function wachtrij(type: string): Promise<Record<string, unknown>[]> {
+        const { rows } = await db.client.query(
+          "select * from public.jobs where type = $1 and status = 'queued' and analysis_id = $2 order by created_at asc",
+          [type, cluster],
+        );
+        return rows;
+      }
+      async function draai(type: string): Promise<void> {
+        for (let i = 0; i < 20; i++) {
+          const [taak] = await wachtrij(type);
+          if (!taak) break;
+          await db.client.query("update public.jobs set status = 'running' where id = $1", [taak.id]);
+          await runJob({ admin: admin as never, job: { ...taak, status: "running" } as never });
+          await db.client.query("update public.jobs set status = 'done' where id = $1", [taak.id]);
+        }
+      }
+      async function haalStuk(): Promise<Record<string, unknown>> {
+        const { rows } = await db.client.query("select * from public.content_pieces where id = $1", [pieceId]);
+        return rows[0];
+      }
+
+      await db.client.query(
+        "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_controle', $1, $2, 'test-c1-controle', 'queued')",
+        [JSON.stringify({ pieceId }), cluster],
+      );
+      await draai("pagina_controle");
+
+      const controleAanroep = aanroepen.find((a) => a.schema === "pagina_controle");
+      ok(
+        "scenario 31: de eindredacteur krijgt de metabeschrijving en de FAQ mee",
+        Boolean(
+          controleAanroep?.user.includes("DE METABESCHRIJVING VOOR ZOEKMACHINES") &&
+            controleAanroep.user.includes("10 jaar garantie") &&
+            controleAanroep.user.includes("DE VEELGESTELDE VRAGEN") &&
+            controleAanroep.user.includes("Een tuinontwerp kost € 900."),
+        ),
+        controleAanroep?.user,
+      );
+
+      const naControle = await haalStuk();
+      const cj1 = naControle.controle_json as { ongedekt: string[] };
+      ok(
+        "scenario 31: de onbewezen prijs in de FAQ en de belofte in de metabeschrijving zijn ongedekt, de hoofdtekst niet",
+        cj1.ongedekt.some((z) => z.includes("€ 900")) &&
+          cj1.ongedekt.some((z) => z.includes("10 jaar garantie")) &&
+          !cj1.ongedekt.some((z) => z.includes("op maat")),
+        JSON.stringify(cj1),
+      );
+      ok("scenario 31: ongedekt in code (niet de beoordeling) triggert de ene herschrijving", (await wachtrij("pagina_herschrijven")).length === 1);
+
+      await draai("pagina_herschrijven");
+      const naHerschrijven = await haalStuk();
+      ok("scenario 31: klaar om te lezen na de herschrijving", naHerschrijven.status === "ready" && naHerschrijven.needs_review === true);
+      const cj2 = naHerschrijven.controle_json as { gele_zinnen: string[] };
+      ok(
+        "scenario 31: dezelfde twee zinnen blijven geel: de herschrijving loste ze niet op",
+        cj2.gele_zinnen.some((z) => z.includes("€ 900")) && cj2.gele_zinnen.some((z) => z.includes("10 jaar garantie")),
+        JSON.stringify(cj2),
+      );
+
+      const nogGeel1 = await keurGoed(admin as never, { pieceId, analysisId: cluster, userId });
+      ok("scenario 31: goedkeuren kan niet met de FAQ-zin en de metabeschrijving nog geel", !nogGeel1.ok && nogGeel1.status === 409 && nogGeel1.geel === 2, JSON.stringify(nogGeel1));
+
+      const faqZin = cj2.gele_zinnen.find((z) => z.includes("€ 900"))!;
+      const metaZin = cj2.gele_zinnen.find((z) => z.includes("10 jaar garantie"))!;
+      const bevestigdFaq = await bevestigZin(admin as never, { pieceId, analysisId: cluster, zin: faqZin });
+      ok("scenario 31: de FAQ-zin is te bevestigen als elke andere gele zin", bevestigdFaq.ok);
+      const nogEen = await keurGoed(admin as never, { pieceId, analysisId: cluster, userId });
+      ok("scenario 31: met de metabeschrijving nog open kan het nog niet", !nogEen.ok && nogEen.geel === 1);
+      await bevestigZin(admin as never, { pieceId, analysisId: cluster, zin: metaZin });
+      const klaar = await keurGoed(admin as never, { pieceId, analysisId: cluster, userId });
+      ok("scenario 31: na bevestigen van beide kan het goedgekeurd worden", klaar.ok && (await haalStuk()).needs_review === false, JSON.stringify(klaar));
+
+      __setTestTransport(createOpenAiStub(log));
+    }
+
+    // ── Scenario 32: M3, AI Overview meet ook mee, en de eigen pagina wordt herkend
+    // in citaten (van-pijplijn-naar-kennissysteem.md, migratie 0120) ─────────
+    //
+    // Twee losse dingen, allebei zonder een echte AI-aanroep te doen: (1) staat
+    // AI_OVERVIEW_ENABLED aan, dan plant `planImpactMeasurements()` naast de
+    // ChatGPT-taak ook een `measure_ai_overview`-taak, met dezelfde
+    // impact-markering (pagina, golf, soort); (2) `computeImpact()` rekent uit of
+    // het gepubliceerde adres geciteerd is, over BEIDE bronnen tegelijk (geen
+    // filter op `engine`), met dezelfde normalisatie als `isRedirectedElsewhere()`.
+    console.log("\nScenario 32: M3, AI Overview bij de effectmeting en de citatie van de eigen pagina");
+    {
+      const { planImpactMeasurements, computeImpact } = await import("@/lib/pipeline/impact");
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Zonnehof Makelaars', 'https://zonnehof-makelaars.nl', 'Zonnehof Makelaars', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Zonnehof, huis verkopen', 'https://zonnehof-makelaars.nl', 'huis verkopen', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      // Precies één actieve vraag, en die is meteen de doelvraag: dan kiest
+      // `pickControlPrompts()` niets (er is niets onbeclaimds), en blijft de
+      // telling hieronder simpel: één kandidaat, geen controlegroep.
+      const { rows: prompts } = await db.client.query(
+        `insert into public.prompts (analysis_id, text, category, active) values
+           ($1, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', true)
+         returning id, text`,
+        [cluster],
+      );
+      const doelvraag = prompts[0].id as string;
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, is_current, published_at, published_url)
+         values ($1, $2, 'Wat kost een makelaar', 'article', 'ready', 'nieuw', true, now(), 'https://zonnehof-makelaars.nl/wat-kost-een-makelaar')`,
+        [stuk, cluster],
+      );
+      // Sinds M1 leest planImpactMeasurements() het meetplan (bevroren bij het
+      // goedkeuren), niet meer content_piece_targets. `bronnen` bevriest welke
+      // motoren op dát moment meededen; hieronder simuleren we eerst een
+      // goedkeuring vóórdat AI Overview aanstond, en daarna eentje waarbij het
+      // wél aanstond, zonder de omgevingsvariabele zelf aan te raken.
+      await db.client.query(
+        `insert into public.meetplannen (content_piece_id, analysis_id, doelvragen, bronnen)
+         values ($1, $2, $3::jsonb, '{openai}')`,
+        [stuk, cluster, JSON.stringify([{ promptId: doelvraag, tekst: "Wat kost een makelaar bij het verkopen van je huis?" }])],
+      );
+
+      // ── (1) Inplannen: alleen de bronnen die het meetplan bevroor ─────────
+      const taken = async () =>
+        (
+          await db.client.query(
+            "select type, payload_json from public.jobs where analysis_id = $1 and (payload_json->'impact'->>'contentPieceId') = $2 order by type",
+            [cluster, stuk],
+          )
+        ).rows as { type: string; payload_json: { impact?: { purpose: string; wave: number } } }[];
+      const zonderAio = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      eqc("scenario 32: bevroren zonder AI Overview: alleen de ChatGPT-taak", String(zonderAio.planned), "1");
+      ok("scenario 32: en geen measure_ai_overview", !(await taken()).some((t) => t.type === "measure_ai_overview"));
+
+      await db.client.query("delete from public.jobs where analysis_id = $1", [cluster]);
+      await db.client.query("update public.meetplannen set bronnen = '{openai,ai_overview}' where content_piece_id = $1", [stuk]);
+      const metAio = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      eqc("scenario 32: bevroren mét AI Overview: ook de Google-taak, dezelfde golf", String(metAio.planned), "2");
+      const beide = await taken();
+      ok(
+        "scenario 32: allebei met dezelfde impact-markering (pagina, golf, soort)",
+        beide.every((t) => t.payload_json.impact?.purpose === "impact" && t.payload_json.impact?.wave === 1) &&
+          beide.some((t) => t.type === "measure_prompt") &&
+          beide.some((t) => t.type === "measure_ai_overview"),
+        JSON.stringify(beide),
+      );
+      const nogEens = await planImpactMeasurements(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      eqc("scenario 32: nog eens inplannen levert niets extra's op (al ingepland)", String(nogEens.planned), "0");
+
+      // ── (2) computeImpact(): de citatie over beide bronnen tegelijk ───────
+      // Een periodieke meting van vóór publicatie, zodat er een eerlijke "voor"-stand is.
+      const { rows: voorRun } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, ran_at)
+         values ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'openai', 3, 'periodic', now() - interval '30 days')
+         returning id`,
+        [cluster, doelvraag],
+      );
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, 'Zonnehof Makelaars', true, false)`,
+        [voorRun[0].id],
+      );
+
+      // Golf 1: twee bronnen, allebei genoemd; alleen AI Overview citeert de
+      // eigen pagina, met een trackingcode erachter (moet nog steeds tellen).
+      const { rows: golf1 } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, content_piece_id, impact_wave)
+         values
+           ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'openai', 0, 'impact', $3, 1),
+           ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'ai_overview', 0, 'impact', $3, 1)
+         returning id, engine`,
+        [cluster, doelvraag, stuk],
+      );
+      const chatgptRun = golf1.find((r) => r.engine === "openai")!.id as string;
+      const aioRun = golf1.find((r) => r.engine === "ai_overview")!.id as string;
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources) values
+           ($1, 'Zonnehof Makelaars', true, true, array['https://funda.nl/koop']),
+           ($2, 'Zonnehof Makelaars', true, true, array['https://Zonnehof-Makelaars.nl/wat-kost-een-makelaar/?utm_source=google'])`,
+        [chatgptRun, aioRun],
+      );
+
+      await computeImpact(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 1 });
+      const { rows: golf1Uitkomst } = await db.client.query(
+        "select target_cited_own_page, target_after_mentioned, verdict from public.content_impact where content_piece_id = $1 and wave = 1",
+        [stuk],
+      );
+      ok(
+        "scenario 32: de citatie van AI Overview telt mee, ook al citeerde ChatGPT een andere bron (www, hoofdletters, slash en trackingcode maken niets uit)",
+        golf1Uitkomst[0]?.target_cited_own_page === true,
+        JSON.stringify(golf1Uitkomst[0]),
+      );
+
+      // Golf 2: gemeten, maar geen van beide citeert de eigen pagina: false, geen null.
+      const { rows: golf2 } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, content_piece_id, impact_wave)
+         values ($1, $2, 'Wat kost een makelaar bij het verkopen van je huis?', 'Oriëntatie', 'openai', 0, 'impact', $3, 2)
+         returning id`,
+        [cluster, doelvraag, stuk],
+      );
+      await db.client.query(
+        `insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned, cited_sources) values ($1, 'Zonnehof Makelaars', true, true, array['https://funda.nl/koop'])`,
+        [golf2[0].id],
+      );
+      await computeImpact(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 2 });
+      const { rows: golf2Uitkomst } = await db.client.query(
+        "select target_cited_own_page from public.content_impact where content_piece_id = $1 and wave = 2",
+        [stuk],
+      );
+      ok("scenario 32: wel gemeten maar geen citatie: false, geen null", golf2Uitkomst[0]?.target_cited_own_page === false, JSON.stringify(golf2Uitkomst[0]));
+
+      // Golf 3: geen enkele impactmeting voor deze golf: onbekend, geen "nee".
+      await computeImpact(admin as never, { analysisId: cluster, contentPieceId: stuk, wave: 3 });
+      const { rows: golf3Uitkomst } = await db.client.query(
+        "select target_cited_own_page from public.content_impact where content_piece_id = $1 and wave = 3",
+        [stuk],
+      );
+      ok("scenario 32: zonder gemeten golf: onbekend (null), geen 'nee'", golf3Uitkomst[0]?.target_cited_own_page === null, JSON.stringify(golf3Uitkomst[0]));
+    }
+
+    // ── Scenario 33: M1, het meetplan vanaf het goedkeuren ───────────────────
+    //
+    // Sinds de contentketen opnieuw gebouwd is (WP1) schreef niemand meer in
+    // `content_piece_targets`: elke pagina uit de nieuwe keten had daardoor
+    // stil geen doelvragen, en de effectmeting is sindsdien nooit meer gestart.
+    // `maakMeetplan()` leest de doelvragen terug uit het rapport (dezelfde bron
+    // als `laadDoelvragen()`), bevriest de controlegroep, en legt vast welke
+    // bronnen meededen. `keurGoed()` roept hem aan; `koppelAdresAanMeetplan()`
+    // (via `markPublished()`) zet het adres erbij.
+    console.log("\nScenario 33: M1, het meetplan vanaf het goedkeuren");
+    {
+      const { maakMeetplan } = await import("@/lib/pipeline/meetplan");
+      const { markPublished } = await import("@/lib/pipeline/publish");
+      const { keurGoed } = await import("@/lib/pagina/goedkeuren");
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Warmtehuis Techniek', 'https://warmtehuis-techniek.nl', 'Warmtehuis Techniek', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Warmtehuis, warmtepompen', 'https://warmtehuis-techniek.nl', 'warmtepompen', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      // Twee actieve vragen: één wordt de doelvraag (via het rapport), de
+      // andere blijft over voor de controlegroep.
+      const { rows: prompts } = await db.client.query(
+        `insert into public.prompts (analysis_id, text, category, active) values
+           ($1, 'Wat kost een warmtepomp inclusief installatie?', 'Oriëntatie', true),
+           ($1, 'Welke subsidie geldt er voor een warmtepomp?', 'Oriëntatie', true)
+         returning id, text`,
+        [cluster],
+      );
+      const doelPrompt = prompts.find((p) => p.text.includes("kost"))!.id as string;
+      const { rows: run } = await db.client.query(
+        `insert into public.tracking_runs (analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, engine, week_no, purpose, mention_json)
+         values ($1, $2, 'Wat kost een warmtepomp inclusief installatie?', 'Oriëntatie', 'openai', 2, 'periodic', '{}'::jsonb) returning id`,
+        [cluster, doelPrompt],
+      );
+      const { rows: rapport } = await db.client.query(
+        `insert into public.reports (analysis_id, week_no, recommendations_json)
+         values ($1, 2, $2::jsonb) returning id`,
+        [
+          cluster,
+          JSON.stringify([
+            { title: "Maak een pagina over de prijs van een warmtepomp", targets: [{ text: "Wat kost een warmtepomp inclusief installatie?", runId: run[0].id }] },
+          ]),
+        ],
+      );
+      const sourceRef = `${rapport[0].id}#0`;
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, is_current, body_markdown, needs_review)
+         values ($1, $2, 'Wat kost een warmtepomp', 'article', 'ready', 'nieuw', true, 'De tekst.', false)`,
+        [stuk, cluster],
+      );
+      await db.client.query(
+        `insert into public.planned_pages (profile_id, title, content_piece_id, source_ref) values ($1, 'Wat kost een warmtepomp', $2, $3)`,
+        [merk, stuk, sourceRef],
+      );
+
+      const oudSchakelaar = process.env.AI_OVERVIEW_ENABLED;
+      delete process.env.AI_OVERVIEW_ENABLED;
+
+      const gemaakt = await maakMeetplan(admin as never, stuk);
+      ok("scenario 33: het meetplan wordt gemaakt", gemaakt.ok && !gemaakt.bestondAl, JSON.stringify(gemaakt));
+      const { rows: plan } = await db.client.query(
+        "select doelvragen, controlegroep, bronnen, adres from public.meetplannen where content_piece_id = $1",
+        [stuk],
+      );
+      ok(
+        "scenario 33: de doelvraag komt uit het rapport, met zijn prompt-id",
+        plan[0].doelvragen.length === 1 && plan[0].doelvragen[0].promptId === doelPrompt && plan[0].doelvragen[0].tekst === "Wat kost een warmtepomp inclusief installatie?",
+        JSON.stringify(plan[0].doelvragen),
+      );
+      ok("scenario 33: de andere actieve vraag wordt de bevroren controlegroep", plan[0].controlegroep.length === 1 && plan[0].controlegroep[0].promptId === prompts.find((p) => p.text.includes("subsidie"))!.id, JSON.stringify(plan[0]));
+      eqc("scenario 33: zonder de schakelaar alleen openai bevroren", plan[0].bronnen.join(","), "openai");
+      ok("scenario 33: nog geen adres vóór publicatie", plan[0].adres === null);
+
+      const nogEens = await maakMeetplan(admin as never, stuk);
+      ok("scenario 33: nog een keer maken doet niets (idempotent)", nogEens.ok && nogEens.bestondAl);
+      const { rows: aantal } = await db.client.query("select count(*)::int as n from public.meetplannen where content_piece_id = $1", [stuk]);
+      eqc("scenario 33: precies één rij", String(aantal[0].n), "1");
+
+      // keurGoed() roept maakMeetplan() zelf aan; op een pagina zonder eigen
+      // gele zinnen (needs_review al false, geen controle_json) mag dat niet
+      // struikelen over het meetplan dat er al staat.
+      const goedgekeurd = await keurGoed(admin as never, { pieceId: stuk, analysisId: cluster, userId });
+      ok("scenario 33: goedkeuren blijft werken met een bestaand meetplan", goedgekeurd.ok, JSON.stringify(goedgekeurd));
+
+      // Publiceren zet het adres op het meetplan.
+      const url = "https://warmtehuis-techniek.nl/wat-kost-een-warmtepomp";
+      await markPublished(admin as never, { analysisId: cluster, contentPieceId: stuk, url });
+      const { rows: naPublicatie } = await db.client.query(
+        "select adres, gepubliceerd_op from public.meetplannen where content_piece_id = $1",
+        [stuk],
+      );
+      ok("scenario 33: het adres staat op het meetplan na publicatie", naPublicatie[0]?.adres === url && naPublicatie[0]?.gepubliceerd_op != null, JSON.stringify(naPublicatie[0]));
+
+      // Een pagina zonder rapport/kans (bijvoorbeeld een handmatige, V2): geen
+      // meetplan, geen fout.
+      const zonderRapport = randomUUID();
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, is_current) values ($1, $2, 'Losse pagina', 'article', 'ready', 'nieuw', true)`,
+        [zonderRapport, cluster],
+      );
+      const geenDoelvragen = await maakMeetplan(admin as never, zonderRapport);
+      ok("scenario 33: zonder rapport geen meetplan, geen fout", !geenDoelvragen.ok && geenDoelvragen.reden.includes("geen doelvragen"), JSON.stringify(geenDoelvragen));
+
+      if (oudSchakelaar === undefined) delete process.env.AI_OVERVIEW_ENABLED;
+      else process.env.AI_OVERVIEW_ENABLED = oudSchakelaar;
+    }
+
+    // ── Scenario 34: N5, de handmatige kans ──────────────────────────────────
+    //
+    // De consultant zet een kans klaar die de meting niet vond (besluit V2).
+    // `voegHandmatigeKansToe()` legt de kans vast zonder gemeten cluster
+    // (`analysis_id` blijft NULL, het "niet gemeten"-label op het scherm), en
+    // maakt er een schaduwanalyse bij die alleen bestaat om
+    // `content_pieces.analysis_id NOT NULL` te dekken: gearchiveerd, dus
+    // onzichtbaar tussen de echte clusters. `bereidVoor()` (dezelfde ketting als
+    // elke andere kans) leest hem via `planned_pages.source_analysis_id` en
+    // maakt de pagina aan; de rest van de ketting (brief, schrijven, keuren) is
+    // dezelfde gedeelde pijplijn die de andere scenario's al dekken.
+    console.log("\nScenario 34: N5, de handmatige kans");
+    {
+      const { voegHandmatigeKansToe } = await import("@/lib/kansen/handmatig");
+      const { bereidVoor } = await import("@/lib/pagina/start");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Isolatiebedrijf Oisterwijk', 'https://isolatiebedrijf-oisterwijk.nl', 'Isolatiebedrijf Oisterwijk', 'klaar')`,
+        [merk, userId],
+      );
+
+      const uitkomst = await voegHandmatigeKansToe(admin as never, {
+        profileId: merk,
+        titel: "Prijzen dakisolatie Oisterwijk",
+        lezer: "Iemand die de prijs van dakisolatie wil weten",
+        handeling: "nieuwe_pagina",
+        bestaandeUrl: null,
+        geldtVoor: [],
+        doelvragen: ["Wat kost dakisolatie in Oisterwijk?", "Welke subsidie geldt er voor dakisolatie?"],
+        gebruikerId: userId,
+      });
+      ok("scenario 34: de kans wordt aangemaakt", uitkomst.ok, JSON.stringify(uitkomst));
+      const kansId = uitkomst.ok ? uitkomst.kansId : "";
+
+      const { rows: kansRows } = await db.client.query("select * from public.kansen where id = $1", [kansId]);
+      ok("scenario 34: geen gemeten cluster, bron consultant", kansRows[0].analysis_id === null && kansRows[0].status === "open", JSON.stringify(kansRows[0]));
+      const { rows: bewijsRows } = await db.client.query("select bron from public.kans_bewijs where kans_id = $1", [kansId]);
+      eqc("scenario 34: het bewijs is 'je consultant zette hem erbij'", bewijsRows.map((b) => b.bron).join(","), "consultant");
+
+      const { rows: kaartRows } = await db.client.query(
+        "select id, source_analysis_id, kans_id, status, plan_month_id from public.planned_pages where kans_id = $1",
+        [kansId],
+      );
+      ok("scenario 34: de voorraadkaart hangt aan de kans en staat nog nergens in een maand", kaartRows.length === 1 && kaartRows[0].plan_month_id === null, JSON.stringify(kaartRows[0]));
+      const planPaginaId = kaartRows[0].id as string;
+      const schaduwAnalyseId = kaartRows[0].source_analysis_id as string;
+
+      const { rows: analyseRows } = await db.client.query("select status, archived_at, profile_id from public.analyses where id = $1", [schaduwAnalyseId]);
+      ok("scenario 34: de schaduwanalyse is meteen gearchiveerd, dus onzichtbaar tussen de echte clusters", analyseRows[0].archived_at !== null && analyseRows[0].profile_id === merk, JSON.stringify(analyseRows[0]));
+
+      const { rows: promptRows } = await db.client.query("select text from public.prompts where analysis_id = $1 order by text", [schaduwAnalyseId]);
+      eqc("scenario 34: de opgegeven doelvragen staan als prompts klaar voor de latere nulmeting", promptRows.map((p) => p.text).join(" | "), "Wat kost dakisolatie in Oisterwijk? | Welke subsidie geldt er voor dakisolatie?");
+
+      // Net als elke andere kans wacht de voorbereiding op een vrijgegeven
+      // maand: de kaart moet eerst ingepland worden, zoals de consultant hem
+      // zou slepen.
+      const { rows: planRows } = await db.client.query(
+        `insert into public.content_plans (profile_id, pages_per_month, started_on, version, status) values ($1, 1, current_date, 1, 'actief') returning id`,
+        [merk],
+      );
+      const { rows: maandRows } = await db.client.query(
+        `insert into public.plan_months (plan_id, month_number, status) values ($1, 1, 'goedgekeurd') returning id`,
+        [planRows[0].id],
+      );
+      await db.client.query("update public.planned_pages set plan_month_id = $1 where id = $2", [maandRows[0].id, planPaginaId]);
+
+      // Dezelfde ketting als elke andere kans: bereidVoor() leest het cluster
+      // via source_analysis_id en maakt de pagina, zonder dat clusterVan() ook
+      // maar hoeft te weten dat dit een handmatige kans is.
+      await bereidVoor(admin as never, [planPaginaId]);
+      const { rows: stukRows } = await db.client.query(
+        "select cp.analysis_id, cp.status, cp.title from public.content_pieces cp join public.planned_pages pp on pp.content_piece_id = cp.id where pp.id = $1",
+        [planPaginaId],
+      );
+      ok(
+        "scenario 34: de pagina wordt aangemaakt onder de schaduwanalyse, klaar voor de brief",
+        stukRows.length === 1 && stukRows[0].analysis_id === schaduwAnalyseId && stukRows[0].status === "briefing",
+        JSON.stringify(stukRows[0]),
+      );
+    }
+
+    // ── Scenario 35: G1, de gebeurtenissenlaag ───────────────────────────────
+    //
+    // Een wijziging in de kennislaag publiceert een gebeurtenis (`meldWijziging()`
+    // in `lib/kennis/vastleggen.ts`), en een abonnee verwerkt diezelfde
+    // gebeurtenis precies één keer, ook als de werker de taak twee keer
+    // probeert (`verwerkGebeurtenis()` in `lib/gebeurtenissen/verwerken.ts`
+    // controleert `gebeurtenis_verwerkingen` vóór het werk, conventie 9). Het
+    // register (`lib/gebeurtenissen/register.ts`) bevat in G1 nog geen echte
+    // abonnee (dat is G3 en G4), dus de tweede helft van dit scenario geeft een
+    // eigen testabonnee mee in plaats van uit het echte register te lezen.
+    console.log("\nScenario 35: G1, de gebeurtenissenlaag");
+    {
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { publiceer } = await import("@/lib/gebeurtenissen/publiceer");
+      const { verwerkGebeurtenis } = await import("@/lib/gebeurtenissen/verwerken");
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Dakdekkersbedrijf Odijk', 'https://dakdekkers-odijk.nl', 'Dakdekkersbedrijf Odijk', 'klaar')`,
+        [merk, userId],
+      );
+
+      const uit = await legVast(
+        admin as never,
+        {
+          profileId: merk,
+          domein: "aanbod",
+          soort: "termijn",
+          bewering: "Een plat dak vervangen duurt gemiddeld twee dagen.",
+          status: "waargenomen",
+          bron: "website",
+          bronUrl: "https://dakdekkers-odijk.nl/plat-dak",
+          citaat: "Reken op twee dagen voor een compleet nieuw dak.",
+          gebruik: "content",
+          herkomst: { tabel: "brand_facts", id: randomUUID() },
+        } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (uit.soort !== "vastgelegd") throw new Error(`Testkennis geweigerd: ${JSON.stringify(uit)}`);
+      const itemId = uit.item.id;
+
+      const { rows: gebRows } = await db.client.query(
+        "select id, profile_id, soort, object_tabel, object_id from public.gebeurtenissen where object_id = $1",
+        [itemId],
+      );
+      ok(
+        "scenario 35: legVast() publiceert 'kennis gewijzigd'",
+        gebRows.length === 1 && gebRows[0].profile_id === merk && gebRows[0].soort === "kennis_gewijzigd" && gebRows[0].object_tabel === "klantkennis",
+        JSON.stringify(gebRows),
+      );
+      const gebeurtenisId1 = gebRows[0].id as string;
+
+      // Sinds G3 en G4 staan er in dit gedeelde testproces al echte abonnees
+      // geregistreerd (via de importbijwerking in `lib/jobs/handlers.ts`); elk
+      // krijgt voor élke gebeurtenis een taak, ook als hij er intern niets aan
+      // doet (dit item heeft geen enkele afhankelijke kans of pagina, en is
+      // geen profielveld). Het aantal is dus het aantal geregistreerde
+      // abonnees op "kennis gewijzigd", niet een vast getal: een volgende
+      // abonnee (G5 of later) mag deze test niet breken.
+      const { abonneesVoor } = await import("@/lib/gebeurtenissen/register");
+      const { rows: taakRows } = await db.client.query(
+        "select id, dedupe_key from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key like $1",
+        [`%:${gebeurtenisId1}`],
+      );
+      eqc(
+        "scenario 35: elke geregistreerde abonnee krijgt een taak voor deze gebeurtenis",
+        String(taakRows.length),
+        String(abonneesVoor("kennis_gewijzigd").length),
+      );
+
+      // Precies één keer verwerkt, ook bij een tweede poging van de werker.
+      let teller = 0;
+      const testAbonnee = {
+        naam: "test_scenario35",
+        soorten: ["kennis_gewijzigd"] as const,
+        verwerk: async () => {
+          teller++;
+        },
+      };
+      const gebeurtenisId = await publiceer(
+        admin as never,
+        { profileId: merk, soort: "kennis_gewijzigd", objectTabel: "klantkennis", objectId: itemId },
+        [testAbonnee],
+      );
+      const { rows: taakRows2 } = await db.client.query(
+        "select dedupe_key from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:test_scenario35:${gebeurtenisId}`],
+      );
+      ok(
+        "scenario 35: mét abonnee plant publiceer() precies één taak in, met de juiste sleutel",
+        taakRows2.length === 1,
+        JSON.stringify(taakRows2),
+      );
+
+      await verwerkGebeurtenis(admin as never, gebeurtenisId, "test_scenario35", [testAbonnee]);
+      await verwerkGebeurtenis(admin as never, gebeurtenisId, "test_scenario35", [testAbonnee]);
+      ok("scenario 35: de abonnee draait precies één keer, ook bij een tweede poging", teller === 1, `teller=${teller}`);
+
+      const { rows: verwerkRows } = await db.client.query(
+        "select abonnee from public.gebeurtenis_verwerkingen where gebeurtenis_id = $1",
+        [gebeurtenisId],
+      );
+      ok("scenario 35: precies één verwerkingsrij, geen dubbele", verwerkRows.length === 1, JSON.stringify(verwerkRows));
+    }
+
+    // ── Scenario 36: C3, welke kennis in een versie zat ──────────────────────
+    //
+    // `tekstKolommen()` legt vast welke kennisitems in blok A van DEZE versie
+    // stonden, uit dezelfde keuze die de schrijver kreeg (`laadSchrijfbasis()`).
+    // De schrijver wijst zelf niets aan (B9 blijft staan); de kolom is voer voor
+    // G2 (afhankelijkheden).
+    console.log("\nScenario 36: C3, welke kennis in een versie zat");
+    {
+      const { laadSchrijfbasis, tekstKolommen, gerepareerd } = await import("@/lib/pagina/schrijven");
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Kennisspoor Test', 'https://kennisspoor.nl', 'Kennisspoor Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Kennisspoor', 'https://kennisspoor.nl', 'dakisolatie', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values ($1, $2, 'Dakisolatie laten aanbrengen', 'landing', 'briefing', 'nieuw', 1, true)`,
+        [stuk, cluster],
+      );
+      const uit1 = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "dienst", bewering: "Dakisolatie aanbrengen.", status: "waargenomen", bron: "website", bronUrl: "https://kennisspoor.nl", citaat: "Dakisolatie aanbrengen.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      const uit2 = await legVast(
+        shim,
+        { profileId: merk, domein: "verhaal", soort: "eigen verhaal", bewering: "Vorige maand isoleerden we een boerderij in één dag.", status: "verklaard", bron: "klant", gebruik: "content" } as never,
+        { actor: "mens", gebruikerId: userId } as never,
+      );
+      if (uit1.soort !== "vastgelegd" || uit2.soort !== "vastgelegd") throw new Error("Testkennis geweigerd voor scenario 36.");
+      const verwachteIds = [uit1.item.id, uit2.item.id].sort();
+
+      const basis = await laadSchrijfbasis(shim, stuk);
+      if (!basis) throw new Error("Geen schrijfbasis voor scenario 36.");
+      eqc("scenario 36: laadSchrijfbasis() kiest beide kennisitems voor blok A", basis.bedrijf.kennis.map((k) => k.id).sort().join(","), verwachteIds.join(","));
+
+      const uitvoer = { titel: "Dakisolatie laten aanbrengen", meta_titel: "Dakisolatie laten aanbrengen", meta_beschrijving: "Alles over dakisolatie.", tekst_markdown: "Wij isoleren daken.", faq: [], notitie_voor_ondernemer: null };
+      const tekst = gerepareerd(uitvoer, "Kennisspoor Test");
+      const kolommen = await tekstKolommen(shim, basis, tekst, { uitvoer, soort: "schrijven" });
+      eqc("scenario 36: tekstKolommen() legt precies die kennisitems vast", ((kolommen.gebruikte_kennis as string[]) ?? []).sort().join(","), verwachteIds.join(","));
+
+      await db.client.query("update public.content_pieces set gebruikte_kennis = $2 where id = $1", [stuk, kolommen.gebruikte_kennis]);
+      const { rows: opgeslagen } = await db.client.query("select gebruikte_kennis from public.content_pieces where id = $1", [stuk]);
+      eqc("scenario 36: en staat na opslaan op de rij", ([...(opgeslagen[0]?.gebruikte_kennis ?? [])] as string[]).sort().join(","), verwachteIds.join(","));
+    }
+
+    // ── Scenario 37: G2, afhankelijkheden vastleggen ─────────────────────────
+    //
+    // "Wat hangt er aan deze dienst" (G2 klaar-als): een handmatige kans (N5)
+    // die op een dienst geldt, en een pagina die dezelfde dienst in blok A kreeg
+    // (C3), leunen allebei op hetzelfde kennisitem. `afhankelijkVan()` moet
+    // beide terugvinden.
+    console.log("\nScenario 37: G2, afhankelijkheden vastleggen");
+    {
+      const { legVast } = await import("@/lib/kennis/vastleggen");
+      const { voegHandmatigeKansToe } = await import("@/lib/kansen/handmatig");
+      const { legAfhankelijkhedenVast, afhankelijkVan } = await import("@/lib/afhankelijkheden/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const stuk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Afhankelijkheden Test', 'https://afhankelijkheden-test.nl', 'Afhankelijkheden Test', 'klaar')`,
+        [merk, userId],
+      );
+      const dienst = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "dienst", bewering: "Kozijnen plaatsen.", status: "waargenomen", bron: "website", bronUrl: "https://afhankelijkheden-test.nl", citaat: "Kozijnen plaatsen.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (dienst.soort !== "vastgelegd") throw new Error("Testkennis geweigerd voor scenario 37.");
+      const dienstId = dienst.item.id;
+
+      const kans = await voegHandmatigeKansToe(shim, {
+        profileId: merk,
+        titel: "Kozijnen plaatsen in Bunnik",
+        lezer: "Iemand die nieuwe kozijnen wil",
+        handeling: "nieuwe_pagina",
+        bestaandeUrl: null,
+        geldtVoor: [dienstId],
+        doelvragen: [],
+        gebruikerId: userId,
+      });
+      ok("scenario 37: de handmatige kans wordt aangemaakt", kans.ok, JSON.stringify(kans));
+      const kansId = kans.ok ? kans.kansId : "";
+
+      const { rows: kansAfh } = await db.client.query(
+        "select van_id from public.afhankelijkheden where van_tabel = 'kansen' and kennis_id = $1",
+        [dienstId],
+      );
+      eqc("scenario 37: legKansenVast/handmatig legt de afhankelijkheid van de kans vast", kansAfh.map((r) => r.van_id).join(","), kansId);
+
+      // Een pagina die dezelfde dienst in blok A kreeg (zoals lib/pagina/taken.ts
+      // na tekstKolommen() doet).
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: stuk, kennisIds: [dienstId] });
+
+      const hangenAan = await afhankelijkVan(shim, dienstId);
+      const gevonden = new Set(hangenAan.map((h) => `${h.vanTabel}:${h.vanId}`));
+      ok(
+        "scenario 37: 'wat hangt er aan deze dienst' vindt zowel de kans als de pagina",
+        gevonden.has(`kansen:${kansId}`) && gevonden.has(`content_pieces:${stuk}`) && hangenAan.length === 2,
+        JSON.stringify(hangenAan),
+      );
+
+      // Nog eens vastleggen (zoals een herschrijving die dezelfde kennis weer
+      // kiest) mag geen tweede rij geven: de unieke index vangt dat op.
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: stuk, kennisIds: [dienstId] });
+      const { rows: nogEens } = await db.client.query(
+        "select count(*)::int as n from public.afhankelijkheden where van_tabel = 'content_pieces' and van_id = $1 and kennis_id = $2",
+        [stuk, dienstId],
+      );
+      eqc("scenario 37: nog eens vastleggen geeft geen dubbele rij", String(nogEens[0]?.n), "1");
+    }
+
+    // ── Scenario 38: G3, een wijziging maakt zichtbaar wat er geraakt wordt ──
+    //
+    // Precies het voorbeeld uit het plan: "wij doen geen warmtepompen meer"
+    // (een dienst afwijzen) zet de kans die erop leunt op 'vervallen' en meldt
+    // het bij de pagina die dezelfde kennis gebruikte; een gewone wijziging
+    // (een nieuwe versie van een antwoord) zet 'te_herzien'. Niets wordt
+    // herschreven of opnieuw gemeten (§4 regel 5): alleen de status en de
+    // melding veranderen. De echte weg: legVast/wijsAf/vervang publiceren de
+    // gebeurtenis, die zet een taak klaar, en `runJob()` voert 'm net als de
+    // werker uit.
+    console.log("\nScenario 38: G3, een wijziging maakt zichtbaar wat er geraakt wordt");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { legVast, wijsAf, vervang } = await import("@/lib/kennis/vastleggen");
+      const { legAfhankelijkhedenVast } = await import("@/lib/afhankelijkheden/vastleggen");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      const cluster = randomUUID();
+      const pagina1 = randomUUID();
+      const pagina2 = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status) values ($1, $2, 'Warmtepomp Test', 'https://warmtepomp-test.nl', 'Warmtepomp Test', 'klaar')`,
+        [merk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Warmtepomp', 'https://warmtepomp-test.nl', 'warmtepomp', 'gereed')`,
+        [cluster, userId, merk],
+      );
+      await db.client.query(
+        `insert into public.content_pieces (id, analysis_id, title, type, status, action, version, is_current) values
+           ($1, $3, 'Warmtepomp laten plaatsen', 'landing', 'ready', 'nieuw', 1, true),
+           ($2, $3, 'Cv-ketel vervangen', 'landing', 'ready', 'nieuw', 1, true)`,
+        [pagina1, pagina2, cluster],
+      );
+
+      // ── Deel 1: een dienst afwijzen ("wij doen geen warmtepompen meer") ────
+      const warmtepomp = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "dienst", bewering: "Warmtepompen installeren.", status: "waargenomen", bron: "website", bronUrl: "https://warmtepomp-test.nl", citaat: "Warmtepompen installeren.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (warmtepomp.soort !== "vastgelegd") throw new Error("Testkennis geweigerd voor scenario 38.");
+      const warmtepompId = warmtepomp.item.id;
+
+      const { rows: kansRows } = await db.client.query(
+        `insert into public.kansen (profile_id, titel, handeling, geldt_voor, vastgelegd_door_taak) values ($1, 'Warmtepomp laten plaatsen', 'nieuwe_pagina', $2, 'test') returning id`,
+        [merk, [warmtepompId]],
+      );
+      const kansId = kansRows[0].id as string;
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "kansen", vanId: kansId, kennisIds: [warmtepompId] });
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: pagina1, kennisIds: [warmtepompId] });
+
+      const uitkomst = await wijsAf(shim, { profileId: merk, itemId: warmtepompId }, { actor: "mens", gebruikerId: userId });
+      ok("scenario 38: de dienst wordt afgewezen", uitkomst.ok, JSON.stringify(uitkomst));
+
+      // `legVast()` van de dienst zelf publiceerde óók al een gebeurtenis (zonder
+      // afhankelijken, dus zonder effect); de LAATSTE gebeurtenis op dit item is
+      // die van het afwijzen, en zíjn taak is waar dit deel om gaat.
+      const { rows: gebAf } = await db.client.query(
+        "select id from public.gebeurtenissen where object_id = $1 order by aangemaakt_op desc limit 1",
+        [warmtepompId],
+      );
+      const { rows: taakRows } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:kennis_wijziging_impact:${gebAf[0].id}`],
+      );
+      eqc("scenario 38: afwijzen zet precies één taak klaar voor de echte abonnee", String(taakRows.length), "1");
+      await runJob({ admin: shim, job: taakRows[0] as never });
+
+      const { rows: kansNa } = await db.client.query("select status from public.kansen where id = $1", [kansId]);
+      eqc("scenario 38: de kans die op de dienst leunde is vervallen", kansNa[0]?.status, "vervallen");
+      const { rows: paginaNa } = await db.client.query("select kennis_gewijzigd_op from public.content_pieces where id = $1", [pagina1]);
+      ok("scenario 38: de pagina die dezelfde dienst gebruikte krijgt een melding", paginaNa[0]?.kennis_gewijzigd_op != null, JSON.stringify(paginaNa));
+
+      // Nog eens uitvoeren (de werker die het twee keer probeert) verandert er niets aan.
+      await runJob({ admin: shim, job: taakRows[0] as never });
+      const { rows: kansNogEens } = await db.client.query("select status from public.kansen where id = $1", [kansId]);
+      eqc("scenario 38: nog eens uitvoeren verandert de status niet nog eens", kansNogEens[0]?.status, "vervallen");
+
+      // ── Deel 2: een gewone wijziging (geen afwijzing) ──────────────────────
+      const prijs = await legVast(
+        shim,
+        { profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een cv-ketel kost € 2.000.", status: "waargenomen", bron: "website", bronUrl: "https://warmtepomp-test.nl", citaat: "Een cv-ketel kost € 2.000.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } as never,
+        { actor: "code", taak: "kennis_terugvullen" } as never,
+      );
+      if (prijs.soort !== "vastgelegd") throw new Error("Testkennis (prijs) geweigerd voor scenario 38.");
+      const { rows: kansRows2 } = await db.client.query(
+        `insert into public.kansen (profile_id, titel, handeling, geldt_voor, vastgelegd_door_taak) values ($1, 'Cv-ketel vervangen', 'nieuwe_pagina', $2, 'test') returning id`,
+        [merk, [prijs.item.id]],
+      );
+      const kansId2 = kansRows2[0].id as string;
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "kansen", vanId: kansId2, kennisIds: [prijs.item.id] });
+      await legAfhankelijkhedenVast(shim, { profileId: merk, vanTabel: "content_pieces", vanId: pagina2, kennisIds: [prijs.item.id] });
+
+      const vervangen = await vervang(
+        shim,
+        { profileId: merk, oudId: prijs.item.id, nieuw: { profileId: merk, domein: "aanbod", soort: "prijs", bewering: "Een cv-ketel kost € 2.100.", status: "waargenomen", bron: "website", bronUrl: "https://warmtepomp-test.nl", citaat: "Een cv-ketel kost € 2.100.", gebruik: "content", herkomst: { tabel: "profile_offerings", id: randomUUID() } } },
+        { actor: "code", taak: "kennis_terugvullen" },
+      );
+      ok("scenario 38: de prijs krijgt een nieuwe versie", vervangen.ok, JSON.stringify(vervangen));
+
+      // Zelfde verhaal: `legVast()` van de prijs publiceerde al een gebeurtenis
+      // op zijn eigen id; `vervang()` publiceert een TWEEDE op datzelfde
+      // (oude) id, waar de kans en de pagina op leunen. De laatste is die van
+      // de vervanging.
+      const { rows: gebVervang } = await db.client.query(
+        "select id from public.gebeurtenissen where object_id = $1 order by aangemaakt_op desc limit 1",
+        [prijs.item.id],
+      );
+      const { rows: taakRows2 } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:kennis_wijziging_impact:${gebVervang[0].id}`],
+      );
+      ok("scenario 38: de nieuwe versie zet ook een taak klaar, tegen de OUDE id (waar de kans op leunt)", taakRows2.length === 1, JSON.stringify(taakRows2));
+      await runJob({ admin: shim, job: taakRows2[0] as never });
+
+      const { rows: kansNa2 } = await db.client.query("select status from public.kansen where id = $1", [kansId2]);
+      eqc("scenario 38: een gewone wijziging zet de kans op 'te herzien', niet 'vervallen'", kansNa2[0]?.status, "te_herzien");
+      const { rows: pagina2Na } = await db.client.query("select kennis_gewijzigd_op from public.content_pieces where id = $1", [pagina2]);
+      ok("scenario 38: en de pagina van de prijs krijgt ook een melding", pagina2Na[0]?.kennis_gewijzigd_op != null, JSON.stringify(pagina2Na));
+
+      // Het kennisoverzicht (G3 klaar-als): de consultant ziet beide kansen en
+      // beide pagina's terug, met een kosteninschatting.
+      const { geraaktOverzicht, HERSCHRIJF_KOSTEN_USD_PER_PAGINA } = await import("@/lib/kansen/impact");
+      const geraakt = await geraaktOverzicht(shim, merk);
+      eqc(
+        "scenario 38: het kennisoverzicht toont beide geraakte kansen",
+        geraakt.kansen.map((k) => `${k.titel}:${k.status}`).sort().join(","),
+        "Cv-ketel vervangen:te_herzien,Warmtepomp laten plaatsen:vervallen",
+      );
+      eqc(
+        "scenario 38: en beide pagina's met een melding",
+        geraakt.paginas.map((p) => p.titel).sort().join(","),
+        "Cv-ketel vervangen,Warmtepomp laten plaatsen",
+      );
+      eqc(
+        "scenario 38: de kosteninschatting is het aantal pagina's keer de bovengrens per pagina",
+        String(geraakt.geschatteKostenUsd),
+        String(2 * HERSCHRIJF_KOSTEN_USD_PER_PAGINA),
+      );
+    }
+
+    // ── Scenario 39: G4, de verversingslogica als abonnee ────────────────────
+    //
+    // `slaProfielOp()` publiceert nu een gebeurtenis met de gezette velden; de
+    // abonnee `onderzoek_refresh` houdt ze bij op `profiles.velden_te_verversen`
+    // (migratie 0127), wat de bijwerkroute vroeger zelf uitrekende met een live
+    // vergelijking tegen `profile_field_sources`. De regels zelf
+    // (`planRefresh()`) veranderen niet: dezelfde velden geven dezelfde taken.
+    // Een nieuwe onderzoeksronde (`legOnderzoeksveldenVast()`, zoals
+    // `prepare-profile.ts` doet) maakt de lijst weer leeg.
+    console.log("\nScenario 39: G4, de verversingslogica als abonnee");
+    {
+      const { runJob } = await import("@/lib/jobs/handlers");
+      const { slaProfielOp } = await import("@/lib/kennis/uit-gesprek");
+      const { legOnderzoeksveldenVast } = await import("@/lib/kennis/uit-onderzoek");
+      const { planRefresh } = await import("@/lib/pipeline/onboarding-refresh");
+      const shim = createShimClient(db.client) as never;
+      const merk = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, deep_research_at) values ($1, $2, 'Refresh Test', 'https://refresh-test.nl', 'Refresh Test', 'klaar', now() - interval '1 day')`,
+        [merk, userId],
+      );
+      const mens = { actor: "mens", gebruikerId: userId } as const;
+
+      const { error } = await slaProfielOp(
+        shim,
+        {
+          profileId: merk,
+          url: "https://refresh-test.nl",
+          kolommen: { competitors: ["Warmte Oost"] },
+          oud: { competitors: [] },
+          velden: ["competitors"],
+          bron: "gesprek",
+        },
+        mens,
+      );
+      ok("scenario 39: het gesprek slaat de concurrent op", error === null, String(error));
+
+      const { rows: gebRows } = await db.client.query(
+        "select id from public.gebeurtenissen where object_tabel = 'profiles' and object_id = $1 order by aangemaakt_op desc limit 1",
+        [merk],
+      );
+      ok("scenario 39: slaProfielOp() publiceert 'kennis gewijzigd' met de gezette velden", gebRows.length === 1, JSON.stringify(gebRows));
+
+      const { rows: taakRows } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:onderzoek_refresh:${gebRows[0].id}`],
+      );
+      eqc("scenario 39: precies één taak voor de onderzoek_refresh-abonnee", String(taakRows.length), "1");
+      await runJob({ admin: shim, job: taakRows[0] as never });
+
+      const { rows: profielNa } = await db.client.query("select velden_te_verversen from public.profiles where id = $1", [merk]);
+      eqc("scenario 39: de abonnee houdt bij dat 'competitors' een mens zette", (profielNa[0]?.velden_te_verversen ?? []).join(","), "competitors");
+
+      // Precies wat de bijwerkroute nu doet: rechtstreeks lezen, geen live query.
+      const veranderd = profielNa[0]?.velden_te_verversen ?? [];
+      const plan = planRefresh(veranderd, { analyses: 0 });
+      ok("scenario 39: dezelfde regels geven dezelfde uitkomst: het marktonderzoek moet opnieuw", plan.tasks.includes("markt"), plan.tasks.join(","));
+
+      // Nog eens dezelfde wijziging opslaan voegt niets dubbels toe.
+      await slaProfielOp(shim, { profileId: merk, url: "https://refresh-test.nl", kolommen: { competitors: ["Warmte Oost"] }, oud: { competitors: ["Warmte Oost"] }, velden: ["competitors"], bron: "gesprek" }, mens);
+      const { rows: gebRows2 } = await db.client.query(
+        "select id from public.gebeurtenissen where object_tabel = 'profiles' and object_id = $1 order by aangemaakt_op desc limit 1",
+        [merk],
+      );
+      const { rows: taakRows2 } = await db.client.query(
+        "select * from public.jobs where type = 'gebeurtenis_verwerken' and dedupe_key = $1",
+        [`gebeurtenis:onderzoek_refresh:${gebRows2[0].id}`],
+      );
+      await runJob({ admin: shim, job: taakRows2[0] as never });
+      const { rows: profielNa2 } = await db.client.query("select velden_te_verversen from public.profiles where id = $1", [merk]);
+      eqc("scenario 39: geen dubbele vermelding van hetzelfde veld", (profielNa2[0]?.velden_te_verversen ?? []).join(","), "competitors");
+
+      // Een nieuwe onderzoeksronde wist de lijst.
+      const { error: onderzoekFout } = await legOnderzoeksveldenVast(shim, merk, {
+        kolommen: { deep_research_at: new Date().toISOString(), status: "klaar", velden_te_verversen: [] },
+        items: [],
+        taak: "profile_research",
+      });
+      ok("scenario 39: een nieuwe onderzoeksronde slaagt", onderzoekFout === null, String(onderzoekFout));
+      const { rows: profielNa3 } = await db.client.query("select velden_te_verversen from public.profiles where id = $1", [merk]);
+      eqc("scenario 39: en maakt de lijst weer leeg", (profielNa3[0]?.velden_te_verversen ?? []).join(","), "");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Scenario 40: N3, Search Console als kansbron
+    //
+    // ⚠️ DE SAMENHANG DIE HIER FOUT KAN GAAN: `legZoekverkeerBewijsVast()`
+    // raakt drie tabellen (`search_console_queries` lezen, `kans_bewijs`
+    // schrijven, `kansen.uitleg` herschrijven) en moet daarbij de kans met een
+    // andere dienst met rust laten. Geen van die drie is te zien vanuit een
+    // pure eenheidstest op `matchendeZoekopdrachten()`/`zoekverkeerBewijsVan()`
+    // alleen: die weet niets van een kans die al bewijs van een andere bron
+    // had, of van een kans die niets met zoekverkeer te maken heeft.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nScenario 40: N3, Search Console als kansbron");
+    {
+      const { legZoekverkeerBewijsVast } = await import("@/lib/kansen/uit-search-console");
+      const shim = createShimClient(db.client) as never;
+
+      const merk = randomUUID();
+      const gebruiker = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        gebruiker,
+        "zoekverkeer-kansbron@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, gsc_verified_at)
+         values ($1, $2, 'Zoekverkeer BV', 'https://zoekverkeer-bv.nl', 'Zoekverkeer BV', 'klaar', now())`,
+        [merk, gebruiker],
+      );
+
+      const { rows: kennisRijen } = await db.client.query(
+        `insert into public.klantkennis (profile_id, domein, soort, bewering, status, bron, gebruik, vastgelegd_door_taak, herkomst_tabel, herkomst_id)
+         values ($1, 'aanbod', 'dienst', 'Financiering', 'afgeleid', 'ai', 'intern', 'kennis_terugvullen', 'profile_offerings', gen_random_uuid())
+         returning id`,
+        [merk],
+      );
+      const dienstId = kennisRijen[0].id as string;
+
+      // Twee kansen: één die over financiering gaat (moet bewijs krijgen), één
+      // zonder enige koppeling (moet met rust gelaten worden, want er is niets
+      // om een zoekopdracht aan te herkennen).
+      const { rows: kansRijen } = await db.client.query(
+        `insert into public.kansen (profile_id, titel, handeling, geldt_voor, status, vastgelegd_door_taak, uitleg)
+         values
+           ($1, 'Pagina over financiering', 'nieuwe_pagina', $2, 'open', 'test', 'Uitleg zonder Search Console.'),
+           ($1, 'Kans zonder koppeling', 'nieuwe_pagina', '{}', 'open', 'test', 'Blijft ongemoeid.')
+         returning id, titel`,
+        [merk, [dienstId]],
+      );
+      const kansMetDienst = (kansRijen as { id: string; titel: string }[]).find((k) => k.titel === "Pagina over financiering")!.id;
+      const kansZonderKoppeling = (kansRijen as { id: string; titel: string }[]).find((k) => k.titel === "Kans zonder koppeling")!.id;
+
+      // Alle rijen op dezelfde dag: het venster van `vergelijkingsvenster()`
+      // eindigt op de laatste dag in de data, dus dit garandeert dat alles
+      // binnen de 28 dagen valt zonder een echte kalender na te bootsen.
+      await db.client.query(
+        `insert into public.search_console_queries (profile_id, day, query, page, clicks, impressions, position) values
+           ($1, '2026-09-20', 'auto financiering udenhout', '/diensten/financieringen', 2, 40, 8),
+           ($1, '2026-09-20', 'financiering audi', '/diensten/financieringen/audi-financiering', 1, 15, 12),
+           ($1, '2026-09-20', 'auto huren eindhoven', '/verhuur', 5, 30, 4)`,
+        [merk],
+      );
+
+      const telling = await legZoekverkeerBewijsVast(shim, merk);
+      ok("scenario 40: één kans bijgewerkt, geen mislukking", telling.bijgewerkt === 1 && telling.mislukt === 0, JSON.stringify(telling));
+
+      const { rows: bewijsRijen } = await db.client.query(
+        `select kans_id, bron, vertoningen, klikken, positie, periode_dagen, zoekopdrachten
+           from public.kans_bewijs where kans_id = $1`,
+        [kansMetDienst],
+      );
+      ok("scenario 40: precies één bewijsrij, bron search_console", bewijsRijen.length === 1 && bewijsRijen[0].bron === "search_console");
+      ok("scenario 40: vertoningen en klikken zijn de som van de matchende zoekopdrachten", Number(bewijsRijen[0].vertoningen) === 55 && Number(bewijsRijen[0].klikken) === 3);
+      // Gewogen op vertoningen: (8*40 + 12*15) / 55 ≈ 8,91, niet het gewone gemiddelde (10).
+      ok(
+        "scenario 40: de positie is gewogen op vertoningen",
+        Math.abs(Number(bewijsRijen[0].positie) - (8 * 40 + 12 * 15) / 55) < 0.01,
+        String(bewijsRijen[0].positie),
+      );
+      eqc("scenario 40: 28 dagen, dezelfde periode als de rest van het zoekverkeerscherm", String(bewijsRijen[0].periode_dagen), "28");
+      eqc(
+        "scenario 40: de niet-matchende zoekopdracht ('auto huren') staat er niet bij",
+        (bewijsRijen[0].zoekopdrachten as string[]).sort().join(","),
+        ["auto financiering udenhout", "financiering audi"].sort().join(","),
+      );
+
+      const { rows: kansNa } = await db.client.query("select uitleg from public.kansen where id = $1", [kansMetDienst]);
+      ok(
+        "scenario 40: de uitleg van de kans noemt het zoekverkeer, met het echte aantal vertoningen",
+        typeof kansNa[0].uitleg === "string" && kansNa[0].uitleg.includes("Mensen zoeken hiernaar") && kansNa[0].uitleg.includes("55 vertoningen"),
+        kansNa[0].uitleg,
+      );
+
+      const { rows: bewijsAndereKans } = await db.client.query(
+        "select count(*)::int as n from public.kans_bewijs where kans_id = $1",
+        [kansZonderKoppeling],
+      );
+      ok("scenario 40: de kans zonder dienst of werkgebied krijgt geen bewijs", Number(bewijsAndereKans[0].n) === 0);
+      const { rows: kansZonderKoppelingNa } = await db.client.query("select uitleg from public.kansen where id = $1", [kansZonderKoppeling]);
+      eqc("scenario 40: en zijn uitleg blijft ongemoeid", kansZonderKoppelingNa[0].uitleg, "Blijft ongemoeid.");
+
+      // Nog eens aanroepen (zoals een tweede gsc_sync de volgende nacht) mag
+      // geen tweede bewijsrij maken, alleen de bestaande overschrijven
+      // (conventie 9, dezelfde `onConflict` als `uit-rapport.ts`).
+      const tellingNogEens = await legZoekverkeerBewijsVast(shim, merk);
+      ok("scenario 40: nog eens aanroepen blijft idempotent op de bewijsrij", tellingNogEens.bijgewerkt === 1 && tellingNogEens.mislukt === 0);
+      const { rows: bewijsNogEens } = await db.client.query(
+        "select count(*)::int as n from public.kans_bewijs where kans_id = $1",
+        [kansMetDienst],
+      );
+      eqc("scenario 40: nog steeds precies één bewijsrij, geen dubbele", String(bewijsNogEens[0].n), "1");
     }
 
     __setTestAdminClient(null);

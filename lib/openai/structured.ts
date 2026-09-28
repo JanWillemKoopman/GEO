@@ -14,7 +14,7 @@ import type OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { getOpenAI, callBudget } from "@/lib/openai/client";
 import { estimateCostUsd } from "@/lib/openai/pricing";
-import { logAiCall, type CallMeta } from "@/lib/openai/ledger";
+import { logAiCall, type AiCallInput, type CallMeta } from "@/lib/openai/ledger";
 import {
   isUnsupportedTemperatureError,
   resolveTuning,
@@ -73,6 +73,23 @@ async function withTemperatureFallback<R>(
 function reasoningParam(tuning: CallTuning): OpenAI.Reasoning | undefined {
   if (!tuning.reasoningEffort) return undefined;
   return { effort: tuning.reasoningEffort } as unknown as OpenAI.Reasoning;
+}
+
+/** De invoer van een aanroep zoals `ai_calls.input_json` hem bewaart (migratie 0112). */
+function invoerVan(
+  opts: { system: string; user: string; work?: WorkKind; webSearch?: boolean },
+  tuning: CallTuning,
+  schemaName: string | null,
+): AiCallInput {
+  return {
+    system: opts.system,
+    user: opts.user,
+    schemaName,
+    work: opts.work ?? "simulation",
+    reasoningEffort: tuning.reasoningEffort ?? null,
+    temperature: tuning.temperature ?? null,
+    webSearch: Boolean(opts.webSearch),
+  };
 }
 
 /**
@@ -140,6 +157,11 @@ export interface CallUsage {
   outputTokens: number | null;
   /** Geschatte kosten in USD: zie lib/openai/pricing.ts. */
   costUsd: number;
+  /**
+   * Hoe lang de aanroep duurde, in milliseconden (migratie 0114). `null` bij de
+   * teststub, want daar is niets aangeroepen.
+   */
+  durationMs: number | null;
 }
 
 export interface StructuredCallResult<T> extends CallUsage {
@@ -190,6 +212,7 @@ export async function callStructured<T>(
       inputTokens: null,
       outputTokens: null,
       costUsd: 0,
+      durationMs: null,
     };
   }
 
@@ -199,8 +222,14 @@ export async function callStructured<T>(
   // een tweede poging doen, en twee losse budgetten zouden samen het dubbele van
   // de bovengrens opleveren waar lib/jobs/worker.ts op rekent.
   const budget = callBudget();
-  const response = await withTemperatureFallback(tuningFor(opts.model, opts.work), (tuning) =>
-    openai.responses.parse(
+  // De duur van de hele aanroep, pogingen binnen de SDK meegerekend (migratie 0114).
+  const begin = Date.now();
+  // De instellingen zoals ze WERKELIJK verstuurd zijn: na een geweigerde
+  // temperatuur is dat de tweede poging, niet de eerste (migratie 0112).
+  let verstuurd: CallTuning = tuningFor(opts.model, opts.work);
+  const response = await withTemperatureFallback(verstuurd, (tuning) => {
+    verstuurd = tuning;
+    return openai.responses.parse(
       {
         model: opts.model,
         input: [
@@ -215,8 +244,30 @@ export async function callStructured<T>(
         },
       },
       budget,
-    ),
-  );
+    );
+  }).catch(async (err: unknown) => {
+    // ⚠️ Punt 18 van de kwaliteitsdoorlichting: het model begon soms met
+    // hardop denken ("We need ou...") in plaats van met het gevraagde JSON, en
+    // de SDK gooit dan bij het parsen, vóór `recordUsage()`. Zo'n aanroep kost
+    // wel geld maar stond nergens, en het aandeel was niet te meten. Nu komt
+    // hij in `ai_calls` met de foutmelding als uitvoer; kosten en tokens zijn
+    // dan onbekend (0 en null), want het antwoordobject is er niet.
+    if (opts.meta && isParseFout(err)) {
+      await logAiCall(opts.meta, {
+        model: opts.model,
+        inputTokens: null,
+        outputTokens: null,
+        totalTokens: null,
+        webSearch: Boolean(opts.webSearch),
+        costUsd: 0,
+        responseId: null,
+        raw: { mislukt: true, fout: String((err as Error)?.message ?? err).slice(0, 2000) },
+        input: invoerVan(opts, verstuurd, opts.schemaName),
+        durationMs: Date.now() - begin,
+      });
+    }
+    throw err;
+  });
 
   const parsed = response.output_parsed;
   if (parsed == null) {
@@ -232,6 +283,8 @@ export async function callStructured<T>(
     response,
     opts.meta,
     parsed,
+    invoerVan(opts, verstuurd, opts.schemaName),
+    Date.now() - begin,
   );
 
   return { parsed: parsed as T, raw: response, ...usage };
@@ -257,6 +310,10 @@ async function recordUsage(
    * ondernemer gaat, is dat het verkeerde moment om je bron kwijt te zijn.
    */
   ruw?: unknown,
+  /** Wat er naar het model ging (migratie 0112). */
+  invoer?: AiCallInput,
+  /** Hoe lang de aanroep duurde (migratie 0114). */
+  durationMs: number | null = null,
 ): Promise<CallUsage> {
   const { inputTokens, outputTokens, totalTokens } = readUsage(response.usage);
   const costUsd = estimateCostUsd({ model, inputTokens, outputTokens, webSearch });
@@ -272,10 +329,12 @@ async function recordUsage(
       costUsd,
       responseId,
       raw: ruw ?? null,
+      input: invoer ?? null,
+      durationMs,
     });
   }
 
-  return { responseId, tokensUsed: totalTokens, inputTokens, outputTokens, costUsd };
+  return { responseId, tokensUsed: totalTokens, inputTokens, outputTokens, costUsd, durationMs };
 }
 
 export interface PlainCallOptions {
@@ -342,6 +401,7 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
       inputTokens: null,
       outputTokens: null,
       costUsd: 0,
+      durationMs: null,
     };
   }
 
@@ -349,8 +409,11 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
 
   // Zie callStructured: één budget over beide pogingen heen.
   const budget = callBudget();
-  const response = await withTemperatureFallback(tuningFor(opts.model, opts.work), (tuning) =>
-    openai.responses.create(
+  const begin = Date.now();
+  let verstuurd: CallTuning = tuningFor(opts.model, opts.work);
+  const response = await withTemperatureFallback(verstuurd, (tuning) => {
+    verstuurd = tuning;
+    return openai.responses.create(
       {
         model: opts.model,
         input: [
@@ -362,8 +425,8 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
         reasoning: reasoningParam(tuning),
       },
       budget,
-    ),
-  );
+    );
+  });
 
   const usage = await recordUsage(
     opts.model,
@@ -371,7 +434,178 @@ export async function callPlain(opts: PlainCallOptions): Promise<PlainCallResult
     response,
     opts.meta,
     response.output_text ?? "",
+    invoerVan(opts, verstuurd, null),
+    Date.now() - begin,
   );
 
   return { text: response.output_text ?? "", raw: response, ...usage };
+}
+
+/** Is dit een fout bij het lezen van het antwoord als JSON, en niet bij het versturen? */
+export function isParseFout(err: unknown): boolean {
+  const naam = (err as { name?: string } | null)?.name ?? "";
+  const tekst = String((err as { message?: string } | null)?.message ?? err ?? "");
+  return naam === "SyntaxError" || /is not valid JSON|Unexpected token|Unexpected end of JSON/i.test(tekst);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// De ACHTERGRONDMODUS (WP3 van docs/tasks/contentpijplijn-publicatiewaardig.md)
+//
+// Paginastrategie en eindredactie draaien op Sol met denktijd hoog, en een
+// aanroep mag hoogstens `CALL_BUDGET_MS` (150 seconden) duren. Loopt hij daar
+// overheen, dan breekt de taak af, probeert de wachtrij het opnieuw en betaalt
+// de app de duurste aanroep twee keer. In de achtergrondmodus start de taak de
+// aanroep bij OpenAI en bewaart hij alleen het response-id; een vervolgtaak
+// haalt het resultaat op. Een nieuwe poging haalt dan op in plaats van opnieuw
+// te starten, dus een time-out kost nooit een tweede aanroep.
+//
+// Wanneer de modus aangaat, beslist `moetAchtergrond()` in
+// `lib/openai/achtergrond.ts` op de gemeten duur (`ai_calls.duration_ms`).
+// ════════════════════════════════════════════════════════════════════════════
+
+/** In de ketentest: gestarte aanroepen, op hun nep-id. */
+const testAchtergrond = new Map<string, StructuredCallOptions<unknown>>();
+let testAchtergrondTeller = 0;
+
+/** In de ketentest: zoveel volgende ophaalpogingen melden nog "bezig". */
+let testNogBezig = 0;
+
+/** Voor de ketentest: laat de volgende `aantal` ophaalpogingen "bezig" teruggeven. */
+export function __zetAchtergrondBezig(aantal: number): void {
+  testNogBezig = aantal;
+}
+
+/** Voor de ketentest: hoeveel achtergrondaanroepen er gestart zijn (dus betaald zouden worden). */
+export function __aantalAchtergrondStarts(): number {
+  return testAchtergrondTeller;
+}
+
+/**
+ * Start een aanroep in de achtergrondmodus. Geeft alleen het response-id terug;
+ * het resultaat komt met `haalStructuredOp()`.
+ */
+export async function startStructuredAchtergrond<T>(opts: StructuredCallOptions<T>): Promise<{ responseId: string }> {
+  if (testTransport) {
+    const responseId = `stub-achtergrond-${++testAchtergrondTeller}`;
+    testAchtergrond.set(responseId, opts as StructuredCallOptions<unknown>);
+    return { responseId };
+  }
+  const openai = getOpenAI();
+  // Geen temperatuur-terugval: de achtergrondmodus is voor redeneerwerk, en daar
+  // gaat nooit een temperatuur mee (`resolveTuning()`).
+  const tuning = tuningFor(opts.model, opts.work);
+  // ⚠️ `background` kent de vastgezette SDK (4.104) nog niet; de waarde gaat
+  // ongewijzigd de HTTP-body in. Zelfde soort typegat als `reasoningParam()`.
+  const response = await openai.responses.create(
+    {
+      model: opts.model,
+      input: [
+        { role: "system", content: opts.system },
+        { role: "user", content: opts.user },
+      ],
+      tools: opts.webSearch ? [WEB_SEARCH_TOOL] : undefined,
+      temperature: tuning.temperature,
+      reasoning: reasoningParam(tuning),
+      text: { format: zodTextFormat(opts.schema, opts.schemaName) },
+      background: true,
+      store: true,
+    } as unknown as OpenAI.Responses.ResponseCreateParamsNonStreaming,
+    callBudget(),
+  );
+  if (!response.id) throw new Error("OpenAI gaf geen response-id terug voor de achtergrondaanroep.");
+  return { responseId: response.id };
+}
+
+export type AchtergrondUitkomst<T> =
+  | { stand: "bezig"; status: string }
+  | { stand: "klaar"; result: StructuredCallResult<T> }
+  | { stand: "mislukt"; status: string; fout: string };
+
+/** De tekst uit een Responses-antwoord, ook als de SDK `output_text` niet invult. */
+function uitvoerTekst(response: unknown): string {
+  const r = response as { output_text?: unknown; output?: unknown };
+  if (typeof r.output_text === "string" && r.output_text) return r.output_text;
+  const delen: string[] = [];
+  for (const item of Array.isArray(r.output) ? r.output : []) {
+    const inhoud = (item as { content?: unknown }).content;
+    for (const c of Array.isArray(inhoud) ? inhoud : []) {
+      const t = (c as { type?: unknown; text?: unknown });
+      if (t.type === "output_text" && typeof t.text === "string") delen.push(t.text);
+    }
+  }
+  return delen.join("");
+}
+
+/**
+ * Haal het resultaat van een achtergrondaanroep op. `bezig` zolang OpenAI nog
+ * rekent; `klaar` met hetzelfde resultaat als `callStructured()`, inclusief de
+ * registratie in `ai_calls` (één keer, hier); `mislukt` als OpenAI hem afbrak.
+ *
+ * `gestartOp` is het moment van starten, zodat de gemeten duur de hele aanroep
+ * is en niet alleen het ophalen.
+ */
+export async function haalStructuredOp<T>(
+  responseId: string,
+  opts: StructuredCallOptions<T>,
+  gestartOp: string,
+): Promise<AchtergrondUitkomst<T>> {
+  if (testTransport) {
+    const gestart = testAchtergrond.get(responseId);
+    if (!gestart) return { stand: "mislukt", status: "onbekend", fout: `Geen gestarte aanroep ${responseId}.` };
+    if (testNogBezig > 0) {
+      testNogBezig--;
+      return { stand: "bezig", status: "in_progress" };
+    }
+    // Niet uit de lijst halen: de echte API geeft een voltooide aanroep bij elke
+    // opvraging opnieuw terug, en een tweede ophaalpoging moet dat ook kunnen.
+    const { parsed, raw } = await testTransport(opts);
+    return {
+      stand: "klaar",
+      result: { parsed, raw, responseId, tokensUsed: null, inputTokens: null, outputTokens: null, costUsd: 0, durationMs: null },
+    };
+  }
+
+  const openai = getOpenAI();
+  const response = await openai.responses.retrieve(responseId, {}, callBudget());
+  const status = String((response as { status?: unknown }).status ?? "onbekend");
+  if (status === "queued" || status === "in_progress") return { stand: "bezig", status };
+  if (status !== "completed") {
+    return { stand: "mislukt", status, fout: `OpenAI brak de achtergrondaanroep af met status "${status}".` };
+  }
+
+  const duur = Date.now() - new Date(gestartOp).getTime();
+  const tuning = tuningFor(opts.model, opts.work);
+  let parsed: T;
+  try {
+    parsed = opts.schema.parse(JSON.parse(uitvoerTekst(response)));
+  } catch (err) {
+    // Zelfde vangnet als bij `callStructured()` (punt 18): wel betaald, dus wel
+    // in het logboek, met de fout als uitvoer.
+    if (opts.meta) {
+      await logAiCall(opts.meta, {
+        model: opts.model,
+        inputTokens: null,
+        outputTokens: null,
+        totalTokens: null,
+        webSearch: Boolean(opts.webSearch),
+        costUsd: 0,
+        responseId,
+        raw: { mislukt: true, fout: String((err as Error)?.message ?? err).slice(0, 2000) },
+        input: invoerVan(opts, tuning, opts.schemaName),
+        durationMs: duur,
+      });
+    }
+    return { stand: "mislukt", status, fout: `Het antwoord paste niet op het schema: ${String(err)}` };
+  }
+
+  const usage = await recordUsage(
+    opts.model,
+    Boolean(opts.webSearch),
+    response as { id?: string | null; usage?: unknown },
+    opts.meta,
+    parsed,
+    invoerVan(opts, tuning, opts.schemaName),
+    duur,
+  );
+  return { stand: "klaar", result: { parsed, raw: response, ...usage } };
 }

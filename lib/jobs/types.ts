@@ -74,23 +74,12 @@ export const JOB_TYPES = [
   "profile_competitors",
   /** Gap-analyse + rapport (B1 + B2) en de rapportmail. */
   "generate_report",
-  /** Contentbriefing: feitenindex + claim-audit → vragen aan de klant (R5.1). */
-  "content_brief",
   /**
-   * Contentgeneratie stap 0: uitzoeken wat DEZE pagina nodig heeft
-   * (docs/tasks/contentpijplijn-herontwerp.md A1/A2). Het itemdossier plus het
-   * contentcontract. Een eigen taaksoort en geen uitbreiding van
-   * `content_draft` (conventie 7): het onderzoek doet een web-zoekactie van 20
-   * tot 40 seconden, en dat past niet vóór een schrijfaanroep die zelf al tot
-   * 150 seconden mag duren.
+   * Het feitenregister van één merk bijwerken: feiten indelen (L1), conflicten
+   * zoeken en beoordelen (L2). WP2 van contentpijplijn-publicatiewaardig.md.
+   * Licht werk: alleen korte aanroepen op het goedkope model.
    */
-  "content_plan",
-  /** Contentgeneratie stap 1: schrijven + beoordelen. */
-  "content_draft",
-  /** Contentgeneratie stap 2: herschrijven + herbeoordelen. */
-  "content_revise",
-  /** Dezelfde tekst opnieuw keuren, zonder herschrijven (migratie 0092). */
-  "content_recheck",
+  "fact_register",
   /** Technische GEO-audit: mag een AI-crawler de site überhaupt bezoeken? */
   "technical_audit",
   /** Controleren of een gepubliceerde pagina er echt staat (optimalisatie.md 5.2). */
@@ -142,6 +131,19 @@ export const JOB_TYPES = [
   "reputation_sources",
   /** Blok D: de getallen rekenen, de tekst schrijven, de run afsluiten. */
   "reputation_synthesis",
+
+  // ── Clusters ontdekken (docs/tasks/clusters-ontdekken.md, migratie 0109) ──
+  //
+  // Vier stappen, elk hooguit één AI-aanroep (conventie 7). Ze ketenen zelf via
+  // `cluster_discovery_runs.status`; zie lib/pipeline/cluster-discovery.ts.
+  /** Wat we al weten verzamelen, plus beginpunten uit het aanbod (licht model). */
+  "discovery_collect",
+  /** DataForSEO: eigen site, echte concurrenten, suggesties. Geen AI. */
+  "discovery_expand",
+  /** Per zoekterm: past dit bij aanbod en strategie? (licht model) */
+  "discovery_sift",
+  /** Zoektermen bundelen tot kandidaat-clusters (één zware aanroep). */
+  "discovery_bundle",
 
   // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
   //
@@ -264,6 +266,36 @@ export const JOB_TYPES = [
    * hooguit 300 seconden (`app/api/cron/worker/route.ts`).
    */
   "crawl_inventory",
+
+  // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────
+  /**
+   * De content brief van één pagina: onderzoek met zoeken op het web, plus de
+   * gerichte vragen aan de ondernemer. De briefs van één maand draaien na
+   * elkaar: de taak geeft bij het afronden de volgende pagina van de rij door,
+   * zodat elke brief de vragen van de vorige al ziet (§6.1).
+   */
+  "pagina_brief",
+  /**
+   * De pagina schrijven, altijd in de achtergrondmodus (§6.4): de eerste ronde
+   * start de aanroep, een ophaalronde met `responseId` haalt hem op.
+   */
+  "pagina_schrijven",
+  /** De controle in code plus één beoordeling (§6.6). */
+  "pagina_controle",
+  /**
+   * Hooguit één herschrijving na de controle, of een aanpassing op verzoek van
+   * de klant (§6.7). Zelfde achtergrondmodus als het schrijven.
+   */
+  "pagina_herschrijven",
+
+  /**
+   * De gebeurtenissenlaag (`docs/tasks/van-pijplijn-naar-kennissysteem.md`, G1).
+   * Eén taak per abonnee per gebeurtenis; `lib/gebeurtenissen/publiceer.ts` zet
+   * ze klaar, `lib/gebeurtenissen/verwerken.ts` zorgt dat een abonnee dezelfde
+   * gebeurtenis maar één keer verwerkt, ook als de werker deze taak twee keer
+   * probeert. Geen AI-aanroep, geen eigen lus: dit is infrastructuur (P5).
+   */
+  "gebeurtenis_verwerken",
 ] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
@@ -360,6 +392,13 @@ export interface JobPayloads {
      * 2026) en een aanroep hier een vijfde kost van een ChatGPT-meting.
      */
     repeatIndex?: number;
+    /**
+     * Alleen bij een hermeting ná publicatie (M3, `van-pijplijn-naar-kennissysteem.md`).
+     * Zonder dit veld is het een gewone periodieke meting. Zelfde vorm als bij
+     * `measure_prompt`, zodat `computeImpact()` (die geen engine-filter kent) de
+     * rijen van beide bronnen samen ziet.
+     */
+    impact?: { purpose: "impact" | "control"; contentPieceId: string; wave: number };
   };
   /**
    * Eén meetvraag via Gemini, opgehaald bij DataForSEO
@@ -382,93 +421,8 @@ export interface JobPayloads {
   aggregate_week: { weekNo: number };
   profile_competitors: { weekNo: number };
   generate_report: { weekNo: number };
-  content_brief: {
-    userId: string;
-    /** De hele batch gekozen pagina's: één briefing voor alles samen (§2). */
-    recommendations: RecommendationPayload[];
-  };
-  content_plan: {
-    userId: string;
-    recommendation: RecommendationPayload;
-    /** Opnieuw genereren: dan ook opnieuw onderzoeken (optimalisatie.md 4.7). */
-    regenerate?: boolean;
-    /** Zie `content_draft.plannedPageId`; gaat ongewijzigd door naar die taak. */
-    plannedPageId?: string;
-    /**
-     * Draait deze plantaak VÓÓR de briefing?
-     * (docs/tasks/vragen-voor-het-schrijven.md §3)
-     *
-     * Dan plant hij geen schrijftaak in. Het contract is hier het IDEAAL waar de
-     * briefing zijn vragen uit haalt, en de klant beslist daarna zelf of en
-     * wanneer er geschreven wordt. De hele batch reist mee, zodat de laatste
-     * plantaak van de batch de briefing kan starten; zonder die lijst zou de
-     * briefing niet weten welke pagina's erbij horen.
-     */
-    voorBriefing?: {
-      recommendations: RecommendationPayload[];
-    };
-  };
-  content_draft: {
-    userId: string;
-    recommendation: RecommendationPayload;
-    /** Opnieuw genereren bovenop een afgeronde versie (optimalisatie.md 4.7). */
-    regenerate?: boolean;
-    /**
-     * De pagina uit het contentplan waar deze tekst bij hoort (fase 4).
-     * Afwezig bij een schrijftaak die uit een rapport-aanbeveling komt; dat is
-     * elke schrijftaak van vóór augustus 2026.
-     *
-     * Hierdoor kan de taak terugmelden: de plan-pagina krijgt zijn
-     * `content_piece_id` en gaat van `schrijven` naar `ter_goedkeuring`. Zonder
-     * dit veld schrijft de pijplijn wel, maar blijft de pagina in het plan op
-     * "ORBIT ENGINE is bezig" staan tot iemand het handmatig opmerkt.
-     */
-    plannedPageId?: string;
-    /**
-     * Het contract en het dossier uit `content_plan` (migratie 0082).
-     *
-     * Bewust in de payload en niet alleen op de contentpagina: lukt het
-     * wegschrijven daar niet, dan schrijft deze taak alsnog mét contract. Zonder
-     * deze kopie zou een mislukte update betekenen dat de pagina zonder
-     * inhoudsopgave geschreven wordt, precies wat dit werk oplost.
-     */
-    voorbereid?: {
-      contract: unknown;
-      dossier: unknown;
-      explainers: unknown[];
-      /**
-       * De verse tekst van de te verbeteren pagina (O3). Zelfde reden als de
-       * andere drie: lukt het wegschrijven in `content_plan` niet, dan schrijft
-       * deze taak alsnog tegen de pagina die de klant vandaag heeft staan.
-       *
-       * ⚠️ Bij een NIEUWE pagina bestaat de rij in `content_pieces` tijdens de
-       * planstap nog niet: die wordt pas hier aangemaakt. Deze payload is dan de
-       * enige plek waar de opgehaalde tekst staat.
-       */
-      existingText?: string | null;
-      /** Wanneer die tekst is opgehaald (migratie 0083). */
-      existingFetchedAt?: string | null;
-    } | null;
-  };
-  content_revise: {
-    userId: string;
-    contentPieceId: string;
-    recommendation: RecommendationPayload;
-    /** Verbeterpunten uit de eerste beoordeling, sturen de herschrijfstap. */
-    issues: string[];
-    /** Zie `content_draft.plannedPageId`; de herschrijfstap meldt hetzelfde terug. */
-    plannedPageId?: string;
-  };
-  /**
-   * Herkeuren: dezelfde tekst, nieuw oordeel. Geen `issues` en geen
-   * `plannedPageId`, want er wordt niets herschreven en er verandert niets aan
-   * de planning.
-   */
-  content_recheck: {
-    userId: string;
-    contentPieceId: string;
-    recommendation: RecommendationPayload;
-  };
+  /** Het merk staat op de taak zelf (`profile_id`). */
+  fact_register: Record<string, never>;
   technical_audit: Record<string, never>;
   verify_publication: { contentPieceId: string };
   measure_impact: { contentPieceId: string; wave: number };
@@ -496,6 +450,11 @@ export interface JobPayloads {
   };
   reputation_sources: { runId: string };
   reputation_synthesis: { runId: string };
+
+  discovery_collect: { runId: string };
+  discovery_expand: { runId: string };
+  discovery_sift: { runId: string };
+  discovery_bundle: { runId: string };
 
   // ── De Sales-module ──────────────────────────────────────────────────────
   //
@@ -537,7 +496,36 @@ export interface JobPayloads {
     maxPages?: number;
     /** Het tempo voor deze ronde, of `profiles.crawl_speed` als afwezig. */
     speed?: CrawlSpeed;
+    /**
+     * Een aanvulronde die de ontdekkingsstap zelf inplande omdat de site te
+     * traag was (punt 4 van de kwaliteitsdoorlichting). Zolang er pagina's
+     * overblijven plant de taak een volgende ronde, tot `MAX_AANVULRONDES`.
+     */
+    aanvulronde?: number;
   };
+
+  /**
+   * `rij` zijn de pagina's die na deze aan de beurt zijn, in volgorde. Leeg of
+   * afwezig = dit is de laatste (of een losse pagina).
+   */
+  pagina_brief: { pieceId: string; rij?: string[] };
+  pagina_schrijven: PaginaAchtergrondPayload;
+  pagina_controle: { pieceId: string };
+  pagina_herschrijven: PaginaAchtergrondPayload;
+
+  /** Welke gebeurtenis, en welke abonnee (naam uit het register) hem verwerkt. */
+  gebeurtenis_verwerken: { gebeurtenisId: string; abonnee: string };
+}
+
+/** Schrijven en herschrijven: starten, of ophalen als `responseId` er is. */
+export interface PaginaAchtergrondPayload {
+  pieceId: string;
+  responseId?: string;
+  gestartOp?: string;
+  poging?: number;
+  herstart?: number;
+  /** Alleen bij een aanpassing op verzoek van de klant. */
+  klantNotitie?: string | null;
 }
 
 /**
@@ -578,11 +566,6 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "prepare_analysis", // onderwerp-onderzoek: één gegrondde AI-aanroep
   "generate_prompts", // één funnelfase, met bijvul- en geo-rondes
   "profile_competitors", // destilleert eigenschappen uit alle antwoordfragmenten
-  "content_brief", // claim-audit over de hele batch, plus alle winnende antwoorden
-  "content_plan", // itemdossier met web_search plus het contract
-  "content_draft", // het premium model schrijft een volledige pagina
-  "content_revise", // idem
-  "content_recheck", // geen schrijfaanroep, wel de vier beoordelaars
   "offsite_scan", // crawlt niets maar doet wel een gegroundde AI-aanroep + externe API's
   // Mijn reputatie. `reputation_start` staat er bewust NIET bij: die doet geen
   // enkele AI-aanroep en leest alleen wat er al staat.
@@ -593,9 +576,24 @@ export const HEAVY_JOB_TYPES: ReadonlySet<JobType> = new Set<JobType>([
   "reputation_synthesis", // één aanroep over alles wat de run opleverde
   "reputation_market", // één tot drie gegronde aanbevelingsvragen
   "reputation_evidence", // vier gegronde zoekvragen plus het opknippen
+  // Clusters ontdekken: tot 25 DataForSEO-aanroepen na elkaar, en de bundeling
+  // is de enige zware AI-aanroep van de ronde. Verzamelen en schiften zijn
+  // licht model op één aanroep, maar verzamelen leest ook tot 48.000
+  // Search Console-rijen; beide daarom ook zwaar.
+  "discovery_collect",
+  "discovery_expand",
+  "discovery_sift",
+  "discovery_bundle",
   // Tot 500 pagina's in batches tot 8, met een pauze op "langzaam" tempo.
   // Zelfde soort werk als profile_discover, alleen groter en instelbaar.
   "crawl_inventory",
+  // Eén aanroep op het sterke model met zoeken op het web: ruim een minuut.
+  "pagina_brief",
+  // Starten en ophalen zijn kort, maar de controle is één directe aanroep op
+  // het sterke model over de hele tekst.
+  "pagina_schrijven",
+  "pagina_controle",
+  "pagina_herschrijven",
 ]);
 
 /**
@@ -668,10 +666,13 @@ export const IO_BOUND_PARALLELISM = 3;
  * boven de twaalf open verbindingen uit.
  */
 export const PARALLEL_CONTENT_TYPES: ReadonlySet<JobType> = new Set<JobType>([
-  "content_plan",
-  "content_draft",
-  "content_revise",
-  "content_recheck",
+  // De nieuwe contentketen (`docs/tasks/contentketen-opnieuw.md` §7.4). De
+  // briefs van één merk lopen na elkaar via hun rij; die van verschillende
+  // merken mogen naast elkaar.
+  "pagina_brief",
+  "pagina_schrijven",
+  "pagina_controle",
+  "pagina_herschrijven",
 ]);
 
 export const CONTENT_PARALLELISM = 3;

@@ -4,6 +4,8 @@ import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { SectionHeading } from "@/components/section-heading";
 import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
 import { AnalyticsPromptTable } from "@/components/analytics-prompt-table";
@@ -344,103 +346,6 @@ export default async function AnalyticsPage({
         description="Hoe vaak AI-assistenten je noemen, over al je clusters heen, en wat dat cijfer verklaart."
       />
 
-      {/* ── §7.5: wat ORBIT ENGINE tot nu toe opleverde ──────────────────────
-          Merkbreed en bovenaan: dit is de eerste vraag van de eigenaar, vóór
-          de AI-zichtbaarheidsscore, want het is het bewijs dat er iets
-          gebeurt, niet de meting van hoe goed het gaat. */}
-      {opbrengstLeeg ? (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">{opbrengstLeeg.kop}</span>
-          <p className="text-secondary">{opbrengstLeeg.uitleg}</p>
-          {opbrengstLeeg.geruststelling && (
-            <p className="text-sm text-muted">{opbrengstLeeg.geruststelling}</p>
-          )}
-        </div>
-      ) : (
-        <div className="card flex flex-col gap-3">
-          <span className="mono-label">Wat ORBIT ENGINE tot nu toe opleverde</span>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="flex flex-col gap-1">
-              <span className="mono-label text-muted">Pagina&apos;s live</span>
-              <span className="stat-value text-3xl">
-                {opbrengst!.paginasLive}
-                {opbrengst!.paginasGepland > 0 && (
-                  <span className="text-base text-muted"> · {opbrengst!.paginasGepland} in het plan</span>
-                )}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="mono-label text-muted">Klikken sinds de start</span>
-              <span className="stat-value text-3xl">
-                {opbrengst!.klikkenSindsStart === null
-                  ? "-"
-                  : opbrengst!.klikkenSindsStart.toLocaleString("nl-NL")}
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="mono-label text-muted">Deze 28 dagen</span>
-              {opbrengst!.vergelijkingOns ? (
-                <>
-                  <span className="stat-value text-3xl">
-                    {opbrengst!.vergelijkingOns.nu.clicks.toLocaleString("nl-NL")} klikken
-                  </span>
-                  {!controlegroepZin && (
-                    <span className="text-sm text-muted">Nog niet genoeg geschiedenis voor een vergelijking.</span>
-                  )}
-                </>
-              ) : (
-                <span className="text-secondary">Nog geen klikken gemeten.</span>
-              )}
-            </div>
-          </div>
-          {/* ── §7.3, niveau 3: de rest van de site als controlegroep ────── */}
-          {controlegroepZin && <p className="text-sm text-secondary">{controlegroepZin}</p>}
-          {opbrengst!.jongePaginas > 0 && (
-            <p className="text-sm text-muted">
-              {opbrengst!.jongePaginas === 1
-                ? "1 pagina staat korter dan 28 dagen online en is bij Google nog nauwelijks vertoond."
-                : `${opbrengst!.jongePaginas} pagina's staan korter dan 28 dagen online en zijn bij Google nog nauwelijks vertoond.`}
-            </p>
-          )}
-          <Link href={`/merk/${id}/analytics/zoekverkeer`} className="text-sm underline w-fit">
-            Bekijk per pagina
-          </Link>
-        </div>
-      )}
-
-      <AnalyticsFilters
-        periodes={periodes}
-        labels={labels}
-        clustersBijLabel={clustersBijLabel}
-        bronnen={bronnen}
-        bronfilter={bronfilter}
-        funnelfasen={funnelfasen}
-        funnelfilter={funnelfilter}
-        periodefilter={periodefilter}
-        labelfilter={labelfilter}
-        clusterfilter={clusterfilter}
-      />
-
-      {/* ── De conclusie van het gekozen cluster ────────────────────────────
-          Onder de filterbalk en boven de cijfers: eerst wat het betekent, dan
-          waar het vandaan komt. De twee links eronder wijzen naar de plekken
-          waar het werk uit deze meting staat; sinds 22 september 2026 is dat
-          de enige plek waar een klant dat verband nog te zien krijgt. */}
-      {clusterConclusie && (
-        <div className="card flex flex-col gap-3">
-          <span className="mono-label">Wat dit cluster laat zien</span>
-          <p className="text-secondary">{clusterConclusie.samenvatting}</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link href={`/merk/${id}/strategie/vragen`} className="mono-label underline">
-              Wat ORBIT ENGINE nog van je wil weten
-            </Link>
-            <Link href={`/merk/${id}/strategie/plan`} className="mono-label underline">
-              De pagina&apos;s die hieruit volgen
-            </Link>
-          </div>
-        </div>
-      )}
-
       {/* ── 1. Blokkade, alleen als die er is ───────────────────────────────
           Bovenaan, want dit verklaart het cijfer eronder. Onderaan zetten
           betekent dat de klant eerst zijn score leest en pas daarna waarom hij
@@ -468,22 +373,54 @@ export default async function AnalyticsPage({
         </div>
       )}
 
+      <AnalyticsFilters
+        periodes={periodes}
+        labels={labels}
+        clustersBijLabel={clustersBijLabel}
+        bronnen={bronnen}
+        bronfilter={bronfilter}
+        funnelfasen={funnelfasen}
+        funnelfilter={funnelfilter}
+        periodefilter={periodefilter}
+        labelfilter={labelfilter}
+        clusterfilter={clusterfilter}
+      />
+
+      {/* ── De conclusie van het gekozen cluster ────────────────────────────
+          Onder de filterbalk en boven de cijfers: eerst wat het betekent, dan
+          waar het vandaan komt. De twee links eronder wijzen naar de plekken
+          waar het werk uit deze meting staat; sinds 22 september 2026 is dat
+          de enige plek waar een klant dat verband nog te zien krijgt. */}
+      {clusterConclusie && (
+        <div className="card flex flex-col gap-3">
+          <span className="mono-label">Wat dit cluster laat zien</span>
+          <p className="text-secondary">{clusterConclusie.samenvatting}</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link href={`/merk/${id}/strategie/vragen`} className="link type-caption">
+              Wat ORBIT ENGINE nog van je wil weten
+            </Link>
+            <Link href={`/merk/${id}/strategie/plan`} className="link type-caption">
+              De pagina&apos;s die hieruit volgen
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* ── 2. De score, met het hoofdbeeld ernaast (plan Z1, Z2) ────────────
           Eén hoofdgetal (`docs/ux-design.md` §1), met de onzekerheidsmarge
           zichtbaar en niet alleen in een comment. Het raster ernaast groeit
           zelf mee met de data: staven bij één of twee metingen, een lijn
           vanaf drie (`components/cluster-visibility-grid.tsx`). */}
       {merkScore === null ? (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Nog niet gemeten</span>
-          <p className="text-secondary">
-            Zodra de eerste meetronde klaar is, staat je zichtbaarheid hier.{" "}
-            <Link href={`/merk/${id}/strategie/clusters`} className="underline">
-              Start een cluster
-            </Link>{" "}
-            om te laten meten waar je klanten naar vragen.
-          </p>
-        </div>
+        // De lege staat van de app zelf (UX-audit P2.7), en geen link "Start een
+        // cluster" meer: dat doet de consultant, niet de klant (P1.3).
+        <EmptyState
+          title="Nog niet gemeten"
+          action={{ href: `/merk/${id}/strategie/clusters`, label: "Naar je clusters" }}
+        >
+          Zodra de eerste meetronde klaar is, staat je zichtbaarheid hier. Gemeten wordt er per
+          cluster: een onderwerp waar je klanten een AI-assistent naar vragen.
+        </EmptyState>
       ) : (
         <ClusterVisibilityGrid clusters={visibilityGridData} />
       )}
@@ -495,7 +432,7 @@ export default async function AnalyticsPage({
           kolommen wél. */}
       {perCluster.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="mono-label">Per cluster</span>
+          <SectionHeading title="Per cluster" />
           {/* ── Z4: de ene duidende zin, uit de cijfers zelf gerekend ────── */}
           {duidendeZin && <p className="text-secondary">{duidendeZin}</p>}
           <AnalyticsClusterTable
@@ -510,7 +447,7 @@ export default async function AnalyticsPage({
       {/* ── 4. Per prompt: elke gemeten vraag, sterkste zichtbaarheid boven ── */}
       {promptVisibility.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="mono-label">Prompts</span>
+          <SectionHeading title="AI-vragen" />
           <AnalyticsPromptTable
             rows={promptVisibilityGefilterd}
             merkId={id}
@@ -520,6 +457,76 @@ export default async function AnalyticsPage({
           />
         </div>
       )}
+      {/* ── Wat het in Google opleverde (UX-audit 23 september 2026, P1.7) ──
+          Stond bovenaan, als eerste vraag van de eigenaar. Maar deze pagina
+          heet "Zichtbaarheid in AI" en het eerste blok ging over klikken uit
+          Google: titel en inhoud zeiden iets anders, en het cijfer waar de
+          pagina naar heet zakte onder de vouw. Het blok staat nu onderaan, met
+          een kop die zegt waar de cijfers vandaan komen. */}
+      {/* ── §7.5: wat ORBIT ENGINE tot nu toe opleverde ──────────────────────
+          Merkbreed en bovenaan: dit is de eerste vraag van de eigenaar, vóór
+          de AI-zichtbaarheidsscore, want het is het bewijs dat er iets
+          gebeurt, niet de meting van hoe goed het gaat. */}
+      {opbrengstLeeg ? (
+        <div className="card flex flex-col gap-2">
+          <span className="mono-label">{opbrengstLeeg.kop}</span>
+          <p className="text-secondary">{opbrengstLeeg.uitleg}</p>
+          {opbrengstLeeg.geruststelling && (
+            <p className="text-sm text-muted">{opbrengstLeeg.geruststelling}</p>
+          )}
+        </div>
+      ) : (
+        <div className="card flex flex-col gap-3">
+          <span className="mono-label">Wat het in Google opleverde</span>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-1">
+              <span className="data-card-label">Pagina&apos;s live</span>
+              <span className="data-card-waarde">
+                {opbrengst!.paginasLive}
+                {opbrengst!.paginasGepland > 0 && (
+                  <span className="text-sm font-normal text-muted"> · {opbrengst!.paginasGepland} in het plan</span>
+                )}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="data-card-label">Klikken sinds de start</span>
+              <span className="data-card-waarde">
+                {opbrengst!.klikkenSindsStart === null
+                  ? "-"
+                  : opbrengst!.klikkenSindsStart.toLocaleString("nl-NL")}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="data-card-label">Deze 28 dagen</span>
+              {opbrengst!.vergelijkingOns ? (
+                <>
+                  <span className="data-card-waarde">
+                    {opbrengst!.vergelijkingOns.nu.clicks.toLocaleString("nl-NL")} klikken
+                  </span>
+                  {!controlegroepZin && (
+                    <span className="text-sm text-muted">Nog niet genoeg geschiedenis voor een vergelijking.</span>
+                  )}
+                </>
+              ) : (
+                <span className="text-secondary">Nog geen klikken gemeten.</span>
+              )}
+            </div>
+          </div>
+          {/* ── §7.3, niveau 3: de rest van de site als controlegroep ────── */}
+          {controlegroepZin && <p className="text-sm text-secondary">{controlegroepZin}</p>}
+          {opbrengst!.jongePaginas > 0 && (
+            <p className="text-sm text-muted">
+              {opbrengst!.jongePaginas === 1
+                ? "1 pagina staat korter dan 28 dagen online en is bij Google nog nauwelijks vertoond."
+                : `${opbrengst!.jongePaginas} pagina's staan korter dan 28 dagen online en zijn bij Google nog nauwelijks vertoond.`}
+            </p>
+          )}
+          <Link href={`/merk/${id}/analytics/zoekverkeer`} className="link w-fit text-sm">
+            Bekijk per pagina
+          </Link>
+        </div>
+      )}
+
     </div>
   );
 }

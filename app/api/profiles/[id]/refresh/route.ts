@@ -27,9 +27,16 @@ import { PROMPT_CATEGORIES } from "@/lib/types/database";
  *
  * ── WAT "GEWIJZIGD" BETEKENT ────────────────────────────────────────────────
  *
- * Elke rij in `profile_field_sources` met een mensbron die is gezet ná de laatste
- * onderzoeksronde (`profiles.deep_research_at`). Dat is precies wat de sessie
- * wegschrijft, en het vraagt geen tweede administratie.
+ * `profiles.velden_te_verversen` (migratie 0127, G4 van
+ * `van-pijplijn-naar-kennissysteem.md`): de abonnee `onderzoek_refresh` houdt
+ * hem bij zodra een mens een profielveld zet, en de kolom is weer leeg zodra
+ * er een nieuwe volledige onderzoeksronde start
+ * (`lib/pipeline/prepare-profile.ts`). Vroeger berekende deze route dat zelf,
+ * op het moment van klikken, met een live vergelijking tegen
+ * `profile_field_sources` en `deep_research_at`. Die tabel bestaat nog en
+ * beschermt nog steeds een door een mens gezet veld tegen een volgende
+ * onderzoeksronde (`lib/pipeline/field-merge.ts`); alleen deze route leest hem
+ * niet langer rechtstreeks.
  */
 export async function POST(
   request: Request,
@@ -59,7 +66,7 @@ export async function POST(
     return NextResponse.json({ error: budget.message }, { status: 402 });
   }
 
-  const veranderd = await changedSinceResearch(admin, id, profile.deep_research_at);
+  const veranderd = profile.velden_te_verversen ?? [];
 
   // Alleen analyses waar nog geen meting op gedraaid heeft. Bij een analyse die
   // al gemeten is zou een nieuwe vragenset de trendlijn breken, en dat is een
@@ -91,28 +98,6 @@ export async function POST(
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
-
-/**
- * Welke velden zijn er sinds de laatste onderzoeksronde door een mens gezet?
- *
- * `deep_research_at` leeg betekent dat er nog nooit onderzoek gedraaid heeft.
- * Dan is er ook niets bij te werken: de eerste ronde neemt alles vanzelf mee.
- */
-async function changedSinceResearch(
-  admin: Admin,
-  profileId: string,
-  since: string | null,
-): Promise<string[]> {
-  if (!since) return [];
-  const { data } = await admin
-    .from("profile_field_sources")
-    .select("field, source, set_at")
-    .eq("profile_id", profileId)
-    .gt("set_at", since);
-  return ((data ?? []) as { field: string; source: string }[])
-    .filter((r) => r.source !== "ai")
-    .map((r) => r.field);
-}
 
 /**
  * Eén stap inplannen.

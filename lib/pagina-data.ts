@@ -41,8 +41,6 @@ export interface PaginaRij {
   clusterId: string | null;
   /** Publicatiedatum als `YYYY-MM-DD`, of null. */
   datum: string | null;
-  /** Het kwaliteitscijfer, alleen zodra er tekst is die de klant moet beoordelen. */
-  score: number | null;
   openVragen: number;
   stand: PaginaStand;
 }
@@ -110,7 +108,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     analyseIds.length > 0
       ? admin
           .from("content_pieces")
-          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, briefing_snapshot_json, write_mode, quality_score, quality_json, updated_at")
+          .select("id, analysis_id, title, meta_title, type, action, status, needs_review, brief_json, updated_at")
           .in("analysis_id", analyseIds)
           .eq("is_current", true)
           .neq("status", "archived")
@@ -140,10 +138,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     action: string | null;
     status: string;
     needs_review: boolean;
-    briefing_snapshot_json: unknown;
-    write_mode: string | null;
-    quality_score: number | null;
-    quality_json: { score?: number | null } | null;
+    brief_json: unknown;
   };
   const tekstOpId = new Map(((teksten ?? []) as Tekst[]).map((t) => [t.id, t]));
   const gekoppeld = new Set<string>();
@@ -157,6 +152,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     scheduled_for: string | null;
     plan_month_id: string;
     content_piece_id: string | null;
+    topic_id: string | null;
     recommendation_action: string | null;
     profile_topics: { title: string; analysis_id: string | null } | null;
   }[]) {
@@ -171,6 +167,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
           status: p.status,
           scheduled_for: dag(p.scheduled_for),
           maandVrij: maandStatus.get(p.plan_month_id) === "goedgekeurd",
+          onderwerp: Boolean(p.topic_id && p.profile_topics?.analysis_id),
         },
         planTitel: p.title,
         planSoort: PAGINASOORT[p.page_type] ?? "Pagina",
@@ -216,7 +213,7 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
     routeId: string;
     plannedPageId: string | null;
     tekst: Tekst | null;
-    plan: { status: PlannedPageStatus; scheduled_for: string | null; maandVrij: boolean } | null;
+    plan: { status: PlannedPageStatus; scheduled_for: string | null; maandVrij: boolean; onderwerp?: boolean } | null;
     planTitel: string;
     planSoort: string;
     actie: "nieuw" | "verbeteren";
@@ -232,15 +229,13 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
         ? {
             status: i.tekst.status,
             needs_review: i.tekst.needs_review,
-            voorbereid: Boolean(i.tekst.briefing_snapshot_json),
-            write_mode: i.tekst.write_mode === "algemeen" ? "algemeen" : null,
+            voorbereid: Boolean(i.tekst.brief_json),
           }
         : null,
       openVragen: i.open,
       effectBekend: i.effectBekend,
       vandaag: i.vandaag,
     });
-    const heeftOordeel = stand.fase !== null && stand.fase >= 2;
     return {
       routeId: i.routeId,
       plannedPageId: i.plannedPageId,
@@ -252,10 +247,6 @@ export async function laadPaginas(admin: Admin, profileId: string, nu: Date = ne
       cluster: i.cluster,
       clusterId: i.clusterId,
       datum: i.plan?.scheduled_for ?? null,
-      // Eén cijfer, uit één bron: dezelfde als de kwaliteitsrail op het
-      // paginascherm (`quality_json.score`, anders `quality_score`). Op
-      // 23 september 2026 toonde de bibliotheek 100 en de rail 74.
-      score: heeftOordeel ? (i.tekst?.quality_json?.score ?? i.tekst?.quality_score ?? null) : null,
       openVragen: i.open,
       stand,
     };

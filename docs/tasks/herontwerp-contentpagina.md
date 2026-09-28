@@ -614,3 +614,69 @@ pagina die straks gepubliceerd wordt; `.canvas-veld` stond op `background: trans
 de grijze app-achtergrond (`--bg-base`) over. Het bewerkbare vlak (titel plus tekst) staat nu op een
 `.card`: wit, met dezelfde rand en ronding als elke andere kaart in de app, zodat het zich zichtbaar
 onderscheidt van de app eromheen in plaats van als een grijs formulierveld te ogen.
+
+## Bijlage D, het scherm rond één vraag: wat moet er beter (23 september 2026)
+
+De eigenaar vond de rail onoverzichtelijk en wilde een tekst altijd kunnen goedkeuren, ook met een
+lage score. Nageteld op de pagina "Bedrijfswagen leasen vanaf € 359 p/m" van Van den Udenhout:
+vóór het eerste punt stonden vier regels uitleg, waarvan de klantzin van zes regels letterlijk het
+eerste punt herhaalde; de vijf punten waren één soort op vijf plekken; en "Keur goed" was weg zolang
+er een punt openstond. De route zelf weigerde dat nooit: `keurTekstGoed()` kijkt alleen naar open
+vragen. Het slot zat alleen in het scherm.
+
+**1. Goedkeuren kan altijd.** "Keur goed" is in de stand `goedkeuren` altijd de hoofdknop. Met open
+punten wordt één klik er twee, en de tweede noemt het aantal (`KeurGoedKnop`, `openPunten`). De
+eindpoort op open vragen blijft staan (`lib/content-final-gate.ts`).
+
+**2. "Te verbeteren" staat altijd open, bovenaan de rail.** Per punt: wat er mis is, "Zo los je het
+op", de plekken in de tekst en twee knoppen ("Laat ORBIT ENGINE het oplossen", "Zelf aanpassen").
+Boven de lijst één knop voor alle punten tegelijk. Wat publicatie niet tegenhoudt staat ingeklapt
+onder "Overige suggesties", met de zin over eerdere pogingen erin. Weg: de klantzin (behalve als er
+niets meer openstaat) en "Waarop dit oordeel rust" onder elk punt.
+
+**3. De zinnen staan gemarkeerd in de tekst.** `lib/tekst-markering.ts` markeert in de leesweergave
+de zin van elk punt (`issue.evidence`, op productie letterlijk de zin uit de tekst). Een plek in de
+rail aanklikken springt ernaartoe; "Zelf aanpassen" schakelt naar bewerken en selecteert de zin.
+Staat er opmaak midden in de zin, dan wordt hij niet gevonden en komt er geen spring-knop.
+
+**4. De rest van de rail is naslag.** Inhoudsopgave, waarop de tekst rust, waarom deze pagina,
+versies en intern staan onder "Meer over deze pagina", allemaal dicht en in kleinere letter.
+
+**5. Opslaan en het menu staan in een werkbalk die bovenaan de tekst plakt.** De losse regel met
+alleen `⋯` boven de tekst is weg, net als de opslagknop onder een tekst van ruim duizend woorden.
+Een klik op "Laat ORBIT ENGINE ... oplossen" scrolt nu naar het herschrijfvak, dat eerst buiten beeld
+gevuld werd. In dat vak staat de aanpassing van deze tekst voortaan vóór de merkbrede notitie.
+
+**6. Een tabel is een tabel.** `renderMarkdown()` en de WordPress-export kenden geen tabellen: de
+prijstabel op deze pagina stond als één alinea met `|---|---:|` op het scherm en in de gekopieerde
+HTML. Beide herkennen hem nu via dezelfde `leesTabel()` in `lib/markdown.ts`.
+
+Nagerekend op de opgeslagen tekst van deze pagina (317065f5): 58 bevindingen, 5 blokkerend, en alle
+5 zinnen worden in de leestekst gevonden en gemarkeerd. Nog niet bekeken op het echte scherm:
+schermafbeeldingen vragen om inloggen op de preview.
+
+**7. Kleur en breedte (23 september 2026, tweede ronde).** Op verzoek van de eigenaar:
+- Oranje staat op dit scherm alleen nog bij "Te verbeteren": de telling, de stang per punt en de
+  markering in de tekst (was rood). De kaart "Aan zet" krijgt een groene stang als de klant aan zet
+  is, de melding "ORBIT ENGINE schrijft" een groene stang in plaats van een oranje vlak, en het
+  label "Wacht op jou" in de kop het accent. In de lijsten van bibliotheek en plan blijft dat label
+  oranje.
+- De rail en "Titel en zoekresultaat" staan op een witte kaart.
+- Naast de rail vult de tekst de hele kolom in plaats van 720px, en de rail gaat van 400 naar 440px.
+
+**8. Een zin zonder bron bewust laten staan (23 september 2026).** Op verzoek van de eigenaar: bij
+een punt "Deze zin zegt iets over je bedrijf zonder bron" staat "Klopt, laat staan" (en bij meerdere
+zinnen ook per zin "Klopt, laat deze staan"). De zin blijft ongewijzigd in de tekst, het punt
+verdwijnt uit de telling in de rail, de kaart "Aan zet" en de publiceerstap, en de markering in de
+tekst gaat weg. Onder de lijst staat hoeveel zinnen je bewust laat staan, met "Ongedaan maken".
+Opgeslagen in `content_pieces.geaccepteerde_zinnen` (migratie 0110); het scherm telt de lijsten van
+alle versies van de pagina mee. Alleen dit soort punt kan zo weg (`lib/geaccepteerde-zinnen.ts`), en
+de route controleert dat elke zin echt zo'n punt van deze tekst is. `quality_json` blijft onaangeroerd.
+
+**9. De punten één voor één (23 september 2026, derde ronde).** De knoppen per punt zijn vervangen
+door het puntenvenster: een oranje zin, een plek of "Los op" opent het, en het stelt per punt één
+vraag met vier antwoorden. "Laat ORBIT ENGINE het oplossen" zet het punt op een lijst die aan het eind
+in één schrijfronde meegaat, dus §8.1 blijft staan. Met open punten is "Los de N punten op" de
+hoofdknop en "Keur toch goed" de tweede; dat wijzigt punt 1 hierboven alleen in volgorde, niet in wat
+kan. Besluit en cijfers: `docs/logbook.md`, 23 september 2026 (5).
+

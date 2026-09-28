@@ -213,7 +213,7 @@ export function OfferingsEditor({
 
   function renderForm() {
     return (
-      <div className="mt-2 flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+      <div className="vlak mt-2 flex flex-col gap-2">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm">
             <span className="mono-label">Naam</span>
@@ -227,7 +227,7 @@ export function OfferingsEditor({
           <label className="flex flex-col gap-1 text-sm">
             <span className="mono-label">Soort</span>
             <select
-              className="field"
+              className="field field-select"
               value={form.kind}
               onChange={(e) => setForm({ ...form, kind: e.target.value as OfferingKind })}
               disabled={wacht}
@@ -243,7 +243,7 @@ export function OfferingsEditor({
         <label className="flex flex-col gap-1 text-sm">
           <span className="mono-label">Hangt onder</span>
           <select
-            className="field"
+            className="field field-select"
             value={form.parentId}
             onChange={(e) => setForm({ ...form, parentId: e.target.value })}
             disabled={wacht}
@@ -300,13 +300,13 @@ export function OfferingsEditor({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="btn-primary btn-sm disabled:opacity-60"
+            className="btn-primary btn-sm"
             disabled={wacht || !form.name.trim()}
             onClick={() => void opslaan()}
           >
             {wacht ? "Bezig…" : "Opslaan"}
           </button>
-          <button type="button" className="btn-outline btn-sm" disabled={wacht} onClick={annuleer}>
+          <button type="button" className="btn-ghost btn-sm" disabled={wacht} onClick={annuleer}>
             Annuleren
           </button>
         </div>
@@ -324,9 +324,9 @@ export function OfferingsEditor({
             <span className="chip chip-neutral">{KIND_LABELS[o.kind]}</span>
             <span className="font-medium">{o.name}</span>
             {o.price_indication && (
-              <span className="mono-label text-muted">{o.price_indication}</span>
+              <span className="mono-label">{o.price_indication}</span>
             )}
-            {o.source !== "ai" && <span className="chip chip-green">{o.source}</span>}
+            {o.source !== "ai" && <span className="chip chip-success">{o.source}</span>}
             {dekking?.dekking === "ontbreekt" && (
               <span className="chip chip-warning" title={dekking.reason}>
                 geen eigen pagina
@@ -349,7 +349,7 @@ export function OfferingsEditor({
             </button>
             <button
               type="button"
-              className="text-muted hover:text-[var(--status-error)]"
+              className="text-muted hover:text-[var(--intent-danger-content)]"
               onClick={() => void verwijder(o)}
               disabled={wacht}
             >
@@ -375,7 +375,7 @@ export function OfferingsEditor({
                 href={o.evidence_url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="text-sm text-[var(--intent-intelligence-text)] hover:underline"
+                className="link text-sm"
               >
                 gevonden op {shortUrl(o.evidence_url)}
               </a>
@@ -412,7 +412,7 @@ export function OfferingsEditor({
       )}
 
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}
@@ -422,21 +422,21 @@ export function OfferingsEditor({
           {!toonVerwijderd ? (
             <button
               type="button"
-              className="mono-label text-muted hover:text-[var(--text-primary)] w-fit"
+              className="mono-label hover:text-[var(--text-primary)] w-fit"
               onClick={() => setToonVerwijderd(true)}
             >
               {removedOfferings.length} verwijderd, tonen
             </button>
           ) : (
             <>
-              <span className="mono-label text-muted">Verwijderd</span>
+              <span className="mono-label">Verwijderd</span>
               <ul className="flex flex-col gap-1">
                 {removedOfferings.map((o) => (
                   <li key={o.id} className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="text-muted line-through">{o.name}</span>
                     <button
                       type="button"
-                      className="shrink-0 text-[var(--intent-intelligence-text)] hover:underline"
+                      className="link shrink-0"
                       onClick={() => void zetTerug(o)}
                       disabled={wacht}
                     >

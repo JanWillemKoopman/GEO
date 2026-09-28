@@ -35,6 +35,7 @@
  * Bewust ZONDER `server-only`: pure opmaak en pure validatie, testbaar in een
  * kaal script, zelfde patroon als evidence-format.ts en question-share.ts.
  */
+import { zonderVindplaats } from "@/lib/pipeline/waardeproposities";
 
 /** Eén feit op de kaart. `ref` is het F-nummer waarnaar de content verwijst. */
 export interface FactItem {
@@ -77,6 +78,17 @@ export interface FactItem {
    * onder ACHTERGROND te staan, zonder nummer, expliciet niet als bron.
    */
   citable: boolean;
+  /**
+   * De sleutel van de bewering waar dit feit het antwoord op is (`claimKey()`),
+   * als het uit een beantwoorde vraag van de voorbereiding komt.
+   *
+   * ⚠️ Zonder deze sleutel bleef zo'n bewering voorgoed "onbewezen"
+   * (kwaliteitsdoorlichting, punt 39, 24 september 2026): de claim-audit gaf hem
+   * geen bronnummer of citaat mee, juist omdat er nog geen feit was, en na het
+   * antwoord legde niets de lijn terug. De keuring zei dan "Beantwoord deze
+   * vraag" over een vraag die de klant net beantwoord had.
+   */
+  claimKey?: string | null;
 }
 
 /** Bron-categorie, alleen om de kaart te kunnen sorteren op betrouwbaarheid. */
@@ -169,6 +181,8 @@ export interface AnsweredFactInput {
    * `factId` in `claims_json` krijgen en achteraf niet na te trekken zijn.
    */
   id?: string | null;
+  /** De sleutel van de bewering waar deze vraag voor gesteld werd (punt 39). */
+  claimKey?: string | null;
 }
 
 /**
@@ -226,12 +240,16 @@ export function mergeAnsweredFacts(
   // positie; de identiteit van een feit verandert niet doordat er iets vóór komt
   // te staan (migratie 0036).
   const samen: Omit<FactItem, "ref">[] = [
+    // De sleutel van de bewering gaat mee (punt 39 van de kwaliteitsdoorlichting):
+    // zonder die sleutel ziet de schrijfronde een beantwoorde vraag niet als
+    // onderbouwing van de bewering waarvoor hij gesteld werd.
     ...answered.map((a) => ({
       id: a.id ?? null,
       text: a.fact.text,
       source: a.fact.source,
       allowed: a.fact.allowed,
       citable: a.fact.citable,
+      claimKey: a.claimKey ?? null,
     })),
     ...behouden.map((f) => ({
       id: f.id ?? null,
@@ -239,6 +257,7 @@ export function mergeAnsweredFacts(
       source: f.source,
       allowed: f.allowed,
       citable: f.citable,
+      claimKey: f.claimKey ?? null,
     })),
   ];
 
@@ -272,7 +291,10 @@ export function formatFactCard(facts: FactItem[]): string {
     );
   } else {
     for (const f of bruikbaar) {
-      regels.push(`${f.ref}  ${f.text}`.padEnd(60) + `bron: ${f.source}`);
+      // Zonder "De website vermeldt" ervoor (WP1 van
+      // contentpijplijn-publicatiewaardig.md): de schrijver nam die afstand over.
+      // Wat blijft staan is letterlijk een stuk van het feit, dus het citaat klopt.
+      regels.push(`${f.ref}  ${zonderVindplaats(f.text)}`.padEnd(60) + `bron: ${f.source}`);
     }
   }
 
@@ -297,7 +319,7 @@ export function formatFactCard(facts: FactItem[]): string {
         "is het niet bevestigd en schrijf je het niet op:",
     );
     for (const f of achtergrond) {
-      regels.push(`    ~ ${f.text}   (${f.source})`);
+      regels.push(`    ~ ${zonderVindplaats(f.text)}   (${f.source})`);
     }
   }
 
@@ -677,4 +699,54 @@ export function buildFactFindingAddendum(gaps: ContextGap[]): string {
     "praktijk betekent. Een bewering dat DIT bedrijf eraan voldoet mag alleen uit de feitenkaart " +
     "komen, precies zoals de rest van deze pagina."
   );
+}
+
+/**
+ * Zet de opmerking die de klant bij "Schrijf een nieuwe versie" gaf als
+ * citeerbaar klantfeit op de kaart (kwaliteitsdoorlichting, punt 52, 24
+ * september 2026). Vooraan, zoals alle klantfeiten, en daarna opnieuw
+ * genummerd zodat de F-nummers aaneengesloten blijven.
+ *
+ * Leeg of alleen witruimte: de kaart blijft ongewijzigd.
+ */
+export function metKlantopmerking(facts: FactItem[], opmerking: string | null): FactItem[] {
+  const tekst = (opmerking ?? "").trim();
+  if (!tekst) return facts;
+  const feit: Omit<FactItem, "ref"> = {
+    id: null,
+    text: `Opmerking van de klant bij deze versie: ${tekst}`,
+    source: "klant, opmerking bij een nieuwe versie",
+    allowed: true,
+    citable: true,
+    claimKey: null,
+  };
+  return numberFacts([feit, ...facts.map(({ ref: _ref, ...rest }) => rest)]);
+}
+
+/**
+ * Het bewijs uit het gesprek alsnog op een bevroren kaart (verbeterronde, punt 47).
+ *
+ * De kaart van een pagina wordt bevroren tijdens de voorbereiding. Vertelt de
+ * ondernemer daarna in het gesprek "Twaalf monteurs in dienst", dan stond dat
+ * nooit op de kaart van die pagina, ook niet bij een nieuwe versie: die bouwt
+ * voort op de bevroren kaart. Dit voegt de feiten toe die er nog niet op staan
+ * (op genormaliseerde tekst), met dezelfde bron als `offlineProofFacts()`.
+ */
+export function metGespreksbewijs(
+  facts: FactItem[],
+  bewijs: readonly { text: string; source: string; id?: string | null }[],
+): FactItem[] {
+  const bekend = new Set(facts.map((f) => normalizeForQuote(f.text)));
+  const nieuw: Omit<FactItem, "ref">[] = bewijs
+    .filter((b) => b.text.trim() && !bekend.has(normalizeForQuote(b.text)))
+    .map((b) => ({
+      id: b.id ?? null,
+      text: b.text.trim(),
+      source: b.source,
+      allowed: true,
+      citable: true,
+      claimKey: null,
+    }));
+  if (nieuw.length === 0) return facts;
+  return numberFacts([...facts.map(({ ref: _ref, ...rest }) => rest), ...nieuw]);
 }

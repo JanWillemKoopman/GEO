@@ -104,13 +104,14 @@ export function WachtrijLijst({
 function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
   return (
     <div className="flex flex-row flex-wrap items-center gap-x-3 gap-y-2 md:flex-col md:items-start">
-      <h3 className="flex items-center gap-2 text-base font-semibold">
+      <h3 className="type-body-emphasis flex items-center gap-2">
         <span className="text-secondary">
           <Icon naam={SECTIE_ICOON[sectie.kop]} size={18} />
         </span>
         {sectie.kop}
       </h3>
-      <span className="chip chip-success">
+      {/* Neutraal, niet groen (UX-audit P2.1): groen betekent "gelukt". */}
+      <span className="chip chip-neutral">
         {sectie.aantal} open
       </span>
       <Link
@@ -118,7 +119,7 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
         className="inline-flex items-center gap-1 text-sm text-secondary hover:underline md:mt-1"
       >
         {sectie.overzichtLabel}
-        <Icon naam="naar" size={13} />
+        <Icon naam="naar" size={14} />
       </Link>
     </div>
   );
@@ -128,7 +129,7 @@ function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId?: string 
   return (
     <div className="flex flex-col gap-2">
       <span className="mono-label">{sub.subkop}</span>
-      <ul className="flex flex-col divide-y divide-[var(--border-subtle)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)]">
+      <ul className="vlak flex flex-col divide-y divide-[var(--line-muted)] overflow-hidden p-0">
         {sub.items.map((item) => (
           <li key={item.id}>
             <TaakRegel item={item} primair={item.id === eersteId} />
@@ -146,11 +147,15 @@ function TaakRegel({ item, primair }: { item: WorkItem; primair: boolean }) {
       href={item.href}
       className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 transition-colors hover:bg-[var(--bg-surface-raised)]"
     >
-      <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
-        {cluster && <span className="mono-label">Cluster · {cluster}</span>}
+      {/* Twee regels: wat en waarom (UX-audit P2.2). Het cluster en de extra
+          informatie staan in de tooltip; vier regels per taak maakten de lijst
+          twee keer zo traag om te scannen. */}
+      <div
+        className="flex min-w-0 flex-1 basis-72 flex-col gap-1"
+        title={[cluster ? `Cluster: ${cluster}` : null, item.meta].filter(Boolean).join(". ") || undefined}
+      >
         <span className="font-medium">{titel}</span>
         <span className="text-sm text-secondary">{item.why}</span>
-        {item.meta && <span className="text-sm text-muted">{item.meta}</span>}
       </div>
       <span className={`${primair ? "btn-primary" : "btn-outline"} btn-sm shrink-0`}>
         {item.actionLabel ?? "Bekijken"}

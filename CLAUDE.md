@@ -4,7 +4,8 @@ App van Outer Orbit: GEO-tracking voor het MKB, meet zichtbaarheid van een merk 
 adviseert, schrijft en publiceert content, meet effect. Taal van app, prompts en code: Nederlands.
 
 **Bestemming**: `docs/visie.md` (productrichting) en `docs/merkstrategie.md` (merkstrategie) zijn
-leidend voor ontwerpkeuzes. Het concrete pad ernaartoe: `docs/tasks/ontwikkelplan-visie.md`.
+leidend voor ontwerpkeuzes. Het concrete pad ernaartoe: `docs/tasks/ontwikkelplan-visie.md`, en voor de architectuur (één
+klantwaarheid, kansen, meetlaag) `docs/tasks/van-pijplijn-naar-kennissysteem.md`.
 Kies bij twijfel de oplossing die richting die bestemming beweegt, en zeg het als een opdracht
 daarvan afwijkt. **Schrijf nooit dat iets al kan wat nog niet gebouwd is** (UI, commentaar, of in
 je antwoord) — `merkstrategie.md` §30 houdt bij waar bouw en belofte uit elkaar lopen.
@@ -17,6 +18,9 @@ Geen gedachtestreepjes (`—`/`–`) en geen "en/of" — overal, ook in code en 
 
 **Sales-led, niet self-serve** (`docs/logbook.md` §15): eigenaar zet merkprofiel klaar vóór
 demogesprek, pijplijn doet onderzoek, profiel wordt pas ná verkoop aan klantaccount gekoppeld.
+
+**De contentketen wordt opnieuw gebouwd** volgens `docs/tasks/contentketen-opnieuw.md`. Werk je aan
+iets rond het schrijven van pagina's, lees dan eerst §0 en §3 daarvan: bouw niets wat daar niet staat.
 
 **De Sales-module** (`lib/sales/`, `app/(app)/sales/`, `docs/tasks/geo-prospect-engine.md`) is
 intern: een klant ziet er niets van, en de scheiding staat in de database en niet alleen in de
@@ -44,7 +48,7 @@ een branch/project weggooien) eerst afstemmen.
 ## Techstack
 
 Next.js 15 (App Router, RSC-first) / React 19 / TypeScript, Tailwind v4, Supabase (Postgres, Auth,
-RLS, pg_cron), Vercel, OpenAI GPT-5.6 (drie tiers vast in `lib/openai/models.ts`, geen
+RLS, pg_cron), Vercel, OpenAI GPT-6 (drie tiers vast in `lib/openai/models.ts`, geen
 env-variabele), Zod, Resend (standaard uit, `EMAILS_ENABLED`). Modeltiers en reasoning-effort per
 soort werk staan in `lib/openai/sampling.ts`, met de rekensom in `docs/architecture.md` §6.
 
@@ -64,8 +68,10 @@ daarna de index in `supabase/README.md` bij.
 
 Rationale met cijfers per punt staat in `docs/logbook.md`.
 
-1. Elke promptinstructie krijgt een deterministisch vangnet in code, nooit alleen vertrouwen op
-   wat het model belooft te doen.
+1. Een instructie over harde feiten (bedragen, getallen, termijnen, garanties, keurmerken) of
+   een mechanische regel krijgt een deterministisch vangnet in code, nooit alleen vertrouwen op wat
+   het model belooft. Een instructie over stijl, toon of lengte krijgt dat níet: dat maakte de
+   vorige contentketen star (`docs/tasks/contentketen-opnieuw.md` §3).
 2. Rekenkunde staat in een pure module zonder `server-only`, testbaar vanuit `scripts/test-unit.ts`.
 3. Onbekend is een betere waarde dan een verkeerde: onbruikbare modeloutput wordt `null`, nooit 0
    en nooit een gok.

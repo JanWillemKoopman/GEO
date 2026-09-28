@@ -1,10 +1,13 @@
 import { Icon } from "@/components/icon";
 import type { IcoonNaam } from "@/lib/icons";
 
-const ICOON: Record<"success" | "warning" | "danger", IcoonNaam> = {
+type Intent = "success" | "warning" | "danger" | "info";
+
+const ICOON: Record<Intent, IcoonNaam> = {
   success: "klaar",
   warning: "letop",
   danger: "mislukt",
+  info: "info",
 };
 
 /**
@@ -22,7 +25,7 @@ export function Alert({
   className,
   children,
 }: {
-  intent: "success" | "warning" | "danger";
+  intent: Intent;
   /** `"alert"` onderbreekt een schermlezer meteen; gebruik dat alleen voor
    *  iets dat de gebruiker nu moet weten, zoals een formulierfout. */
   role?: "status" | "alert";

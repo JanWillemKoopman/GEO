@@ -14,6 +14,9 @@ import "server-only";
  * kan vergeten.
  */
 import { createAdminClient } from "@/lib/supabase/admin";
+import { bouwInvoerOpname, type AiCallInput } from "@/lib/openai/input-capture";
+
+export type { AiCallInput };
 
 /** Waar hoort deze aanroep bij, en welke stap in de pijplijn is het? */
 export interface CallMeta {
@@ -81,11 +84,25 @@ export interface LoggedCall {
    * nalezen is wat het model beweerde, en dat is precies dit.
    */
   raw?: unknown;
+  /**
+   * Wat er NAAR het model ging (migratie 0112): de systeemopdracht, de
+   * gebruikersopdracht en de instellingen. Zie `lib/openai/input-capture.ts`
+   * voor waarom dit altijd bewaard wordt.
+   */
+  input?: AiCallInput | null;
+  /**
+   * Hoe lang de aanroep duurde (migratie 0114, WP3 van
+   * contentpijplijn-publicatiewaardig.md). Strategie en eindredactie draaien op
+   * denktijd hoog; boven 120 seconden gaan ze naar de achtergrondmodus, en dat
+   * besluit rust op deze meting.
+   */
+  durationMs?: number | null;
 }
 
 export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void> {
   try {
     const admin = createAdminClient();
+    const opname = bouwInvoerOpname(call.input);
     await admin.from("ai_calls").insert({
       analysis_id: meta.analysisId ?? null,
       profile_id: meta.profileId ?? null,
@@ -103,6 +120,9 @@ export async function logAiCall(meta: CallMeta, call: LoggedCall): Promise<void>
       sales_run_id: meta.salesRunId ?? null,
       content_piece_id: meta.contentPieceId ?? null,
       raw_json: call.raw === undefined ? null : (call.raw as never),
+      input_json: opname ? (opname.inputJson as never) : null,
+      prompt_hash: opname?.promptHash ?? null,
+      duration_ms: call.durationMs == null ? null : Math.round(call.durationMs),
     });
   } catch (err) {
     // Bewust alleen loggen: zie de best-effort-regel bovenaan dit bestand.

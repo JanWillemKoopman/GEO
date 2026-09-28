@@ -6,7 +6,7 @@ import { approveMonth, markPosted } from "@/lib/plans";
 import { kiesVoorBulk, bulkMelding, OVERSLAAN_TEKST, type BulkKandidaat } from "@/lib/plan-bulk";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
-import { startVoorbereiding, SCHRIJFPAGINA_KOLOMMEN, type TeSchrijvenPagina } from "@/lib/plan-write-start";
+import { bereidMaandVoor } from "@/lib/pagina/start";
 
 /**
  * POST /api/profiles/[id]/plan/months/[monthId], een hele maand goedkeuren of
@@ -72,7 +72,8 @@ export async function POST(
   }
 
   // ⚠️ Een maand goedkeuren is de duurste knop van de app: hij zet tien pagina's
-  // op het premium model in gang, ~$2,80 bij pakket 10. Alleen de beheerder
+  // op het premium model in gang: gemeten op de proef van 26 september 2026 $0,10 tot $0,17 per
+  // pagina, dus ruwweg $1 tot $1,70 bij pakket 10. Alleen de beheerder
   // (besluit 18). De klant zegt akkoord, de consultant drukt.
   //
   // Afwijzen valt hier bewust ook onder. Dat kost niets, maar het gaat over
@@ -86,7 +87,7 @@ export async function POST(
 
   if (body.actie === "goedkeuren") {
     // ⚠️ De TWEEDE rem (F1, lib/spend-limit.ts), en hij staat bewust hier en
-    // niet bij `mayTriggerCost` hierboven. Goedkeuren zet ~$2,80 aan schrijfwerk
+    // niet bij `mayTriggerCost` hierboven. Goedkeuren zet ruwweg $1 tot $1,70 aan schrijfwerk
     // in gang, afwijzen kost niets. Die twee mogen dezelfde rechten delen, maar
     // niet hetzelfde budget: een account met een vol plafond moet zijn maand nog
     // wél kunnen afwijzen.
@@ -113,26 +114,11 @@ export async function POST(
     let voorbereid = 0;
     let zonderOnderwerp = 0;
     try {
-      const { data: paginaRijen } = await admin
-        .from("planned_pages")
-        .select(SCHRIJFPAGINA_KOLOMMEN)
-        .eq("plan_month_id", monthId)
-        .eq("profile_id", id)
-        .eq("status", "gepland")
-        .eq("is_buffer", false);
-      const uitkomsten = await startVoorbereiding(
-        admin,
-        (paginaRijen ?? []) as unknown as TeSchrijvenPagina[],
-        new Date(),
-      );
-      for (const u of uitkomsten.values()) {
-        if (u.uitkomst === "gestart" || u.uitkomst === "al_voorbereid") voorbereid++;
-        if (u.uitkomst === "geblokkeerd" && (u.reden === "geen_onderwerp" || u.reden === "geen_analyse")) {
-          zonderOnderwerp++;
-        }
-      }
+      const uitslag = await bereidMaandVoor(admin, monthId);
+      voorbereid = uitslag.voorbereid;
+      zonderOnderwerp = uitslag.zonderCluster;
     } catch (err) {
-      console.error(`Voorbereiding na vrijgeven van maand ${monthId} mislukte:`, err);
+      console.error(`Voorbereiding van maand ${monthId} mislukte, de ochtendronde pakt hem op:`, err);
     }
     return NextResponse.json({ ok: true, voorbereid, zonderOnderwerp });
   }

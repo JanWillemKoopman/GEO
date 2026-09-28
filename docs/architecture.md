@@ -83,7 +83,7 @@ Vercel: Next.js 15 op Node.js  (code: GitHub, deploy op push naar main)
  ├─ /api/cron/worker: de motor, elke MINUUT aangeroepen door Supabase pg_cron
  └─ /api/cron/plan:   de schrijfronde van het contentplan, DAGELIJKS via pg_cron
    │
-   ├──────► OpenAI Responses API (gpt-5.6-luna / gpt-5.6-terra, + web_search)
+   ├──────► OpenAI Responses API (gpt-6-luna / gpt-6-sol, + web_search)
    ▼
 Supabase (Postgres + Auth)
  ├─ auth.users
@@ -313,7 +313,7 @@ probleem dan een dollar.
 
 | Tabel | Wat het is |
 |---|---|
-| `profiles` | Klant/merk op accountniveau. Website, branche, aliassen, concurrenten, persona's, tone-of-voice, `business_model`. Eén keer onderzocht, hergebruikt door alle analyses. Sinds migratie `0045` ook `taboo_phrases` en `compliance_notes` (harde schrijfregels, deterministisch teruggecontroleerd door `checkTabooWords()` in `lib/pipeline/content-gate.ts`), `author_name`/`author_role`/`author_bio`/`author_linkedin_url`, en vier tone-of-voice-schuiven `tone_formality`/`tone_energy`/`tone_complexity`/`tone_humor` (1-3 of `null`, vertaald naar prompttaal door `lib/pipeline/tone-sliders.ts`, nooit het cijfer zelf naar het model). Sinds migratie `0060` ook de commerciële laag (`priority_offerings`, `deprioritised_offerings`, `growth_regions`, `target_segments`, `deal_value_band`, `seasonality`, `sales_objections`, `forbidden_topics`, `offline_proof`, `name_exclusions`, `respect_site_structure`, `goal_12m`) en de contactpersoon (`contact_name`/`contact_email`/`contact_phone`). Die vijftien zijn per definitie niet uit een website af te leiden en komen uit het gesprek met de klant; ze tellen daarom niet mee in `overallProgress()`, dat de 41 klantvelden meet. |
+| `profiles` | Klant/merk op accountniveau: website, crawlinstellingen, de koppelingen, en de kennisvelden die het formulier "merkprofiel bewerken" en het gespreksscherm tonen (naam, aliassen, branche, bereik, werkgebied, concurrenten, de commerciële laag van `0060`, stem, verhalen, grenzen). ⚠️ Sinds K8 (27 september 2026) is de kennislaag hieronder de waarheid over het bedrijf; een kennisveld op `profiles` is de kopie die de meting en een deel van de pijplijn lezen, en sinds K8 deel 3 schrijft alleen `lib/kennis/` die kopie (besluit V9 en V22). 35 kolommen staan op "niet meer gebruiken" (`docs/tasks/kennismodel-inventaris.md`: de auteursvelden, de stemschuiven, `usp`, missie, positionering, `proof_points`, `tone_of_voice` en meer); ze blijven staan (conventie 4), en een test in `scripts/test-unit.ts` faalt als code ze nog noemt. |
 | `profile_field_sources` | Wie zette welk veld, met welke zekerheid en op welk bewijs (`0039`). Vier herkomsten sinds `0060`: `ai`, `klant`, `gesprek` en `consultant`. Alleen `ai` mag door een volgende onderzoeksronde overschreven worden (`lib/pipeline/field-merge.ts`). `not_applicable` (`0060`) zegt dat een veld bewust niet van toepassing is, en telt in de volledigheidsmeter als behandeld. |
 | `profile_pages` | Contentinventaris uit een crawl (sitemap recursief, anders homepage-links). Productpagina's uitgesloten. Geen AI. Alle tekst gaat door `sanitizeForPostgres()` (`lib/pg-text.ts`): één NUL-byte uit één pagina laat Postgres anders de hele batch-insert weigeren, en dan verdwijnt de complete inventaris. |
 | `analyses` | Eén getrackt onderwerp onder een profiel. Status, tracking aan of uit, content-brief. `topic` verplicht en niet wijzigbaar na start. |
@@ -324,9 +324,11 @@ probleem dan een dollar.
 | `competitor_breakdown` | Per concurrent: aandeel + `attributes_json` (`{attribute, evidence}` met letterlijk citaat) + `why_summary`. Alleen ≥2 vermeldingen of top 8. |
 | `entities` | Gededupliceerd merk-/concurrentregister (`lib/entities/`). Voorkomt dat "Coolblue", "coolblue.nl" en "Coolblue B.V." drie partijen worden. |
 | `reports` | Rapport per periode + trend. `stripped_claims_json` = audit-trail van door de claimvalidator verwijderde zinnen. |
-| `brand_facts` | De feitenbank (`0036`). Elk feit heeft een `fact_key` (identiteit, geen positie), een scope (merkbreed / per analyse) en `superseded_by` in plaats van overschrijven. |
-| `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. |
-| `fact_requests` | De briefingvragen aan de klant, max 8 per batch. `scope: 'merk'` slaat op met `analysis_id = null`. Ook de open punten uit de synthese staan hier, herkenbaar aan `raw_json.bron = 'synthese-gap'`; dat merkje bepaalt dat hun antwoord géén tweede regel in `profiles.proof_points` krijgt (het bereikt de schrijver al via `buildFactBase()`, en dan mét de juiste bron). ⚠️ 31 augustus 2026: `answerFact()` (`lib/facts.ts`) beoordeelt élk antwoord op een superlatief of marktclaim (`beoordeelClaim()`) vóórdat het naar `raw_json.bron` kijkt, dus de klant ziet de uitleg altijd, ook bij een gapvraag; alleen de promotie naar `proof_points` blijft bij een gapvraag achterwege. |
+| `brand_facts` | De oude feitenbank (`0036`). Sinds K8 deel 2 (27 september 2026) schrijft niemand er meer in en leest alleen het terugvullen (K3) hem nog; de sitefeiten staan in de kennislaag, en een test bewaakt dat. |
+| `brand_documents` | Door de klant geplakte brontekst + sha256-hash, met `facts_extracted`/`facts_rejected`. Sinds K8 is een document de herkomst van de kennisitems die eruit komen (verklaard, met de letterlijke zin als citaat, besluit V21). |
+| `fact_requests` | De vragen aan de klant: het vraagobject, met zijn antwoord. `scope: 'merk'` slaat op met `analysis_id = null`; de open punten uit de synthese dragen `raw_json.bron = 'synthese-gap'`. Een antwoord wordt sinds K5 verklaarde klantkennis met de reikwijdte van de vraag (`answerFact()` in `lib/facts.ts`), en sinds K8 niet meer ook een regel in `profiles.proof_points`. `answerFact()` beoordeelt elk antwoord op een superlatief of marktclaim (`beoordeelClaim()`), zodat de klant altijd ziet wat er nog bij moet. |
+| `klantkennis` | **De kennislaag** (`0116`, `0117`): één rij per kennisitem, met domein, status, gebruik, herkomst en reikwijdte. Zie hieronder. |
+| `kansen` / `kans_bewijs` | Eén kans per te nemen actie op een klantbehoefte, met het bewijs per bron (`0118`, `0119`). Alleen `lib/kansen/` schrijft ze; de uitleg komt uit het bewijs, niet uit een model. Plan: `docs/tasks/van-pijplijn-naar-kennissysteem.md` §6.2. |
 | `content_pieces` | Gegenereerde pagina's. Versiebeheer per (analyse, titel) via `version`/`is_current`/`supersedes_id`, plus `briefing_snapshot_json`, `claims_json`, `source_coverage`, `quality_score`, `geo_score`, `needs_review`, `reviewed_at`/`reviewed_by`. Sinds `0091` ook het kwaliteitsraamwerk: `quality_json` (dimensiescores, getypeerde bevindingen, blokkades, root cause), `quality_verdict` (`pass`/`repair`/`block`), `quality_confidence`, `weighted_evidence_coverage`, `critical_evidence_coverage` en `quality_profile`. ⚠️ Die zes staan NAAST `needs_review` en vervangen hem niet: zes schermen, `lib/work.ts` en de eindpoort lezen die boolean. `faq_json` is sinds de content-editie (§5, stap 16) ook door de klant bewerkbaar via de PATCH-route, niet alleen door het model. |
 | `content_quality_runs` | Eén kwaliteitsbeoordeling per reparatieronde (`0091`). Ronde 0 is het eerste concept. Draagt de gewogen score, de zekerheid, het oordeel (`pass`/`repair`/`block`), de dimensiescores, de bevindingen, de root cause en of de tekst van díe ronde bewaard is. ⚠️ Dit is wat "versie 2 blijft de beste" opzoekbaar maakt: de vergelijking werd al gemaakt (`content-repair-decision.ts`) maar stond alleen in `critique_raw_json` als ongestructureerde blob. Nul policies, net als `jobs`. |
 | `content_quality_reviews` | De MENSELIJKE beoordeling van een gegenereerde pagina plus een optionele gouden referentie (`0091`). Zes maten van 1 tot 5, de vraag "zou je dit zonder aanpassing versturen", en `reference_markdown`. `benchmark_set` is een LABEL waarmee losse beoordelingen een benchmark vormen: merk is `profiles`, cluster is `analyses`, pagina is `content_pieces`, en een vierde structuur ernaast zou een tweede bron van waarheid zijn. Nul policies: intern materiaal, geen klantdata. Sinds de ombouw van de contentketen leest of schrijft geen code hem meer; op 28 september 2026 had hij 0 rijen. |
@@ -344,6 +346,49 @@ probleem dan een dollar.
 | `reputation_sources` | Waar AI zijn beeld vandaan haalt: domein, soort, aantal citaties, en bij reviewplatforms het cijfer met `verified`. ⚠️ `verified` gaat alleen op `true` als de eigen crawler de pagina ophaalde en er JSON-LD met `aggregateRating` op stond; een cijfer uit een AI-antwoord is een gok tot het bewezen is. |
 | `reputation_market` | Eén rij per bedrijf dat AI zélf noemde op de open kopersvraag, per aanbodknoop (`0063`). Betrouwbaarder dan de opgelegde concurrentieset, want een bedrijf dat het model niet kent noemt het gewoon niet, en dat is zelf de uitkomst. ⚠️ Dit is de tabel waarop het scherm sinds 26 augustus 2026 zijn hoofdstuk per product bouwt: staat de klant er niet tussen, dan zeggen de rijen wie ChatGPT in zijn plaats aanraadt. |
 | `reputation_evidence` | Het gedeelde bewijscorpus (`0063`): letterlijke fragmenten met bron, waar de dienstvragen als achtergrond uit putten. Wordt niet op een klantscherm getoond. |
+
+### De kennislaag (`klantkennis`, fase 1 van het kennisplan, 26 en 27 september 2026)
+
+Alles wat ORBIT over een bedrijf weet, staat in één tabel, met hoe het dat weet en waarvoor het
+gebruikt mag worden. Het veldmodel en de statustabel staan in §6.1 van
+[`tasks/van-pijplijn-naar-kennissysteem.md`](tasks/van-pijplijn-naar-kennissysteem.md); hier alleen
+hoe het in de code zit.
+
+- **Vier statussen.** *Waargenomen* (uit een bron, met adres en letterlijk citaat), *verklaard* (de
+  klant zei het: een antwoord, het gesprek, een aangeleverd document), *bevestigd* (een mens staat
+  ervoor in, met wie en wanneer), *afgeleid* (een model denkt het, altijd met gebruik "intern").
+  De regels staan puur in `lib/kennis/regels.ts` en nog eens als check-constraint in de database.
+- **Eén schrijfingang.** `lib/kennis/vastleggen.ts` met `legVast()`, `bevestig()`, `wijsAf()`,
+  `vervang()` en `nietOpSite()`. Ontdubbelen op een sleutel (`lib/kennis/samenvoegen.ts`), nooit
+  verwijderen: een nieuwere versie wijst met `vervangen_door` naar de oude, een afgewezen item blijft
+  bewaard en komt niet stil terug. Een botsing (twee waarden voor hetzelfde) gaat op de bestaande
+  conflictlijst (`fact_conflicts.kennis_ids`); de consultant kiest (besluit V14).
+- **De kopie op het merkprofiel** (besluit V9 en V22). De kennisvelden van `profiles` (`KENNISVELDEN` in
+  `lib/kennis/profielvelden.ts`) schrijft alleen `lib/kennis/profielkopie.ts`, in dezelfde handeling als
+  de kennis zelf: `slaProfielOp()` voor wat een mens invult, `legOnderzoeksveldenVast()` voor het onderzoek.
+  De meting, het rapport en de onderwerpen lezen die kopie. Wijst de consultant op het kennisoverzicht iets
+  af of past hij het aan, dan volgt de kopie (`werkKopieBij()`).
+- **Wie schrijft.** Het onderzoek (`uit-onderzoek.ts`: waargenomen waar de code het citaat
+  terugvond, anders afgeleid), de indeling van sitefeiten (`indelen.ts` via `deelIn()`: soort,
+  waarde en waarvoor het geldt, één keer per item), het gesprek, de antwoorden, de conflictkeuze en het merkdossier
+  (`uit-gesprek.ts`, altijd een mens), de tekst van de stemvoorbeelden (`uit-stem.ts`, de code), en
+  het kennisoverzicht (`uit-overzicht.ts`, de consultant). Verklaard en bevestigd komen alleen van de
+  routes in `MENSELIJKE_STATUS_TOEGESTAAN` in `scripts/test-unit.ts` (§4 regel 2 van het plan).
+- **Wie leest.** Blok A van de schrijver (`kennisVoor()` en `kiesVoorBlokA()`: nooit afgeleid,
+  bevestigd eerst, alleen wat voor deze dienst en deze pagina geldt, niets wat op een open conflict
+  staat), het kennisgat van een kans (`lib/kansen/kennisgat.ts`) en het kennisoverzicht onder Admin
+  (`/merk/[id]/admin/kennis`, alleen medewerkers, besluit V6 en V11).
+- **Zes bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
+  `klantkennis`; verklaard en bevestigd alleen van de toegestane routes, ook via een omweg; geen code
+  noemt een kolom die de inventaris op "niet meer gebruiken" zette; niemand schrijft of leest nog
+  `brand_facts` (behalve het terugvullen); en niemand buiten `lib/kennis/` schrijft een kennisveld op
+  `profiles` of een rij in `profile_offerings`.
+- **De aanbodboom** (`profile_offerings`) is dezelfde soort kopie: alleen `lib/kennis/aanbodkopie.ts` (het
+  onderzoek) en `lib/kennis/uit-aanbod.ts` (een mens op het bewerkscherm) schrijven hem, telkens samen met de
+  kennis; de onderwerpen, clusters en de reputatiemodule lezen hem.
+- **Een nieuwe versie** (`vervang()`) neemt de verwijzingen mee: wat in `geldt_voor` naar de oude versie
+  wees, wijst naar de nieuwe. Een kans wijst nog naar de oude; blok A en het kennisgat volgen de keten
+  (`naarActueleVersies()` in `lib/kennis/versies.ts`).
 
 **De Sales-module (migraties `0068` tot en met `0073`, plus `0081`).** Zestien tabellen die de klantomgeving nergens raken. Ze staan
 bewust apart in deze tabel: een klant mag nooit kunnen zien dat hij ooit als prospect in het systeem
@@ -446,7 +491,8 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
 - **36 taaksoorten:** `profile_discover`, `profile_research`, `profile_offering`, `propose_topics`,
   `profile_market`, `profile_llm_baseline`, `profile_synthesis`, `prepare_analysis`,
   `generate_prompts`, `calibrate_volumes`, `measure_prompt`, `aggregate_week`,
-  `profile_competitors`, `generate_report`, `content_brief`, `content_draft`, `content_revise`,
+  `profile_competitors`, `generate_report`, `pagina_brief`, `pagina_schrijven`, `pagina_controle`,
+  `pagina_herschrijven`, `fact_register`,
   `technical_audit`, `verify_publication`, `measure_impact`, `compute_impact`, `offsite_scan`,
   `gsc_sync`, `recalculate_potential`, `reputation_start`, `reputation_brand`,
   `reputation_offering`, `reputation_compare`, `reputation_sources`, `reputation_synthesis`,
@@ -463,6 +509,18 @@ Bron: `lib/jobs/{types,queue,worker,handlers,pending}.ts`.
   zodra een analyse haar eerste rapport krijgt: herberekent `search_volume_index` op ALLE
   onderwerpen van dat merk in één aanroep (`lib/pipeline/search-demand.ts`), zie
   `docs/tasks/potentiescore.md`.
+- **De contentketen** (25 en 26 september 2026, `docs/tasks/contentketen-opnieuw.md`): vier
+  taaksoorten, handlers in `lib/pagina/taken.ts`. `pagina_brief` draait per maand na elkaar (de taak
+  geeft de rest van de rij door in zijn payload); `pagina_schrijven` en `pagina_herschrijven` lopen in
+  de achtergrondmodus, met een ophaalronde die zichzelf opnieuw inplant zolang OpenAI nog rekent;
+  `pagina_controle` is één directe beoordeling. Het contentplan roept alleen `bereidVoor` en
+  `probeerTeSchrijven` aan (`lib/pagina/start.ts`). De vorige taaksoorten (`content_brief`,
+  `content_plan`, `content_strategy`, `content_draft`, `content_edit`, `content_revise`,
+  `content_recheck`) bestaan niet meer.
+- **`fact_register`** (migratie `0113`, WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`)
+  hangt aan een merk (`profile_id`), is licht werk en wordt ingepland bij het voorbereiden van de
+  pagina's van een maand en met de knop op het conflictscherm (`admin/feiten`). Hij deelt nieuwe feiten in, zoekt kandidaat-
+  conflicten in code en laat alleen nieuwe paren beoordelen; zie §6.
 - **De Sales-keten** (de dertien `sales_*`-taken, migraties `0069` tot en met `0081`) hangt aan een MARKT en niet aan
   een merk. Daarvoor is `jobs.sales_market_id` de derde soort taakeigenaar naast `analysis_id` en
   `profile_id`; de constraint `jobs_has_owner` uit `0013` eist er nog steeds precies één van.
@@ -722,16 +780,17 @@ berekenen is, is geld uitgeven aan een slechter antwoord.
 | Entiteitsconsistentie (`audit/entity-consistency.ts`) | Heet het bedrijf overal hetzelfde? Tekstvergelijking. |
 | Het oordeel over de kennistest (`baseline-verdict.ts`) | Het model vragen of zijn eigen antwoord klopt is de meting aan de gemetene vragen. In dit project drie keer misgegaan. |
 | Structurele gap-analyse (`structure-gap.ts`) | Aanbodboom tegen gecrawlde pagina's, met de matcher van `page-relevance.ts`. |
-| Duplicatie en leesbaarheid (`similarity.ts`, `readability.ts`) | Jaccard op vijf-grammen en vier gemeten grootheden. Geen verzonnen score. |
+| Harde beweringen en mechanische reparatie (`lib/pagina/harde-beweringen.ts`, `mechanisch.ts`) | Welke zin een bedrag, getal met eenheid of belofte bevat waar geen bron voor is, en de verboden tekens en metalengtes: tellen en vergelijken, geen oordeel. Een conservatieve detectie, geen factchecker (`docs/tasks/contentketen-opnieuw.md` §6.5). |
 | Crawltempo en de terugval bij een 429/503 (`crawl-speed.ts`) | Drie vaste standen (batchgrootte, pauzebandbreedte) en een deterministische stap omlaag. Geen oordeel nodig over "hoe snel mag dit", dat is een tabel. |
-| Het kwaliteitsoordeel zelf (`quality-collect.ts`, `quality-score.ts`, `evidence-weight.ts`, `root-cause.ts`, migratie `0091`) | Wegen, drempels, blokkadeklassen, zekerheid, versiekeuze en de root cause zijn rekenkunde over wat de beoordelaars al opleverden. Een model laten samenvatten wat je exact kunt optellen, is de fout van 31 juli 2026 in een nieuwe jas: toen gaf de zelfbeoordeling 100 van de 100 op tien van de tien pagina's, inclusief die met vijf verzonnen feiten. |
-| De type-eigen contentregels (`quality-profile.ts`) | Aantal secties, aantal FAQ-paren, lengte van een antwoord, een vervolgstap in de tekst, feiten per honderd woorden. Allemaal tellingen. |
 
 | Constante | Waarde | Tarief (in/uit per 1M) | Voor |
 |---|---|---|---|
-| `MODELS.volume` | `gpt-5.6-luna` | $0,20 / $1,20 | Mention-beoordeling (3b) |
-| `MODELS.quality` | `gpt-5.6-luna` | $0,20 / $1,20 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten, de vier contentbeoordelaars, bronanalyse |
-| `MODELS.content` | `gpt-5.6-terra` | $2 / $12 | Uitsluitend content schrijven/herschrijven |
+| `MODELS.volume` | `gpt-6-luna` | $0,10 / $0,50 | Mention-beoordeling (3b) |
+| `MODELS.quality` | `gpt-6-luna` | $0,10 / $0,50 | Research, prompts, kalibratie, simulatie (3a), gap-analyse, rapport, entiteiten |
+| `MODELS.content` | `gpt-6-sol` | $2 / $10 | De contentketen: content brief (met zoeken op het web), schrijven, controle, herschrijven. Gemeten op de proef van 26 september 2026: $0,10 tot $0,17 per pagina voor alle vier samen |
+
+Sinds 23 september 2026 op GPT-6; daarvoor Luna en Terra van GPT-5.6. Waarom en wat het scheelt:
+`docs/logbook.md`, 23 september 2026 (8).
 
 `volume` en `quality` wijzen sinds augustus 2026 naar hetzelfde model; de tiers blijven bestaan
 omdat ze vastleggen wélke keuze per stap bewust gemaakt is. Het onderscheid dat vroeger in het
@@ -739,7 +798,7 @@ model zat (nano vs. mini) zit nu in de **redeneerinspanning**.
 
 **Soort werk → parameters** (`resolveTuning()` in `lib/openai/sampling.ts`). Aanroepplekken geven
 alleen nog `work: "..."` op; de vertaling naar `temperature` en `reasoning.effort` staat op één
-plek. Reden: GPT-5.6 accepteert `temperature` uitsluitend bij effort `none`, bij elke hogere
+plek. Reden: GPT-5.6 en GPT-6 accepteren `temperature` uitsluitend bij effort `none`, bij elke hogere
 stand is het een unsupported parameter en faalt de call.
 
 | `work` | effort | temperature | Voor |
@@ -747,7 +806,8 @@ stand is het een unsupported parameter en faalt de call.
 | `deterministic` | `none` | 0 | Classificeren/beoordelen, claim-audit, content-kritiek |
 | `analytical` | `low` |, | Research, kalibratie, gap-analyse, rapport, bronanalyse |
 | `creative` | `none` | 0,8 | Promptgeneratie, variatie is gewenst, redeneren maakt de vragen juist gelijkvormig |
-| `content` | `medium` |, | Content schrijven/herschrijven |
+| `judging` | `medium` |, | De controle van een geschreven pagina (`pagina_controle`) |
+| `redactioneel` | `high` |, | Schrijven en herschrijven van een pagina, altijd in de achtergrondmodus |
 | `simulation` |, |, | Halte 3a: bewust niets meegeven, meet wat een AI-assistent op standaardinstellingen doet |
 
 De effort-standen staan bewust laag: één aanroep moet binnen `TIMEOUT_MS` (100 s,
@@ -814,6 +874,39 @@ kwaliteitsverlies hoeft te zijn staat in `lib/openai/models.ts`; dat het dat ook
 niet nagemeten (conventie 10, de nameting staat in
 `docs/tasks/contentkwaliteit-copywriterronde.md` §7).
 
+### De paginastrategie en de achtergrondmodus (25 september 2026, migratie `0114`)
+
+> De paginastrategie en de eindredactie hieronder zijn met de oude keten weggehaald. De
+> achtergrondmodus is gebleven: `pagina_schrijven` en `pagina_herschrijven` gebruiken hem altijd.
+
+
+Werksoort `redactioneel` (`lib/openai/sampling.ts`): Sol, denktijd `high`, voor de paginastrategie
+(`content_strategy`, WP3) en straks de eindredactie, het stemvoorstel en de portfolio. Elke aanroep
+in de app legt nu zijn duur vast in `ai_calls.duration_ms`. Komt een aanroep van een soort boven de
+120 seconden (`moetAchtergrond()`), dan draaien de volgende van die soort in de achtergrondmodus
+van de Responses API: de taak start de aanroep en bewaart het response-id, een vervolgtaak haalt
+het resultaat op (`startStructuredAchtergrond()` en `haalStructuredOp()` in
+`lib/openai/structured.ts`). Een nieuwe poging haalt op in plaats van opnieuw te starten, dus een
+time-out betaalt de duurste aanroep nooit twee keer. Gemeten bij de nameting van fase 1 (25 september
+2026): de strategie duurt 93 tot 108 seconden en blijft dus direct, de eindredactie 134 tot 359
+seconden en loopt sindsdien in de achtergrond. Een pagina met strategie en redactie kostte $0,26 en
+$0,31: strategie ongeveer $0,06, FAQ-keuze $0,002, schrijven $0,05, eindredactie $0,09 tot $0,11,
+een of twee reparatierondes $0,04 tot $0,07 en de keuring met Luna ongeveer $0,01.
+
+### De indeling van sitefeiten (25 september 2026, migratie `0113`; sinds K8 deel 2 op de kennislaag)
+
+Eén lichte aanroep op `MODELS.quality` (Luna), in de taak `fact_register` (`lib/kennis/indelen.ts`):
+
+| Aanroep (`ai_calls.kind`) | Werk | Wat code narekent |
+|---|---|---|
+| `fact_classify` (`fact-classify.ts`) | `deterministic`, 40 sitefeiten per aanroep, vier tegelijk, alleen kennisitems zonder soort | een getal in de waarde moet in de feittekst staan, anders is de waarde leeg (`veiligeWaarde()`); "geldt voor" wordt een verwijzing naar het aanbod met die naam, of blijft merkbreed (`indelingVoorKennis()`) |
+
+`deelIn()` in `lib/kennis/vastleggen.ts` zet de indeling op het item zelf, één keer, en zoekt daarna in
+code of het botst met wat er al stond (besluit V14). Tot K8 deel 2 (27 september 2026) liep dit op
+`brand_facts`, met een tweede aanroep die elk paar liet beoordelen (`conflict-judge.ts`) en een
+automatische winnaar; beide zijn weg. Een botsing beslist de consultant op het conflictscherm, en zolang
+hij open staat gaat geen van beide naar de schrijver (`lib/kennis/betwist.ts`).
+
 ### De AI-aanroepen van Mijn reputatie (22 augustus 2026, migratie `0062`)
 
 Vijf nieuwe soorten aanroepen, allemaal op `MODELS.volume` behalve de synthese. De `kind`-waarden
@@ -879,7 +972,7 @@ iets de deur uit gaat.
 
 ## 8. Lokaal draaien
 
-Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot `gpt-5.6-luna` én `gpt-5.6-terra`.
+Vereist: Node ≥ 20, een Supabase-project, een OpenAI-key met toegang tot `gpt-6-luna` én `gpt-6-sol`.
 
 ```bash
 npm install
@@ -943,9 +1036,9 @@ en wat er verdwijnt.
 Wat er níet geschreven kan worden telt de route apart en verzwijgt hij niet: schrijven leunt op een
 gemeten analyse, en bij Van den Udenhout hebben zes van de acht onderwerpen er nog geen. De regel
 staat in `lib/plan-writing.ts` (`writeDecision`), de reden per pagina staat in het scherm. De brug
-tussen plan en contentpijplijn is `plannedPageId` in de payload van `content_draft`: daarmee weet de
-plan-pagina welke tekst het geworden is, en zet de werker hem op `mislukt` als het schrijven
-definitief niet lukt.
+tussen plan en contentketen is `planned_pages.content_piece_id`, gezet door `bereidVoor` in
+`lib/pagina/start.ts`. Geeft het schrijven definitief op, dan zet `schrijvenGafOp` de plan-pagina op
+`mislukt` en de tekst terug naar de voorbereiding; de ochtendronde probeert het de volgende dag opnieuw.
 
 **Dezelfde ronde haalt de zoekcijfers op.** Elk merk met een `gsc_property` krijgt één `gsc_sync`-taak
 per dag (migratie `0052`). Bewust geen tweede cron: allebei dagelijks, allebei alleen plannend, en

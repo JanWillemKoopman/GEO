@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { wisOnderzoeksaanbod } from "@/lib/kennis/aanbodkopie";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
@@ -81,11 +82,8 @@ export async function POST(
   await admin.from("profile_facets").delete().eq("profile_id", id);
 
   // Alleen de door AI afgeleide aanbodknopen. Wat een mens toevoegde blijft.
-  const { count: verwijderd } = await admin
-    .from("profile_offerings")
-    .delete({ count: "exact" })
-    .eq("profile_id", id)
-    .eq("source", "ai");
+  // Via de kennislaag (K8 deel 4): alleen `lib/kennis/` schrijft de aanbodboom.
+  const verwijderd = await wisOnderzoeksaanbod(admin, id);
 
   // Status terug op 'bezig', anders slaat `prepareProfile()` zichzelf over,
   // die controleert bovenaan of het profiel al klaar is.

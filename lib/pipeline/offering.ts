@@ -35,6 +35,10 @@ import { OfferingTree } from "@/lib/schemas/offering";
 import { buildTaxonomy } from "@/lib/pipeline/inventory-quality";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import { quoteConfidence } from "@/lib/pipeline/quote-check";
+import { isAdviesCitaat } from "@/lib/pipeline/aanbod-citaat";
+import { kennisUitAanbod, kennisUitMerkonderzoek } from "@/lib/kennis/onderzoek";
+import { legOnderzoekVast, legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
+import { bewaarAanbodboom, hangKnoopOnder } from "@/lib/kennis/aanbodkopie";
 import {
   relinkOfferingIds,
   type LinkableNode,
@@ -70,6 +74,10 @@ function briefingFor(model: BusinessModel | null): string {
         `- de categoriestructuur als knopen met kind 'categorie', in de vorm die de sitestructuur hieronder laat zien;\n` +
         `- productgroepen (niet losse artikelen!) als kind 'product' onder hun categorie;\n` +
         `- de GEVOERDE MERKEN als kind 'merk'. Dit is belangrijk: die merken zijn géén concurrenten van deze klant.\n` +
+        `- DIENSTEN ERNAAST, als de site ze noemt. Veel retailers verdienen naast de verkoop ook aan financiering, ` +
+        `lease, verhuur, reparatie, onderhoud, installatie of bezorging; dat zijn net zo goed eigen knopen (kind ` +
+        `'dienst', gegroepeerd onder een 'categorie' als de site dat doet) als het assortiment zelf. Sla deze ` +
+        `stap niet over alleen omdat het bedrijfsmodel "retailer" is.\n` +
         `Noem geen individuele artikelnummers: een categorie met 400 artikelen is één knoop.`
       );
     case "fabrikant":
@@ -205,6 +213,10 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     `beter antwoord dan een aanname.\n` +
     `4. Zet in 'gaps' wat je niet kon vaststellen maar wel had willen weten. Dat wordt de agenda voor ` +
     `het gesprek met de klant.\n` +
+    // Punt 9 van de kwaliteitsdoorlichting: een adviesregel werd een dienst.
+    `5. Een advies of tip op de site ("het ventilatiesysteem moet regelmatig worden schoongemaakt") is ` +
+    `GEEN dienst. Neem een dienst alleen op als de site zegt dat het bedrijf hem levert, en kies als ` +
+    `evidenceQuote de zin waarin dat staat ("wij reinigen ...", "u kunt bij ons ...").\n` +
     `Antwoord in het Nederlands.`;
 
   const user =
@@ -281,11 +293,15 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
   // Het bedrijfsmodel dat na de hele site bekeken te hebben uitkomt, is beter
   // onderbouwd dan het oordeel op alleen de homepage, maar een handmatig
   // gezette waarde wint nog steeds (dezelfde regel als in prepare-profile.ts).
+  //
+  // Via de kennislaag (K8 deel 3): de kopie op het profiel, en het oordeel als
+  // vermoeden van het model.
   if (!profile.business_model) {
-    await admin
-      .from("profiles")
-      .update({ business_model: tree.businessModel })
-      .eq("id", profileId);
+    await legOnderzoeksveldenVast(admin, profileId, {
+      kolommen: { business_model: tree.businessModel },
+      items: kennisUitMerkonderzoek({ profileId, model: { business_model: tree.businessModel }, geschreven: { business_model: tree.businessModel } }),
+      taak: "profile_offering",
+    });
   }
 
   await admin.from("profile_facets").upsert(
@@ -304,6 +320,15 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
       researched_at: new Date().toISOString(),
     },
     { onConflict: "profile_id,facet" },
+  );
+
+  // K4: de knopen ook in de kennislaag. Waargenomen alleen als de code het
+  // citaat op de pagina terugvond (`confidence = 1`), anders afgeleid.
+  await legOnderzoekVast(
+    admin,
+    profileId,
+    kennisUitAanbod(saved.map((n) => ({ ...n, note: null, removed_at: null }))),
+    "profile_offering",
   );
 
   return {
@@ -361,7 +386,11 @@ async function persistTree(
 ): Promise<PersistedTree> {
   const textByUrl = new Map(knownPages.map((p) => [p.url, p.text]));
   const metNaam = nodes.filter((n) => n.name.trim() !== "");
-  const metBron = metNaam.filter((n) => textByUrl.has(n.evidenceUrl));
+  // Het vangnet onder regel 5: een dienst met alleen een adviescitaat gaat eruit
+  // (punt 9). Telt mee als "zonder bruikbaar bewijs", want dat is het.
+  const metBron = metNaam.filter(
+    (n) => textByUrl.has(n.evidenceUrl) && !(n.kind === "dienst" && isAdviesCitaat(n.evidenceQuote)),
+  );
   const geldig = metBron.slice(0, MAX_NODES);
 
   const droppedByEvidence = metNaam.length - metBron.length;
@@ -369,9 +398,11 @@ async function persistTree(
 
   if (geldig.length === 0) return { nodes: [], droppedByCap, droppedByEvidence };
 
-  const { data: inserted, error } = await admin
-    .from("profile_offerings")
-    .insert(
+  // Via de kennislaag (K8 deel 4): alleen `lib/kennis/` schrijft de aanbodboom,
+  // de kopie die de onderwerpen en clusters lezen. De knopen gaan daarna als
+  // kennis in de kennislaag (K4, hieronder in `runOfferingTree()`).
+  const { rijen: inserted, error } = await bewaarAanbodboom(
+    admin,
       geldig.map((n, i) => ({
         profile_id: profileId,
         parent_id: null,
@@ -400,11 +431,10 @@ async function persistTree(
         source: "ai",
         sort_order: i,
       })),
-    )
-    .select("*");
+  );
 
   if (error || !inserted) {
-    console.error(`Aanbodboom opslaan mislukt voor profiel ${profileId}: ${error?.message}`);
+    console.error(`Aanbodboom opslaan mislukt voor profiel ${profileId}: ${error}`);
     return { nodes: [], droppedByCap, droppedByEvidence };
   }
 
@@ -419,7 +449,9 @@ async function persistTree(
       // Niet naar zichzelf wijzen: dat levert een rij op die in elke
       // boomopbouw een oneindige lus wordt.
       if (!parentId || parentId === stored[i].id) return;
-      await admin.from("profile_offerings").update({ parent_id: parentId }).eq("id", stored[i].id);
+      const { error: ouderFout } = await hangKnoopOnder(admin, stored[i].id, parentId);
+      // Ook in het geheugen: de kennislaag (K4) hangt het kind aan zijn ouder.
+      if (!ouderFout) stored[i].parent_id = parentId;
     }),
   );
 

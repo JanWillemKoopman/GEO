@@ -88,25 +88,24 @@ export function BrandSwitcher({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="flex h-9 min-w-0 max-w-[14rem] items-center gap-2 rounded-[var(--radius-xl)] border border-[var(--border-strong)] bg-[var(--bg-surface)] px-3 text-sm font-medium transition-colors hover:border-[var(--border-contrast)]"
+        className="field flex h-9 w-auto min-w-0 max-w-[14rem] items-center gap-2 text-left font-medium"
       >
         <span className="truncate">{label}</span>
-        <span className="text-muted">
+        <span className="text-[var(--text-subtle)]">
           <Icon naam="openen" size={14} />
         </span>
       </button>
 
       {open && (
         <div
-          className="menu-surface absolute left-0 z-40 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius-xxxl)] border border-[var(--border-subtle)]"
-          style={{ boxShadow: "var(--shadow-overlay)" }}
+          className="menu-surface absolute left-0 z-40 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden py-0"
           role="listbox"
         >
           {zoekbaar && (
-            <div className="border-b border-[var(--border-subtle)] p-2">
+            <div className="menu-sectie border-b border-[var(--line-muted)]">
               <input
                 ref={zoekveld}
-                className="field h-9"
+                className="field"
                 value={zoek}
                 onChange={(e) => setZoek(e.target.value)}
                 placeholder="Zoek een merk…"
@@ -115,7 +114,7 @@ export function BrandSwitcher({
             </div>
           )}
 
-          <div className="max-h-72 overflow-y-auto p-1">
+          <div className="max-h-72 overflow-y-auto py-1">
             {zichtbaar.length === 0 ? (
               <p className="px-3 py-4 text-sm text-muted">
                 Geen merk gevonden voor &ldquo;{zoek}&rdquo;.
@@ -131,16 +130,12 @@ export function BrandSwitcher({
                     setOpen(false);
                     onSelect(b.id);
                   }}
-                  className="flex w-full flex-col items-start gap-0.5 rounded-[var(--radius-xl)] px-3 py-2 text-left transition-colors hover:bg-[var(--bg-muted)]"
-                  style={{
-                    background:
-                      active?.id === b.id ? "var(--bg-elevated)" : "transparent",
-                  }}
+                  className="menu-item menu-item-dubbel"
                 >
                   <span className="flex w-full items-center gap-2">
-                    <span className="truncate text-sm font-medium">{b.name}</span>
+                    <span className="truncate font-medium text-[var(--text-primary)]">{b.name}</span>
                     {b.busy && (
-                      <span className="chip chip-green shrink-0">bezig</span>
+                      <span className="chip chip-info shrink-0">bezig</span>
                     )}
                   </span>
                   <span className="mono-label break-url">{b.url}</span>
@@ -150,14 +145,14 @@ export function BrandSwitcher({
           </div>
 
           {/* "Alle merken" is een bestemming en geen merk, dus visueel gescheiden. */}
-          <div className="border-t border-[var(--border-subtle)] p-1">
+          <div className="border-t border-[var(--line-muted)] py-1">
             <button
               type="button"
               onClick={() => {
                 setOpen(false);
                 onSelect("");
               }}
-              className="w-full rounded-[var(--radius-xl)] px-3 py-2 text-left text-sm text-secondary transition-colors hover:bg-[var(--bg-muted)]"
+              className="menu-item"
             >
               Alle merken bekijken
             </button>

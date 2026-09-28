@@ -66,6 +66,7 @@
  */
 import { topicTerms, canonicalPath } from "@/lib/pipeline/page-relevance";
 import type { ContentAction } from "@/lib/types/database";
+import { isFunctiepagina } from "@/lib/pipeline/paginafunctie";
 
 export interface ExistingPageCandidate {
   url: string;
@@ -203,7 +204,8 @@ export interface ActionOverride {
     | "onbevestigde_url"
     | "gevonden_gelijkenis"
     | "adres_genormaliseerd"
-    | "verwante_pagina";
+    | "verwante_pagina"
+    | "functiepagina";
   url: string | null;
   coverage: number | null;
 }
@@ -248,6 +250,24 @@ export function reconcileExistingPageActions<
 
     if (r.action === "verbeteren") {
       const bekend = knownUrl(r.existingUrl, pages);
+      // ── De homepage, contact en over-ons worden geen onderwerppagina ────
+      //
+      // Punt 45 van de kwaliteitsdoorlichting: "verbeter de hoofdpagina" werd
+      // een tekst over één plaats en één dienst, bedoeld voor het adres van de
+      // homepage. Zo'n pagina draagt het hele bedrijf; een aanbeveling voor één
+      // onderwerp wordt daarom een nieuwe pagina, met deze als verwante pagina
+      // zodat de schrijver ervan voortbouwt in plaats van hem te herhalen.
+      if (bekend && isFunctiepagina(bekend)) {
+        overrides.push({
+          title: r.title,
+          from: "verbeteren",
+          to: "nieuw",
+          reason: "functiepagina",
+          url: bekend,
+          coverage: null,
+        });
+        return { ...r, action: "nieuw" as ContentAction, existingUrl: null, relatedUrl: bekend };
+      }
       if (bekend) {
         // Bevestigd adres: de handeling blijft, maar het adres wordt de vorm uit
         // de crawl. Verschilt hij niet, dan is dit een no-op.
@@ -282,6 +302,20 @@ export function reconcileExistingPageActions<
         coverage: null,
       });
       return { ...r, action: "nieuw" as ContentAction, existingUrl: null, relatedUrl: null };
+    }
+
+    // Een gevonden gelijkenis met de homepage maakt van "nieuw" geen
+    // verbetering van de homepage (punt 45): dan alleen als verwante pagina.
+    if (match && isFunctiepagina(match.url)) {
+      overrides.push({
+        title: r.title,
+        from: "nieuw",
+        to: "nieuw",
+        reason: "functiepagina",
+        url: match.url,
+        coverage: match.coverage,
+      });
+      return { ...r, existingUrl: null, relatedUrl: match.url };
     }
 
     if (match) {

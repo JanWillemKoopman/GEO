@@ -45,8 +45,79 @@ export function isProductUrl(url: string): boolean {
  * Shopify (`sitemap_products_1.xml`) en Yoast/WooCommerce (`product-sitemap.xml`),
  * maar niet `product-category-sitemap.xml` (daar volgt na "product-" geen sitemap/cijfer).
  */
+/**
+ * Een sitemap met alleen archieven: categorieën, tags, auteurs, bijlagen. Yoast
+ * maakt ze standaard aan; bij de hovenier waren het drie van de vijf sitemaps
+ * (punt 10 van de kwaliteitsdoorlichting). Overslaan scheelt fetches en plekken.
+ */
+export function isArchiefSitemap(url: string): boolean {
+  return /(^|\/)(category|post_tag|tag|author|attachment|post_format|format)-sitemap\d*\.xml/i.test(url);
+}
+
 export function isProductSitemap(url: string): boolean {
   return /products?[-_](sitemap|\d)/i.test(url) || /sitemap[-_]products?/i.test(url);
+}
+
+/**
+ * Hoeveel pagina's de volgende batch tegelijk vraagt.
+ *
+ * Een time-out in een batch betekent bijna altijd een server die verzoeken na
+ * elkaar afhandelt: acht tegelijk wachten dan allemaal op elkaar. Halveren, met
+ * twee als ondergrens (punt 4 van de kwaliteitsdoorlichting: de hovenier deed
+ * over één pagina 4 seconden en over acht tegelijk 30). Zonder time-outs blijft
+ * het tempo gelijk; terug omhoog gaat het niet, een trage server wordt binnen
+ * één crawl niet snel.
+ */
+export function volgendeBatchgrootte(huidig: number, timeouts: number): number {
+  return timeouts > 0 ? Math.max(2, Math.floor(huidig / 2)) : huidig;
+}
+
+/**
+ * Is dit een archief-, bijlage- of bestandsadres en geen echte pagina?
+ *
+ * ⚠️ Kwaliteitsdoorlichting 24 september 2026, punt 10 en 28. Van de 108 adressen
+ * die de app van de rijschool kende, waren er tientallen WordPress-bijlagen
+ * (`/autorijschool-pompert/cbr-peter-pompert-2/`,
+ * `/ons-team-en-wagenpark/whatsapp-image-2022-06-21-at-4-42-28-pm/`), tag-,
+ * categorie- en auteurspagina's. Ze aten plekken van de 150 op, en het rapport
+ * adviseerde een fotobijlage te "verbeteren" met uitleg over het faalangstexamen.
+ *
+ * Op het adres alleen, dus vóór het ophalen: een archiefpagina kost anders een
+ * plek én een fetch. Bijlagen die hier doorheen glippen (een foto die
+ * "verkeersangst" heet) vangt `lijktBijlagepagina()` na het ophalen.
+ */
+export function isArchiefOfBijlage(url: string): boolean {
+  const pad = pathOf(url).toLowerCase();
+  if (/\/(tag|tags|category|categorie|author|auteur|attachment|feed|comments)(\/|$)/.test(pad)) return true;
+  if (/\/page\/\d+\/?$/.test(pad)) return true;
+  if (/^\/wp-(content|json|admin|includes)\//.test(pad)) return true;
+  if (/\.(jpe?g|png|gif|webp|svg|pdf|docx?|xlsx?|zip|mp4|mp3|woff2?|ico|webmanifest|xml|css|js)$/.test(pad)) {
+    return true;
+  }
+  const segmenten = segmentsOf(url);
+  if (segmenten.length < 2) return false;
+  const laatste = segmenten[segmenten.length - 1].toLowerCase();
+  // Bestandsnamen van foto's, zoals een CMS ze als bijlagepagina onder een
+  // bericht hangt. Alleen onder een ouderpagina: `/foto-galerij/` op het
+  // hoogste niveau is een echte pagina.
+  return (
+    /^(img|dsc|dscn|dcim|image|whatsapp-image|screenshot|schermafbeelding|pexels-photo|photo|foto)([-_]|\d|$)/.test(laatste) ||
+    /_\d+(-\d+)?$/.test(laatste) ||
+    /^\d{6,}_/.test(laatste)
+  );
+}
+
+/**
+ * Is deze opgehaalde HTML een bijlagepagina? WordPress zet dat in de klassen van
+ * `<body>` (`single-attachment`, `attachmentid-534`), en dat is betrouwbaarder
+ * dan elke gok op de tekst: een echte korte pagina en een fotobijlage zijn na
+ * het wegknippen van het menu even kort. Gecontroleerd op de rijschool
+ * (`/alles-over-verkeersangst/verkeersangst/`, een foto die geen
+ * bestandsnaam draagt, punt 10 van de kwaliteitsdoorlichting).
+ */
+export function isBijlageHtml(html: string): boolean {
+  const body = html.match(/<body\b[^>]*>/i)?.[0] ?? "";
+  return /class=["'][^"']*\b(single-attachment|attachmentid-\d+)\b/i.test(body);
 }
 
 /** Decodeert de paar XML-entiteiten die in sitemap-<loc>-URL's voorkomen. */
@@ -201,4 +272,43 @@ export function parseUrlList(raw: string, baseHost: string, max = 100): ParsedUr
   }
 
   return { urls, rejected };
+}
+
+/** Alle zelfde-domein-links uit één stuk HTML, absoluut gemaakt. */
+export function linksIn(html: string, base: string, baseHost: string): string[] {
+  return Array.from(html.matchAll(/<a\s[^>]*href=["']([^"'#]+)["']/gi))
+    .map((m) => {
+      try {
+        return new URL(m[1], base).toString();
+      } catch {
+        return null;
+      }
+    })
+    .filter(
+      (u): u is string =>
+        u !== null && sameDomain(u, baseHost) && !isProductUrl(u) && !isArchiefOfBijlage(u),
+    );
+}
+
+/**
+ * De links uit het menu van een pagina: binnen `<nav>` en `<header>`, plus de
+ * menu-items van WordPress (`<li class="menu-item ...">`). Die tweede vorm is
+ * geen luxe: bij de rijschool stond het hoofdmenu met de faalangstpagina in
+ * zulke items buiten elke `<nav>` (punt 28 van de kwaliteitsdoorlichting).
+ * Heeft de pagina geen van drieën, dan alle links, want dan is er geen
+ * onderscheid te maken en is "alles op de homepage" de beste benadering.
+ */
+export function menuLinks(html: string, base: string, baseHost: string): string[] {
+  const blokken = Array.from(html.matchAll(/<(nav|header)\b[^>]*>([\s\S]*?)<\/\1>/gi)).map((m) => m[2]);
+  const menuItems = Array.from(
+    html.matchAll(/<li\b[^>]*class=["'][^"']*\bmenu-item\b[^"']*["'][^>]*>\s*(<a\s[^>]*>)/gi),
+  ).map((m) => m[1]);
+  const delen = [...blokken, ...menuItems];
+  const bron = delen.length > 0 ? delen.join("\n") : html;
+  const uit = new Map<string, string>();
+  for (const u of linksIn(bron, base, baseHost)) {
+    const sleutel = canonicalKey(u);
+    if (!uit.has(sleutel)) uit.set(sleutel, u);
+  }
+  return [...uit.values()];
 }

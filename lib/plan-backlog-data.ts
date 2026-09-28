@@ -18,6 +18,12 @@ import "server-only";
  * twee keer, dan herkent hij wat er al staat en voegt hij niets dubbel toe
  * (conventie 9). Wat de klant al ingepland heeft blijft staan waar het staat.
  *
+ * Sinds N2 (`docs/tasks/van-pijplijn-naar-kennissysteem.md`) komt een kaart
+ * niet meer rechtstreeks uit die JSON maar uit de kans die het rapport per
+ * aanbeveling maakt (`kansen`, `lib/kansen/uit-rapport.ts`). De sleutel bleef
+ * gelijk: `kansen.sleutel` is dezelfde "<rapport-id>#<volgnummer>", dus elke
+ * kaart die er al stond vindt zijn kans terug en krijgt `kans_id`.
+ *
  * ⚠️ Er wordt NOOIT iets verwijderd. Verdwijnt een aanbeveling uit een nieuw
  * rapport omdat hij is opgelost, dan blijft de kaart staan (conventie 8). Hem
  * weghalen zou betekenen dat werk dat iemand voor volgende maand had ingepland
@@ -28,22 +34,12 @@ import { loadRecommendationPotential } from "@/lib/potential-data";
 import { distributePotentialByWeight } from "@/lib/potential";
 import { faseVoorPagina, type MerkFase } from "@/lib/plan-funnel";
 import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/recommendation";
+import { legKansenVast, werkKennisgatBij, werkPotentieBij } from "@/lib/kansen/uit-rapport";
+import { schoonAdres, tekst, type RuweAanbeveling } from "@/lib/kansen/rapport";
 import type { BacklogItem, BacklogHandeling, DeclinedItem } from "@/lib/plan-backlog";
 import type { PageType } from "@/lib/types/database";
 
 type Admin = ReturnType<typeof createAdminClient>;
-
-/** Eén aanbeveling zoals hij in `reports.recommendations_json` staat. */
-interface RuweAanbeveling {
-  title?: unknown;
-  why?: unknown;
-  type?: unknown;
-  action?: unknown;
-  existingUrl?: unknown;
-  relatedUrl?: unknown;
-  targetIntent?: unknown;
-  targets?: unknown;
-}
 
 /**
  * Het contenttype van het rapport → het paginatype van het plan.
@@ -64,28 +60,19 @@ function pageTypeVoor(type: unknown): PageType {
   }
 }
 
-/** `action` uit het rapport → de twee handelingen die de voorraad kent. */
-function handelingVoor(action: unknown): BacklogHandeling {
-  return action === "verbeteren" ? "verbeteren" : "nieuw";
+/** De handeling van de kans → de twee handelingen die de voorraad kent. */
+function handelingVoor(handeling: string): BacklogHandeling {
+  return handeling === "pagina_verbeteren" ? "verbeteren" : "nieuw";
 }
 
-/**
- * ⚠️ `existingUrl` is niet te vertrouwen. In het rapport van Gasservice Brabant
- * staat bij twee van de zeven aanbevelingen letterlijk `":"` als adres, omdat
- * het model bij een nieuwe pagina tóch iets moest invullen. Een kaart die
- * "verbeter :" zegt is erger dan een kaart zonder adres (conventie 3).
- */
-function schoonAdres(url: unknown): string | null {
-  if (typeof url !== "string") return null;
-  const schoon = url.trim();
-  if (schoon.length < 8) return null;
-  if (!schoon.startsWith("http") && !schoon.startsWith("/")) return null;
-  return schoon;
+/** Het volgnummer uit "<rapport-id>#<volgnummer>", voor de volgorde van het rapport. */
+function volgnummer(sleutel: string | null): number {
+  const n = Number((sleutel ?? "").split("#")[1]);
+  return Number.isFinite(n) ? n : 0;
 }
 
-function tekst(waarde: unknown): string | null {
-  return typeof waarde === "string" && waarde.trim() ? waarde.trim() : null;
-}
+// `schoonAdres()` en `tekst()` staan sinds N2 in `lib/kansen/rapport.ts`: de kans
+// maakt de handeling en het adres, en de kaart volgt hem.
 
 interface Doelvraag {
   promptId: string | null;
@@ -111,8 +98,10 @@ export interface SyncResult {
  * Haalt de gemeten kansen op en zet ze in de voorraad.
  *
  * Draait bij elke opening van het planscherm. Dat mag, want hij is idempotent
- * en leest maar twee tabellen: bij Gasservice Brabant zijn dat één rapport en
- * zeven potentieberekeningen.
+ * en leest maar een paar tabellen: bij Gasservice Brabant zijn dat één rapport,
+ * zijn kansen en zeven potentieberekeningen. Ontbreken de kansen van een
+ * rapport nog (een rapport van vóór N2, of een mislukte poging), dan maakt
+ * `legKansenVast()` ze eerst.
  */
 export async function syncBacklog(
   admin: Admin,
@@ -136,7 +125,7 @@ export async function syncBacklog(
       // 2 niet meer terugkomt, is opgelost of achterhaald.
       admin
         .from("reports")
-        .select("id, analysis_id, recommendations_json, generated_at")
+        .select("id, analysis_id, generated_at")
         .in("analysis_id", analysisIds)
         .order("generated_at", { ascending: false }),
       admin
@@ -146,7 +135,7 @@ export async function syncBacklog(
         .not("analysis_id", "is", null),
       admin
         .from("planned_pages")
-        .select("id, source_ref, funnel_stage_id")
+        .select("id, source_ref, funnel_stage_id, kans_id")
         .eq("profile_id", profileId)
         .not("source_ref", "is", null),
       // Bewust geen `ensureFunnels()`: die staat in `lib/plans.ts`, dat dit
@@ -167,13 +156,56 @@ export async function syncBacklog(
   );
 
   const bestaand = new Map(
-    ((bestaandRows ?? []) as { id: string; source_ref: string | null; funnel_stage_id: string | null }[])
+    ((bestaandRows ?? []) as { id: string; source_ref: string | null; funnel_stage_id: string | null; kans_id: string | null }[])
       .filter((r) => r.source_ref)
-      .map((r) => [r.source_ref as string, { id: r.id, faseId: r.funnel_stage_id }]),
+      .map((r) => [r.source_ref as string, { id: r.id, faseId: r.funnel_stage_id, kansId: r.kans_id }]),
   );
 
+  // Alleen het laatste rapport per cluster (de rij hierboven staat op datum).
   const gezien = new Set<string>();
+  const laatsteRapporten: string[] = [];
+  for (const r of (reportRows ?? []) as { id: string; analysis_id: string }[]) {
+    if (gezien.has(r.analysis_id)) continue;
+    gezien.add(r.analysis_id);
+    laatsteRapporten.push(r.id);
+  }
+  if (laatsteRapporten.length === 0) return { toegevoegd: 0, bijgewerkt: 0, clusters: 0 };
+
+  // Het vangnet: de kansen van elk laatste rapport bestaan (N2). Staan ze er al,
+  // dan is dit één leesquery per rapport.
+  for (const id of laatsteRapporten) await legKansenVast(admin, id);
+
+  const { data: kansRows } = await admin
+    .from("kansen")
+    .select("id, sleutel, analysis_id, rapport_id, titel, lezer, handeling, bestaande_url, potentie, ruw")
+    .eq("profile_id", profileId)
+    .in("rapport_id", laatsteRapporten)
+    .neq("status", "vervallen");
+  const rapportVolgorde = new Map(laatsteRapporten.map((id, i) => [id, i]));
+  const kansen = ((kansRows ?? []) as {
+    id: string;
+    sleutel: string | null;
+    analysis_id: string | null;
+    rapport_id: string;
+    titel: string;
+    lezer: string | null;
+    handeling: string;
+    bestaande_url: string | null;
+    potentie: number | string | null;
+    ruw: RuweAanbeveling | null;
+  }[])
+    .filter((k) => k.sleutel && k.analysis_id)
+    // Dezelfde volgorde als toen de kaarten uit het rapport kwamen: nieuwste
+    // rapport eerst, dan de volgorde van de aanbevelingen.
+    .sort(
+      (a, b) =>
+        (rapportVolgorde.get(a.rapport_id) ?? 0) - (rapportVolgorde.get(b.rapport_id) ?? 0) ||
+        volgnummer(a.sleutel) - volgnummer(b.sleutel),
+    );
+
   const kandidaten: {
+    kansId: string;
+    oudePotentie: number | null;
     sourceRef: string;
     analysisId: string;
     title: string;
@@ -184,42 +216,34 @@ export async function syncBacklog(
     existingUrl: string | null;
     relatedUrl: string | null;
     vragen: Doelvraag[];
-  }[] = [];
-
-  for (const r of (reportRows ?? []) as {
-    id: string;
-    analysis_id: string;
-    recommendations_json: unknown;
-  }[]) {
-    if (gezien.has(r.analysis_id)) continue;
-    gezien.add(r.analysis_id);
-
-    const lijst = Array.isArray(r.recommendations_json) ? r.recommendations_json : [];
-    for (const [i, ruw] of (lijst as RuweAanbeveling[]).entries()) {
-      const title = tekst(ruw?.title);
-      if (!title) continue;
-      kandidaten.push({
-        // ⚠️ Het volgnummer hoort in de sleutel. Twee aanbevelingen uit hetzelfde
-        // rapport kunnen dezelfde titel dragen, en dan zou een sleutel op titel
-        // de tweede stilzwijgend laten verdwijnen.
-        sourceRef: `${r.id}#${i}`,
-        analysisId: r.analysis_id,
-        title,
-        why: tekst(ruw?.why),
-        targetIntent: tekst(ruw?.targetIntent),
-        pageType: pageTypeVoor(ruw?.type),
-        handeling: handelingVoor(ruw?.action),
-        existingUrl: schoonAdres(ruw?.existingUrl),
-        // Migratie 0083: alleen zinnig bij een nieuwe pagina, want bij
-        // `verbeteren` ís de bestaande pagina de pagina zelf. `existing-page-match.ts`
-        // vult hem in het rapport al zo in; dit is de tweede sluis, want een
-        // rapport van vóór 2 september 2026 kent die regel niet.
-        relatedUrl:
-          handelingVoor(ruw?.action) === "verbeteren" ? null : schoonAdres(ruw?.relatedUrl),
-        vragen: doelvragen(ruw?.targets),
-      });
-    }
-  }
+  }[] = kansen.map((k) => {
+    const ruw = k.ruw ?? {};
+    const handeling = handelingVoor(k.handeling);
+    return {
+      kansId: k.id,
+      // ⚠️ `numeric` komt als tekst binnen (zie `naarBacklogItem()`).
+      oudePotentie: k.potentie === null ? null : Number(k.potentie),
+      // Gelijk aan de oude "<rapport-id>#<volgnummer>": zo vindt een kaart die er
+      // al stond zijn kans terug. Het volgnummer hoort erin, want twee
+      // aanbevelingen uit één rapport kunnen dezelfde titel dragen.
+      sourceRef: k.sleutel as string,
+      analysisId: k.analysis_id as string,
+      title: k.titel,
+      // De uitleg van het rapportmodel blijft de tekst op de kaart; de uitleg
+      // van de kans (`kansen.uitleg`) is voor het kansenscherm (N7).
+      why: tekst(ruw.why),
+      targetIntent: k.lezer,
+      pageType: pageTypeVoor(ruw.type),
+      handeling,
+      existingUrl: k.bestaande_url ?? schoonAdres(ruw.existingUrl),
+      // Migratie 0083: alleen zinnig bij een nieuwe pagina, want bij
+      // `verbeteren` ís de bestaande pagina de pagina zelf. `existing-page-match.ts`
+      // vult hem in het rapport al zo in; dit is de tweede sluis, want een
+      // rapport van vóór 2 september 2026 kent die regel niet.
+      relatedUrl: handeling === "verbeteren" ? null : schoonAdres(ruw.relatedUrl),
+      vragen: doelvragen(ruw.targets),
+    };
+  });
 
   if (kandidaten.length === 0) {
     return { toegevoegd: 0, bijgewerkt: 0, clusters: gezien.size };
@@ -266,11 +290,23 @@ export async function syncBacklog(
       fasen,
     );
 
+  // De potentie hoort bij de kans; de kaart houdt zijn kopie tot N7 de kans leest.
+  await werkPotentieBij(
+    admin,
+    kandidaten.map((k, i) => ({
+      kansId: k.kansId,
+      oud: k.oudePotentie,
+      potentie: herverdeeld.get(k.sourceRef) ?? potenties[i].potential,
+    })),
+  );
+
   const nieuw: Record<string, unknown>[] = [];
   const bijwerken: {
     id: string;
     potential: number | null;
     target_count: number | null;
+    /** Alleen gezet als de kaart nog niet naar zijn kans wees. */
+    kans_id?: string;
     /** Alleen gezet als de rij nog geen fase had; een bestaande fase blijft staan. */
     funnel_stage_id?: string;
   }[] = [];
@@ -293,6 +329,7 @@ export async function syncBacklog(
         potential,
         target_count: raakt,
         ...(fase ? { funnel_stage_id: fase } : {}),
+        ...(bestaandeRij.kansId ? {} : { kans_id: k.kansId }),
       });
       continue;
     }
@@ -310,6 +347,7 @@ export async function syncBacklog(
       source: "aanbeveling",
       source_analysis_id: k.analysisId,
       source_ref: k.sourceRef,
+      kans_id: k.kansId,
       recommendation_action: k.handeling,
       existing_url: k.existingUrl,
       related_url: k.relatedUrl,
@@ -342,9 +380,14 @@ export async function syncBacklog(
         potential: b.potential,
         target_count: b.target_count,
         ...(b.funnel_stage_id ? { funnel_stage_id: b.funnel_stage_id } : {}),
+        ...(b.kans_id ? { kans_id: b.kans_id } : {}),
       })
       .eq("id", b.id);
   }
+
+  // N6: het kennisgat per kans, nu elke kaart naar zijn kans wijst. Een antwoord
+  // of een bevestiging sinds de vorige opening verandert het, en het plan toont het.
+  await werkKennisgatBij(admin, profileId);
 
   return { toegevoegd: nieuw.length, bijgewerkt: bijwerken.length, clusters: gezien.size };
 }

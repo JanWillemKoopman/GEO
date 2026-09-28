@@ -103,31 +103,31 @@ export function PagesTrafficChart({
           strokeLinejoin="round"
           strokeLinecap="round"
         />
-        <text x={PAD.left} y={H - PAD.bottom + 16} className="fill-[var(--text-muted)] text-[10px]">
+        <text x={PAD.left} y={H - PAD.bottom + 16} className="fill-[var(--text-tertiary)] text-[10px]">
           {formatKort(dagen[0].day)}
         </text>
         <text
           x={W - PAD.right}
           y={H - PAD.bottom + 16}
           textAnchor="end"
-          className="fill-[var(--text-muted)] text-[10px]"
+          className="fill-[var(--text-tertiary)] text-[10px]"
         >
           {formatKort(dagen[dagen.length - 1].day)}
         </text>
-        <text x={PAD.left - 6} y={PAD.top + 4} textAnchor="end" className="fill-[var(--text-muted)] text-[10px]">
+        <text x={PAD.left - 6} y={PAD.top + 4} textAnchor="end" className="fill-[var(--text-tertiary)] text-[10px]">
           {maxKlik}
         </text>
 
         {/* De twee aslabels. `aria-hidden` omdat de aria-label van de svg
             hetzelfde al voorleest. */}
-        <text x={PAD.left - 26} y={14} className="fill-[var(--text-muted)] text-[10px]" aria-hidden>
+        <text x={PAD.left - 26} y={14} className="fill-[var(--text-tertiary)] text-[10px]" aria-hidden>
           {Y_AS_LABEL}
         </text>
         <text
           x={PAD.left + (W - PAD.left - PAD.right) / 2}
           y={H - 8}
           textAnchor="middle"
-          className="fill-[var(--text-muted)] text-[10px]"
+          className="fill-[var(--text-tertiary)] text-[10px]"
           aria-hidden
         >
           {X_AS_LABEL}

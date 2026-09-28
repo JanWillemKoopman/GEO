@@ -1,0 +1,200 @@
+{
+  "paginas": [
+    {
+      "pagina": 1,
+      "fout_of_verzonnen": [
+        {"citaat": "Je kunt ook een vrijblijvende proefles aanvragen. Vrijblijvend betekent niet gratis: ga voor de intake uit van de genoemde prijs.", "probleem": "Haalt proefles en intake door elkaar. De site noemt een vrijblijvende proefles zonder prijs en een intake van € 50. Zo lijkt het alsof de proefles ook geld kost, of alsof ze hetzelfde zijn.", "ernst": "middel"},
+        {"citaat": "Bij Autorijschool Pompert duurt de intake 60 minuten en kost die € 50", "probleem": "De prijslijst op de site maakt onderscheid: intake op kantoor € 50, intake in de auto € 80. De tekst noemt alleen € 50 alsof dat altijd geldt.", "ernst": "middel"},
+        {"citaat": "Je kunt er ook voor kiezen om de eerste paar lessen in een rijsimulator te volgen", "probleem": "In de bronnen staat alleen dat je met de simulator zonder verkeer oefent (cursus 8 uur, € 380). Dat je 'de eerste paar lessen' in de simulator kiest, is een eigen invulling.", "ernst": "laag"},
+        {"citaat": "Bel **040-2569199** of **06-46431240**", "probleem": "Deze telefoonnummers staan niet in de aangeleverde bronnen. Controleer ze vóór publicatie, want een fout nummer kost direct aanvragen.", "ernst": "middel"},
+        {"citaat": "Voor ons ben je geen nummer.", "probleem": "Staat niet in de bronnen. Het is een algemene claim zonder bewijs, al is die ongevaarlijk.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "Het sterkste bewijs toevoegen dat nu ontbreekt: 93 procent geslaagd bij de eerste poging in 2025 tegen ongeveer 50 procent landelijk, het proefexamen bij een andere instructeur, het oefenen van de examenroute en de hulp bij het aparte faalangstexamen van het CBR. Daarna de eindeloze herhaling van 'Bij Autorijschool Pompert' aan het begin van elke alinea eruit halen.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {"citaat": "Bij Autorijschool Pompert kun je vooraf vertellen wat je spanning geeft ... Bij Autorijschool Pompert kun je aangeven wat voor jou spannend is ... Bij Autorijschool Pompert kun je beginnen met vertellen wat je spannend vindt.", "probleem": "Elke alinea opent met dezelfde bedrijfsnaam en bijna dezelfde belofte. Het leest als opvulling voor een zoekmachine, niet als een warme tekst."},
+        {"citaat": "de lessen zijn 75 minuten, omdat de eerste 10 minuten vaak nodig zijn om rustig te worden. Zo is er aan het begin van een les ruimte om tot rust te komen.", "probleem": "De tweede zin herhaalt de eerste. Ook de 75-minutenzin komt twee keer letterlijk terug op de pagina."},
+        {"citaat": "Angst achter het stuur kan rijden moeilijk maken", "probleem": "Holle kop die niets zegt wat de lezer niet al weet."},
+        {"citaat": "Dat zijn twee verschillende vormen van ervaring en scholing.", "probleem": "Een uitlegzin die als een voorbehoud klinkt en niets toevoegt."},
+        {"citaat": "Wil je weten welke mogelijkheden er zijn om te wisselen, neem dan contact met ons op.", "probleem": "Het antwoord in de vragenlijst ontwijkt de vraag. De vraag staat er, het antwoord niet."}
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Bij Autorijschool Pompert kost de intake van 60 minuten € 50 en krijg je dat bedrag terug als je daarna bij ons gaat lessen.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is een algemeen stuk over rijangst met een onbewezen cijfer ('een half miljoen automobilisten') en taalfouten, en zegt bijna niets over wat Pompert doet. De nieuwe pagina noemt prijs, lesduur, vaste instructeur en rustige routes. Kanttekening voor vindbaarheid: de huidige pagina richt zich op mensen mét rijbewijs die rijangst hebben, de nieuwe op leerlingen met faalangst. Voor de eerste groep zegt de nieuwe tekst niet of ze bij Pompert terechtkunnen.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 2,
+      "fout_of_verzonnen": [
+        {"citaat": "Voor de intake van Autorijschool Pompert staan de duur van 60 minuten, de prijs van € 50 en terugbetaling bij verder lessen vast.", "probleem": "Onjuist als algemene uitspraak. De eigen prijslijst noemt een intake in de auto van € 80 naast de kantoorintake van € 50.", "ernst": "hoog"},
+        {"citaat": "Vraag ons daarom vooraf: ‘Rijd ik tijdens deze intake zelf, of maken we alleen kennis?’", "probleem": "De site beantwoordt dit al: er is een intake op kantoor en een intake in de auto, elk met een eigen prijs. De tekst doet alsof het onbekend is en schuift de vraag door naar de lezer.", "ernst": "middel"},
+        {"citaat": "Controleer de bevoegdheid van je instructeur ... vraag dan rechtstreeks naar de WRM-bevoegdheidspas ... kun je terecht bij het IBKI", "probleem": "Feitelijk algemene vakkennis, maar een rijschool die klanten op de eigen pagina aanraadt de eigen instructeurs te controleren, wekt wantrouwen. Dit zou de ondernemer nooit zelf schrijven.", "ernst": "middel"},
+        {"citaat": "Laat het antwoord schriftelijk bevestigen als je daar vooraf duidelijkheid over wilt.", "probleem": "Staat niet in de bronnen en past niet bij de toon 'warm, geruststellend'. Het suggereert dat de rijschool mondeling niet te vertrouwen is. Komt drie keer terug.", "ernst": "middel"},
+        {"citaat": "We doen geen toezegging over een specifieke instructeur voordat je dat met ons hebt besproken.", "probleem": "Verzonnen voorbehoud. Niets in de bronnen zegt dit en het klinkt afwijzend.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "Hij zou de hele tekst weggooien: het leest als een consumentengids die waarschuwt tegen zijn eigen rijschool (bevoegdheidspas laten zien, alles schriftelijk laten bevestigen, niet ter plekke kiezen). En hij zou willen dat de pagina gewoon vertelt wat er in de eerste les en in de intake gebeurt, zoals de huidige pagina doet.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 3,
+      "copywriter_problemen": [
+        {"citaat": "Een eerste afspraak kan in het algemeen bestaan uit kennismaken, praten over rijervaring en eventueel rijden. ... Dat is geen vastgesteld programma voor onze intake.", "probleem": "Beschrijft iets en trekt het in dezelfde alinea weer in. De lezer weet daarna minder dan ervoor."},
+        {"citaat": "Vrijblijvend betekent dus niet kosteloos.", "probleem": "Dit voorbehoud staat in wisselende woorden op meerdere pagina's en hier twee keer. Het leest als een juridische kleine letter."},
+        {"citaat": "Een losse les is een afzonderlijke rijles, geen toezegging dat je later zonder voorwaarden tussen alle opties kunt wisselen.", "probleem": "Kromme, defensieve zin die een bezwaar opwerpt dat de lezer niet had."},
+        {"citaat": "Vraag ... Vraag ... Vraag ... Vraag", "probleem": "Bijna elke alinea eindigt met 'vraag ons' in plaats van het antwoord te geven. De pagina geeft huiswerk in plaats van informatie."},
+        {"citaat": "Begin niet groter dan je nodig denkt te hebben", "probleem": "Kromme kop die als ontmoediging voor het kopen van een pakket leest."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Ons starterspakket omvat 25 uur, verdeeld over 20 lessen van 75 minuten; het basispakket omvat 40 uur, verdeeld over 32 lessen van 75 minuten.",
+      "vergelijking_huidig": "huidig_beter",
+      "waarom_vergelijking": "Wie zoekt op 'wat kan ik verwachten tijdens mijn eerste rijles' krijgt op de huidige pagina een helder stappenplan (kennismaking, uitleg auto, veiligheid, rustige plek, verkeer, feedback). De nieuwe pagina gaat over een ander onderwerp (intake vóór een pakket), zegt letterlijk dat het geen vast programma is en beantwoordt de zoekvraag niet. Voor de bezoeker en voor vindbaarheid is de huidige beter.",
+      "past_bij_adres": false
+    },
+    {
+      "pagina": 3,
+      "fout_of_verzonnen": [
+        {"citaat": "V: Kan ik in een automaat les krijgen? A: Geef via de contactpagina aan dat je in een automaat wilt lessen.", "probleem": "De bronnen zeggen dat Pompert les in een automaat geeft en dat de ondernemer daarop wil groeien. Het antwoord is gewoon 'ja' en dat ontbreekt.", "ernst": "middel"},
+        {"citaat": "Beide pakketten bevatten volgens de pakketinformatie een tussentijdse toets, een oefenmoment vóór het praktijkexamen, en het praktijkexamen.", "probleem": "Door de komma lijkt het oefenmoment een apart onderdeel, terwijl het de uitleg van de tussentijdse toets is. Praktijkboek en gratis herexamen (onder voorwaarden) ontbreken. Pakketprijzen ontbreken ook.", "ernst": "laag"},
+        {"citaat": "Bel 040-2569199 of stuur een WhatsApp-bericht naar 06-46431240.", "probleem": "Nummers staan niet in de aangeleverde bronnen. Controleren.", "ernst": "middel"},
+        {"citaat": "V: Kan ik theorieles volgen voordat ik met praktijklessen begin? A: Stel ons deze vraag via de contactpagina", "probleem": "De site noemt theorielessen en een webshop voor theorie. Ook hier wordt een bekend antwoord weggelaten.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "Concreet maken voor Best: dat de les bij je thuis, op school of op je werk begint, het slagingspercentage en de automaat. Nu staat er twee keer dat een starttermijn 'niet bevestigd' is, wat klinkt als een interne notitie.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {"citaat": "Hoe snel je kunt starten, is niet bevestigd.", "probleem": "Klinkt als een notitie van de schrijver, niet als tekst voor een klant. Komt terug als 'Een starttermijn kunnen we hier niet bevestigen.'"},
+        {"citaat": "In het begin rijden we vaste rustige routes. De lessen duren 75 minuten, omdat de eerste 10 minuten vaak nodig zijn om rustig te worden.", "probleem": "Staat twee keer bijna letterlijk op de pagina en ook op elke andere pagina."},
+        {"citaat": "Dat is iets anders dan een belofte van extra lestijd of onbeperkte herhaling.", "probleem": "Werpt een bezwaar op dat niemand had. Maakt een positief punt (vaste instructeur) kleiner."},
+        {"citaat": "Spanning hoeft niet te betekenen dat je meteen alles moet kunnen", "probleem": "Lange, wat kromme kop."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Autorijschool Pompert geeft rijles in Best en biedt begeleiding op maat, ook als je faalangst hebt.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina belooft 'gegarandeerd goedkope rijlessen' en 'de voordeligste rijlessen', noemt zich 'de beste rijschool in Best', zegt 'Haal je rijbewijs in een kort tijdsbestek' en bevat de fout 'Hoewel we kunnen garanderen hoeveel rijlessen'. Dat botst met de toon en de verboden woorden van de ondernemer. De nieuwe pagina is eerlijk en concreet over lesduur en prijzen. Nadeel: de algemene zoekterm 'rijschool Best' verdwijnt uit titel en eerste zin.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 4,
+      "fout_of_verzonnen": [
+        {"citaat": "Een lager tempo, een andere route, een eenvoudigere oefening of eerst extra uitleg: dat zijn mogelijkheden om vooraf met ons te bespreken", "probleem": "Niet onjuist, maar niet uit de bronnen. De tekst verzint mogelijkheden en neemt ze in dezelfde zin weer terug ('geen vaste ingrepen').", "ernst": "laag"},
+        {"citaat": "Autorijschool Pompert beschrijft een aanpak in kleine stappen", "probleem": "Het bedrijf schrijft over zichzelf alsof het een bron citeert. Dat laat zien hoe de tekst gemaakt is en maakt de uitspraak zwakker.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "Er moet echte inhoud in: wat een les kost, dat de les bij je thuis of op school begint, de simulator, het proefexamen en het slagingspercentage. Nu zegt de pagina acht keer 'bespreek vooraf wat spanning geeft' en verder bijna niets.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 3,
+      "copywriter_problemen": [
+        {"citaat": "Vooraf bespreken maakt afspraken duidelijker ... Vraag hoe de instructeur met spanning omgaat ... Een pauze vragen mag onderdeel zijn van de les", "probleem": "Drie alinea's zeggen hetzelfde: bespreek vooraf wat je spannend vindt. Pure herhaling."},
+        {"citaat": "Zo hoef je niet pas achter het stuur uit te leggen wat je lastig vindt. Zo kan je instructeur jouw signalen en voortgang leren kennen.", "probleem": "Twee zinnen achter elkaar met 'Zo'. De tweede zin komt later letterlijk terug."},
+        {"citaat": "Zo kun je ook vanuit Waalre kiezen voor rijles waarin persoonlijke aandacht telt.", "probleem": "Holle zin die alleen de plaatsnaam nog eens noemt."},
+        {"citaat": "Dat zegt niets over hoe snel je vooruitgang boekt.", "probleem": "Onnodig voorbehoud dat de geruststelling ervoor tenietdoet."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "In het begin rijden we vaste rustige routes en de lessen zijn 75 minuten omdat de eerste 10 minuten vaak nodig zijn om rustig te worden.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is dezelfde sjabloontekst als Best en Geldrop, met 'gegarandeerd goedkope rijlessen', 'de beste rijschool in Waalre' en 'in een kort tijdsbestek'. Dat is riskant en in strijd met wat de ondernemer wil. De nieuwe is eerlijk maar dun: weinig feiten, geen prijzen behalve de intake, niets specifiek over Waalre.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 5,
+      "fout_of_verzonnen": [
+        {"citaat": "Vraag ons bij contact naar de actuele tarieven en eventuele kosten voor begeleiding bij faalangst.", "probleem": "Nergens staat dat faalangstbegeleiding extra kost. De zin wekt een verborgen meerprijs op die mogelijk niet bestaat en schrikt precies de doelgroep af.", "ernst": "middel"},
+        {"citaat": "V: Kan ik les krijgen in een automaat als schakelen extra spanning geeft? A: Vertel ons dat schakelen je spanning geeft en vraag bij het contact welke lesvorm voor jou mogelijk is.", "probleem": "De site zegt dat les in de automaat kan (ook in de pakketten, € 76 per uur). Een bekend 'ja' wordt ontweken, terwijl de ondernemer hier juist op wil groeien.", "ernst": "middel"},
+        {"citaat": "In het begin rijden we vaste rustige routes. De lessen duren dan 75 minuten ... Een losse les van 60 minuten kost € 80.", "probleem": "75 minuten en 60 minuten staan direct naast elkaar zonder uitleg. De lezer weet niet wat een les van 75 minuten kost.", "ernst": "laag"},
+        {"citaat": "V: Wat zijn de annuleringsvoorwaarden als ik een les moet afzeggen? A: Vraag ons bij het maken van een afspraak welke voorwaarden voor afzeggen gelden.", "probleem": "De site noemt de BOVAG-lesovereenkomst waarin de voorwaarden staan. Dat antwoord wordt niet gegeven.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De zin over 'eventuele kosten voor begeleiding bij faalangst' eruit, en de vragen onderaan echt beantwoorden (automaat: ja; afzeggen: volgens de BOVAG-lesovereenkomst) in plaats van telkens 'vraag het ons'.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {"citaat": "Autorijschool Pompert geeft rijles in Helmond in een ontspannen, persoonlijke sfeer en op jouw tempo, ook als faalangst meespeelt. Zo kun je in Helmond lessen op een tempo dat bij jou past.", "probleem": "De tweede zin herhaalt de eerste letterlijk in andere woorden."},
+        {"citaat": "Je kunt vooraf met de instructeur bespreken wat spanning geeft. Zo hoef je niet pas achter het stuur uit te leggen waar je tegenop ziet.", "probleem": "Dezelfde zin staat al in de openingsalinea en op bijna elke andere pagina."},
+        {"citaat": "Een aangepast examen of slagen volgt niet automatisch uit de lessen.", "probleem": "Koud en juridisch in een tekst die geruststellend moet zijn."},
+        {"citaat": "V: Hoe snel kan ik na de eerste les een vervolgles plannen? A: Neem contact op om naar de eerstvolgende beschikbare lesmogelijkheden te vragen.", "probleem": "Acht vragen onderaan, waarvan de helft zonder antwoord. Dat is opvulling."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Bij Autorijschool Pompert kost een intake van 60 minuten € 50 en een losse autorijles van 60 minuten € 80.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina belooft 'gegarandeerd goedkope rijlessen', noemt zich 'de goedkoopste rijschool Helmond', heeft een afgebroken zin ('Door klein te blijven zijn wij ervan') en veel taalfouten. De nieuwe pagina is eerlijk en noemt prijzen, maar is vaag over wat de ondernemer al weet.",
+      "past_bij_adres": true
+    },
+    {
+      "pagina": 6,
+      "fout_of_verzonnen": [
+        {"citaat": "Bij dit examen is er meer tijd voor je spanning dan bij een gewoon praktijkexamen. Tijdens de rit kun je om een time-out vragen", "probleem": "Staat niet in de bronnen. De bronnen zeggen alleen dat het CBR een apart faalangstexamen heeft. Hoe dat examen werkt moet bij het CBR gecontroleerd worden voordat de rijschool het belooft; de time-out komt vijf keer terug op de pagina.", "ernst": "middel"},
+        {"citaat": "Daaruit volgt niet wat een faalangstexamen en eventuele aanvullende voorbereiding samen kosten.", "probleem": "De eigen prijslijst noemt 'Faalangst examen CBR € 400'. De tekst verzwijgt een bekende prijs en schuift de vraag door.", "ernst": "middel"},
+        {"citaat": "Geen haast, maar kwaliteit.", "probleem": "Slogan die niet in de bronnen staat.", "ernst": "laag"},
+        {"citaat": "Voor ons ben je geen nummer", "probleem": "Staat niet in de bronnen; algemene claim zonder bewijs.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De pagina op een eigen, logisch adres zetten (nu is het de fotopagina 'CBR – Peter Pompert'), de prijs van het faalangstexamen noemen (€ 400) en de 93 procent eerste-keer-geslaagd toevoegen, want juist bij examenangst is dat het sterkste argument.",
+      "bezoeker_neemt_contact_op": "ja",
+      "copywriter_cijfer": 5,
+      "copywriter_problemen": [
+        {"citaat": "Bij Autorijschool Pompert kun je vóór het rijden met je instructeur bespreken wat jou spanning geeft. Zo kun je voordat je rijdt benoemen waar jouw spanning begint.", "probleem": "De tweede zin herhaalt de eerste."},
+        {"citaat": "Zo kun je een examensituatie oefenen met een ander gezicht naast je en eerst op de simulator rijden zonder verkeer.", "probleem": "Herhaalt de vorige zin bijna letterlijk."},
+        {"citaat": "Wat gebeurt er met mij als de spanning tijdens een les of examen oploopt?", "probleem": "Vreemd geformuleerde vraag voor een kennismaking; klinkt medisch in plaats van praktisch."},
+        {"citaat": "Oefenen werkt het best als lessen aansluiten op jouw spanning", "probleem": "Kromme kop: lessen sluiten aan op jouw leerpunten, niet op je spanning."}
+      ],
+      "ai_citeerbaar": "ja",
+      "beste_citeerbare_zin": "Het CBR heeft hiervoor een apart examen en wij helpen je met de aanvraag.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige 'pagina' is een fotopagina met alleen het menu en een fotobijschrift, zonder inhoud. De nieuwe tekst is de meest concrete van de acht: faalangstexamen, proefexamen bij een andere instructeur, simulator, vragen voor de kennismaking. Het adres past alleen niet.",
+      "past_bij_adres": false
+    },
+    {
+      "pagina": 7,
+      "fout_of_verzonnen": [
+        {"citaat": "Bij Autorijschool Pompert is de intake van 60 minuten vrijblijvend en kost die € 50.", "probleem": "Op de prijzenpagina zelf staat ook een intake in de auto van € 80. De nieuwe prijzenpagina laat die weg.", "ernst": "hoog"},
+        {"citaat": "Bij Autorijschool Pompert omvat het starterspakket 25 uur, verdeeld over 20 lessen van 75 minuten; het basispakket omvat 40 uur, verdeeld over 32 lessen van 75 minuten.", "probleem": "De prijzen (€ 2.525 en € 3.665) staan er niet bij, net als de rijsimulatorcursus (€ 380), het faalangstexamen (€ 400), de automaatprijs, praktijkboek, gratis herexamen en terugbetaling van ongebruikte lessen. Op de prijzenpagina is dat een ernstige weglating.", "ernst": "hoog"},
+        {"citaat": "We doen geen toezegging dat eerdere losse lessen worden verrekend als je later een pakket kiest.", "probleem": "Staat niet in de bronnen. Een verzonnen negatief voorbehoud op de pagina waar de beslissing valt.", "ernst": "middel"},
+        {"citaat": "een vrije keuze van instructeur zeggen we hier niet toe.", "probleem": "Verzonnen en afwijzend. De bronnen zeggen alleen: één vaste instructeur per leerling.", "ernst": "laag"},
+        {"citaat": "De vermelde losse les duurt 60 minuten.", "probleem": "Staat direct na 'lessen van 75 minuten'. De lezer weet niet wat een les van 75 minuten los kost.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "nee",
+      "ondernemer_verandert_eerst": "Hij zou weigeren zijn prijzenpagina te laten vervangen door een tekst zonder pakketprijzen. De volledige prijslijst moet terug, met de proefles erbij (die volgens de opdracht duidelijk bij de prijzen moest komen maar nergens in de tekst staat).",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 3,
+      "copywriter_problemen": [
+        {"citaat": "Verrekenen betekent dat een eerder betaald bedrag wordt afgetrokken van een later te betalen bedrag.", "probleem": "Woordenboekuitleg die niemand nodig heeft, gevolgd door de mededeling dat het niet gebeurt."},
+        {"citaat": "Je krijgt les van één vaste instructeur ... De vaste instructeur blijft een relevant gesprekspunt bij een pakket", "probleem": "Twee alinea's over hetzelfde; de tweede kop is ambtelijk en krom."},
+        {"citaat": "Je hoeft je vraag over een eerste losse les dus niet te verwarren met een keuze voor een examen.", "probleem": "Holle, verwarrende slotzin."},
+        {"citaat": "Deze aanpak geeft je iets concreets om op te letten wanneer je onze begeleiding ervaart.", "probleem": "Meta-zin die niets zegt."},
+        {"citaat": "€ 80 ... € 50 ... € 80 ... € 50", "probleem": "Dezelfde twee prijzen staan in minstens zes alinea's. Veertien kopjes voor twee bedragen."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Bij Autorijschool Pompert kost een losse autorijles van 60 minuten € 80.",
+      "vergelijking_huidig": "huidig_beter",
+      "waarom_vergelijking": "De huidige prijzenpagina geeft alle bedragen: pakketten, losse lessen, simulator, examens, intake op kantoor en in de auto, automaat, termijnbetaling, terugbetaling van ongebruikte lessen en de voorwaarden van het gratis herexamen. Voor iemand die op 'prijzen rijles Eindhoven' zoekt en voor een AI-assistent die prijzen wil noemen, is die veel waardevoller. De nieuwe tekst gooit dat weg voor een smal onderwerp (losse les bij faalangst).",
+      "past_bij_adres": false
+    },
+    {
+      "pagina": 8,
+      "fout_of_verzonnen": [
+        {"citaat": "Je kunt ons rechtstreeks bellen of WhatsAppen op **06-46431240**", "probleem": "Nummer staat niet in de aangeleverde bronnen. Controleren.", "ernst": "middel"},
+        {"citaat": "we noemen ook een vrijblijvende intake van 60 minuten. Die kost € 50.", "probleem": "'We noemen' klinkt alsof het bedrijf zijn eigen site citeert. De intake in de auto (€ 80) ontbreekt.", "ernst": "laag"}
+      ],
+      "ondernemer_publiceert": "met_aanpassingen",
+      "ondernemer_verandert_eerst": "De vreemde zelfquote ('Over de start van de lessen zeggen we het zelf zo: ...') weghalen en concrete feiten toevoegen: prijzen, opstappunt bij je thuis of op school, simulator, proefexamen, slagingspercentage.",
+      "bezoeker_neemt_contact_op": "misschien",
+      "copywriter_cijfer": 4,
+      "copywriter_problemen": [
+        {"citaat": "Over de start van de lessen zeggen we het zelf zo: ‘In het begin rijden we vaste rustige routes en de lessen zijn 75 minuten omdat de eerste 10 minuten vaak nodig zijn om rustig te worden.’", "probleem": "Het bedrijf citeert zichzelf tussen aanhalingstekens, en de zin stond al in de openingsalinea. Amateuristisch."},
+        {"citaat": "Autorijschool Pompert geeft in Geldrop rijles op je eigen tempo ... Je leert stap voor stap en op jouw tempo", "probleem": "'Op jouw tempo' komt vijf keer terug."},
+        {"citaat": "Wat voor iemand anders prettig is, hoeft niet jouw manier te zijn.", "probleem": "Cliché zonder inhoud."},
+        {"citaat": "Dat is een andere begeleidingsvraag dan zenuwen voor rijles; vertel ons vooral wat er voor jou speelt.", "probleem": "Noemt de autismetraining en zet die direct weer apart. Een sterk punt wordt zwak gemaakt."}
+      ],
+      "ai_citeerbaar": "deels",
+      "beste_citeerbare_zin": "Onze instructeurs hebben ook extra training gevolgd voor rijles bij autisme.",
+      "vergelijking_huidig": "nieuw_beter",
+      "waarom_vergelijking": "De huidige pagina is dezelfde sjabloontekst met 'gegarandeerd goedkope rijlessen', 'de goedkoopste rijschool Geldrop', een afgebroken zin en taalfouten. De nieuwe is eerlijk en warmer, maar mager aan feiten. Voor vindbaarheid is het een winst dat de riskante beloftes verdwijnen; de algemene zoekterm 'rijschool Geldrop' valt wel uit de titel.",
+      "past_bij_adres": true
+    }
+  ],
+  "rode_draad": "Alle acht pagina's draaien dezelfde paar zinnen af (vaste rustige routes, 75 minuten omdat de eerste 10 nodig zijn, bespreek vooraf wat spanning geeft, intake € 50 terug), met elke alinea beginnend met 'Bij Autorijschool Pompert' en telkens 'vraag het ons' of 'daarover doen we geen toezegging', terwijl de site het antwoord al geeft (automaat kan, intake in de auto € 80, pakketprijzen, faalangstexamen € 400). Het sterkste bewijs ontbreekt overal (93 procent eerste keer geslaagd tegen ongeveer 50 procent landelijk, 108 Google-recensies, opstappunt thuis of op school, ADHD), en twee pagina's vervangen een bestaande pagina door een ander onderwerp: de eerste rijles en vooral de prijzenpagina.",
+  "niveau_professionele_copywriter": "nee"
+}

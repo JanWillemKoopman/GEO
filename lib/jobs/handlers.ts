@@ -10,9 +10,9 @@ import "server-only";
  *
  *   prepare_analysis → generate_prompts → (wacht op goedkeuring van de klant)
  *   measure_prompt ×N → aggregate_week → generate_report → mail
- *   content_draft → content_revise
+ *   pagina_brief → pagina_schrijven → pagina_controle → pagina_herschrijven
+ *   (docs/tasks/contentketen-opnieuw.md, vanaf WP5)
  */
-import { probeerTeSchrijven } from "@/lib/plan-write-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { nextInChain } from "@/lib/jobs/chain";
 import { prepareProfile } from "@/lib/pipeline/prepare-profile";
@@ -34,16 +34,15 @@ import {
   computeAggregates,
   measurementIsUsable,
 } from "@/lib/pipeline/measure";
-import { runBriefing } from "@/lib/pipeline/briefing";
 import { generateReport } from "@/lib/pipeline/report";
 import { profileCompetitors } from "@/lib/pipeline/competitor-intel";
-import { draftContentPiece, reviseContentPiece, herkeurContentPiece } from "@/lib/pipeline/content";
-import { planContentPiece } from "@/lib/pipeline/content-plan";
+import { deelKennisIn } from "@/lib/kennis/indelen";
 import { runAuditForProfile } from "@/lib/audit/store";
 import { planImpactMeasurements, computeImpact } from "@/lib/pipeline/impact";
 import { verifyPublication } from "@/lib/pipeline/publish";
 import { runOffsiteScan } from "@/lib/offsite/scan";
 import { syncSearchConsole } from "@/lib/search-console/sync";
+import { legZoekverkeerBewijsVast } from "@/lib/kansen/uit-search-console";
 import { recalibrateSearchVolume } from "@/lib/pipeline/search-demand";
 import { startReputationRun } from "@/lib/pipeline/reputation-start";
 import { runBrandBlock } from "@/lib/pipeline/reputation-brand";
@@ -72,6 +71,20 @@ import { availableEngineIds } from "@/lib/engines/registry";
 import type { Kandidaat } from "@/lib/sales/discovery";
 import { refreshInventory } from "@/lib/pipeline/refresh-inventory";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
+import { verwerkGebeurtenis } from "@/lib/gebeurtenissen/verwerken";
+// Registreert zichzelf bij het register (G3, G4); alleen om die bijwerking geïmporteerd.
+import "@/lib/gebeurtenissen/abonnees/kennis-wijziging-impact";
+import "@/lib/gebeurtenissen/abonnees/onderzoek-refresh";
+import {
+  voerBriefUit,
+  briefGafOp,
+  voerSchrijvenUit,
+  schrijvenGafOp,
+  voerControleUit,
+  controleGafOp,
+  voerHerschrijvenUit,
+  herschrijvenGafOp,
+} from "@/lib/pagina/taken";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
 import { measureAiOverviewById } from "@/lib/pipeline/measure-ai-overview";
 import { measureLlmResponseById } from "@/lib/pipeline/measure-llm-response";
@@ -86,6 +99,13 @@ import type { Job } from "@/lib/types/database";
 import { requireCount } from "@/lib/require-count";
 import { resolveMix } from "@/lib/prompt-mix";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
+import {
+  discoveryBundle,
+  discoveryCollect,
+  discoveryExpand,
+  discoverySift,
+  markeerRondeMislukt,
+} from "@/lib/pipeline/cluster-discovery";
 
 type Admin = SupabaseClient;
 
@@ -98,54 +118,6 @@ type Handler<T extends JobType> = (
   ctx: JobContext,
   payload: JobPayloads[T],
 ) => Promise<void>;
-
-/**
- * Meldt een geschreven tekst terug aan de pagina in het contentplan (fase 4).
- *
- * ⚠️ Best-effort, met opzet. Mislukt deze koppeling, dan is er wél een tekst
- * geschreven, en die alsnog als mislukte taak markeren zou hem opnieuw laten
- * schrijven: een tweede betaalde aanroep op het duurste model om een
- * administratieve regel. De tekst staat onder de analyse en is daar te vinden;
- * het plan loopt dan achter, en dat is de goedkoopste van de twee fouten.
- */
-async function linkPlannedPage(
-  admin: Admin,
-  plannedPageId: string | undefined,
-  result: { contentPieceId: string; klaar: boolean },
-): Promise<void> {
-  if (!plannedPageId) return;
-  try {
-    await admin
-      .from("planned_pages")
-      .update({
-        content_piece_id: result.contentPieceId,
-        status: result.klaar ? "ter_goedkeuring" : "schrijven",
-      })
-      .eq("id", plannedPageId)
-      // Een pagina die de klant intussen heeft afgewezen of zelf geplaatst
-      // heeft, mag niet teruggezet worden door een taak die nog liep.
-      .in("status", ["gepland", "schrijven"]);
-  } catch (err) {
-    console.error(`Plan-pagina ${plannedPageId} koppelen faalde:`, err);
-  }
-}
-
-/** Payload → de vorm die de contentpijplijn verwacht. */
-function toRecommendation(r: RecommendationPayload) {
-  return {
-    title: r.title,
-    type: r.type,
-    targetIntent: r.targetIntent,
-    why: r.why,
-    action: r.action,
-    existingUrl: r.existingUrl,
-    relatedUrl: r.relatedUrl ?? null,
-    // Sinds fase 4 draagt de aanbeveling zijn doelvragen mee: welke gemiste
-    // vraag deze pagina moet winnen (4.1) en wat de klant zelf anders wil (4.8).
-    targets: r.targets ?? [],
-    revisionNote: r.revisionNote ?? null,
-  };
-}
 
 /**
  * Zijn alle meettaken voor deze analyse/week klaar? Zo ja, dan mag de aggregatie
@@ -187,68 +159,6 @@ async function scheduleAggregateIfLastPrompt(
     payload: { weekNo },
     analysisId,
     dedupeKey: dedupe.aggregateWeek(analysisId, weekNo),
-  });
-}
-
-/**
- * Was dit de laatste plantaak van de batch? Zo ja, dan mag de briefing draaien.
- * (docs/tasks/vragen-voor-het-schrijven.md §3)
- *
- * ── DEZELFDE CONSTRUCTIE ALS `scheduleAggregateIfLastPrompt()` ──────────────
- *
- * Inclusief dezelfde valkuil, die daar één keer ingelopen is: de taak die dit
- * aanroept staat ZÉLF nog op 'running'. Zonder de uitsluiting op `currentJobId`
- * is het aantal openstaande plantaken altijd minstens één en wordt de briefing
- * nooit ingepland. De klant blijft dan wachten op vragen die niet komen.
- *
- * ── WAAROM DE BRIEFING PAS NA ALLE CONTRACTEN MAG ───────────────────────────
- *
- * De briefing haalt zijn vragen uit het VERSCHIL tussen het contract (wat de
- * pagina nodig heeft) en de feitenkaart (wat we hebben). Draait hij nadat er
- * pas twee van de vier contracten liggen, dan krijgen die twee andere pagina's
- * geen enkele vraag, en dat zijn juist de pagina's waarvan nog niemand weet hoe
- * dun ze zijn.
- *
- * ── WAAROM DIT OP TAKEN TELT EN NIET OP CONTRACTEN ─────────────────────────
- *
- * Een plantaak kan legitiem ZONDER contract eindigen: het onderzoek blijft
- * hangen op een externe bron, of het schema parst niet, en dan gaat hij bij de
- * laatste poging bewust door (zie de vangst in `content_plan` hierboven). Zou
- * de afteller op contracten tellen, dan komt hij in precies dat geval nooit op
- * nul uit en krijgt de klant nooit een vraag te zien. Een pagina zonder
- * contract levert straks een briefing zonder dekkingsmeting voor díé pagina op,
- * en dat is precies het oude gedrag: minder goed, niet stuk.
- *
- * De dedupe-sleutel op de briefing zorgt dat er hoe dan ook maar één ontstaat.
- */
-async function scheduleBriefingIfLastPlan(
-  admin: Admin,
-  analysisId: string,
-  currentJobId: string,
-  userId: string,
-  recommendations: RecommendationPayload[],
-): Promise<void> {
-  const { data: openJobs } = await admin
-    .from("jobs")
-    .select("id, payload_json")
-    .eq("analysis_id", analysisId)
-    .eq("type", "content_plan")
-    .in("status", ["queued", "running"])
-    .neq("id", currentJobId);
-
-  const nogBezig = ((openJobs ?? []) as { payload_json: { voorBriefing?: unknown } | null }[]).filter(
-    (j) => Boolean(j.payload_json?.voorBriefing),
-  ).length;
-  if (nogBezig > 0) return;
-
-  await enqueue(admin, {
-    type: "content_brief",
-    payload: { userId, recommendations },
-    analysisId,
-    dedupeKey: dedupe.contentBrief(
-      analysisId,
-      recommendations.map((r) => r.title),
-    ),
   });
 }
 
@@ -345,12 +255,17 @@ async function scheduleImpactIfLastRun(
   // ⚠️ Faalt deze telling, dan mag hij géén nul worden: dan zou de
   // effectmeting worden afgerond terwijl er nog metingen lopen, en dat levert
   // een impactcijfer op dat de klant te zien krijgt en dat niet klopt.
+  //
+  // Beide bronnen (M3, `van-pijplijn-naar-kennissysteem.md`): sinds AI Overview
+  // ook een golf meet, telt een openstaande `measure_ai_overview`-taak net zo
+  // goed mee als een openstaande `measure_prompt`-taak. Anders rekent
+  // `computeImpact()` af terwijl de Google-metingen van deze golf nog lopen.
   const remaining = requireCount(
     await admin
       .from("jobs")
       .select("id", { count: "exact", head: true })
       .eq("analysis_id", analysisId)
-      .eq("type", "measure_prompt")
+      .in("type", ["measure_prompt", "measure_ai_overview"])
       .in("status", ["queued", "running"])
       .contains("payload_json", {
         impact: { contentPieceId: impact.contentPieceId, wave: impact.wave },
@@ -368,6 +283,13 @@ async function scheduleImpactIfLastRun(
     dedupeKey: dedupe.computeImpact(impact.contentPieceId, impact.wave),
   });
 }
+
+/**
+ * Hoeveel aanvulrondes een trage site hooguit krijgt. Vier rondes op
+ * "langzaam" zijn samen ruim tien minuten lezen, genoeg voor de ~70 pagina's van
+ * de hovenier uit de kwaliteitsdoorlichting (4 tot 10 seconden per pagina).
+ */
+const MAX_AANVULRONDES = 4;
 
 const handlers: { [T in JobType]: Handler<T> } = {
   // ── Profielonderzoek ──────────────────────────────────────────────────────
@@ -405,7 +327,19 @@ const handlers: { [T in JobType]: Handler<T> } = {
   // volgende (docs/tasks/onboarding-2.0.md blok B).
   profile_discover: async ({ admin, job }) => {
     if (!job.profile_id) throw new Error("profile_discover zonder profile_id.");
-    await discoverSite(job.profile_id);
+    const ontdekt = await discoverSite(job.profile_id);
+
+    // Een trage site: de pagina's die niet op tijd kwamen, alsnog rustig lezen
+    // in de achtergrond (punt 4 van de kwaliteitsdoorlichting). Aanvullen en
+    // niet vervangen, één pagina tegelijk.
+    if (ontdekt.traagNietGelezen > 0) {
+      await enqueue(admin, {
+        type: "crawl_inventory",
+        payload: { mode: "meer", maxPages: ontdekt.traagNietGelezen, speed: "langzaam", aanvulronde: 1 },
+        profileId: job.profile_id,
+        dedupeKey: `${dedupe.crawlInventory(job.profile_id)}:aanvul1`,
+      });
+    }
 
     // Het onderzoek volgt hier pas ná, en niet parallel zoals voorheen. Dat is
     // het hele punt: `prepare-profile.ts` startte de inventaris naast de
@@ -622,11 +556,20 @@ const handlers: { [T in JobType]: Handler<T> } = {
       payload.promptId,
       payload.weekNo,
       payload.repeatIndex ?? 0,
+      payload.impact,
     );
     // Een vraag zonder AI-overzicht is geen fout maar wel iets om te kunnen
     // terugzien: bij ongeveer één vraag op de tien gebeurt dit, en als dat
     // aandeel plots oploopt is dat een signaal over Google, niet over het merk.
     if (!uitkomst.gemeten) console.log(uitkomst.melding);
+
+    // Een hermeting ná publicatie (M3) hoort bij een pagina, niet bij een
+    // periode: zelfde tak als bij `measure_prompt`, en om dezelfde reden mag
+    // hij de zichtbaarheidsscore niet raken.
+    if (payload.impact) {
+      await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
+      return;
+    }
 
     // ⚠️ Ook déze taak kan de laatste van de ronde zijn. Zou alleen
     // `measure_prompt` de aggregatie aansturen, dan blijft een ronde waarvan de
@@ -779,227 +722,25 @@ const handlers: { [T in JobType]: Handler<T> } = {
     await generateReport(job.analysis_id, payload.weekNo);
   },
 
-  // ── Contentbriefing: de vragenronde vóór het schrijven (R5.1) ─────────────
-  //
-  // Hierna stopt de pijplijn bewust. Er wordt niets ingepland: de klant beslist
-  // wanneer er geschreven wordt, via het briefingscherm. Dat is hetzelfde
-  // patroon als de review-gate tussen halte 2 en 3 (abcplan.md §3.6), nooit een
-  // black box, altijd eerst kijken en bijsturen.
-  content_brief: async ({ admin, job }, payload) => {
-    if (!job.analysis_id) throw new Error("content_brief zonder analysis_id.");
-    const result = await runBriefing({
-      analysisId: job.analysis_id,
-      recommendations: payload.recommendations,
-    });
-    console.log(
-      `Briefing ${job.analysis_id}: ${result.contentPieceIds.length} pagina's, ` +
-        `${result.facts} bekende feiten, ${result.questions} vragen aan de klant.`,
-    );
-
-    // ── Geen vragen? Dan niet wachten (contentflow-een-lijn.md §3) ──────────
-    //
-    // Een pagina uit het contentplan waarvoor de voorbereiding nul vragen
-    // opleverde, of waarvan alle vragen al beantwoord waren, gaat meteen door
-    // naar de schrijfpoort. Die beslist; hier wordt alleen gevraagd.
-    // `probeerTeSchrijven()` doet niets bij een pagina die niet in het plan
-    // staat, dus de oude route vanuit een cluster verandert hier niet.
-    for (const pieceId of result.contentPieceIds) {
-      try {
-        await probeerTeSchrijven(admin, pieceId, new Date());
-      } catch (err) {
-        console.error(`Na de voorbereiding schrijven voor ${pieceId} mislukte:`, err);
-      }
-    }
+  // ── Sitefeiten indelen in de kennislaag (WP2, sinds K8 deel 2) ────────────
+  // De naam `fact_register` bleef: de wachtrij en de taaklijsten kennen hem.
+  fact_register: async ({ admin, job }) => {
+    if (!job.profile_id) throw new Error("fact_register zonder profile_id.");
+    await deelKennisIn(admin, job.profile_id);
   },
 
-  // ── Content stap 0: uitzoeken wat DEZE pagina nodig heeft (A1/A2) ─────────
-  //
-  // Het itemdossier plus het contentcontract, en daarna pas schrijven. Een eigen
-  // taak omdat het onderzoek een web-zoekactie doet: die past niet vóór een
-  // schrijfaanroep die zelf al tot 150 seconden mag duren (conventie 7).
-  //
-  // Faalt deze stap, dan faalt de taak en probeert de wachtrij hem opnieuw. Pas
-  // als hij definitief mislukt gaat de pijplijn niet verder, en dat is bewust:
-  // een pagina zonder contract is precies de dunne pagina die dit werk moest
-  // oplossen. De uitzondering staat hieronder, in de vangst.
-  content_plan: async ({ admin, job }, payload) => {
-    if (!job.analysis_id) throw new Error("content_plan zonder analysis_id.");
-
-    let voorbereid: {
-      contract: unknown;
-      dossier: unknown;
-      explainers: unknown[];
-      existingText?: string | null;
-      existingFetchedAt?: string | null;
-    } | null = null;
-
-    try {
-      const result = await planContentPiece({
-        analysisId: job.analysis_id,
-        userId: payload.userId,
-        recommendation: toRecommendation(payload.recommendation),
-        force: payload.regenerate ?? false,
-      });
-      voorbereid = {
-        contract: result.contract,
-        dossier: result.dossier,
-        explainers: result.explainers,
-        existingText: result.existingText,
-        existingFetchedAt: result.existingFetchedAt,
-      };
-      console.log(
-        `Contentplan "${payload.recommendation.title}": ` +
-          `${result.contract?.sections.length ?? 0} secties` +
-          `${result.hergebruikt ? " (hergebruikt, geen nieuwe aanroep)" : ""}.`,
-      );
-    } catch (err) {
-      // ⚠️ Bewust NIET opnieuw gooien bij de laatste poging. Deze taak is
-      // voorbereiding; het schrijven is het product. Blijft het onderzoek
-      // hangen op een externe bron of een schema dat niet parst, dan is een
-      // pagina zonder contract nog altijd beter dan geen pagina. De pijplijn
-      // valt dan terug op het gedrag van vóór dit werk, en dat gedrag werkt.
-      if (job.attempts < MAX_ATTEMPTS - 1) throw err;
-      console.warn(
-        `Contentplan voor "${payload.recommendation.title}" bleef mislukken, ` +
-          `we schrijven zonder contract: ${describeError(err)}`,
-      );
-    }
-
-    // ── Draaide dit vóór de briefing? Dan schrijven we nog niet ─────────────
-    //
-    // Het contract is hier het IDEAAL waar de briefing zijn vragen uit haalt
-    // (docs/tasks/vragen-voor-het-schrijven.md §3). De klant heeft nog niets
-    // beantwoord en beslist zelf wanneer er geschreven wordt. Meteen schrijven
-    // zou precies de pagina opleveren die dit werk moest voorkomen: een pagina
-    // die om zijn eigen gaten heen praat.
-    if (payload.voorBriefing) {
-      await scheduleBriefingIfLastPlan(
-        admin,
-        job.analysis_id,
-        job.id,
-        payload.userId,
-        payload.voorBriefing.recommendations,
-      );
-      return;
-    }
-
-    await enqueue(admin, {
-      type: "content_draft",
-      payload: {
-        userId: payload.userId,
-        recommendation: payload.recommendation,
-        regenerate: payload.regenerate ?? false,
-        plannedPageId: payload.plannedPageId,
-        voorbereid,
-      },
-      analysisId: job.analysis_id,
-      dedupeKey: dedupe.contentDraftNa(job.id),
-    });
+  // ── De contentketen (docs/tasks/contentketen-opnieuw.md §7.4) ────────────
+  pagina_brief: async ({ admin }, payload) => {
+    await voerBriefUit(admin, payload);
   },
-
-  // ── Content stap 1: schrijven + beoordelen ────────────────────────────────
-  content_draft: async ({ admin, job }, payload) => {
-    if (!job.analysis_id) throw new Error("content_draft zonder analysis_id.");
-    const result = await draftContentPiece({
-      analysisId: job.analysis_id,
-      userId: payload.userId,
-      reportId: payload.recommendation.reportId,
-      recommendation: toRecommendation(payload.recommendation),
-      regenerate: payload.regenerate ?? false,
-      voorbereid: payload.voorbereid
-        ? {
-            contract: (payload.voorbereid.contract ?? null) as never,
-            dossier: (payload.voorbereid.dossier ?? null) as never,
-            explainers: (payload.voorbereid.explainers ?? []) as never,
-            existingText: payload.voorbereid.existingText ?? null,
-            existingFetchedAt: payload.voorbereid.existingFetchedAt ?? null,
-          }
-        : null,
-    });
-
-    // Komt deze tekst uit het contentplan, dan hoort de plan-pagina te weten
-    // welke tekst het geworden is. Meteen na het schrijven, niet pas na de
-    // eventuele herschrijfronde: valt de werker daartussen om, dan is de tekst
-    // nog steeds terug te vinden vanaf het plan.
-    await linkPlannedPage(admin, payload.plannedPageId, {
-      contentPieceId: result.contentPieceId,
-      klaar: !result.needsRevise,
-    });
-
-    if (!result.needsRevise) return; // eerste versie kwam al door de poort
-
-    await enqueue(admin, {
-      type: "content_revise",
-      payload: {
-        userId: payload.userId,
-        contentPieceId: result.contentPieceId,
-        recommendation: payload.recommendation,
-        issues: result.issues,
-        plannedPageId: payload.plannedPageId,
-      },
-      analysisId: job.analysis_id,
-      dedupeKey: dedupe.contentRevise(result.contentPieceId),
-    });
+  pagina_schrijven: async ({ admin, job }, payload) => {
+    await voerSchrijvenUit(admin, job, payload);
   },
-
-  // ── Content stap 2: herschrijven + herbeoordelen ──────────────────────────
-  /**
-   * Herkeuren: dezelfde tekst, nieuw oordeel (migratie 0092).
-   *
-   * Ketent bewust NIET door naar `content_revise`. Een herkeuring is goedkoop
-   * (de vier beoordelaars, ongeveer $0,013) en een reparatieronde is dat niet
-   * (ongeveer $0,14). Zou een herkeuring een reparatie mogen aftrappen, dan kan
-   * één goedkope knop een rekening van tientallen dollars opleveren, en dat is
-   * precies het patroon waar de kostenremmen voor bestaan.
-   */
-  content_recheck: async ({ job }, payload) => {
-    if (!job.analysis_id) throw new Error("content_recheck zonder analysis_id.");
-    await herkeurContentPiece({
-      analysisId: job.analysis_id,
-      userId: payload.userId,
-      contentPieceId: payload.contentPieceId,
-      recommendation: toRecommendation(payload.recommendation),
-    });
+  pagina_controle: async ({ admin }, payload) => {
+    await voerControleUit(admin, payload);
   },
-
-  content_revise: async ({ admin, job }, payload) => {
-    if (!job.analysis_id) throw new Error("content_revise zonder analysis_id.");
-    const result = await reviseContentPiece({
-      analysisId: job.analysis_id,
-      userId: payload.userId,
-      contentPieceId: payload.contentPieceId,
-      recommendation: toRecommendation(payload.recommendation),
-      issues: payload.issues,
-    });
-
-    // ── Nog een gerichte ronde? (A6) ────────────────────────────────────────
-    //
-    // Was: één herschrijving en klaar, ook als de bevindingen bleven staan. Nu
-    // repareert elke ronde alleen de secties met een bevinding, dus is nog een
-    // ronde goedkoper dan de ene volledige herschrijving van vroeger. De grens
-    // (REPAIR_MAX) zit in `reviseContentPiece`: die kent de rondeteller op de
-    // pagina, en die telling overleeft een taak die opnieuw geprobeerd wordt.
-    if (!result.klaar) {
-      await enqueue(admin, {
-        type: "content_revise",
-        payload: {
-          userId: payload.userId,
-          contentPieceId: payload.contentPieceId,
-          recommendation: payload.recommendation,
-          issues: result.issues,
-          plannedPageId: payload.plannedPageId,
-        },
-        analysisId: job.analysis_id,
-        dedupeKey: `${dedupe.contentRevise(payload.contentPieceId)}:r${result.ronde}`,
-      });
-      return;
-    }
-
-    // De gerepareerde versie is de definitieve: nu ligt de bal bij de klant.
-    await linkPlannedPage(admin, payload.plannedPageId, {
-      contentPieceId: payload.contentPieceId,
-      klaar: true,
-    });
+  pagina_herschrijven: async ({ admin, job }, payload) => {
+    await voerHerschrijvenUit(admin, job, payload);
   },
 
   // ── Technische GEO-audit (optimalisatie.md 3B) ────────────────────────────
@@ -1067,6 +808,13 @@ const handlers: { [T in JobType]: Handler<T> } = {
           (result.queryRijen === null ? ", zoekopdrachten mislukt." : `, ${result.queryRijen} zoekopdrachten.`)
         : `Search Console ${job.profile_id}: ${result.reason}`,
     );
+    // N3: pas de nieuwe cijfers op de kansen van dit merk toepassen als de
+    // zoekopdrachten ook echt zijn opgehaald. Zonder queryRijen is er niets om
+    // te matchen, en een mislukte bijwerking van het bewijs mag de geslaagde
+    // synchronisatie van de ruwe cijfers niet als mislukt laten gelden.
+    if (result.ok && result.queryRijen !== null) {
+      await legZoekverkeerBewijsVast(admin, job.profile_id);
+    }
   },
 
   // ── Zoekvolume herberekenen over het hele merk (docs/tasks/potentiescore.md) ─
@@ -1130,6 +878,21 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   reputation_synthesis: async ({ admin }, payload) => {
     await runSynthesis(admin, payload.runId);
+  },
+
+  // ── Clusters ontdekken (lib/pipeline/cluster-discovery.ts) ────────────────
+  // Elke stap plant zijn opvolger zelf in; de ronde draagt de status.
+  discovery_collect: async ({ admin }, payload) => {
+    await discoveryCollect(admin, payload.runId);
+  },
+  discovery_expand: async ({ admin }, payload) => {
+    await discoveryExpand(admin, payload.runId);
+  },
+  discovery_sift: async ({ admin }, payload) => {
+    await discoverySift(admin, payload.runId);
+  },
+  discovery_bundle: async ({ admin }, payload) => {
+    await discoveryBundle(admin, payload.runId);
   },
 
   // ── De Sales-module, sprint 2 (docs/tasks/geo-prospect-engine.md §8) ──────
@@ -1521,14 +1284,32 @@ const handlers: { [T in JobType]: Handler<T> } = {
    * raken; de consultant kan de knop gewoon nog een keer gebruiken, "meer"
    * pakt automatisch verder waar deze ronde bleef steken.
    */
-  crawl_inventory: async ({ job }, payload) => {
+  crawl_inventory: async ({ admin, job }, payload) => {
     if (!job.profile_id) throw new Error("crawl_inventory zonder profile_id.");
-    await refreshInventory(job.profile_id, {
+    const uitkomst = await refreshInventory(job.profile_id, {
       mode: payload.mode,
       maxPages: payload.maxPages,
       speed: payload.speed,
       budgetMs: 180_000,
     });
+    // Een aanvulronde na een trage ontdekking gaat door tot alles gelezen is,
+    // met een plafond zodat een site die nooit antwoordt geen eindeloze reeks
+    // taken oplevert. Een eigen sleutel per ronde: de lopende taak houdt de
+    // gewone sleutel nog bezet.
+    const ronde = payload.aanvulronde ?? 0;
+    if (ronde > 0 && ronde < MAX_AANVULRONDES && uitkomst.remaining > 0 && !uitkomst.blocked) {
+      await enqueue(admin, {
+        type: "crawl_inventory",
+        payload: { mode: "meer", maxPages: uitkomst.remaining, speed: "langzaam", aanvulronde: ronde + 1 },
+        profileId: job.profile_id,
+        dedupeKey: `${dedupe.crawlInventory(job.profile_id)}:aanvul${ronde + 1}`,
+      });
+    }
+  },
+
+  // ── De gebeurtenissenlaag (van-pijplijn-naar-kennissysteem.md, G1) ────────
+  gebeurtenis_verwerken: async ({ admin }, payload) => {
+    await verwerkGebeurtenis(admin, payload.gebeurtenisId, payload.abonnee);
   },
 };
 
@@ -1733,6 +1514,21 @@ export async function scheduleFollowUpAfterFailure(
   //
   // De opvolger hangt daarom niet meer aan het slagen van de stap maar aan de
   // tabel in `lib/jobs/chain.ts`, en die geldt in beide takken.
+  // ── Een opgegeven brief houdt de rij en de pagina niet op (§6.1) ─────────
+  // En een opgegeven schrijf-, controle- of herschrijftaak laat de pagina niet
+  // eeuwig op "ORBIT ENGINE is bezig" staan (§6.6 en §6.7).
+  const gafOp: Partial<Record<JobType, (a: Admin, j: Job) => Promise<void>>> = {
+    pagina_brief: briefGafOp,
+    pagina_schrijven: schrijvenGafOp,
+    pagina_controle: controleGafOp,
+    pagina_herschrijven: herschrijvenGafOp,
+  };
+  const naOpgeven = gafOp[job.type as JobType];
+  if (naOpgeven) {
+    await naOpgeven(admin, job);
+    return;
+  }
+
   const volgende = nextInChain(job.type as JobType);
   if (volgende && job.profile_id) {
     // Alleen als deze stap wél in de keten stond. Een stap die los is
@@ -1760,6 +1556,25 @@ export async function scheduleFollowUpAfterFailure(
   // staat, en `runIsUsable()` bepaalt of dat genoeg was. Een run die op
   // 'mislukt' eindigt met een uitleg is een uitkomst; een run die blijft hangen
   // is een storing.
+  // ── Een opgegeven ontdekkingsstap sluit de ronde af ─────────────────────
+  //
+  // Elke stap plant zijn opvolger pas in als hij slaagt. Geeft hij op, dan
+  // doet niemand dat meer, en zonder deze regel blijft de ronde voorgoed op
+  // "verbreden" staan terwijl het scherm een voortgangsbalk toont. Anders dan
+  // bij de reputatierun valt er niets af te maken met wat er wél is: zonder
+  // zoektermen geen bundeling. Dus: mislukt, met een zin voor het scherm.
+  if ((job.type as string).startsWith("discovery_")) {
+    const runId = (job.payload_json as { runId?: string } | null)?.runId;
+    if (runId) {
+      await markeerRondeMislukt(
+        admin,
+        runId,
+        "een stap lukte na vier pogingen niet. Start een nieuwe ronde; de kosten tot nu toe staan hieronder.",
+      );
+    }
+    return;
+  }
+
   if (REPUTATION_STEPS.includes(job.type as JobType)) {
     const runId = (job.payload_json as { runId?: string } | null)?.runId;
     if (runId) {
@@ -1772,24 +1587,33 @@ export async function scheduleFollowUpAfterFailure(
     return;
   }
 
-  if ((job.type as JobType) !== "measure_prompt" || !job.analysis_id) return;
-
-  const payload = (job.payload_json ?? {}) as JobPayloads["measure_prompt"];
-  if (payload.impact) {
-    await scheduleImpactIfLastRun(
-      admin,
-      job.analysis_id,
-      payload.impact,
-      job.id,
-    );
+  // ⚠️ Alle drie de meetsoorten, niet alleen `measure_prompt`. Sinds 20 september
+  // 2026 wacht de aggregatie op álle bronnen (`scheduleAggregateIfLastPrompt`),
+  // maar deze tak kende alleen de ChatGPT-meting. Gevolg, gemeten op 24 september
+  // 2026 in de kwaliteitsdoorlichting: alle 90 Gemini-taken van drie clusters
+  // gaven op wegens een limiet van DataForSEO, en de drie analyses bleven op
+  // 'meten' staan zonder dat er ooit een rapport kwam.
+  if (
+    !job.analysis_id ||
+    !["measure_prompt", "measure_ai_overview", "measure_llm_response"].includes(job.type)
+  ) {
     return;
   }
-  await scheduleAggregateIfLastPrompt(
-    admin,
-    job.analysis_id,
-    payload.weekNo,
-    job.id,
-  );
+
+  // Een hermeting ná publicatie (M3): zelfde tak voor `measure_prompt` en
+  // `measure_ai_overview`, gecontroleerd op de PAYLOAD en niet op het
+  // taaktype. Zonder dit gaf een definitief mislukte Google-meting van een
+  // impactgolf de gewone (periodieke) aggregatie een seintje in plaats van de
+  // effectberekening, en bleef die golf voorgoed op 'meten' staan.
+  const payload = (job.payload_json ?? {}) as
+    | JobPayloads["measure_prompt"]
+    | JobPayloads["measure_ai_overview"]
+    | JobPayloads["measure_llm_response"];
+  if ("impact" in payload && payload.impact) {
+    await scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id);
+    return;
+  }
+  await scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id);
 }
 
 /** Voert één taak uit. Gooit bij mislukking, de werker regelt de nieuwe poging. */

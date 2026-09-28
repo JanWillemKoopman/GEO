@@ -58,13 +58,13 @@ export default async function NewAnalysisPage({
   const terug = vanMerk ? `/merk/${vanMerk.id}/strategie/clusters` : "/analyses";
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-6">
+    <div className="wil-lezen flex flex-col gap-6">
       <div>
         <Link href={terug} className="mono-label transition-colors hover:text-[var(--text-primary)]">
           <Icon naam="terug" size={14} />
           Terug naar Clusters
         </Link>
-        <h1 className="type-title mt-3">Nieuw cluster</h1>
+        <h1 className="type-heading-lg mt-3">Nieuw cluster</h1>
         <p className="mt-2 text-secondary">
           Kies een merk en het product of onderwerp dat je wilt meten. ORBIT ENGINE zoekt alleen nog uit wat
           je website hierover zegt en wie op dít onderwerp je concurrenten zijn. De rest weet het

@@ -77,7 +77,7 @@ export function BrandWizard({
   // ⚠️ Alleen de klantstappen, en dat is niet cosmetisch. De hele inhoud van
   // deze state gaat als body naar `PATCH /api/profiles/[id]`, en die route legt
   // van élk veld in de body de herkomst vast. Zaten de commerciële velden er
-  // ook in, dan zou één klik op "Bewaren" door de klant de uitkomst van het
+  // ook in, dan zou één klik op "Opslaan" door de klant de uitkomst van het
   // gesprek herlabelen als klantinvoer.
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
     const start: Record<string, unknown> = {};
@@ -155,7 +155,7 @@ export function BrandWizard({
       setVuil(false);
       toast({
         intent: "succes",
-        title: "Je merkprofiel is bijgewerkt",
+        title: "Je merkdossier is bijgewerkt",
         description:
           "ORBIT ENGINE gebruikt dit vanaf nu in élke pagina die het schrijft, niet alleen in de eerstvolgende.",
       });
@@ -190,16 +190,7 @@ export function BrandWizard({
               type="button"
               onClick={() => setStap(s)}
               aria-current={actief ? "step" : undefined}
-              className="flex items-center gap-2 rounded-[var(--radius-xl)] border px-3 py-2 text-sm font-medium transition-colors"
-              style={{
-                borderColor: actief
-                  ? "var(--intent-intelligence-border)"
-                  : "var(--border-subtle)",
-                background: actief
-                  ? "var(--intent-intelligence-surface)"
-                  : "var(--bg-surface)",
-                color: actief ? "var(--text-primary)" : "var(--text-secondary)",
-              }}
+              className="chip-select chip-select-lg"
             >
               <span className="mono-label">{String(i + 1).padStart(2, "0")}</span>
               <span>{STEP_META[s].title}</span>
@@ -234,48 +225,53 @@ export function BrandWizard({
       {/* ── De onderbalk ──────────────────────────────────────────────────
           Sticky, want dit scherm is lang en de opslagknop moet bereikbaar
           blijven zonder terug te scrollen (ux-design.md §7). */}
-      <div className="no-print sticky bottom-0 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-3">
+      <div className="no-print sticky bottom-0 volle-breedte flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-muted)] bg-[var(--bg-base)] py-3">
         <span className="mono-label">
           {voortgang.gevuld} van de {voortgang.totaal} ingevuld
           {vuil && " · niet opgeslagen"}
         </span>
 
+        {/* Twee knoppen, geen vier (UX-audit 23 september 2026, P1.8). Hier
+            stonden Vorige, Bewaren, Volgende en op de laatste stap "Bewaren en
+            terug naar het overzicht": de klant moest kiezen in plaats van
+            doorgaan. Volgende slaat nu zelf op als er iets gewijzigd is, dus
+            er gaat niets verloren door verder te klikken. */}
         <div className="flex flex-wrap items-center gap-2">
           {stapIndex > 0 && (
             <button
               type="button"
               className="btn-outline"
+              disabled={wacht}
               onClick={() => setStap(CLIENT_STEPS[stapIndex - 1])}
             >
               Vorige
             </button>
           )}
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={() => void bewaar()}
-            disabled={wacht || !vuil}
-          >
-            {busy ? "Bezig…" : "Bewaren"}
-          </button>
           {laatste ? (
             <button
               type="button"
               className="btn-primary btn-lg"
               onClick={() =>
-                void bewaar(() => router.push(`/merk/${profileId}`))
+                vuil
+                  ? void bewaar(() => router.push(`/merk/${profileId}`))
+                  : router.push(`/merk/${profileId}`)
               }
               disabled={wacht}
             >
-              Bewaren en terug naar het overzicht
+              {busy ? "Opslaan…" : "Opslaan en terug naar het overzicht"}
             </button>
           ) : (
             <button
               type="button"
               className="btn-primary"
-              onClick={() => setStap(CLIENT_STEPS[stapIndex + 1])}
+              disabled={wacht}
+              onClick={() =>
+                vuil
+                  ? void bewaar(() => setStap(CLIENT_STEPS[stapIndex + 1]))
+                  : setStap(CLIENT_STEPS[stapIndex + 1])
+              }
             >
-              Volgende
+              {busy ? "Opslaan…" : "Volgende"}
             </button>
           )}
         </div>
@@ -283,11 +279,11 @@ export function BrandWizard({
 
       {vuil && (
         <p className="text-sm text-muted">
-          Je hebt wijzigingen die nog niet bewaard zijn.{" "}
-          <Link href={`/merk/${profileId}`} className="underline">
+          Je hebt wijzigingen die nog niet opgeslagen zijn.{" "}
+          <Link href={`/merk/${profileId}`} className="link">
             Terug naar het overzicht
           </Link>{" "}
-          zonder bewaren gooit ze weg.
+          zonder opslaan gooit ze weg.
         </p>
       )}
     </div>

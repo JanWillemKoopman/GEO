@@ -16,7 +16,7 @@
  *
  * Markdown en een sjabloonbeeld erin, HTML eruit. Geen database, geen AI.
  */
-import { escapeHtml, inline } from "@/lib/markdown";
+import { escapeHtml, inline, leesTabel } from "@/lib/markdown";
 import type { SiteTemplateProfile } from "@/lib/pipeline/template-detect";
 
 export interface ExportFaqItem {
@@ -75,7 +75,7 @@ function faqAsWordPressBlock(faq: ExportFaqItem[]): string {
  * Markdown naar Gutenberg-blokken (WordPress' eigen blokformaat).
  *
  * Spiegelt bewust de regelherkenning van `renderMarkdown()` in `lib/markdown.ts`
- * één op één (kop, liniaal, citaat, lijst, alinea), maar wikkelt elk element in
+ * één op één (kop, liniaal, citaat, lijst, tabel, alinea), maar wikkelt elk element in
  * het bijbehorende `<!-- wp:... -->`-blokcommentaar. Zonder die commentaren plakt
  * de tekst als één "Aangepast HTML"-blok: het werkt, maar de klant kan dan geen
  * los kopje verslepen of een alinea apart opmaken, precies het verschil tussen
@@ -105,12 +105,27 @@ export function markdownToGutenbergBlocks(markdown: string): string {
     listItems = [];
   };
 
-  for (const raw of lines) {
-    const line = raw.trimEnd();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trimEnd();
 
     if (line.trim() === "") {
       flushParagraph();
       flushList();
+      continue;
+    }
+
+    const tabel = leesTabel(lines, i);
+    if (tabel) {
+      flushParagraph();
+      flushList();
+      const kop = tabel.kop.map((c) => `<th>${inline(c)}</th>`).join("");
+      const rijen = tabel.rijen
+        .map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`)
+        .join("");
+      out.push(
+        `<!-- wp:table -->\n<figure class="wp-block-table"><table><thead><tr>${kop}</tr></thead><tbody>${rijen}</tbody></table></figure>\n<!-- /wp:table -->`,
+      );
+      i = tabel.volgende - 1;
       continue;
     }
 

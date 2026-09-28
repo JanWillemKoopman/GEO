@@ -82,14 +82,14 @@ export function Meetuitkomst({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] text-left text-sm">
+          <table className="tabel min-w-[36rem]">
             <thead>
-              <tr className="mono-label">
-                <th className="py-2 pr-3 font-normal">Bedrijf</th>
-                <th className="py-2 pr-3 font-normal">Genoemd</th>
-                <th className="py-2 pr-3 font-normal">Gewogen</th>
+              <tr>
+                <th>Bedrijf</th>
+                <th>Genoemd</th>
+                <th>Gewogen</th>
                 {engines.map((e) => (
-                  <th key={e} className="py-2 pr-3 font-normal">
+                  <th key={e}>
                     {engineLabel(e)}
                   </th>
                 ))}
@@ -97,19 +97,19 @@ export function Meetuitkomst({
             </thead>
             <tbody>
               {gecombineerd.map((rij) => (
-                <tr key={rij.companyId} className="border-t border-[var(--border-subtle)]">
-                  <td className="py-2 pr-3">{rij.naam}</td>
-                  <td className="py-2 pr-3 text-secondary">
+                <tr key={rij.companyId}>
+                  <td>{rij.naam}</td>
+                  <td className="text-secondary">
                     {rij.vermeldingen} van de {rij.vragen}
                   </td>
-                  <td className="py-2 pr-3">
+                  <td>
                     {pct(rij.weightedShare)}{" "}
                     <span className="text-muted">(± {pct(rij.stderr * 1.96)})</span>
                   </td>
                   {engines.map((e) => {
                     const s = perEngine.get(rij.companyId)?.get(e);
                     return (
-                      <td key={e} className="py-2 pr-3 text-secondary">
+                      <td key={e} className="text-secondary">
                         {s ? pct(s.share) : "niet gemeten"}
                       </td>
                     );

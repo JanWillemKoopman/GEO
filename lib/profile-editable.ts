@@ -19,6 +19,17 @@
  */
 
 /**
+ * Op 25 september 2026 zijn de elf stemvelden eruit gehaald (besluit B14 van
+ * `docs/tasks/contentketen-opnieuw.md`): de stemvoorbeelden vervangen ze, en
+ * een veld dat de schrijver niet meer leest hoort de klant niet in te vullen.
+ * De kolommen blijven in de database staan (conventie 4).
+ *
+ * Op 27 september 2026 volgden er dertien (besluit V10 en K8 van
+ * `docs/tasks/van-pijplijn-naar-kennissysteem.md`): de auteursvelden, missie,
+ * positionering, `usp`, tweede doelgroep, wettelijke beperkingen en
+ * `proof_points`. Niemand las ze; een test in `scripts/test-unit.ts` bewaakt
+ * dat geen code ze nog noemt.
+ *
  * ⚠️ Toevoegen mag, weghalen is een gedragswijziging. Een veld dat hier
  * verdwijnt wordt door de route stilzwijgend genegeerd, en dat is niet te zien
  * aan het scherm dat hem verstuurt.
@@ -35,13 +46,11 @@ export const EDITABLE_PROFILE_FIELDS = [
   // waarde stuurt welke briefingvragen hij straks krijgt. De database-constraint
   // bewaakt de toegestane waarden.
   "business_model",
-  "tone_of_voice",
   "summary",
   "products",
   "value_props",
   "competitors",
   "personas",
-  "proof_points",
   "intake_description",
   "intake_audience",
   "aliases",
@@ -52,37 +61,15 @@ export const EDITABLE_PROFILE_FIELDS = [
   // Onboarding ronde B, stap B8: stonden al vast in de PATCH-route
   // (validatie en klemming, zie hieronder), maar niet in de catalogus. Ze
   // krijgen nu ook een herkomstregel, net als elk ander veld.
-  "style_samples",
   "max_inventory_pages",
   "crawl_priority_paths",
   // Migratie 0045, naar het voorbeeld van InSpace Nova's onboardingstappen
   // "Words & language", "Voice" en "Author".
   "taboo_phrases",
-  "compliance_notes",
-  "author_name",
-  "author_role",
-  "author_bio",
-  "author_linkedin_url",
-  "tone_formality",
-  "tone_energy",
-  "tone_complexity",
-  "tone_humor",
   // Migratie 0048: de laatste dertien velden uit de veldeninventaris,
-  // de vertaaltabel staat bovenaan die migratie.
-  "brand_mission",
-  "brand_positioning",
-  "usp",
-  "key_messages",
-  "identity_keywords",
+  // de vertaaltabel staat bovenaan die migratie. Wat er nog van over is.
   "differentiator",
-  "audience_secondary",
-  "audience_knowledge_level",
-  "tone_emotional",
-  "signature_phrases",
   "pronoun_preference",
-  "author_photo_url",
-  "author_facebook_url",
-  "author_other_url",
   // Migratie 0060, de commerciële laag uit onboarding 3.0 deel D1. Twaalf velden
   // die een website niet kan zeggen, ingevuld in het gesprek met de klant.
   "priority_offerings",
@@ -102,6 +89,9 @@ export const EDITABLE_PROFILE_FIELDS = [
   "contact_name",
   "contact_email",
   "contact_phone",
+  // Migratie 0115, de contentketen opnieuw (§6.3 en §6.10).
+  "verhalen",
+  "stem_voorbeelden",
 ] as const;
 
 export type EditableProfileField = (typeof EDITABLE_PROFILE_FIELDS)[number];

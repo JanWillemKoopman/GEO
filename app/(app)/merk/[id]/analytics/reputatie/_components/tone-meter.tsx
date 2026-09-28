@@ -43,7 +43,7 @@ export function ToneMeter({
     return (
       <div className="flex flex-col gap-2">
         <span className="type-body-emphasis">Geen beeld</span>
-        <div className="h-2 w-full rounded-[var(--radius-pill)] bg-[var(--bg-elevated)]" />
+        <div className="h-2 w-full rounded-[var(--radius-pill)] bg-[var(--bg-layer-2)]" />
         <p className="type-caption text-muted">
           ChatGPT weet te weinig over je om er iets over te zeggen. Dat is geen neutraal oordeel,
           het is geen oordeel.
@@ -78,7 +78,7 @@ export function ToneMeter({
       </div>
 
       <div
-        className="relative h-2 w-full rounded-[var(--radius-pill)] bg-[var(--bg-elevated)]"
+        className="relative h-2 w-full rounded-[var(--radius-pill)] bg-[var(--bg-layer-2)]"
         role="img"
         aria-label={`Toon ${woord}, ${index} op een schaal van -100 tot 100`}
       >

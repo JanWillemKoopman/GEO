@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 import { useToast } from "@/components/toast";
+import { Alert } from "@/components/alert";
+import { koppelStatus } from "@/lib/search-console/koppelstatus";
+import { KoppelStatusLabel } from "@/app/(app)/instellingen/koppelingen/_components/koppel-status";
 
 /**
  * Google Search Console koppelen (fase 5, migratie 0052).
@@ -97,9 +100,19 @@ export function SearchConsoleBox({
   }
 
   const gekoppeld = Boolean(property && verifiedAt);
+  // Groen of rood bovenaan: de melding na "Opnieuw controleren" verdwijnt na
+  // een paar seconden, het bolletje blijft staan. Zie `lib/search-console/koppelstatus.ts`.
+  const status = koppelStatus({
+    property,
+    verifiedAt,
+    lastError,
+    sleutelIngesteld: Boolean(serviceAccountEmail),
+  });
 
   return (
     <div className="flex flex-col gap-4">
+      <KoppelStatusLabel status={status} />
+
       {gekoppeld ? (
         <p className="text-secondary">
           ORBIT ENGINE leest {property} en heeft {dagen} {dagen === 1 ? "dag" : "dagen"} aan
@@ -113,15 +126,7 @@ export function SearchConsoleBox({
       )}
 
       {lastError && (
-        <p
-          className="card text-sm"
-          style={{
-            background: "var(--intent-warning-surface)",
-            borderColor: "var(--intent-warning-border)",
-          }}
-        >
-          {lastError}
-        </p>
+        <Alert intent="warning">{lastError}</Alert>
       )}
 
       {/* ── Stap 1: het adres ────────────────────────────────────────────── */}
@@ -134,12 +139,12 @@ export function SearchConsoleBox({
             is niet nodig: ORBIT ENGINE leest alleen.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <code className="break-url rounded-[var(--radius-xl)] bg-[var(--bg-elevated)] px-2 py-1 text-sm">
+            <code className="break-url rounded-[var(--radius-md)] bg-[var(--bg-surface-raised)] px-2 py-1 font-mono text-sm">
               {serviceAccountEmail}
             </code>
             <button
               type="button"
-              className="text-sm text-secondary hover:underline"
+              className="btn-ghost btn-sm"
               onClick={() => void kopieer()}
             >
               {gekopieerd ? "Gekopieerd" : "Kopieer"}
@@ -147,17 +152,11 @@ export function SearchConsoleBox({
           </div>
         </div>
       ) : (
-        <p
-          className="card text-sm"
-          style={{
-            background: "var(--intent-warning-surface)",
-            borderColor: "var(--intent-warning-border)",
-          }}
-        >
+        <Alert intent="warning">
           De Google-sleutel is nog niet ingesteld. Zet <code>GOOGLE_SERVICE_ACCOUNT_JSON</code>{" "}
           in de omgevingsvariabelen; daarna verschijnt hier het adres dat de klant
           moet toevoegen.
-        </p>
+        </Alert>
       )}
 
       {/* ── Stap 2: de property ──────────────────────────────────────────── */}

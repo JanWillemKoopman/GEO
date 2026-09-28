@@ -6,7 +6,7 @@ import { Drawer } from "@/components/drawer";
 import { ExternalLink } from "@/components/external-link";
 import type { ImpactVerdict } from "@/lib/types/database";
 import type { ImpactUitleg } from "@/lib/impact-uitleg";
-import { IMPACT_WAVES } from "@/lib/pipeline/impact-math";
+import { hoogsteBewezenTrede, TREDE_SLEUTELS, type Trede, type TredeStatus } from "@/lib/meting/bewijsladder";
 
 /**
  * De tabel van onze eigen pagina's op Zoekverkeer (plan analytics-herontwerp.md,
@@ -26,13 +26,22 @@ export interface OnzePaginaRij {
   /** Chronologisch, oudste eerst, vanaf de publicatiedatum. */
   sindsPublicatie: { day: string; clicks: number }[];
   publishedAt: string | null;
+  /** M4: de bewijsladder, altijd zeven tredes in vaste volgorde. */
+  ladder: Trede[];
 }
 
-const VERDICT_LABEL: Record<ImpactVerdict, { text: string; chip: string }> = {
-  gestegen: { text: "gestegen", chip: "chip-success" },
-  gelijk: { text: "gelijk gebleven", chip: "chip-neutral" },
-  gedaald: { text: "gedaald", chip: "chip-danger" },
-  te_weinig_data: { text: "te weinig data", chip: "chip-neutral" },
+const TREDE_CHIP: Record<TredeStatus, string> = {
+  bewezen: "chip-success",
+  geen_verandering: "chip-neutral",
+  te_weinig_gegevens: "chip-neutral",
+  geen_gegevens: "chip-neutral",
+};
+
+const TREDE_STIP: Record<TredeStatus, string> = {
+  bewezen: "●",
+  geen_verandering: "○",
+  te_weinig_gegevens: "○",
+  geen_gegevens: "·",
 };
 
 function procent(waarde: number | null): string {
@@ -94,19 +103,25 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
       render: (r) => (r.position === null ? "-" : r.position.toFixed(1)),
     },
     {
-      key: "effect",
-      header: "Effect op AI",
-      width: "11rem",
-      sortValue: (r) => r.effectOpAi,
-      render: (r) =>
-        r.effectOpAi ? (
+      // M4: één woordoordeel ("gestegen") verving hier tot 28 september 2026
+      // wat feitelijk zeven vragen zijn (gepubliceerd tot omzet, P7: nooit één
+      // cijfer als opbrengst). Deze kolom toont de verste bewezen trede; de
+      // volledige ladder staat in het detailpaneel (`LadderDetail`).
+      key: "bewijs",
+      header: "Bewijs",
+      width: "13rem",
+      sortValue: (r) => TREDE_SLEUTELS.indexOf(hoogsteBewezenTrede(r.ladder)?.sleutel ?? "publicatie"),
+      render: (r) => {
+        const hoogste = hoogsteBewezenTrede(r.ladder);
+        return hoogste ? (
           <span className="flex flex-col items-start gap-0.5">
-            <span className={`chip ${VERDICT_LABEL[r.effectOpAi].chip}`}>{VERDICT_LABEL[r.effectOpAi].text}</span>
-            {r.effectUitleg && <span className="type-caption text-muted">{r.effectUitleg.kort}</span>}
+            <span className={`chip ${TREDE_CHIP[hoogste.status]}`}>{hoogste.label.toLowerCase()}</span>
+            {hoogste.cijfer && <span className="type-caption text-muted">{hoogste.cijfer}</span>}
           </span>
         ) : (
-          <span className="chip chip-neutral">nog niet gemeten</span>
-        ),
+          <span className="chip chip-neutral">nog geen bewijs</span>
+        );
+      },
     },
   ];
 
@@ -115,7 +130,7 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
       {toonTypeFilter && (
         <label className="flex items-center gap-2 text-sm">
           <span className="mono-label">Paginatype</span>
-          <select className="field" value={typeFilter ?? ""} onChange={(e) => setTypeFilter(e.target.value || null)}>
+          <select className="field field-select" value={typeFilter ?? ""} onChange={(e) => setTypeFilter(e.target.value || null)}>
             <option value="">Alle types</option>
             {types.map((t) => (
               <option key={t} value={t}>
@@ -149,43 +164,58 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
 }
 
 /**
- * De inhoud van het detailpaneel (plan V8): het effect op AI met de cijfers
- * erachter, en het verloop van de klikken sinds publicatie.
+ * De inhoud van het detailpaneel (plan V8, sinds M4 de bewijsladder in plaats
+ * van één oordeel): de zeven tredes, en daaronder het verloop van de klikken.
  */
 function PaginaDetail({ rij }: { rij: OnzePaginaRij }) {
   return (
     <div className="flex flex-col gap-6">
-      <EffectDetail rij={rij} />
+      <LadderDetail rij={rij} />
       <KlikkenDetail rij={rij} />
     </div>
   );
 }
 
+const TREDE_STATUS_LABEL: Record<TredeStatus, string> = {
+  bewezen: "bewezen",
+  geen_verandering: "geen verandering",
+  te_weinig_gegevens: "te weinig gegevens",
+  geen_gegevens: "geen gegevens",
+};
+
 /**
- * Het oordeel mét de vergelijking eronder. Zonder die vergelijking is
- * "gestegen" de losse uitspraak die `lib/pipeline/impact.ts` wil vermijden:
- * pas naast de controlegroep zegt een stijging iets over de pagina.
+ * De zeven tredes van de bewijsladder (M4), elk met zijn eigen stand. Bij
+ * "genoemd door AI" staat de volledige vergelijking met de controlegroep
+ * eronder (`lib/impact-uitleg.ts`), want dat is de enige trede die op een
+ * steekproef rust en dus om die onderbouwing vraagt (P7: nooit één cijfer als
+ * opbrengst zonder de vergelijking ernaast).
  */
-function EffectDetail({ rij }: { rij: OnzePaginaRij }) {
+function LadderDetail({ rij }: { rij: OnzePaginaRij }) {
   const u = rij.effectUitleg;
   return (
-    <div className="flex flex-col gap-2">
-      <span className="mono-label">Effect op AI</span>
-      {rij.effectOpAi && u ? (
-        <>
-          <span>
-            <span className={`chip ${VERDICT_LABEL[rij.effectOpAi].chip}`}>{VERDICT_LABEL[rij.effectOpAi].text}</span>
-          </span>
-          <p>{u.doel}</p>
-          {u.controle && <p>{u.controle}</p>}
-          <p className="text-secondary">{u.conclusie}</p>
-          <span className="type-caption text-muted">{u.moment}</span>
-        </>
-      ) : (
-        <p className="text-secondary">
-          Nog niet nagemeten. Dat gebeurt {IMPACT_WAVES.map((w) => w.days).join(" en ")} dagen na publicatie.
-        </p>
-      )}
+    <div className="flex flex-col gap-3">
+      <span className="mono-label">Bewijs, stap voor stap</span>
+      <ul className="flex flex-col gap-3">
+        {rij.ladder.map((trede) => (
+          <li key={trede.sleutel} className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span aria-hidden className="text-muted">{TREDE_STIP[trede.status]}</span>
+              <span className="font-medium">{trede.label}</span>
+              <span className={`chip ${TREDE_CHIP[trede.status]}`}>{TREDE_STATUS_LABEL[trede.status]}</span>
+            </div>
+            {trede.sleutel === "vermelding" && rij.effectOpAi && u ? (
+              <div className="flex flex-col gap-1 pl-5 text-sm">
+                <p>{u.doel}</p>
+                {u.controle && <p>{u.controle}</p>}
+                <p className="text-secondary">{u.conclusie}</p>
+                <span className="type-caption text-muted">{u.moment}</span>
+              </div>
+            ) : (
+              <p className="pl-5 text-sm text-secondary">{trede.uitleg}</p>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

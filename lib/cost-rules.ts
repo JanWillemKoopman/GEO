@@ -101,31 +101,34 @@ export function actionNeedsStaff(action: CostlyAction): boolean {
 }
 
 /**
- * Herstelplan na audit T4.2: "je consultant" is de customer success manager bij
- * Outer Orbit geworden, in alle zeven zinnen. Uitnodigend, niet afwijzend: de
- * klant mag weten dat de functie bestaat, en bij wie hij moet zijn.
+ * Herstelplan na audit T4.2 zette hier "customer success manager bij Outer
+ * Orbit". De UX-audit van 23 september 2026 (P1.10) maakte er weer "je
+ * consultant bij Outer Orbit" van: de rest van de app noemde dezelfde persoon 24
+ * keer zo, en twee namen voor één mens laten de klant denken dat het er twee
+ * zijn. "Bij Outer Orbit" blijft staan, want dat was het punt van T4.2: de klant
+ * weet bij wie hij moet zijn. Uitnodigend, niet afwijzend.
  */
 export const COST_DENIED: Record<CostlyAction, string> = {
   merk_onderzoeken:
-    "Een nieuw merk onderzoeken doet je customer success manager bij Outer Orbit voor je. Neem contact op, dan zetten we het klaar.",
+    "Een nieuw merk onderzoeken doet je consultant bij Outer Orbit voor je. Neem contact op, dan zetten we het klaar.",
   analyse_starten:
-    "Een nieuw onderwerp meten doet je customer success manager bij Outer Orbit voor je. Laat weten welk onderwerp je erbij wilt, dan starten we het.",
+    "Een nieuw onderwerp meten doet je consultant bij Outer Orbit voor je. Laat weten welk onderwerp je erbij wilt, dan starten we het.",
   meting_starten:
-    "De meting wordt door je customer success manager bij Outer Orbit gestart. Zo weet je zeker dat hij op het juiste moment draait.",
+    "De meting wordt door je consultant bij Outer Orbit gestart. Zo weet je zeker dat hij op het juiste moment draait.",
   content_schrijven:
-    "Het schrijven wordt door je customer success manager bij Outer Orbit in gang gezet. Jij bepaalt wél wat er geschreven wordt: kies de pagina's en de rest gaat vanzelf.",
+    "Het schrijven wordt door je consultant bij Outer Orbit in gang gezet. Jij bepaalt wél wat er geschreven wordt: kies de pagina's en de rest gaat vanzelf.",
   plan_goedkeuren:
-    "Deze maand goedkeuren doet je customer success manager bij Outer Orbit samen met jou. Laat weten dat je akkoord bent.",
+    "Deze maand goedkeuren doet je consultant bij Outer Orbit samen met jou. Laat weten dat je akkoord bent.",
   // ⚠️ Dit is de belangrijkste van de zeven, want het is de enige handeling die
   // een LOS PRODUCT in gang zet dat de klant apart koopt. De toon is dus geen
   // afwijzing maar een uitnodiging: hij mag het zien, hij weet nu dat het
   // bestaat, en hij weet bij wie hij moet zijn. Zou de knop verborgen zijn, dan
   // wist hij niet dat dit product er is, en dan verkoop je het nooit.
   reputatie_starten:
-    "Een reputatieanalyse zet je customer success manager bij Outer Orbit voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in.",
+    "Een reputatieanalyse zet je consultant bij Outer Orbit voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in.",
   // Deze melding komt de klant normaal nooit te zien: de knop staat niet op
   // zijn scherm. Ze is de garantie voor als iemand de route rechtstreeks
   // aanroept, niet de eerste verdedigingslinie.
   clusters_aanvullen:
-    "Nieuwe onderwerpen voorstellen doet je customer success manager bij Outer Orbit voor je, op het moment dat hij kiest.",
+    "Nieuwe onderwerpen voorstellen doet je consultant bij Outer Orbit voor je, op het moment dat hij kiest.",
 };

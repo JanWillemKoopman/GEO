@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
+import { kennisUitKolommen } from "@/lib/kennis/onderzoek";
 import { getUser } from "@/lib/auth";
 import { isSalesAdmin } from "@/lib/sales/access";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -106,9 +108,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       account_id: accountId,
       url,
       name: bedrijf.name,
-      brand_name: bedrijf.name,
-      // De naamvarianten verhuizen mee. Zie de kop van dit bestand.
-      aliases: bedrijf.name_variants ?? [],
       status: "bezig",
     })
     .select("id")
@@ -120,6 +119,18 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   }
 
   const profileId = profiel.id as string;
+
+  // De merknaam en de naamvarianten verhuizen mee (zie de kop van dit
+  // bestand), via de kennislaag: alleen `lib/kennis/` schrijft een kennisveld op
+  // het profiel (K8 deel 3). Als vermoeden, want niemand van het bedrijf zei het
+  // nog; het onderzoek mag ze bijstellen.
+  const kolommen = { brand_name: bedrijf.name, aliases: bedrijf.name_variants ?? [] };
+  const { error: naamFout } = await legOnderzoeksveldenVast(admin, profileId, {
+    kolommen,
+    items: kennisUitKolommen(profileId, url, kolommen),
+    taak: "sales_convert",
+  });
+  if (naamFout) console.error(`Merknaam zetten mislukt bij converteren van outreach ${id}: ${naamFout}`);
 
   // De bestaande onboardingpijplijn, ongewijzigd. Geen aparte route voor een
   // klant die uit Sales komt: dan zijn er twee onboardingen die uit elkaar gaan

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Fase, FaseStand } from "@/lib/sales/proces";
+import { Icon } from "@/components/icon";
 
 /**
  * Waar staat deze markt, en wat gebeurt er nu?
@@ -110,7 +111,7 @@ function euro(usd: number): string {
  */
 function bolletje(stand: FaseStand): string {
   const basis =
-    "chip mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium";
+    "chip tabular mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full p-0 text-xs font-medium";
   if (stand === "klaar") return `${basis} chip-success`;
   if (stand === "bezig") return `${basis} chip-info`;
   if (stand === "wacht_op_jou") return `${basis} chip-warning`;
@@ -118,8 +119,8 @@ function bolletje(stand: FaseStand): string {
   return `${basis} chip-neutral`;
 }
 
-function teken(stand: FaseStand, nummer: number): string {
-  if (stand === "klaar") return "✓";
-  if (stand === "mislukt") return "!";
+function teken(stand: FaseStand, nummer: number): React.ReactNode {
+  if (stand === "klaar") return <Icon naam="klaar" size={14} />;
+  if (stand === "mislukt") return <Icon naam="mislukt" size={14} />;
   return String(nummer);
 }

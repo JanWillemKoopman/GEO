@@ -36,6 +36,8 @@ import "server-only";
  * acht keer de latency kosten en niet in één werker-aanroep passen. Dezelfde
  * vorm als `generate_prompts`, dat drie funnelfases parallel doet.
  */
+import { kennisUitKennistest } from "@/lib/kennis/onderzoek";
+import { legOnderzoeksveldenVast } from "@/lib/kennis/uit-onderzoek";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enginesForProfile } from "@/lib/engines/registry";
 import {
@@ -427,13 +429,16 @@ export async function runLlmBaseline(
     ];
 
     if (voorstellen.length > 0) {
-      const { error: exclError } = await admin
-        .from("profiles")
-        .update({ name_exclusions: voorstellen })
-        .eq("id", profileId);
+      // K4 en K8 deel 3: de kopie op het profiel en het voorstel als vermoeden
+      // in de kennislaag, via dezelfde ingang.
+      const { error: exclError } = await legOnderzoeksveldenVast(admin, profileId, {
+        kolommen: { name_exclusions: voorstellen },
+        items: kennisUitKennistest({ profileId, voorstellen }),
+        taak: "profile_llm_baseline",
+      });
       if (exclError) {
         console.error(
-          `Uitsluitingslijst voorvullen mislukt voor profiel ${profileId}: ${exclError.message}`,
+          `Uitsluitingslijst voorvullen mislukt voor profiel ${profileId}: ${exclError}`,
         );
       } else {
         await admin.from("profile_field_sources").upsert(

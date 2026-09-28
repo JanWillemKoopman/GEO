@@ -94,7 +94,7 @@ export function ManualPagesBox({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="mono-label">Pagina&apos;s die je zelf toevoegt</span>
         {pages.length > 0 && (
-          <span className="mono-label text-muted">{pages.length} toegevoegd</span>
+          <span className="mono-label">{pages.length} toegevoegd</span>
         )}
       </div>
 
@@ -106,13 +106,13 @@ export function ManualPagesBox({
                 href={p.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="truncate text-[var(--intent-intelligence-text)] hover:underline"
+                className="link truncate"
               >
                 {p.title || shortUrl(p.url)}
               </a>
               <button
                 type="button"
-                className="shrink-0 text-muted hover:text-[var(--status-error)]"
+                className="shrink-0 text-muted hover:text-[var(--intent-danger-content)]"
                 onClick={() => void haalWeg(p.url)}
                 aria-label={`${p.title || p.url} weghalen`}
               >
@@ -144,7 +144,7 @@ export function ManualPagesBox({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="btn-primary btn-sm disabled:opacity-60"
+              className="btn-primary btn-sm"
               disabled={wacht || !invoer.trim()}
               onClick={() => void voegToe()}
             >
@@ -152,7 +152,7 @@ export function ManualPagesBox({
             </button>
             <button
               type="button"
-              className="btn-outline btn-sm"
+              className="btn-ghost btn-sm"
               disabled={wacht}
               onClick={() => {
                 setOpen(false);
@@ -182,13 +182,13 @@ export function ManualPagesBox({
             </span>
           )}
           {uitslag.unreadable.length > 0 && (
-            <span className="text-[var(--status-warning)]">
+            <span className="text-[var(--intent-warning-content)]">
               Niet kunnen lezen: {uitslag.unreadable.join(", ")}. Controleer of het adres klopt en
               of de pagina zonder JavaScript tekst toont.
             </span>
           )}
           {uitslag.rejected.map((r) => (
-            <span key={r.value} className="text-[var(--status-warning)]">
+            <span key={r.value} className="text-[var(--intent-warning-content)]">
               {r.value}: {r.reason}
             </span>
           ))}
@@ -196,7 +196,7 @@ export function ManualPagesBox({
       )}
 
       {fout && (
-        <p className="text-sm text-[var(--status-error)]" role="alert">
+        <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
           {fout}
         </p>
       )}

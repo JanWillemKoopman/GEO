@@ -122,8 +122,8 @@ schermen die de gebruiker na elkaar ziet).
 |---|---|
 | `.card` | Wit, één rand, **plat**. Geen schaduw, geen hover; een kaart die bij hover omhoog komt belooft interactie. |
 | `.card-interactive` | Alleen op daadwerkelijk klikbare kaarten (de lijstitems). Hier hoort de hover. |
-| `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. |
-| `.card-rail` / `.card-rail-success` / `.card-rail-warning` / `.card-rail-accent` | De 2px-stang links op de kaart met het hoofdgetal van een scherm, of op een kaart die om een handeling vraagt (`-accent`). **Eén per scherm**, anders markeert hij niets meer. De tint volgt de trend van dat getal: `--trend-up` bij een echte stijging, oranje bij een echte daling, grijs zolang er geen oordeel is (nooit gemeten, eerste meting, of een verschil binnen de meetruis). Zie `designsystem.md` §5.5. |
+| `.card-accent` / `.card-danger` / `.card-success` / `.card-warning` | Getinte kaartranden. `.card-accent` staat alleen op de GEO-kaart van Support (23 september 2026); een kaart die om een handeling vraagt krijgt `.card-rail`. |
+| `.card-rail` / `.card-rail-success` / `.card-rail-warning` / `.card-rail-accent` | De 2px-stang links op de kaart met het hoofdgetal van een scherm, of op een kaart die om een handeling vraagt (`-accent`). **Eén per scherm**, anders markeert hij niets meer. Op het overzicht is hij sinds 21 september 2026 altijd `.card-rail-success`; `.card-rail-accent` is neutraal (besluit van de eigenaar). Zie `designsystem.md` §5.5. |
 | `.btn-primary` / `.btn-outline` | Beide 40px, `--radius-pill` (weer een pil). `.btn-sm` = 36px, `.btn-lg` = 48px, BEREKEND uit OKX' eigen opgaven. |
 | `.btn-accent` | De hoofdactie van een scherm, hooguit één. Limoen in donker, donkergroen in licht. Nooit `.btn-primary`, die is bewust neutraal (§2 hierboven). |
 | `.btn-lg` | 48px, ruim boven de aanbevolen minimale tikdoelgrootte (WCAG 2.5.5, 44px). Combineren met `.btn-primary`/`.btn-outline`/`.btn-accent`, alleen op de ÉNE hoofdactie van een scherm dat vaak op een telefoon bediend wordt (bevestigen, publiceren, "schrijf alles"). Niet de standaard, anders verdwijnt de dichtheid die 40px juist opleverde. |
@@ -133,12 +133,13 @@ schermen die de gebruiker na elkaar ziet).
 | `.type-hero` … `.type-caption-emphasis` | De tekststijlen van OKX, met maat, gewicht en regelhoogte vast aan elkaar. Gebruik ze in nieuw werk; `designsystem.md` §3.2 heeft de tabel. |
 | `.btn-ghost` | **De uitweg naast een handeling**: "Wachtwoord vergeten?", "Terug naar inloggen", "Annuleren". Zelfde maat als `.btn-primary`, geen vlak, bij hover een waas. Gebruik hem in plaats van een kale link zodra hij onder of naast een knop staat, anders zweeft er een regel tekst onder een vlak van 40 pixels. |
 | `.stat-value` | Cijfers die je vergelijkt, `tabular-nums`, gewicht 500. Bij OKX doet de maat het werk van een hoofdgetal, niet het gewicht. |
-| `.field` / `.field-lg` | Formuliervelden, 40px (of 48px voor `.field-lg`, tot nu toe alleen de inlogroute), wit met een rand, inclusief focusring. |
-| `.live-dot` | Pulserende indicator voor "loopt nu". |
+| `.field` / `.field-sm` / `.field-lg` | Formuliervelden, 40px (36px voor `.field-sm`, 48px voor `.field-lg`), wit met een rand, inclusief focusring. Onder 768px is elk veld 48px met 16px tekst. Een keuzelijst krijgt altijd `.field-select`. |
+| `.live-dot` | Pulserende indicator voor "loopt nu" (een ring die uitdijt, succesgroen). `.live-dot-sm` is 6px. |
 | `.skeleton` | Laadvlak, respecteert `prefers-reduced-motion`. |
 | `.prose` | Lange tekst (rapport, contentpagina). |
-| `.brand-gradient-text` | **Alleen het woordmerk ORBIT ENGINE.** Nergens anders. |
+| `.brand-logo` | **Alleen het woordmerk ORBIT ENGINE.** `.brand-gradient-text` is op 23 september 2026 verwijderd. |
 | `PageHeader`, `SectionHeading`, `EmptyState`, `Narrow` | Eén variant per patroon, geen lokale kopieën. |
+| `.vlak`, `.tabel`, `.link`, `.menu-*`, `Dialog`, `Alert`, `DataCard`, `FilterChip`, `Segment` | Sinds de UI-audit van 23 september 2026 de enige manier voor een blok in een kaart, een tabel, een link in lopende tekst, een uitklapmenu, een dialoog, een melding, een cijfertegel en een filter- of schakelknop. De regels staan in `designsystem.md` §9. |
 | `Icon` (`components/icon.tsx`) | Het enige icoon-component, nooit een los teken en nooit een eigen SVG. In een lijstregel: 16px, links van de titel, in de leeskleur (`text-secondary`) en nooit in de accentkleur. In een knop: 18px. Zie `designsystem.md` §6. |
 | `ConfidenceChip` (`components/confidence-chip.tsx`) | Zekerheid is een **niveau**, nooit een getal: zeker (geen markering) · onzeker (amber) · niet vastgesteld (mono-label "niet gevonden"). "0.62" zegt een MKB'er niets. |
 | `CopyButton`, `ExternalLink`, `LastUpdated` (`components/`) | H.63-65: drie kleine primitieven tegen herhaling, klembord, "verlaat de app"-pijltje, relatieve datum met volledige datum als tooltip. Elke plek die zelf `navigator.clipboard` of `target="_blank"` opnieuw uittypte, hoort hierheen te verhuizen. |
@@ -229,7 +230,7 @@ Sinds besluit 1 (`docs/logbook.md`, het inmiddels verwijderde `Nova.md` §0) is 
 past horizontaal niet zonder scheidingstekens die niets betekenen, en verticaal is het één
 tussenkopje. Vandaar een **zijbalk** (`components/sidebar.tsx`).
 
-**Vier klanthoofdstukken, elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus
+**Vijf klanthoofdstukken (sinds 23 september 2026, daarvoor vier), elk met hooguit drie kinderen** (besluit 1 tot en met 8 van 17 augustus
 2026). ⚠️ **Admin mag er sinds 19 augustus 2026 vier**, bij het toevoegen van de onboardingsessie:
 drie ervan gaan over dít merk (Onboardinggesprek, Diagnose, Toewijzen) en de vierde, "Alle merken", is de
 uitgang naar de app als geheel. Dat is geen vergaarbak van vier gelijksoortige regels maar drie plus
@@ -244,9 +245,10 @@ Zichtbaarheid, Zoekverkeer en Concurrenten komen alle drie uit werk dat toch al 
 maandelijkse meting, de Search Console-koppeling en de aggregatie. Een reputatieanalyse draait niet
 mee in die cyclus: hij wordt per keer gestart, per keer betaald en per keer gedateerd. Drie plus een
 product, zoals Admin drie plus twee uitgangen is.
-⚠️ **En Strategie mag er sinds 28 augustus 2026 vier**, met opnieuw dezelfde soort reden: Clusters,
-Contentplan en Bibliotheek tonen wat ORBIT ENGINE deed, "Openstaande vragen" is de enige plek in dat
-hoofdstuk waar de klant zelf iets moet doen. Drie plus een handeling.
+⚠️ **Strategie had er van 28 augustus tot 23 september 2026 vier.** Sinds 23 september is
+Clusters een eigen hoofdstuk, met "Clusters ontdekken" en "Mijn clusters"
+(`docs/tasks/clusters-ontdekken.md`): een vijfde bestemming onder Strategie bestond niet zonder
+eerst iets samen te voegen, en een eigen kop brengt Strategie meteen terug op drie.
 ⚠️ **En Sales mag er sinds 24 augustus 2026 vijf**, bij het toevoegen van de GEO Prospect Engine.
 De onderbouwing is van een ándere soort dan bij Admin en Analytics, en dat is precies het punt: **dit
 is geen klanthoofdstuk.** Het bezwaar van 17 augustus ging over wat een klant te zien krijgt, zeven
@@ -261,8 +263,7 @@ zorgt dat een uitzondering op één plek staat, met een naam en een reden erbij,
 getal in een test dat niemand tegenkomt. Zonder die verandering was "hooguit vier" binnen een half
 jaar de norm voor elk hoofdstuk geworden, en dan is de herindeling van 17 augustus terug bij af.
 
-**De klanthoofdstukken blijven op drie, met Analytics en Strategie als de twee uitzonderingen op
-vier.** Dát is de regel die overeind moet blijven, en de test bewaakt hem apart van de rest.
+**De klanthoofdstukken blijven op drie, met Analytics als enige uitzondering op vier.** Dát is de regel die overeind moet blijven, en de test bewaakt hem apart van de rest.
 Daarvoor waren het 7 regels die uitklapten naar 15 bestemmingen, waarvan er negen onder één kop
 hingen die het commentaar in `lib/nav.ts` zelf al "de vergaarbak die dit oplost alleen verticaal"
 noemde. Elk hoofdstuk beantwoordt nu één vraag:
@@ -270,7 +271,8 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Hoofdstuk | De vraag | Bestemmingen |
 |---|---|---|
 | Overzicht | Is er iets nieuws, en wat moet ik nu doen? | `/merk/[id]`, tevens de bestemming na inloggen |
-| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Clusters, Openstaande vragen, Contentplan, Bibliotheek |
+| Clusters | Waarop meten we, en waarop zouden we moeten meten? | Clusters ontdekken, Mijn clusters |
+| Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Openstaande vragen, Bibliotheek |
 | Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Klopt wat ORBIT ENGINE van me vond? | Merkdossier |
 | Sales | (alleen Outer Orbit, onder een scheidingslijn) | Overzicht, Opportunities, Prospects, Markten, Outreach |
@@ -345,7 +347,9 @@ die de hoofdknop van paars naar inkt bracht (destijds Nova's inktkleur; sinds de
 hoofdknop neutraal en de accentkleur limoen, met dezelfde redenering, zie `designsystem.md` §2.4).
 Deze hele alinea is geschiedenis uit de Nova-periode; zie `designsystem.md` bijlage A.
 
-⚠️ **"Alleen jij" is een gevuld stempeltje geworden**, in dezelfde tint als de actieve regel. Los
+⚠️ **"Alleen jij" is een gevuld stempeltje geworden**, in dezelfde tint als de actieve regel. Sinds
+de UX-audit van 23 september 2026 staat het één keer bij de kop van Sales en Admin, niet bij elke
+regel: veertien stempels onder elkaar markeerden niets meer. Los
 grijs hoofdlettertekst achter de bestemming las als een tweede label van die bestemming, terwijl het
 een stempel erop is: dit ziet de klant niet. Het staat op `--radius-sm`, dezelfde vorm als de chips
 elders in de app.
@@ -546,6 +550,25 @@ het verschil in plaats van het te laten raden.
 | De wachtrijregel toont `WorkItem.why` | Er stond `analysisName`, in de praktijk een rauw adres in hoofdletters. Het scherm toonde het minst bruikbare veld en gooide het bruikbaarste weg |
 | De toon van de soort werk zit op de kaart | `card-danger` bij een blokkade, in plaats van een chip van 60 pixels. Het onderscheid uit §2 blijft, maar draagt verder |
 
+### De UX-audit van 23 september 2026
+
+Het overzicht is omgedraaid, en dat vervangt de volgorde in de twee secties hierboven en die
+hieronder. **Nu: kop, wat er op jou wacht (alleen als er iets is), het cijfer, Deze maand.** De
+reden: dit is het scherm van elke sessie, en de enige handeling die de klant er kan doen stond onder
+twee drukke blokken. De vier tellers onder het cijfer zijn één zin (`totalenZin()` in
+`lib/overview.ts`), want de maandbalk telt "geschreven" en "live" ook, over een andere periode.
+
+Drie regels die hieruit volgen en voor elk scherm gelden:
+
+- **Een knop zegt vooraf wat er gebeurt.** Mag de klant iets niet zelf starten, dan staat dat er
+  vóór de klik ("Je consultant start het voor je", "Nieuw cluster aanvragen"), niet pas in een
+  foutmelding erna.
+- **Een menu-item en de kop van de pagina dragen hetzelfde woord.** De lijst staat in
+  `schrijfstijl.md` §11.
+- **Een hoofdstuk met één bestemming is één regel in de zijbalk**, met het icoon van het hoofdstuk.
+
+De volledige lijst, met wat er per punt veranderde, staat in `docs/logbook.md`, 23 september 2026 (12).
+
 ### Het contentplan heeft twee gedaanten (27 augustus 2026)
 
 Het planscherm was één scherm voor twee gebruikers met tegengestelde behoeften. De consultant plant:
@@ -556,6 +579,8 @@ uitleg "sleep beschikbare content items naar de maand waarin ze geschreven moete
 
 **Er zijn sinds vandaag twee weergaven, allebei voor iedereen.** Een schakelaar bovenaan het scherm
 zet ze om, en de rol bepaalt alleen waar je landt: de klant op Overzicht, de consultant op Plannen.
+(Van 22 tot 23 september 2026 landde iedereen op Plannen; de UX-audit van 23 september zette de
+regel hierboven terug. Er is inmiddels een derde weergave, Kalender.)
 Een weergave in de URL (`?weergave=`) wint van de rol, zodat een gedeelde link bij beiden hetzelfde
 opent. Het bord is ongewijzigd; de klant mag daar alles wat de consultant er mag.
 
@@ -582,12 +607,30 @@ plannen is erger dan één dat het helemaal kan en één dat leest. Een broncode
 `scripts/test-unit.ts` bewaakt dat de leesweergave geen sleepmachinerie krijgt en dat de schakelaar
 er staat.
 
+### De onderbouwing van een kans staat er nu bij, uitgeklapt op het bord (27 september 2026, N7)
+
+Elke kaart in de voorraad (het bord, "Plannen") toont bij het uitklappen nu ook de zin die de kans
+onderbouwt (`kansen.uitleg`, N1: "Mensen zoeken hiernaar, maar ChatGPT noemt je niet") en, daaronder
+in een eigen `<details>`-blokje "Bewijs per bron", één zin per bron waaruit de kans is opgebouwd
+(ChatGPT, Google AI Overview, Gemini, Search Console, de opbouw van de site, de consultant). Beide
+zijn voor klant en consultant gelijk zichtbaar: de klant mag weten waaróm iets voorgesteld wordt, het
+bewijs blijft standaard dicht (§5, alleen wat onderscheidt staat open) en is één klik verderop.
+
+### Een handmatige kans krijgt een eigen label (27 september 2026, N5)
+
+De voorraad op het bord ("Plannen") toont nu ook kansen die de consultant zelf toevoegde via
+"+ Kans toevoegen", voor een behoefte die de meting niet vond. Zo'n kaart krijgt naast de gewone
+meta-regel de chip "Niet gemeten", zodat niemand hem aanziet voor een kans met echt bewijs uit een
+rapport. Het formulier zelf (titel, lezer, nieuwe pagina of verbeteren, kennisitems, doelvragen)
+staat alleen voor de consultant boven de voorraadkolom.
+
 ### De ronde staat bovenaan, en de score staat er weer onder (27 augustus 2026)
 
 Twee wijzigingen aan de startpagina, uit de structuurreview van 27 augustus 2026, en de tweede
 draait de beslissing van de dag ervoor terug.
 
-**Nieuw bovenaan: de ronde** (`lib/ronde.ts`, `RondeBalk`). Zes stappen naast elkaar, meten, kansen,
+**Nieuw bovenaan: de ronde** (`lib/ronde.ts`, `RondeBalk`). ⚠️ Sinds de UX-audit van 23 september
+2026 staat hij onderaan als "Deze maand"; zie "De UX-audit van 23 september 2026" hieronder. Zes stappen naast elkaar, meten, kansen,
 plannen, schrijven, publiceren, hermeten, met per stap de stand van nu en één zin eronder die zegt
 wie er aan zet is. Het product ís een kringloop, maar het menu is een kast met laden, en een kast
 vertelt niet dat de laden samen één ronde zijn. Wat de klant miste was niet zijn takenlijst, die is

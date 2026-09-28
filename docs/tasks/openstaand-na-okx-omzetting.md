@@ -5,14 +5,6 @@ De herontwerpronde van 17 tot 21 september 2026 (Nova naar OKX, elf stappen, vas
 punten kwamen daarbij naar boven die geen onderdeel van de ronde zelf waren, maar wel nog openstaan.
 Streep een punt weg zodra het is opgelost, en verwijder dit bestand zodra de lijst leeg is.
 
-## 1. `.field-lg` (48px) staat alleen op de inlogroute
-
-`app/globals.css` merkt bij `.field-lg` zelf al op dat deze trede (48px in plaats van 40, tekst 16px
-in plaats van 14) onder 768px eigenlijk voor **elk** invoerveld in de app zou moeten gelden: Safari
-zoomt in bij focus op een veld met een kleinere lettergrootte. Dat is nooit doorgevoerd buiten
-`app/(auth)/`. Raakt naar schatting vijftig schermen; is bewust niet meegenomen in stap 10 van de
-OKX-ronde, want dat was een responsief gedragsprobleem en geen visuele omzetting.
-
 ## 2. De donkere stand is niet systematisch nagekeken op de ingelogde schermen
 
 Dit stond al open ná de Nova-omzetting (24 augustus 2026) en is met de OKX-omzetting opnieuw relevant

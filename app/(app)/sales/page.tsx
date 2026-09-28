@@ -133,7 +133,7 @@ export default async function SalesOverzichtPage() {
       <PageHeader
         eyebrow="Sales"
         title="Wat moet je vandaag doen?"
-        description="Je eigen werk, de kansen die niemand heeft opgepakt en wat er terugkomt op je mails. Dit scherm ziet alleen Outer Orbit."
+        description="Je eigen werk, de kansen die niemand heeft opgepakt en wat er terugkomt op je mails."
       />
 
       {leeg ? (

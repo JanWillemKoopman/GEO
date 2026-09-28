@@ -132,80 +132,30 @@ export function planRegels({
 }
 
 /**
- * De vier cijfers boven aan de startpagina.
+ * De totalen van het programma, als één zin onder het hoofdcijfer.
  *
- * ── ⚠️ WAAROM HET ZICHTBAARHEIDSPERCENTAGE HIER NIET MEER STAAT ─────────────
+ * ── WAAROM GEEN RIJ VAN VIER CIJFERS MEER (UX-AUDIT 23 SEPTEMBER 2026, P1.1) ──
  *
- * Tot 25 augustus 2026 droeg deze kaart het hoofdgetal van het merk: "57%", met
- * de marge, het verschil en het verloop eromheen. Besloten op 26 augustus 2026:
- * dat cijfer verhuist naar Analytics en de startpagina toont in plaats daarvan
- * de omvang van het programma. De reden is de vraag die een klant bij het
- * inloggen stelt: niet "wat is mijn score" maar "wat loopt er voor mij, en wat
- * staat er klaar". De score zelf blijft één klik weg (de knop ernaast) en staat
- * nog steeds in woorden in de duiding eronder (`lib/insights.ts`).
+ * Hier stonden vier grote tellingen ("Clusters actief", "Pagina's geschreven",
+ * "Pagina's geoptimaliseerd", "Gepubliceerd") met een kop "Sinds start ORBIT
+ * ENGINE". De maandbalk op hetzelfde scherm telt sinds 23 september 2026 ook
+ * "geschreven" en "live", maar dan over deze kalendermaand. Twee getallen voor
+ * hetzelfde woord op één scherm laten de klant rekenen welke de echte is, en
+ * vier grote cijfers duwden het enige waar hij iets mee kan (de wachtrij) onder
+ * de vouw.
  *
- * ── ⚠️ DRIE VAN DE VIER ZIJN TOTALEN SINDS DE START (28 AUGUSTUS 2026) ──────
+ * De totalen blijven, omdat ze het antwoord zijn op "wat heeft het tot nu toe
+ * opgeleverd". Maar als één zin in de leeskleur, zodat het hoofdcijfer het
+ * enige grote getal op het scherm is.
  *
- * Twee van de vier cijfers kwamen tot vandaag uit de KANSENLIJST: "Nieuwe
- * pagina's" en "Paginaoptimalisaties" telden voorstellen, dus werk dat nog
- * gedaan moest worden. Op een rij die leest als "wat heeft het opgeleverd"
- * stonden dus twee getallen die zeiden wat er nog moest gebeuren, en bij Van den
- * Udenhout stond die rij daardoor op 0 · 0 · 7 · 5 terwijl er niets gedaan was.
- *
- * De rij telt nu wat er daadwerkelijk gemaakt is, over de hele looptijd van de
- * klant: geschreven nieuwe pagina's, geschreven optimalisaties, en hoeveel
- * daarvan live staat. De voorstellen staan nog steeds op het scherm, in het
- * kansenblok eronder, waar ze horen: dat blok gaat over wat je kunt doen.
- *
- * ⚠️ Cijfer 1 is de uitzondering en blijft een stand van NU. Het aantal actieve
- * clusters is geen opbrengst maar de omvang van het programma op dit moment; een
- * cluster dat gearchiveerd wordt hoort dat cijfer te verlagen, terwijl een
- * pagina die vorig jaar geschreven is geschreven blijft. Vandaar dat de
- * toelichting eronder "Nu actief" zegt en de kop boven de rij over de rest gaat.
- *
- * ── ⚠️ VIER TELLINGEN, GEEN VERGELIJKING ────────────────────────────────────
- *
- * Bewust geen verschil met een vorige periode. Deze vier zijn standen en
- * totalen, geen metingen: het aantal clusters verandert als de eigenaar er een
- * aanzet, niet doordat er iets gemeten is. Een groeipercentage erop plakken zou
- * beweging suggereren waar een besluit zit. De duiding over de tijd hoort bij de
- * score, en die staat in de drie zinnen eronder.
+ * Het aantal clusters is de uitzondering: dat is een stand van NU en geen
+ * opbrengst, dus staat het apart vooraan ("3 clusters actief"). Geen enkel
+ * getal draagt een vergelijking met een vorige periode; dit zijn standen en
+ * totalen, geen metingen.
  *
  * Puur, dus testbaar (conventie 2).
  */
-export interface OverzichtCijfer {
-  /** Het getal, groot. Altijd een telling. */
-  waarde: string;
-  /** Waar het over gaat. */
-  label: string;
-  /**
-   * Eén korte regel eronder. Nooit een claim over groei.
-   *
-   * ⚠️ Hooguit 23 tekens, bewaakt door `scripts/test-unit.ts`. Vier kolommen op
-   * een kaart van 940 pixels, waarvan er drie ook nog een scheidingslijn met
-   * inspringing dragen, houden er per kolom zo'n 190 over. Een toelichting die
-   * over twee regels valt maakt de rij rafelig en de kolommen ongelijk hoog, en
-   * dat gebeurt alleen in de smalste drie: dan lijkt het een fout.
-   */
-  detail: string;
-}
-
-/**
- * De regel bóven de rij. Zegt dat drie van de vier cijfers over de hele looptijd
- * gaan, want zonder die regel leest een klant met 12 geschreven pagina's ze als
- * "deze maand" en klopt zijn beeld van het tempo niet.
- *
- * ⚠️ Geen datum meer erin (21 september 2026). "Sinds maart 2026" stond er in
- * plaats van "sinds de start" zodra de startdatum bekend was, maar die datum
- * kwam uit de oudste analyse en niet uit het merkprofiel zelf: bij een merk dat
- * later een cluster archiveerde en opnieuw begon, wees hij naar een moment dat
- * niet meer bestond. De vaste tekst klopt altijd.
- */
-export function totalenKop(): string {
-  return "Sinds start ORBIT ENGINE";
-}
-
-export function overzichtCijfers({
+export function totalenZin({
   clusters,
   geschreven,
   geoptimaliseerd,
@@ -219,27 +169,15 @@ export function overzichtCijfers({
   geoptimaliseerd: number;
   /** Wat daarvan live staat, uit `content_pieces.published_at`. */
   gepubliceerd: number;
-}): OverzichtCijfer[] {
-  return [
-    {
-      waarde: String(clusters),
-      label: clusters === 1 ? "Cluster actief" : "Clusters actief",
-      detail: clusters === 0 ? "Nog niets gemeten" : "Nu actief",
-    },
-    {
-      waarde: String(geschreven),
-      label: geschreven === 1 ? "Pagina geschreven" : "Pagina's geschreven",
-      detail: geschreven === 0 ? "Nog niets geschreven" : "Nieuwe pagina's",
-    },
-    {
-      waarde: String(geoptimaliseerd),
-      label: geoptimaliseerd === 1 ? "Pagina geoptimaliseerd" : "Pagina's geoptimaliseerd",
-      detail: geoptimaliseerd === 0 ? "Nog niets bijgewerkt" : "Bestaande pagina's",
-    },
-    {
-      waarde: String(gepubliceerd),
-      label: "Gepubliceerd",
-      detail: gepubliceerd === 0 ? "Nog niets live" : "Live op je site",
-    },
+}): string {
+  const actief = clusters === 1 ? "1 cluster actief" : `${clusters} clusters actief`;
+  if (geschreven === 0 && geoptimaliseerd === 0) {
+    return `${actief}. Er is nog geen pagina geschreven.`;
+  }
+  const delen = [
+    geschreven === 1 ? "1 nieuwe pagina geschreven" : `${geschreven} nieuwe pagina's geschreven`,
+    geoptimaliseerd === 1 ? "1 bestaande bijgewerkt" : `${geoptimaliseerd} bestaande bijgewerkt`,
   ];
+  const live = gepubliceerd === 0 ? "nog niets live" : `${gepubliceerd} live op je site`;
+  return `${actief}. Sinds de start: ${delen.join(", ")}, ${live}.`;
 }

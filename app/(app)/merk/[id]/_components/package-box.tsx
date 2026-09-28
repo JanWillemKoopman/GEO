@@ -65,7 +65,7 @@ export function PackageBox({
   if (!accountId) {
     return (
       <section className="card flex flex-col gap-2">
-        <h2 className="type-heading">Verkoopafspraak</h2>
+        <h2 className="type-section">Verkoopafspraak</h2>
         <p className="text-sm text-secondary">
           Dit merk hangt nog aan geen enkel account. Koppel het hierboven aan een klant, dan kun je
           het pakket en de startdatum vastleggen.
@@ -113,7 +113,7 @@ export function PackageBox({
   return (
     <section className="card flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="type-heading">Verkoopafspraak</h2>
+        <h2 className="type-section">Verkoopafspraak</h2>
         <p className="text-sm text-secondary">
           Wat er met {accountName ?? "deze klant"} is afgesproken. Alleen jij stelt dit in; de klant
           ziet het terug in zijn contentplan en op zijn instellingenscherm.
@@ -123,7 +123,7 @@ export function PackageBox({
       {gaten.length > 0 && (
         <ul className="flex flex-col gap-2">
           {gaten.map((gat) => (
-            <li key={gat.veld} className="flex flex-col gap-0.5 border-l-2 border-[var(--status-warning)] pl-3">
+            <li key={gat.veld} className="flex flex-col gap-0.5 border-l-2 border-[var(--intent-warning-content)] pl-3">
               <span className="text-sm font-medium">{gat.wat}</span>
               <span className="text-sm text-secondary">{gat.gevolg}</span>
             </li>
@@ -135,7 +135,7 @@ export function PackageBox({
         <label className="flex flex-col gap-1.5">
           <span className="mono-label">Pagina&apos;s per maand</span>
           <select
-            className="field"
+            className="field field-select"
             value={maat}
             onChange={(e) => setMaat(e.target.value === "" ? "" : Number(e.target.value))}
             disabled={busy}
@@ -171,7 +171,7 @@ export function PackageBox({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          className="btn-primary w-fit disabled:opacity-60"
+          className="btn-primary w-fit"
           onClick={() => void bewaar()}
           disabled={busy || !gewijzigd}
         >

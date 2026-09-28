@@ -1,5 +1,5 @@
 /**
- * EÉN STAND PER PAGINA (`docs/tasks/contentflow-een-lijn.md` §3 en §4.5).
+ * EÉN STAND PER PAGINA (`docs/tasks/contentketen-opnieuw.md` §7.5).
  *
  * ── WAAROM DEZE MODULE ─────────────────────────────────────────────────────
  *
@@ -21,21 +21,19 @@
  * heeft een check-constraint (migratie 0049), en die verruimen kan alleen door
  * hem eerst weg te halen: dat verbiedt conventie 4. Alles wat de nieuwe
  * standen nodig hebben staat er bovendien al: de voorbereiding is klaar zodra
- * `content_pieces.briefing_snapshot_json` gevuld is (`runBriefing()`), en de
- * vragen tellen we per pagina. Een opgeslagen stand zou daarnaast een derde
+ * `content_pieces.brief_json` gevuld is (de content brief), en de vragen
+ * tellen we per pagina. Een opgeslagen stand zou daarnaast een derde
  * waarheid zijn die uit de pas kan lopen.
  *
  * Puur en zonder `server-only` (conventie 2).
  */
 import type { PlannedPageStatus } from "@/lib/types/database";
-import { schrijfpoort } from "@/lib/content-write-gate";
-import type { InputStand, WriteMode } from "@/lib/content-input-gate";
+import { schrijfpoort } from "@/lib/pagina/schrijfpoort";
 
 export type PaginaStandSleutel =
   | "gepland"
   | "voorbereiden"
   | "vragen"
-  | "keuze"
   | "wacht_op_datum"
   | "niet_ingepland"
   | "schrijven"
@@ -77,18 +75,17 @@ export interface PaginaStandInput {
     scheduled_for: string | null;
     /** Is de maand van deze pagina vrijgegeven? */
     maandVrij: boolean;
+    /** Hangt de pagina aan een cluster? Zonder cluster start de voorbereiding nooit. Onbekend telt als ja. */
+    onderwerp?: boolean;
   } | null;
   tekst: {
     status: string;
     needs_review: boolean;
-    /** Is de voorbereiding klaar (`briefing_snapshot_json` gevuld)? */
+    /** Is de content brief klaar (`brief_json` gevuld)? */
     voorbereid: boolean;
-    write_mode?: WriteMode;
   } | null;
   /** Open vragen van deze pagina (`openVragenVanPagina`). */
   openVragen: number;
-  /** Het oordeel van de inputpoort, als dat bekend is. */
-  inputStand?: InputStand | null;
   /** Staat er een eindoordeel van de nameting? */
   effectBekend?: boolean;
   /** Vandaag als `YYYY-MM-DD`. */
@@ -108,6 +105,28 @@ export function streefdatum(publicatiedatum: string | null): string | null {
   if (Number.isNaN(d.getTime())) return null;
   d.setUTCDate(d.getUTCDate() - STREEF_MARGE_DAGEN);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * De zin over de streefdatum in de vrijgeefdialoog (punt 33 van de
+ * kwaliteitsdoorlichting).
+ *
+ * Op 24 september stond er "Beantwoord ze graag vóór 13 september": het plan zette
+ * de eerste pagina op de 25e, en twaalf dagen daarvoor lag elf dagen terug. Een
+ * datum in het verleden is geen streefdatum. Dan zegt de zin wat er wel geldt:
+ * zo snel mogelijk, en schrijven begint pas als de vragen gedaan zijn.
+ */
+export function streefzin(eersteDatum: string | null | undefined, vandaag: string): string {
+  if (!eersteDatum) return "";
+  const streef = streefdatum(eersteDatum);
+  if (!streef) return "";
+  if (streef >= vandaag.slice(0, 10)) {
+    return `Beantwoord ze graag vóór ${formatDag(streef)} om op schema te blijven.`;
+  }
+  return (
+    `Beantwoord ze zo snel mogelijk: de eerste pagina staat op ${formatDag(eersteDatum)}, en ` +
+    `we schrijven pas als de vragen gedaan zijn. Die datum schuift dus mee.`
+  );
 }
 
 export function formatDag(iso: string): string {
@@ -175,18 +194,19 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
   }
 
   // ── Er is tekst ──────────────────────────────────────────────────────────
-  const heeftTekst = tekst !== null && (tekst.status === "ready" || tekst.status === "draft");
-  if (plan?.status === "schrijven" && !(tekst?.status === "ready")) {
+  // `draft` is schrijven of controleren: pas bij `ready` is er iets om te lezen.
+  const heeftTekst = tekst !== null && tekst.status === "ready";
+  if ((plan?.status === "schrijven" || tekst?.status === "draft") && !(tekst?.status === "ready")) {
     return schrijvend();
   }
   if (plan?.status === "goedgekeurd" || (tekst?.status === "ready" && !tekst.needs_review)) {
     return stand("live_zetten", {
-      label: "Zet hem live",
+      label: "Plaats hem op je site",
       aanZet: "klant",
       toon: "wacht",
       fase: 3,
       zin: "De tekst is goedgekeurd. Plaats hem op je site en vul daarna het adres in.",
-      handeling: "Zet live",
+      handeling: "Meld dat hij live staat",
     });
   }
   if (heeftTekst || plan?.status === "ter_goedkeuring") {
@@ -216,15 +236,35 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
         { streefdatum: streef },
       );
     }
-    return voorbereidend(streef);
+    // Nog geen rij in `content_pieces`: er draait dan nog niets. Tot
+    // 23 september 2026 stond hier "Dat duurt een paar minuten", terwijl bij
+    // Van den Udenhout vijf pagina's van een vrijgegeven maand geen enkele taak
+    // hadden (de maand ging vrij om 08:29, de code die voorbereidt stond pas om
+    // 09:56 live). De plan-cron van 04:00 UTC pakt ze op; dat zegt deze zin.
+    // Zonder cluster weigert de voorbereiding elke ochtend opnieuw. Bij Van den Udenhout gold dat op
+    // 23 september 2026 voor twee van de vijf vrijgegeven pagina's; "we
+    // beginnen morgenochtend" zou voor die twee niet waar zijn.
+    if (plan && plan.onderwerp === false && !tekst) {
+      return stand(
+        "voorbereiden",
+        {
+          label: "Geen cluster",
+          aanZet: null,
+          toon: "neutraal",
+          fase: 0,
+          zin: "Deze pagina hangt aan geen cluster. Zonder cluster kunnen we hem niet voorbereiden.",
+          handeling: null,
+        },
+        { streefdatum: streef },
+      );
+    }
+    return voorbereidend(streef, false);
   }
-  if (!tekst.voorbereid) return voorbereidend(streef);
+  if (!tekst.voorbereid) return voorbereidend(streef, true);
 
   const poort = schrijfpoort({
+    briefKlaar: true,
     openVragen: input.openVragen,
-    voorbereidingKlaar: true,
-    inputStand: input.inputStand ?? null,
-    writeMode: tekst.write_mode ?? null,
     publicatiedatum: datum,
     vandaag,
   });
@@ -248,24 +288,9 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
       { looptAchter: achter, streefdatum: streef },
     );
   }
-  if (poort.reden === "te_weinig_onderbouwd") {
-    return stand(
-      "keuze",
-      {
-        label: "Jouw keuze nodig",
-        aanZet: "klant",
-        toon: "wacht",
-        fase: 0,
-        zin: poort.melding,
-        handeling: "Kies hoe verder",
-      },
-      { looptAchter: achter, streefdatum: streef },
-    );
-  }
-  // Een pagina uit de oude route vanuit een cluster, zonder plek in het plan:
-  // die wordt nooit vanzelf geschreven (`probeerTeSchrijven()` doet alleen
-  // plan-pagina's). "Wordt geschreven" zou hier een belofte zijn die niemand
-  // nakomt; dit zegt wat er echt nodig is.
+  // Een pagina zonder plek in het plan wordt nooit vanzelf geschreven: alleen
+  // het contentplan plant schrijven in (besluit B7). "Wordt geschreven" zou hier
+  // een belofte zijn die niemand nakomt; dit zegt wat er echt nodig is.
   if (!plan && poort.mag) {
     return stand("niet_ingepland", {
       label: "Nog niet ingepland",
@@ -299,25 +324,54 @@ function schrijvend(): PaginaStand {
     aanZet: "orbit_engine",
     toon: "loopt",
     fase: 1,
-    zin: "We schrijven en keuren de tekst. Dat duurt meestal een kwartier; je hoeft niets te doen.",
+    zin: "We schrijven en controleren de tekst. Dat duurt meestal een kwartier; je hoeft niets te doen.",
     handeling: null,
   });
 }
 
-function voorbereidend(streef: string | null): PaginaStand {
+function voorbereidend(streef: string | null, gestart: boolean): PaginaStand {
   return stand(
     "voorbereiden",
-    {
-      label: "Wordt voorbereid",
-      aanZet: "orbit_engine",
-      toon: "loopt",
-      fase: 0,
-      zin: "We zoeken uit wat er op deze pagina moet en welke vragen we je moeten stellen. Dat duurt een paar minuten.",
-      handeling: null,
-    },
+    gestart
+      ? {
+          label: "Wordt voorbereid",
+          aanZet: "orbit_engine",
+          toon: "loopt",
+          fase: 0,
+          zin: "We zoeken uit wat er op deze pagina moet en welke vragen we je moeten stellen. Dat duurt een paar minuten.",
+          handeling: null,
+        }
+      : {
+          label: "Voorbereiding volgt",
+          aanZet: "orbit_engine",
+          toon: "neutraal",
+          fase: 0,
+          zin: "We beginnen uiterlijk morgenochtend met de voorbereiding. Hebben we vragen, dan staan die daarna bij Openstaande vragen.",
+          handeling: null,
+        },
     { streefdatum: streef },
   );
 }
+
+/**
+ * Heeft deze pagina een eigen scherm dat iets toevoegt?
+ *
+ * Op 23 september 2026 vond de eigenaar dat het paginascherm bij "Wordt
+ * voorbereid" en "Nog niet ingepland" niets toevoegde: een laadbalk of een zin,
+ * en daaronder de opdracht die ook in het contentplan staat. Een eigen scherm
+ * heeft een pagina alleen als de klant er iets moet doen (vragen, een keuze) of
+ * als er tekst is om te lezen. De rest staat in het contentplan, met zijn stand.
+ */
+export function heeftEigenScherm(sleutel: PaginaStandSleutel): boolean {
+  return (
+    sleutel === "vragen" ||
+    sleutel === "goedkeuren" ||
+    sleutel === "live_zetten" ||
+    sleutel === "effect_meten" ||
+    sleutel === "effect_bekend"
+  );
+}
+
 
 /** De chipklasse bij een toon (`docs/designsystem.md` §2.5, vier betekenissen). */
 export const STAND_CHIP: Record<StandToon, string> = {

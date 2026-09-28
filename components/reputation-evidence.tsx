@@ -14,7 +14,7 @@ const SOORT_KLEUR: Record<string, string> = {
   vakpers: "var(--chart-2)",
   eigen: "var(--chart-3)",
   sociaal: "var(--chart-4)",
-  register: "var(--chart-5, var(--text-muted))",
+  register: "var(--chart-5, var(--text-tertiary))",
   overig: "var(--border-strong)",
 };
 

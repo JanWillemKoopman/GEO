@@ -39,7 +39,7 @@ export function ExternalLink({
           className="inline-block align-text-top"
           style={{ marginLeft: "0.15em", transform: "translateY(0.05em)" }}
         >
-          <Icon naam="extern" size={13} />
+          <Icon naam="extern" size={14} />
         </span>
       )}
     </a>

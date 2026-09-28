@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
@@ -90,12 +91,22 @@ export default async function AdminPage({
       .order("created_at", { ascending: false }),
     admin
       .from("profile_field_sources")
-      .select("field, source, confidence, evidence_url, evidence_quote")
+      .select("field, source, confidence")
       .eq("profile_id", id)
       .order("field"),
     admin.from("analyses").select("id, name").eq("profile_id", id),
     admin.from("profile_topics").select("id").eq("profile_id", id),
   ]);
+
+  const { count: openConflictTelling } = await admin
+    .from("fact_conflicts")
+    .select("id", { count: "exact", head: true })
+    .eq("profile_id", id)
+    .eq("echt_conflict", true)
+    // Ook de botsingen tussen kennisitems (K2, V14): die staan sinds K7 op
+    // hetzelfde conflictscherm.
+    .in("status", ["open", "gevraagd"]);
+  const openConflicten = openConflictTelling ?? 0;
 
   const taken = (jobRijen ?? []) as {
     type: string;
@@ -130,8 +141,6 @@ export default async function AdminPage({
     field: string;
     source: string;
     confidence: number | null;
-    evidence_url: string | null;
-    evidence_quote: string | null;
   }[];
 
   // Het onderwerp-onderzoek hangt aan een cluster, niet aan het merk. Zonder
@@ -161,10 +170,33 @@ export default async function AdminPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Admin · alleen jij"
+        eyebrow="Admin"
         title="Diagnose"
-        description="Wat er technisch gebeurde: welke taken draaiden, hoe lang, wat er faalde en wat het kostte. De klant ziet dit scherm niet en kan het adres niet raden: hij krijgt een 404. Het werk mét de klant staat op Onboarding."
+        description="Wat er technisch gebeurde: welke taken draaiden, hoe lang, wat er faalde en wat het kostte. Het werk mét de klant staat op Onboardinggesprek."
       />
+
+      {/* ── Tegenstrijdige feiten (WP2 van contentpijplijn-publicatiewaardig.md) ──
+          Geen eigen menu-item: Admin houdt hooguit negen bestemmingen. Een
+          open conflict houdt een pagina tegen, dus de teller staat hier bovenaan. */}
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-secondary">
+          {openConflicten === 0
+            ? "Geen tegenstrijdigheden open."
+            : `${openConflicten} ${openConflicten === 1 ? "tegenstrijdigheid" : "tegenstrijdigheden"} open. Zolang dat zo is, gaat geen van de versies op een pagina.`}
+        </p>
+        <Link href={`/merk/${id}/admin/feiten`} className="btn-outline btn-sm">
+          Tegenstrijdige feiten
+        </Link>
+      </div>
+
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-secondary">
+          Wat we over het bedrijf weten, met waar het vandaan komt. Leg hier vast wat de klant bevestigt of verbetert.
+        </p>
+        <Link href={`/merk/${id}/admin/kennis`} className="btn-outline btn-sm">
+          Kennisoverzicht
+        </Link>
+      </div>
 
       {/* ── De negen secties die de klant zelf ziet ─────────────────────────
           In zijn volgorde, zodat je in een demo weet welk scherm hij voor zich
@@ -258,26 +290,26 @@ export default async function AdminPage({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="tabel">
               <thead>
-                <tr className="text-muted">
-                  <th className="py-1 pr-4 font-normal">Stap</th>
-                  <th className="py-1 pr-4 font-normal">Model</th>
-                  <th className="py-1 pr-4 font-normal">Tokens</th>
-                  <th className="py-1 pr-4 font-normal">Zoeken</th>
-                  <th className="py-1 font-normal">Kosten</th>
+                <tr>
+                  <th>Stap</th>
+                  <th>Model</th>
+                  <th>Tokens</th>
+                  <th>Zoeken</th>
+                  <th>Kosten</th>
                 </tr>
               </thead>
               <tbody>
                 {kosten.map((k, i) => (
-                  <tr key={i} className="border-t border-[var(--border-subtle)]">
-                    <td className="py-1 pr-4">{k.kind}</td>
-                    <td className="py-1 pr-4 mono-label">{k.model}</td>
-                    <td className="py-1 pr-4 stat-value">
+                  <tr key={i}>
+                    <td>{k.kind}</td>
+                    <td className="mono-label">{k.model}</td>
+                    <td className="stat-value">
                       {(k.input_tokens ?? 0) + (k.output_tokens ?? 0)}
                     </td>
-                    <td className="py-1 pr-4">{k.web_search ? "ja" : "nee"}</td>
-                    <td className="py-1 stat-value">
+                    <td>{k.web_search ? "ja" : "nee"}</td>
+                    <td className="stat-value">
                       {k.cost_usd === null ? "-" : `$${k.cost_usd.toFixed(4)}`}
                     </td>
                   </tr>
@@ -303,15 +335,9 @@ export default async function AdminPage({
                   <span className="mono-label">{b.field}</span>
                   <span className="chip">{b.source}</span>
                   {b.confidence !== null && (
-                    <span className="mono-label text-muted">zekerheid {b.confidence}</span>
+                    <span className="mono-label">zekerheid {b.confidence}</span>
                   )}
                 </span>
-                {b.evidence_quote && (
-                  <span className="text-sm text-secondary">&ldquo;{b.evidence_quote}&rdquo;</span>
-                )}
-                {b.evidence_url && (
-                  <span className="mono-label break-url text-muted">{b.evidence_url}</span>
-                )}
               </li>
             ))}
           </ul>
@@ -332,7 +358,7 @@ export default async function AdminPage({
                 <span className="mono-label">{o.naam}</span>
                 {o.samenvatting && <p className="text-sm text-secondary">{o.samenvatting}</p>}
                 {o.concurrenten.length > 0 && (
-                  <span className="mono-label text-muted">
+                  <span className="mono-label">
                     concurrenten: {o.concurrenten.join(", ")}
                   </span>
                 )}
@@ -356,7 +382,7 @@ export default async function AdminPage({
 function Json({ waarde }: { waarde: unknown }) {
   return (
     <pre
-      className="max-h-64 overflow-auto rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-3 text-xs"
+      className="vlak vlak-gevuld max-h-64 overflow-auto text-xs"
       style={{ fontFamily: "var(--font-mono)" }}
     >
       {JSON.stringify(waarde, null, 2)}

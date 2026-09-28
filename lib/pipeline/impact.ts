@@ -20,8 +20,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import { compare, deltaOf, IMPACT_WAVES, thresholdOf, verdictOf } from "@/lib/pipeline/impact-math";
-import type { ContentPieceTarget } from "@/lib/types/database";
+import { citeertEigenPagina, compare, deltaOf, IMPACT_WAVES, thresholdOf, verdictOf } from "@/lib/pipeline/impact-math";
 
 type Admin = SupabaseClient;
 
@@ -35,8 +34,11 @@ export { IMPACT_WAVES } from "@/lib/pipeline/impact-math";
  * Even veel als er doelvragen zijn, want een controlegroep die veel kleiner is
  * dan de doelgroep heeft zo'n brede band dat de vergelijking niets zegt. En een
  * plafond, want elke controlevraag is een web-zoekactie die de klant betaalt.
+ *
+ * Geëxporteerd: `lib/pipeline/meetplan.ts` gebruikt dezelfde grens bij het
+ * bevriezen van de controlegroep (M1).
  */
-const MAX_CONTROL_PROMPTS = 5;
+export const MAX_CONTROL_PROMPTS = 5;
 
 // ── 5.3 — Hermeting inplannen ───────────────────────────────────────────────
 
@@ -51,11 +53,12 @@ export async function planImpactWaves(
   admin: Admin,
   args: { analysisId: string; contentPieceId: string; publishedAt: Date },
 ): Promise<{ planned: number }> {
-  const targets = await loadTargets(admin, args.contentPieceId);
-  if (targets.length === 0) {
-    // Geen doelvragen (een pagina van vóór fase 4, of het model wees niets aan):
-    // dan valt er niets te meten. Geen fout, wel iets om niet stil te laten.
-    console.warn(`Pagina ${args.contentPieceId} heeft geen doelvragen; geen impactmeting ingepland.`);
+  const meetplan = await loadMeetplan(admin, args.contentPieceId);
+  if (!meetplan || meetplan.doelvragen.length === 0) {
+    // Geen meetplan of geen doelvragen (een pagina zonder kans, of het rapport
+    // wees niets aan): dan valt er niets te meten. Geen fout, wel iets om niet
+    // stil te laten.
+    console.warn(`Pagina ${args.contentPieceId} heeft geen meetplan met doelvragen; geen impactmeting ingepland.`);
     return { planned: 0 };
   }
 
@@ -74,12 +77,28 @@ export async function planImpactWaves(
   return { planned };
 }
 
-async function loadTargets(admin: Admin, contentPieceId: string): Promise<ContentPieceTarget[]> {
+/**
+ * Het meetplan van deze pagina (M1): de doelvragen en de controlegroep zoals
+ * die bevroren zijn bij het goedkeuren (`lib/pipeline/meetplan.ts`), en welke
+ * bronnen toen meededen. `null` zonder meetplan (een pagina van vóór M1, of
+ * zonder doelvragen om te bevriezen).
+ */
+async function loadMeetplan(
+  admin: Admin,
+  contentPieceId: string,
+): Promise<{ doelvragen: string[]; controlegroep: string[]; bronnen: string[] } | null> {
   const { data } = await admin
-    .from("content_piece_targets")
-    .select("*")
-    .eq("content_piece_id", contentPieceId);
-  return ((data ?? []) as ContentPieceTarget[]).filter((t) => t.prompt_id);
+    .from("meetplannen")
+    .select("doelvragen, controlegroep, bronnen")
+    .eq("content_piece_id", contentPieceId)
+    .maybeSingle();
+  if (!data) return null;
+  const r = data as { doelvragen: unknown; controlegroep: unknown; bronnen: string[] | null };
+  const ids = (v: unknown): string[] =>
+    (Array.isArray(v) ? v : [])
+      .map((x) => (x as { promptId?: unknown })?.promptId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+  return { doelvragen: ids(r.doelvragen), controlegroep: ids(r.controlegroep), bronnen: r.bronnen ?? [] };
 }
 
 /**
@@ -90,10 +109,11 @@ async function loadTargets(admin: Admin, contentPieceId: string): Promise<Conten
  * gepubliceerd is in de controlegroep zitten, dan meten we het effect deels
  * tegen zichzelf en verdwijnt precies het verschil dat we willen aantonen.
  *
- * Deterministisch gekozen (op id, niet willekeurig) zodat een herhaalde taak
- * dezelfde vragen pakt en de vergelijking tussen golf 1 en 2 klopt.
+ * Deterministisch gekozen (op id, niet willekeurig) zodat een herhaalde
+ * berekening dezelfde vragen pakt. Geëxporteerd: `lib/pipeline/meetplan.ts`
+ * roept hem één keer aan bij het goedkeuren (M1), en bevriest de uitkomst.
  */
-async function pickControlPrompts(
+export async function pickControlPrompts(
   admin: Admin,
   analysisId: string,
   targetPromptIds: string[],
@@ -113,13 +133,13 @@ async function pickControlPrompts(
 
   if (pieceIds.length > 0) {
     const { data: claimedRows } = await admin
-      .from("content_piece_targets")
-      .select("prompt_id")
+      .from("meetplannen")
+      .select("doelvragen")
       .in("content_piece_id", pieceIds);
-    claimed = new Set([
-      ...targetPromptIds,
-      ...(claimedRows ?? []).map((r) => r.prompt_id as string).filter(Boolean),
-    ]);
+    const geclaimd = ((claimedRows ?? []) as { doelvragen: unknown }[]).flatMap((r) =>
+      (Array.isArray(r.doelvragen) ? r.doelvragen : []).map((d) => (d as { promptId?: unknown })?.promptId),
+    );
+    claimed = new Set([...targetPromptIds, ...geclaimd.filter((id): id is string => typeof id === "string")]);
   }
 
   return (allPrompts ?? [])
@@ -134,26 +154,27 @@ async function pickControlPrompts(
  * Dit is wat een `measure_impact`-taak doet. Hij plant losse `measure_prompt`-
  * taken (met een impact-markering) en daarna de berekening, zelfde patroon als
  * de gewone meting, zodat één vraag per taak binnen de tijdslimiet blijft.
+ *
+ * M1: de doelvragen, de controlegroep en welke bronnen meedoen komen nu uit
+ * het meetplan (bevroren bij het goedkeuren, `lib/pipeline/meetplan.ts`), niet
+ * meer vers uitgerekend bij elke golf. Dat maakt golf 1 en golf 2 vergelijkbaar
+ * (dezelfde controlegroep), en immuun voor een prompt die tussen de golven
+ * door door een andere pagina geclaimd wordt.
+ *
+ * M3: AI Overview krijgt zijn eigen `measure_ai_overview`-taak als "ai_overview"
+ * bij de bevroren bronnen van dit meetplan zit, met dezelfde impact-markering.
  */
 export async function planImpactMeasurements(
   admin: Admin,
   args: { analysisId: string; contentPieceId: string; wave: number },
 ): Promise<{ planned: number }> {
-  const targets = await loadTargets(admin, args.contentPieceId);
-  const targetPromptIds = targets.map((t) => t.prompt_id!).filter(Boolean);
-  if (targetPromptIds.length === 0) return { planned: 0 };
-
-  const controlPromptIds = await pickControlPrompts(
-    admin,
-    args.analysisId,
-    targetPromptIds,
-    Math.min(targetPromptIds.length, MAX_CONTROL_PROMPTS),
-  );
+  const meetplan = await loadMeetplan(admin, args.contentPieceId);
+  if (!meetplan || meetplan.doelvragen.length === 0) return { planned: 0 };
 
   let planned = 0;
   const plan = [
-    ...targetPromptIds.map((id) => ({ id, purpose: "impact" as const })),
-    ...controlPromptIds.map((id) => ({ id, purpose: "control" as const })),
+    ...meetplan.doelvragen.map((id) => ({ id, purpose: "impact" as const })),
+    ...meetplan.controlegroep.map((id) => ({ id, purpose: "control" as const })),
   ];
 
   for (const { id, purpose } of plan) {
@@ -168,6 +189,20 @@ export async function planImpactMeasurements(
       dedupeKey: dedupe.measureImpactPrompt(args.contentPieceId, args.wave, id),
     });
     if (created) planned++;
+
+    if (meetplan.bronnen.includes("ai_overview")) {
+      const { created: createdAio } = await enqueue(admin, {
+        type: "measure_ai_overview",
+        payload: {
+          promptId: id,
+          weekNo: 0,
+          impact: { purpose, contentPieceId: args.contentPieceId, wave: args.wave },
+        },
+        analysisId: args.analysisId,
+        dedupeKey: dedupe.measureImpactAiOverview(args.contentPieceId, args.wave, id),
+      });
+      if (createdAio) planned++;
+    }
   }
 
   return { planned };
@@ -260,6 +295,38 @@ async function afterState(
 }
 
 /**
+ * Is het gepubliceerde adres van de pagina geciteerd in minstens één antwoord
+ * op de doelvragen van deze golf (M3)? `null` zonder gepubliceerd adres of
+ * zonder gemeten doelvragen dat cluster: onbekend is geen "nee" (conventie 3).
+ * Werkt over beide bronnen tegelijk (ChatGPT en, als hij aanstaat, AI
+ * Overview): `runIds` komt uit `tracking_runs` zonder filter op `engine`.
+ */
+async function ownPageCited(
+  admin: Admin,
+  contentPieceId: string,
+  wave: number,
+  publishedUrl: string | null,
+): Promise<boolean | null> {
+  if (!publishedUrl) return null;
+  const { data: runs } = await admin
+    .from("tracking_runs")
+    .select("id")
+    .eq("content_piece_id", contentPieceId)
+    .eq("impact_wave", wave)
+    .eq("purpose", "impact");
+  const runIds = (runs ?? []).map((r) => r.id as string);
+  if (runIds.length === 0) return null;
+
+  const { data: mentions } = await admin
+    .from("tracking_run_mentions")
+    .select("cited_sources")
+    .eq("is_own_brand", true)
+    .in("tracking_run_id", runIds);
+  const bronnen = ((mentions ?? []) as { cited_sources: string[] | null }[]).flatMap((m) => m.cited_sources ?? []);
+  return bronnen.some((b) => citeertEigenPagina(b, publishedUrl));
+}
+
+/**
  * Berekent en bewaart het effect van één gepubliceerde pagina, voor één golf.
  *
  * Het oordeel is streng. Met een handvol vragen is de band breed, en een
@@ -272,7 +339,7 @@ export async function computeImpact(
 ): Promise<void> {
   const { data: pieceRow } = await admin
     .from("content_pieces")
-    .select("published_at")
+    .select("published_at, published_url")
     .eq("id", args.contentPieceId)
     .maybeSingle();
 
@@ -281,13 +348,15 @@ export async function computeImpact(
     console.warn(`Pagina ${args.contentPieceId} is niet gepubliceerd; effect niet berekend.`);
     return;
   }
+  const publishedUrl = (pieceRow?.published_url as string | null) ?? null;
 
-  const targets = await loadTargets(admin, args.contentPieceId);
-  const targetPromptIds = targets.map((t) => t.prompt_id!).filter(Boolean);
+  const meetplan = await loadMeetplan(admin, args.contentPieceId);
+  const targetPromptIds = meetplan?.doelvragen ?? [];
 
-  const [targetAfter, controlAfter] = await Promise.all([
+  const [targetAfter, controlAfter, targetCitedOwnPage] = await Promise.all([
     afterState(admin, args.contentPieceId, args.wave, "impact"),
     afterState(admin, args.contentPieceId, args.wave, "control"),
+    ownPageCited(admin, args.contentPieceId, args.wave, publishedUrl),
   ]);
 
   const [targetBefore, controlBefore] = await Promise.all([
@@ -318,6 +387,7 @@ export async function computeImpact(
       control_delta: controlDelta == null ? null : Math.round(controlDelta * 100) / 100,
       delta_threshold: Math.round(threshold * 100) / 100,
       verdict,
+      target_cited_own_page: targetCitedOwnPage,
       computed_at: new Date().toISOString(),
     },
     { onConflict: "content_piece_id,wave" },

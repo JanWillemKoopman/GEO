@@ -41,7 +41,6 @@ export interface VraagBron {
   kind?: string | null;
   answer_type?: string | null;
   options?: string[] | null;
-  suggested_answer?: string | null;
   required?: boolean | null;
 }
 

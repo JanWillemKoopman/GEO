@@ -23,7 +23,7 @@ export function EmptyState({
   action?: { href: string; label: string };
 }) {
   return (
-    <div className="card flex flex-col items-center gap-4 py-14 text-center">
+    <div className="card empty-state flex flex-col items-center gap-4 text-center">
       <h2 className="text-xl font-medium">{title}</h2>
       <p className="max-w-md text-secondary">{children}</p>
       {action && (

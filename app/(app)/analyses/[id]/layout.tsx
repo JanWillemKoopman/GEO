@@ -106,7 +106,7 @@ export default async function AnalysisLayout({
           Clusters
         </Link>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="type-title">{getClusterDisplayName(analysis.name)}</h1>
+          <h1 className="type-heading-lg">{getClusterDisplayName(analysis.name)}</h1>
           <StatusBadge status={analysis.status} showWhoseTurn />
         </div>
       </div>

@@ -199,7 +199,7 @@ export function Bedrijvenlijst({
             )}
 
             {b.included === false && b.uitgesloten && (
-              <p className="text-sm text-[var(--intent-warning-text)]">{b.uitgesloten}</p>
+              <p className="text-sm text-[var(--intent-warning-content)]">{b.uitgesloten}</p>
             )}
 
             {magBewerken && !b.geblokkeerd && (

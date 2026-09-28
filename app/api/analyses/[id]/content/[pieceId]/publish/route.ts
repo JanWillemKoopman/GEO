@@ -85,7 +85,7 @@ export async function POST(
       {
         error: brandUrl
           ? `Dit adres staat niet op het domein van dit merk (${brandUrl}). Publiceer je op een ander ` +
-            "domein, bijvoorbeeld een partnersite? Neem dan contact op met je customer success manager."
+            "domein, bijvoorbeeld een partnersite? Neem dan contact op met je consultant."
           : "Van dit merk is geen webadres bekend, dus we kunnen niet controleren of dit adres erbij hoort.",
       },
       { status: 400 },

@@ -1,0 +1,125 @@
+[
+ {
+  "key": "priority_offerings",
+  "kind": "lijst",
+  "value": [
+   "Complete tuinaanleg met bestrating",
+   "Zwemvijvers"
+  ]
+ },
+ {
+  "key": "deprioritised_offerings",
+  "kind": "lijst",
+  "value": [
+   "Los tuinonderhoud bij particulieren",
+   "Kunstgras als losse opdracht"
+  ]
+ },
+ {
+  "key": "target_segments",
+  "kind": "lijst",
+  "value": [
+   "Gezinnen met een nieuwbouwwoning in Meerhoven, Brandevoort en Veldhoven-Zilverackers",
+   "Stellen van 45 tot 65 met een oudere tuin die helemaal op de schop moet"
+  ]
+ },
+ {
+  "key": "growth_regions",
+  "kind": "lijst",
+  "value": [
+   "Best",
+   "Nuenen",
+   "Son en Breugel"
+  ]
+ },
+ {
+  "key": "deal_value_band",
+  "kind": "keuze",
+  "value": "Groot"
+ },
+ {
+  "key": "seasonality",
+  "kind": "lange-tekst",
+  "value": "aanvragen pieken van februari tot april. uitvoering vooral april tot oktober. in de winter vooral bestrating en ontwerp."
+ },
+ {
+  "key": "sales_objections",
+  "kind": "lijst",
+  "value": [
+   "Een hovenier is duur, ik doe het zelf wel",
+   "Hoe lang lig ik met een kale tuin?",
+   "Ik weet niet wat een tuin ongeveer kost",
+   "Blijft een zwemvijver wel helder?"
+  ]
+ },
+ {
+  "key": "forbidden_topics",
+  "kind": "lijst",
+  "value": [
+   "Boomkap en kapvergunningen (doen we niet)",
+   "Garantie op planten die de klant zelf verzorgt"
+  ]
+ },
+ {
+  "key": "offline_proof",
+  "kind": "lijst",
+  "value": [
+   "Eigen vaste ploeg van vijf man, geen inhuur van zzp'ers",
+   "Gemiddeld 60 tot 70 tuinen per jaar",
+   "Na aanleg een gratis terugkomafspraak na zes weken",
+   "Eigen 3D-ontwerp bij tuinen boven de 15.000 euro"
+  ]
+ },
+ {
+  "key": "name_exclusions",
+  "kind": "lijst",
+  "value": [
+   "Verstraaten Groenvoorziening (Oss)"
+  ],
+  "remove": [
+   "Hoveniersbedrijf Hans Verstraaten B.V"
+  ]
+ },
+ {
+  "key": "respect_site_structure",
+  "kind": "keuze",
+  "value": "Ja, nieuwe pagina's mogen"
+ },
+ {
+  "key": "goal_12m",
+  "kind": "lange-tekst",
+  "value": "meer aanvragen voor complete tuinen in best en nuenen, en de zwemvijver als tweede poot"
+ },
+ {
+  "key": "pronoun_preference",
+  "kind": "keuze",
+  "value": "je en jij"
+ },
+ {
+  "key": "taboo_phrases",
+  "kind": "lijst",
+  "value": [
+   "goedkoopste",
+   "tuinman",
+   "onderhoudsvrij"
+  ]
+ },
+ {
+  "key": "verhalen",
+  "kind": "lange-tekst",
+  "value": "Een gemiddelde tuinaanleg duurt twee tot drie weken uitvoering. In het voorjaar zitten we vier tot acht weken vooruit met de planning. Het eerste gesprek is gratis, bij de klant thuis. Bij tuinen boven de 15.000 euro maken we een eigen ontwerp in 3D; dat kost 450 euro en dat verrekenen we als je de opdracht geeft. We werken met een eigen vaste ploeg van vijf man, geen zzp'ers. Na de aanleg komen we na zes weken gratis terug om te kijken hoe het erbij staat. Bestrating doen we met gebakken klinkers en keramische tegels, geen kunststof tegels. Mensen vragen vaak of een zwemvijver wel helder blijft: dat doet een apart zuiveringsdeel met beplanting en een pomp, en we doen het onderhoud twee keer per jaar, ook als contract. Mensen zeggen ook: een hovenier is duur, ik doe het zelf wel. En: hoe lang lig ik met een kale tuin. Boomkap en kapvergunningen doen we niet."
+ },
+ {
+  "key": "stem_voorbeelden",
+  "kind": "adressen",
+  "value": [
+   "https://hansverstraatenhoveniers.nl/tuinaanleg/",
+   "https://hansverstraatenhoveniers.nl/tuinontwerpen/"
+  ]
+ },
+ {
+  "key": "__strategie",
+  "kind": "x",
+  "value": "Hans wil groeien in complete tuinen met bestrating (ontwerp tot oplevering) en zwemvijvers als tweede poot. Minder los onderhoud. Focus Best, Nuenen, Son en Breugel. Klanten: nieuwbouwgezinnen en stellen 45-65 met een oude tuin."
+ }
+]

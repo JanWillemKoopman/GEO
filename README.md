@@ -47,8 +47,10 @@ strategie: welke onderwerpen commercieel tellen, en wat er speelt buiten de webs
 is overgenomen van InSpace Nova; de prijs niet.
 
 Bewust **niet** gebouwd: white-label rapportages, 10+ LLM-engines tegelijk, keyword-research
-suites, een koppeling met het CMS van de klant, echte zoekvolumes. Dat is waar de concurrentie
-complex en duur wordt.
+suites, een koppeling met het CMS van de klant. Dat is waar de concurrentie complex en duur wordt.
+Echte zoekvolumes gebruikt de app sinds 23 september 2026 op één plek: "Clusters ontdekken" zoekt
+er nieuwe onderwerpen mee (`docs/tasks/clusters-ontdekken.md`). Het resultaat is een lijst
+onderwerpen, geen zoekwoordenlijst, en de volumes gaan niet in de potentiescore.
 
 Wél voorbereid maar nog slapend: **Gemini als tweede engine.** De enginelaag, de adapter en de
 idempotentiesleutel per engine staan er; zonder `GEMINI_API_KEY` gedraagt de app zich ongewijzigd.
@@ -96,7 +98,9 @@ een document af van wat de code doet, dan is het document fout.
 |---|---|
 | [`docs/logbook.md`](./docs/logbook.md) | **Waarom het is zoals het is.** Elke beslissing met datum en het cijfer eronder. Kijk hier vóór je iets terugdraait: de kans is groot dat het met reden zo staat |
 | [`docs/processtappen-nieuwe-pagina.md`](./docs/processtappen-nieuwe-pagina.md) | **Wat er precies gebeurt, stap voor stap.** Genummerde checklist van klant aanmaken tot een opgeleverde pagina, zonder technische kennis nodig |
-| [`docs/contentpijplijn-overdracht.md`](./docs/contentpijplijn-overdracht.md) | **De contentpijplijn voor buitenstaanders.** Elke AI-aanroep in volgorde, met de prompts erin, geschreven om aan een externe copywriter of AI-expert te overhandigen |
+| [`docs/doorloop-van-klant-tot-content.md`](./docs/doorloop-van-klant-tot-content.md) | **De testdoorloop en het gespreksstuk voor het ontwikkelteam.** De app in het kort, en van merk aanmaken tot goedgekeurde tekst per stap het doel, wat de AI meekrijgt en teruggeeft, wat je controleert en wat het bespreken waard is |
+| [`docs/tasks/contentketen-opnieuw.md`](./docs/tasks/contentketen-opnieuw.md) | **De contentketen, opnieuw opgebouwd (25 september 2026).** Van contentvoorstel tot geschreven pagina in vier stappen, met de besluiten, de verboden en de werkpakketten. Lees §0 en §3 vóór je iets aan het schrijven van pagina's verandert |
+| [`docs/tasks/van-pijplijn-naar-kennissysteem.md`](./docs/tasks/van-pijplijn-naar-kennissysteem.md) | **Het ontwikkelplan voor de volgende versie (26 september 2026).** Van een reeks AI-stappen naar één klantwaarheid met kansen, een contentmotor en een meetlaag eromheen. Genummerde werkpakketten met "klaar als", voor uitvoering over meerdere sessies |
 | [`docs/nova-vs-orbit-engine-proces.md`](./docs/nova-vs-orbit-engine-proces.md) | **Het proces van InSpace Nova naast dat van ORBIT ENGINE**, van eerste contact tot bewezen effect. Wat zij wel hebben en wij niet, en andersom |
 | [`docs/tasks/`](./docs/tasks/) | Wat er nog open staat. Af is weg, samengevat in het logboek |
 

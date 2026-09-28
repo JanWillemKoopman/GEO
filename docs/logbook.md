@@ -38,8 +38,10 @@ verwijzing in de code straks nergens meer heen.
 | `css.css`, `docs/nova-i18n.json`, `docs/inspace-app-i18n.json`, `docs/inspace-marketing.txt` | De ruwe brondata achter de Nova/InSpace-vergelijking: Nova's gecompileerde CSS-bundel en de drie tekstcatalogi uit de server-gerenderde loginpagina's | De conclusies eruit staan uitgeschreven in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, die verder geen ruwe data meer nodig hebben. Verwijderd 21 september 2026, bij de OKX-herontwerpronde |
 | `redesign2026.md` §1 t/m §14 | Het volledige herontwerpplan van Nova naar OKX: de research, het nieuwe design system (§5 t/m §7), de schermspecs (§8), de elf uitvoeringsstappen (§10) en de drie besluiten van de eigenaar (§13, limoen als accent, mobiel een eigen ontwerp, oplevering in stappen) | Gebouwd en op `main`. Het design system zelf staat nu in `docs/designsystem.md`, de mobiele en desktop-indeling in `docs/ux-design.md`. Tientallen componenten citeren nog een paragraafnummer uit dit plan in hun eigen commentaar (bijv. "§8.5", "GEMETEN bij OKX"); dat commentaar blijft staan zoals het geschreven is, want het legt het waarom van die ene regel uit en niet de volledige herkomst. Verwijderd 21 september 2026, toen stap 11 (deze documentatie) klaar was |
 | `tasks/clusters-resultaatscherm-vereenvoudigen.md` A/B/C | De analyse van 16 september 2026 over de dichtheid van het clusterscherm: drie richtingen om de hoofdstukken dunner te maken | Ingehaald. Het scherm zelf is er op 22 september 2026 uit gehaald, zie `tasks/clusterresultaat-zonder-eigen-scherm.md` en de alinea van die datum hieronder. Verwijderd 22 september 2026 |
+| `contentpijplijn-overdracht.md`, `tasks/contentpijplijn-publicatiewaardig.md` (§1 t/m §16, WP1 t/m WP16, L1 t/m L10), `tasks/contentpijplijn-werkstand.md`, `tasks/contentpijplijn-herontwerp.md` (A1 t/m A6), `tasks/vragen-voor-het-schrijven.md`, `tasks/contentkwaliteit-framework.md`, `tasks/contentkwaliteit-copywriterronde.md` (V1 t/m V9), `tasks/customer-journey-cluster-tot-schrijven.md`, `tasks/contentflow-een-lijn.md` (§1 t/m §6) | De vorige contentketen: contract, briefing, paginastrategie, schrijven, eindredactie, vier beoordelaars, reparatierondes, en de flow van contentplan tot pagina | Vervangen door `tasks/contentketen-opnieuw.md` (25 september 2026). De besluiten die bleven (pas schrijven als elke vraag gedaan is, één vragenmoment per maand, de plaatsregel) staan daar als B5, B6 en B12. De code van de oude keten is in WP1 weggehaald; wat er gebeurde en waarom staat in de alinea's van 1 tot en met 25 september hieronder. Verwijderd 25 september 2026 |
 | `tasks/bevindingen-verificatie-processtappen-22-september-2026.md` punt 1 en 2 | De twee van de 117 processtappen die op 22 september 2026 niet klopten met de code: de doorverwijzingscontrole bij publiceren deed niets, en de nameting toonde de klant alleen een eindoordeel | Beide gebouwd op 23 september 2026, zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
 | `tasks/funnelfase-nooit-gevuld.md` | `planned_pages.funnel_stage_id` werd sinds 25 augustus 2026 nergens meer geschreven (0 van 18 pagina's bij Van den Udenhout) | Gerepareerd op 23 september 2026: `syncBacklog()` leidt de fase af uit de doelvragen (`lib/plan-funnel.ts`), zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
+| `tasks/kennislaag-open-punten.md` | De twintig punten die het terugvullen (K3) niet zelf kon indelen: feiten zonder dienst en prijzen zonder citaat | Afgehandeld op 27 september 2026 met `scripts/kennis-open-punten.ts` (per punt het besluit en de reden, ook in `klantkennis.ruw.besluit_open_punt`); de uitkomst staat onderaan dit logboek |
 
 De volledige originelen staan in de git-historie (laatste versie: de commit vóór de
 documentatie-herstructurering).
@@ -11664,6 +11666,1274 @@ Teksten om goed te keuren en pagina's om live te zetten staan alleen in de bibli
 omdat de lijst begint bij wat op de klant wacht. De drie klikbare tegels bovenaan de bibliotheek zijn
 vervangen door een zoekbalk en vier filters (status, cluster, soort content, type), omdat een tegel
 er niet uitziet als een knop. Pure filterlogica in `lib/pagina-lijst.ts`, getest in `test-unit.ts`.
+
+**23 september 2026: de contentpagina draait om "wat moet er beter", en goedkeuren kan altijd.**
+Op verzoek van de eigenaar is "Keur goed" altijd de hoofdknop, ook met open punten; dan vraagt hij
+één keer extra bevestiging met het aantal. De route weigerde dat nooit, alleen het scherm verborg de
+knop. De rail begint met "Te verbeteren" (per punt wat, hoe en waar, plus één knop voor alles), de
+overige suggesties (op die pagina 53 van de 58 bevindingen) en de naslag staan ingeklapt eronder, en de zinnen van de punten
+staan gemarkeerd in de leestekst (`lib/tekst-markering.ts`; alle 5 gevonden op die pagina). Tabellen
+in een tekst verschijnen nu als tabel, op het scherm en in de export, in plaats van als streepjes. Details in
+`docs/tasks/herontwerp-contentpagina.md` bijlage D. Controles: `tsc --noEmit`, `test:unit` (5262),
+`test:chain` (758) en `build` groen.
+
+## 23 september 2026: Clusters ontdekken, drie besluiten en een proefscript
+
+De eigenaar wil een pagina "Clusters ontdekken" naast de voorgestelde clusters uit de onboarding. Het
+plan staat in `docs/tasks/clusters-ontdekken.md`. Drie besluiten van vandaag:
+
+1. **De consultant start, de klant kijkt mee en vraagt aan.** Een ronde en een meting starten blijft
+   beheerderswerk (`lib/cost-rules.ts`); de klant ziet de kandidaten en kan er een aanvragen. Reden: elk
+   cluster kost blijvend ~$0,82 per meetronde, bij 50 clusters ~€43 per maand tegen een plafond van €50.
+2. **DataForSEO komt terug, maar alleen voor deze pagina.** Dit draait het parkeerbesluit van
+   20 september (2) deels terug, op een reden die daar zelf genoemd werd: onderwerpen kiezen in het
+   gesprek schaalt niet meer. Nagekeken in Vercel: `SEARCH_DEMAND_ENABLED` bestaat niet, de oude laag
+   staat dus nog uit; het account zelf is actief voor AI Overview en Gemini. De ontdekkingspagina krijgt
+   een eigen schakelaar en schrijft niets in de potentiescore, want daar ontstonden de twee fouten.
+3. **Een eigen kop "Clusters" met "Clusters ontdekken" en "Mijn clusters"**, in die volgorde op verzoek
+   van de eigenaar. Strategie gaat daardoor van vier naar drie bestemmingen, zodat de regel van
+   17 augustus weer zonder uitzondering klopt.
+
+Fase 0 is een proefronde (`scripts/probe-clusters-ontdekken.ts`, ~$0,50) die op Van den Udenhout
+nameet of DataForSEO Labs werkt voor Nederland, wat een ronde echt kost en hoeveel ruis erin zit. Het
+script is nog niet gedraaid: de sleutels staan in Vercel en niet in de ontwikkelomgeving.
+
+## 23 september 2026 (2): Clusters ontdekken gebouwd, nog niet nagerekend op productie
+
+Vervolg op (1). De proefronde kostte $0,57 en liet zien dat DataForSEO Labs werkt voor Nederland,
+dat de prijs tot op de cent klopt ($0,012 per aanroep plus $0,00012 per resultaat), en waar de ruis
+zit: portalen als concurrent (viabovag.nl, 24% relevant) en `keyword_ideas` (10%, "weer amsterdam").
+Echte dealergroepen en `keyword_suggestions` scoorden ruim boven de helft. Fase 1 en 2 zijn daarom
+samen gebouwd; alles staat in `docs/tasks/clusters-ontdekken.md`, "Stand van de bouw".
+
+Drie keuzes die de uitkomst sturen, alle drie met een cijfer:
+
+1. **Concurrenten op omvang, niet op wat Google eerst noemt.** Hooguit 15 keer het eigen domein:
+   dealergroepen zitten op 2 tot 12 keer, portalen op 24 keer en hoger.
+2. **Varianten zijn één zoekvraag.** "private lease occasion" en "occasion private lease" hebben
+   allebei 22.200; optellen telde dezelfde vraag zes keer.
+3. **Elke bron een vast deel van de 400 plekken in het schiften.** Op volume alleen kregen de
+   concurrenten er 220 en de termen waar udenhout.nl al op plek 4 tot 20 staat er 60.
+
+De oude knop "Stel nieuwe clusters voor" is van Mijn clusters weg; er staat een verwijzing naar het
+nieuwe scherm. Strategie gaat terug naar drie bestemmingen, Clusters wordt een eigen kop.
+
+**Niet nagerekend, en waarom.** Een echte ronde kan pas als dit op `main` staat: de werker op
+productie draait de code van `main`, dus een ronde vanaf een testversie zou daar mislukken. Er is
+hier ook geen OpenAI-sleutel. Het deel zonder AI is wel nagerekend op de echte antwoorden uit de
+proefronde. Migratie 0109 staat op productie, `CLUSTER_DISCOVERY_ENABLED` staat op `true` in Vercel.
+
+Getest: `tsc --noEmit`, `test:unit` (5209), `test:chain` (756) en `build` groen.
+
+**Avond 23 september 2026: de bibliotheek toont alleen teksten, en schermen zonder inhoud vallen weg.**
+De eigenaar kon in de bibliotheek niet zien wat op hem wachtte en wat vanzelf liep: vijf van de acht
+rijen bij Van den Udenhout zeiden "Wordt voorbereid", en klikken gaf een scherm met een laadbalk en
+de opdracht die ook in het contentplan staat. Die vijf pagina's hadden bovendien geen enkele taak:
+de maand ging om 08:29 UTC vrij, de code die bij vrijgeven voorbereidt stond pas om 09:56 live. De
+plan-cron van 04:00 UTC pakt ze de volgende ochtend op, behalve de twee zonder cluster, die het
+contentplan als geblokkeerd toont. Wat er veranderde: de bibliotheek toont alleen pagina's met tekst
+(`inBibliotheek()`), in twee groepen "Wacht op jou" en "Staat live", met onderaan één regel hoeveel
+pagina's nog geen tekst hebben en waar je die volgt. Het paginascherm bestaat alleen nog waar de
+klant iets moet doen of lezen (`heeftEigenScherm()`); de andere standen sturen door naar het
+contentplan, dat er ook niet meer naartoe linkt. Een pagina zonder rij in `content_pieces` heet
+"Voorbereiding volgt" en belooft geen minuten meer. Controles: `tsc --noEmit`, `test:unit` (5268),
+`test:chain` (758) en `build` groen.
+
+**Later op 23 september 2026: kleur en breedte van de contentpagina.** Oranje is op het paginascherm
+alleen nog de kleur van "Te verbeteren"; "Aan zet" en de melding dat ORBIT ENGINE schrijft krijgen
+een groene stang. De rail en "Titel en zoekresultaat" staan op wit, de tekst vult naast de rail de
+hele kolom en de rail is 440px breed. Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 7.
+
+## 23 september 2026 (3): Clusters ontdekken zonder bronnenblok, en elke lege staat krijgt zijn ruimte
+
+Het blok "Waar we naar kijken" is van Clusters ontdekken weg, op verzoek van de eigenaar: de
+gebruiker wil goede clusters aanvinken, niet vijf bronnen nalopen. Wat daar belangrijk aan was (een
+ronde zonder Search Console mist de snelle winst) zegt de ronde zelf nog steeds, onder de
+kandidaten. Daarmee vallen ook vier tellingen per paginabezoek weg.
+
+De eigenaar zag daarnaast dat de lege staat tegen de boven- en onderrand plakte. De oorzaak zat niet
+in dit scherm: `EmptyState` vroeg `py-14` (56px), maar `.card` staat in `app/globals.css` buiten een
+Tailwind-laag en wint daardoor altijd van een hulpklasse. Elke lege staat in de app kreeg dus 16
+tot 24px. Nu staat de ruimte als `.card.empty-state` in het stijlblad, en geldt ze overal.
+
+**Later op 23 september 2026: een zin zonder bron bewust laten staan.** De klant kan bij een zin die
+iets over zijn bedrijf zegt zonder bevestigd feit kiezen voor "Klopt, laat staan": het punt verdwijnt,
+de zin blijft. Alleen voor dit soort punt, omdat alleen de klant weet of zo'n feit klopt; een punt
+over toon of opbouw negeer je met "Keur goed". Migratie 0110, op productie toegepast (27 teksten).
+Zie `docs/tasks/herontwerp-contentpagina.md` bijlage D punt 8.
+
+**Later die avond: de bibliotheek in drie groepen, met één zin per pagina.** Met alleen de teksten in
+de bibliotheek stond een pagina zonder plek in het plan ("Nog niet ingepland") op geen enkel scherm
+meer, en zag de eigenaar niet wat er binnenkort geschreven werd. Nu staat elke pagina van een
+vrijgegeven maand in de bibliotheek, in "Wacht op jou", "Wordt binnenkort geschreven" of "Staat live"
+(`groepVan()`); een pagina in een maand die nog niet vrij is staat alleen in het contentplan. Elke
+rij zegt in één zin waarop hij wacht (`statusRegel()`), bijvoorbeeld "5 openstaande vragen om de
+pagina te kunnen schrijven" of "Alle gegevens bekend, wordt op 10 november geschreven". Een pagina
+zonder cluster heet "Geen cluster" in plaats van "we beginnen morgenochtend": `bouwOpdracht()`
+weigert hem elke ochtend, en er is nog geen knop om een cluster te koppelen (bij Van den Udenhout de
+APK-pagina en de bedrijfswagenservice). De filters Status, Content en Type stonden uit zodra ze maar
+één keuze hadden; met twee teksten van dezelfde soort las de eigenaar dat terecht als kapot. Een
+filter staat nu nooit meer uit. Controles: `tsc --noEmit`, `test:unit` (5311), `test:chain` (777)
+en `build` groen.
+
+**Nog later die avond: de bibliotheek in de vormgeving van de rest van de app.** Elke rij was een
+losse kaart van ruim 110px hoog; nu is elke groep één kaart met rijen en een scheidingslijn, zoals
+de lijst op het overzicht (`WachtrijLijst`), met een `SectionHeading` en het aantal als chip. De
+statuszin staat in de kaartmaat (14px in plaats van 16px), en "Wacht op jou" krijgt een stip naast
+de oranje tekst: status is nooit kleur alleen (`docs/designsystem.md` §11 regel 4). Het losse getal
+"72/100" heet nu "Kwaliteit 72/100". Het zoekveld is van 48px naar de gewone 40px, want de grote
+maat is alleen voor de inlogroute (§5.4). De middelste groep heet op verzoek van de eigenaar "Staat
+op de planning (geen actie benodigd)" in plaats van "Wordt binnenkort geschreven".
+
+## 23 september 2026 (4): de klant voegt een ontdekt cluster zelf toe
+
+Besluit 1 van vandaag (de klant vraagt, de consultant voegt toe) is op verzoek van de eigenaar
+bijgesteld: de klant zet een voorgesteld onderwerp uit Clusters ontdekken nu zelf bij Mijn clusters,
+zonder tussenstap. De knop "Dit wil ik" en de sectie "Gevraagd door de klant" zijn weg.
+
+Wat blijft zoals het was, en waarom: **de meting start nog steeds de consultant.** Toevoegen kost
+niets, het zet alleen een onderwerp bij Voorgesteld. Het geld zit in de meting, ongeveer $0,72 per
+maand per cluster en blijvend, en die staat in `STAFF_ONLY_ACTIONS` (`analyse_starten`). Afwijzen
+blijft ook van de consultant: de reden stuurt de volgende betaalde ronde. Het bedrag van een meting
+staat alleen bij de consultant op de kaart; een klant ziet na het toevoegen dat zijn consultant de
+meting start.
+
+De status `aangevraagd` blijft in de database bestaan (migratie 0109 is additief), maar wordt niet
+meer gezet. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 23 september 2026 (5): de verbeterpunten één voor één, in een venster
+
+De eigenaar noemde "Te verbeteren" een dood eind. Een oranje zin in de tekst deed niets bij een klik,
+een plek in de rail sprong alleen naar de tekst, en "Laat ORBIT ENGINE het oplossen" vulde een vak
+onderaan de pagina waar je daarna nog een keer op "Schrijf een nieuwe versie" moest drukken. De knop
+"Vraag een aanpassing" bovenaan sprong naar hetzelfde vak, dat eerst ook nog dicht stond. Dat is
+twee tot drie klikken op twee plekken voor één handeling.
+
+Nu opent een oranje zin, een plek in de rail, "Los op" of de hoofdknop "Los de N punten op" het
+puntenvenster (`puntvenster.tsx`). Per punt één vraag, "Hoe wil je dit oplossen?", met vier
+antwoorden: ORBIT ENGINE laten oplossen, zelf aanpassen (de zin wordt in het venster herschreven en
+meteen in de tekst vervangen), laten staan (alleen bij een zin zonder bron, zelfde route als
+migratie 0110) of overslaan. Na elke keuze volgt het volgende punt zonder keuze. Het slotscherm
+telt de keuzes en heeft één knop: opslaan als er eigen werk is, en de punten voor ORBIT ENGINE in
+één schrijfronde meegeven. Een balk onder de tekst houdt de lijst in beeld zolang hij niet
+verstuurd is. De rekenlogica staat puur in `lib/puntenronde.ts`, met een test.
+
+Wat bewust NIET gebouwd is: een knop die die ene zin meteen door AI laat herschrijven.
+`docs/tasks/herontwerp-contentpagina.md` §8.1 blijft staan: fijner knippen maakte de tekst in dit
+systeem twee keer slechter (reparatiescore 67, 74, 68, 48). "Laat ORBIT ENGINE het oplossen" zet
+het punt dus op een lijst, en die lijst gaat langs dezelfde route, dezelfde poort en dezelfde
+nieuwe versie als het vak onderaan. Wel één ronde per keer versturen in plaats van per punt.
+
+Twee dingen die veranderden aan eerdere besluiten van vandaag. Met open punten is "Los de N punten
+op" de hoofdknop in de kaart "Aan zet" en "Keur toch goed" de tweede (was omgekeerd, Bijlage D punt
+1); goedkeuren kan nog steeds altijd, met dezelfde extra bevestiging, en "Eerst verbeteren" in die
+bevestiging opent nu het venster. En het vak onderaan heet "Laat ORBIT ENGINE iets aanpassen", is
+voor wat níet onder Te verbeteren staat, en staat altijd open.
+
+De keuzes leven alleen in het scherm: ververs je voordat je verstuurt of opslaat, dan begin je
+opnieuw. Alleen "laat staan", opslaan en de nieuwe versie gaan naar de server. Bekeken in de
+browser met voorbeelddata (desktop en telefoon); nog niet op productie met een echte pagina.
+Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+## 23 september 2026 (6): Clusters ontdekken, 6 van de 9 kandidaten ten onrechte weggegooid, en een thema per ronde
+
+De eerste echte ronde op Van den Udenhout gaf 3 kandidaten, terwijl het plan 8 tot 15 noemde. Het
+model had er 9 gemaakt. De controle erna gooide er 6 weg als "lijkt op een andere kandidaat uit deze
+ronde", op basis van gedeelde titelwoorden: bij een autobedrijf delen bijna alle titels "auto",
+"onderhoud", "service", "huren" of "leasen". De paren die wegvielen deelden 0 of 1 van hun 3
+zoektermen. De controle binnen een ronde vergelijkt nu zoektermen (`dubbelInRonde`, drempel de helft
+van de kleinste set); met de 9 kandidaten van die ronde blijven er 9 staan. Zelfde titel blijft
+dubbel.
+
+Tegelijk, op verzoek van de eigenaar: een ronde start alleen met een thema (migratie 0111). De
+eerste ronde liep over 36 diensten tegelijk en leverde losse, brede onderwerpen. Het thema stuurt de
+beginpunten, de volgorde in de voorfilter (van 41 naar 147 van de 200 leasetermen in de 400 plekken,
+nagerekend op de opgeslagen termen van die ronde), het schiften en het bundelen, dat nu 6 tot 12
+onderwerpen vraagt. Het scherm biedt de categorieën uit de aanbodboom als keuze. Details en wat
+bewust niet veranderde: `docs/tasks/clusters-ontdekken.md`, onderaan.
+
+Nog niet gedaan: een ronde met thema op productie, en het scherm met het themaveld is niet in de
+browser bekeken. Een ronde kan pas als dit op `main` staat. Getest: `tsc --noEmit`, `test:unit`,
+`test:chain` en `build` groen.
+
+## 23 september 2026 (7): UI-audit, consistentie na de OKX-omzetting
+
+Een audit van de hele interface tegen `docs/designsystem.md` vond dat de basis klopt (348 knoppen en
+473 chips via de gedeelde klassen, één losse kleurcode in de hele app) maar dat de laag erboven per
+scherm opnieuw gebouwd was. De eigenaar gaf akkoord op alle verbeteringen. Deze alinea's leggen per
+stap vast wat er veranderde en waarom.
+
+**Stap 1: de cascadelagen.** Alles in `app/globals.css` na de tokens stond buiten een cascadelaag,
+terwijl Tailwind v4 zijn hulpklassen in `@layer utilities` zet. CSS buiten een laag wint altijd. Zo
+won `* { border-color }` van elke `border-[...]` in een scherm (126 keer: elke waarschuwingsrand en
+elke scheidingslijn werd dezelfde lichte rand), en wonnen `.card`, `.field` en `.chip` van `p-3`,
+`w-auto` en `rounded-full` (het statusfilter op Clusters werd vol breed, de stapbolletjes van de
+Sales-procesbalk werden vierkantjes). De basis staat nu in `@layer base`, de primitieven in
+`@layer components`. In dezelfde stap weg: 29 keer `disabled:opacity-*` op een knop (deed niets, en
+zou na de omzetting dubbel gaan dimmen), 34 keer `text-muted` naast `.mono-label` (één labelkleur)
+en de 12px-rondingen en zwaarste schaduw die drie menu's over `.menu-surface` heen zetten.
+
+**Stap 1, de fouten die nu zichtbaar kapot waren.** `.live-dot` (het bolletje "er gebeurt nu iets",
+9 bestanden) had geen definitie meer en was onzichtbaar; teruggezet als ring die uitdijt, in
+succesgroen. De hoofdstukbalk op een telefoon toonde het actieve hoofdstuk niet (`chip` en
+`chip-neutral` zijn gelijk); nu `.chip-select` met `aria-current`. `type-heading` (kop
+"Verkoopafspraak") en `.input`/`btn` (de kwaliteitsbeoordeling) bestonden niet. Vijf menu's lopen nu
+via `.menu-item`, `.menu-kop`, `.menu-sectie` en `.menu-scheiding`; een gekozen regel krijgt een
+vinkje. Vier dialogen delen `components/dialog.tsx`; het dagvenster van de kalender had een vast
+zwart scrim en geen blad op een telefoon, en de andere drie zweefden op een telefoon 16px boven de
+onderrand. Een gevaarlijke bevestiging is `.btn-danger` (was de hoofdknop met een rode inline-kleur,
+die rood bleef als hij uitgeschakeld was). De lettertekens ✓, !, ↑, ↓, →, + en ? zijn iconen
+geworden; `toevoegen` is nieuw in `lib/icons.ts`. Vinkjes en keuzerondjes staan in de
+selectiekleur in plaats van browserblauw.
+
+**Stap 2: de snelle verbeteringen.** Elke keuzelijst heeft nu `.field-select` (17 misten hem; het
+pijltje plakte tegen de tekst). Onder 768px is elk veld 48px met 16px tekst, want Safari zoomt bij
+kleinere tekst in zodra je een veld aantikt; dat was punt 1 van
+`docs/tasks/openstaand-na-okx-omzetting.md` en is daar weggestreept. `.field-sm` (36px) is nieuw,
+voor de voorraadkolom op het planscherm, waar met de hand 30 en 34 pixels stond. 21 losse
+lettermaten van 9,6 tot 11,2px zijn weg (een overblijfsel van het Nova-label van 11px). `.link` is
+de ene stijl voor een link in lopende tekst (15 plekken), ook in `.prose`; vier links stonden in de
+accentkleur, wat §2.4 verbiedt. "Wacht op jou" is overal oranje: de paginakop maakte hem limoen en
+het clusterlabel "actie nodig" donkergroen, bijna gelijk aan "klaar". `TONE_STYLE` met inline
+kleuren is `TONE_CHIP` met chipklassen geworden. Limoen (`chip-attention`) staat alleen nog op
+"kans". `.chip-stijging` en `.chip-daling` vervangen `chip-success`/`chip-danger` bij een verschil
+(§2.6). "Annuleren" is overal `btn-ghost` (was 9 keer outline). Laadvlakken zijn 8px rond, gelijk
+aan de kaart die komt, en de titelbalk is 40px hoog zoals de echte kop. De streep op het overzicht
+was met de hand `#25a750`; nu `.card-rail-success`. `.volle-breedte` en de variabele
+`--stand-marge` vervangen vier keer `-mx-6 px-6`, die op een telefoon 8px buiten de pagina stak.
+Meldingen rechtsonder hebben een neutrale rand en een streep in de betekenis (info was groen).
+
+**Stap 3: de gedeelde bouwstenen.** Elke paginatitel is nu 30px (`.type-heading-lg`); zeven schermen
+stonden op 24px naast 33 op 30. De kaart "ORBIT ENGINE weet genoeg" op de briefing was een `h1`
+binnen een pagina die er al een had en is een kaartkop geworden. "Nieuw cluster" en Instellingen
+gebruiken de leesstand (720px) in plaats van een eigen 576px. Tussen de blokken van een pagina staat
+24px, of 32px op een pagina die uit secties met een eigen kop bestaat; Support stond op 40 en de
+onderdelen van het clusterdossier op 16. Nieuw in `app/globals.css`: `.vlak` en `.vlak-gevuld` voor
+een blok binnen een kaart (42 keer los gebouwd, vaak in de chipkleur), `.tabel` met `.tabel-dicht`
+en `.tabel-klikbaar` (acht tabellen met vier kopstijlen; de gekozen rij in Analytics is nu een rand
+en een waas in plaats van groen), en `Alert intent="info"` met een eigen icoon `info`. Waarschuwingen
+in de app lopen via `Alert` (vijf eigen varianten, waaronder een waarschuwingsstreep op "toewijzen"
+die door de cascadelagen onzichtbaar was). `DataCard` kan een oordeel dragen los van de richting (bij
+een positie is lager beter) en wordt gebruikt op Zoekverkeer, waar een verslechtering in de
+foutkleur stond. Elk cijfer naast het ene hoofdgetal van een scherm is 24px (`.data-card-waarde`),
+waar 30 en 36 door elkaar stonden. Zeven eigen filter- en schakelknoppen zijn `.chip-select` of
+`.segment` geworden. De oude AI-kleur (`intelligence`) stond nog op selecties, sleepdoelen en een
+schakelaar en is overal weg; het accent staat nog op het eigen merk (grafieklijn, markering in een
+AI-antwoord), de voortgangsbalk, "kans", de GEO-kaart op Support en `.btn-accent`. De aliaslaag van
+76 oude tokennamen is verwijderd na omzetting van elke verwijzing, net als 18 ongebruikte
+Tailwind-kleurnamen en `.brand-gradient-text`.
+
+Eén besluit van de eigenaar is bewust niet aangeraakt: op het paginascherm is oranje voorbehouden aan
+"Te verbeteren", dus "wacht op jou" en "niet opgeslagen" zijn daar limoen. Elders is "wacht op jou"
+oranje. `.card-rail-accent` is neutraal (besluit "Groene rand weg bij openstaande vragen"); de kleur
+staat nu expliciet in plaats van als uitgecommentarieerde regel.
+
+**Stap 4: afwerking en documentatie.** Het pictogram in een knop is 18px (16 in `.btn-sm`, 14 in
+`.btn-xs`), afgedwongen in `app/globals.css` in plaats van per aanroeper, waar 14 en 16 door elkaar
+stonden; de losse maten 13, 17 en 22 zijn 14, 18 en 24 geworden. Kopjes in een kaart staan op
+gewicht 500 (vier keer stond er 600) en de 17px-kop op Support is 16px. `chip-green` is
+`chip-success`. De designgalerij (Beheer, Designsysteem) toont de nieuwe bouwstenen.
+`docs/designsystem.md` beschrijft weer wat er in de code staat (peildatum 23 september 2026): het
+accent en waar het wél en niet staat, het paginaritme en `--stand-marge`, de veldmaten op een
+telefoon, de stang op het overzicht, de nieuwe primitieven in §9, een tiende regel over de
+cascadelagen, en een zesde controle in §12 die niet-bestaande klassen, lettermaten onder 12px en
+6px-rondingen vangt. Die controle geeft nul regels, net als de vijf bestaande.
+
+Wat niet gedaan is en waarom: de ingelogde schermen zijn niet in de browser bekeken, want daarvoor
+is een database met echte gegevens nodig die in deze werkomgeving niet beschikbaar is. De nieuwe en
+gewijzigde bouwstenen zijn wel in beide standen en op telefoonbreedte nagekeken in een losse
+proefpagina met de gebouwde CSS. De terug-link boven het clusterdossier en de contentpagina is
+blijven staan: dat is een navigatiekeuze, geen vormgeving. Punt 2 en 3 van
+`docs/tasks/openstaand-na-okx-omzetting.md` (donkere stand per scherm nalopen, grafiekkleuren op
+kleurenblindheid) staan nog open. Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen.
+
+**Nagekomen, na de schermafbeeldingen.** De merkkiezer en de bronkeuze op Analytics zijn knoppen in de
+vorm van een veld (`.field`). Die kregen na een muisklik de dikke focusrand van een invoerveld, die
+alleen voor wie met het toetsenbord werkt bedoeld is. `button.field` houdt die rand nu alleen bij
+toetsenbordfocus. Gevonden door de proefpagina met de echte componenten voor en na naast elkaar te
+fotograferen.
+
+## 23 september 2026 (8): over naar GPT-6
+
+OpenAI bracht op 22 september 2026 GPT-6 Sol en GPT-6 Luna uit. De app is dezelfde dag
+overgestapt: meten, onderzoeken en beoordelen van `gpt-5.6-luna` naar `gpt-6-luna` ($0,20/$1,20
+naar $0,10/$0,50 per miljoen tokens), schrijven van `gpt-5.6-terra` naar `gpt-6-sol` ($2/$12 naar
+$2/$10). Er is geen GPT-6 Terra. Het zijproject Solliciteren biedt GPT-6 Sol als standaard,
+de vorige Sol ter vergelijking en GPT-6 Luna.
+
+Nagerekend op `ai_calls` over 24 augustus tot 23 september 2026: de Luna-rekening was $10,14,
+waarvan $5,10 voor 510 zoekacties. Die zoekacties kosten op GPT-6 hetzelfde, de tokens gaan van
+$5,04 naar $2,34. Samen ~$7,44, 27% minder. Het schrijven gaat van $3,90 naar ~$3,53, 10% minder.
+Over de hele maand ~$3,07 op ~$14,04, zo'n 22%.
+
+Twee dingen moesten mee om de wissel niet stuk te laten lopen. `isReasoningModel()` herkende alleen
+`gpt-5`, waardoor GPT-6 geen redeneerinspanning meekreeg en alles op `medium` draaide, ook de
+classificatie die bewust op `none` staat. En zonder tarief in `pricing.ts` viel elke aanroep op de
+terugval van $5/$30, een kostenoverzicht tot tien keer te hoog.
+
+De verwachte kwaliteitswinst is een claim van OpenAI, niet nagemeten: ongeveer de helft minder
+feitelijke fouten voor Sol, en minder misleiding (Luna van 9,5% naar 2,8%). Onafhankelijke tests zien
+de winst vooral in de prijs, niet in topscores. Nog te doen, op productie: `eval:mention -- --compare`
+(nieuwe tegen oude Luna) en de nameting uit `docs/tasks/contentkwaliteit-copywriterronde.md` §7.
+
+Gevolg voor de cijfers: een zichtbaarheidsmeting van vóór 23 september is met een ander model
+gedaan dan een van erna. Per aanroep staat het model in `ai_calls.model`; de reputatiemeting ziet de
+wissel zelf, want het model zit in `instrumentVersion()`. Terugdraaien is drie regels in
+`lib/openai/models.ts`.
+
+## 23 september 2026 (9): elke AI-aanroep bewaart ook wat erin ging
+
+`ai_calls` bewaarde het model, de tokens, de kosten en het antwoord, maar niet de opdracht. Achteraf
+was daardoor te lezen wat een stap opleverde, niet waarom. Voor de kwaliteitsdoorlichting
+(`docs/tasks/kwaliteitsdoorlichting-pijplijn.md`) is dat het halve werk: een zwakke pagina is pas
+te verklaren als je ziet wat de schrijver te lezen kreeg. Besluit van de eigenaar: altijd bewaren,
+niet alleen voor de demo.
+
+Migratie 0112 voegt `input_json` en `prompt_hash` toe. Vullen gebeurt in `logAiCall()`, zodat elke
+aanroep via `callStructured()` en `callPlain()` het automatisch doet; de vier plekken die zelf
+loggen (Gemini, Gemini via DataForSEO, AI Overview, DataForSEO Labs) geven hun invoer expliciet
+mee. De temperatuur en redeneerinspanning zijn die van de poging die werkelijk verstuurd is, niet
+die van de eerste, want na een geweigerde temperatuur doet `withTemperatureFallback()` een tweede.
+
+Opslag: de tabel was 5,5 MB. Een schrijfopdracht is gemiddeld 22.853 invoertokens (ongeveer
+90 KB), een meetvraag een paar honderd bytes; ruim te dragen. De hash dekt alleen de
+systeemopdracht, omdat de gebruikersopdracht per klant verschilt en de systeemopdracht alleen als
+de prompt in de code wijzigt.
+
+## 23 september 2026 (10): het spoor van één merk als export voor beheerders
+
+`GET /api/beheer/spoor/[profileId]` geeft elke AI-aanroep van één merk in tijdsvolgorde, met de
+opdracht (`input_json`, migratie 0112) en het antwoord erbij, plus de taken van dat merk. Alleen
+voor beheerders (een gewone gebruiker krijgt een 404), alleen lezen, hooguit 200 aanroepen per
+bladzijde. Aanleiding: de kwaliteitsdoorlichting (`docs/tasks/kwaliteitsdoorlichting-pijplijn.md`
+§4, stap 0.3). Eén schrijfopdracht is ongeveer 90 KB en een merk telt na een volledige doorloop
+honderden aanroepen; dat hoort als bestand uit de app te komen, niet in brokjes uit een
+beheerconsole. De bladzijde-instellingen staan puur in `lib/spoor.ts`, met tests.
+
+## 23 september 2026 (11): twee stille gegevensverliezen, gevonden in de kwaliteitsdoorlichting
+
+**Het gespreksscherm sloeg de waarde van vóór de klik op.** Bij een lijstveld en een keuzeknop roept
+`BrandFieldInput` `onChange` en `onCommit` in dezelfde klik aan; `bewaarVeld()` in
+`onboarding-session.tsx` las daarna `waarden[key]` uit de oude render. Gemeten bij Hans Verstraaten
+Hoveniers: van 7 van 7 lijsten ging het laatst toegevoegde punt verloren (onder meer "Zwemvijvers"
+als groeidienst) en 3 van 3 keuzes bleven leeg (klantwaarde, nieuwe pagina's, aanspreekvorm),
+terwijl het scherm "door jou vastgelegd" toonde. `zet()` werkt nu de ref direct bij en
+`bewaarVeld()` leest daaruit.
+
+**Een definitieve onderwerpenronde kon alle onderwerpen wissen.** Na het vastleggen van het gesprek
+gooit `proposeTopics()` de onbesliste concepten weg en zet de nieuwe ronde erin. Het model gaf als
+prioriteit 1; 0,95; 0,85; 0,8, de app rekende daar `8 - 0,95 = 7,05` van, en `priority` is een
+integer: de hele insert mislukte. De concepten waren al weg, de taak stond op "klaar", het merk had
+nul onderwerpen. Nu komt de volgorde uit de positie in de lijst (`lib/topic-volgorde.ts`, conventie
+1: het model zet ze al op volgorde, zijn getal is niet te vertrouwen), gaan de concepten bij een
+mislukte opslag terug, en mislukt de taak zichtbaar in plaats van stil.
+
+## 23 september 2026 (12): UX-audit, de app doorgelopen als nieuwe gebruiker
+
+Een doorloop van de hele app vanuit de klant (inloggen, overzicht, clusters, contentplan, vragen,
+bibliotheek, live melden, analytics) en vanuit de consultant (merk aanmaken, onderzoek, onboarding,
+toewijzen), gelezen in de code en niet in een draaiende app met echte data. Drie P0-punten werden
+twee, tien P1 en dertien P2. De eigenaar koos ze allemaal. Vier ervan draaien een eerder besluit
+terug; die staan hieronder met het besluit erbij, zodat ze met één blik terug te zetten zijn.
+
+**P0.1, geen menu tussen 768 en 1023 pixels.** De zijbalk verschijnt vanaf 1024 pixels, de
+onderbalk alleen als de server op de useragent een telefoon herkent. Een iPad of een half
+laptopvenster kreeg geen van beide. Nu opent een menuknop in de bovenbalk dezelfde zijbalk als lade
+van links (`components/nav-lade.tsx`).
+
+**P0.2, de bevestigknop onder de onderbalk.** "Bevestig en start de meting" zat met `bottom-0` op
+dezelfde plek als de onderbalk van 56 pixels, en de onderbalk lag erbovenop. `.vaste-actiebalk`
+schuift omhoog zodra er een onderbalk is (`body:has(.onderbalk)`), op dezelfde manier als de
+opslagbalk van het merkdossier dat al deed.
+
+**P1.1, het startscherm draait om.** Volgorde: wat er op je wacht (alleen als er iets is), het cijfer,
+Deze maand. De maandbalk stond sinds 27 augustus 2026 bovenaan ("eerst hoe het werkt"); hij blijft,
+maar onderaan. De vier grote tellers zijn één zin geworden (`totalenZin()`), omdat de maandbalk
+sinds 23 september ook "geschreven" en "live" telt, over een andere periode.
+
+**P1.2 en P1.10, één woord per begrip.** De meetvragen heten AI-vragen, zodat "Openstaande vragen"
+alleen nog gaat over wat de klant beantwoordt. De zeven weigermeldingen zeiden "customer success
+manager bij Outer Orbit" (herstelplan T4.2, 2 september 2026), de rest van de app 24 keer "je
+consultant". Het is nu overal "je consultant", met "bij Outer Orbit" erachter in de weigermeldingen.
+Verder: merkdossier (niet merkprofiel of profiel), opslaan (niet bewaren), "Mijn account" opent op
+"Mijn account", "Alle merken" op "Alle merken". De lijst staat in `docs/schrijfstijl.md` §11.
+
+**P1.3, knoppen die vooraf zeggen wat ze doen.** Een klant zag "Cluster starten" bij elk voorstel,
+de accentknop "Nieuwe cluster" en het volledige formulier "Nieuw merk", en hoorde pas na de klik
+dat de consultant dat doet. De functie blijft zichtbaar (kader 2 van het herstelplan), maar de
+belofte klopt nu vooraf, zoals de reputatieknop al deed.
+
+**P1.4, live melden.** "Zet deze pagina live" klonk alsof de app de pagina op de site zet. Overal is
+het nu "Meld dat hij live staat".
+
+**P1.5, P1.6, P1.7, drie besluiten van de eigenaar herzien.** De klant ziet onder Clusters eerst
+"Mijn clusters" (de consultant houdt "Clusters ontdekken" bovenaan, zoals gevraagd). Het contentplan
+opent voor de klant op Overzicht en voor de consultant op Plannen: van 22 tot 23 september landde
+iedereen op het bord. Zichtbaarheid in AI opent met het AI-cijfer; de Google-opbrengst, die
+bovenaan stond als "eerste vraag van de eigenaar", staat onderaan onder de kop "Wat het in Google
+opleverde". Label, AI-assistent en fase staan achter "Meer filters".
+
+**P1.8 en P1.9.** Het uitleesgereedschap (tempo, mappen met voorrang, aantal pagina's) staat op het
+merkdossier alleen nog voor de consultant; onderaan staan twee knoppen in plaats van vier, en
+Volgende slaat zelf op. Op Support ontbrak het hoofdstuk Clusters helemaal (de uitleg hing nog onder
+Strategie) en stonden vijf verouderde zinnen, onder meer over "Waar je begint", een technische
+diagnose onderaan Analytics en een voortgangsbalk in het contentplan. De audit zei eerst dat vier
+bestemmingen geen uitleg hadden; dat klopte niet, de teksten stonden er, alleen verouderd. Een test
+eist nu uitleg voor elke klantbestemming in de zijbalk.
+
+**P2.** Open werk in een neutrale chip in plaats van groen, "jij, nu" in de aandachtskleur in plaats
+van oranje, taakregels van vier naar twee regels, "Deze maand" in plaats van "Je september", de
+merkenlijst opent het overzicht, de onderbalk krijgt Clusters en de woorden van de zijbalk, "alleen
+jij" één keer per kop in plaats van tot 14 keer, Overzicht en Merkdossier als één regel, vijf lege
+staten naar `EmptyState`, bovenlabels gelijk aan het hoofdstuk, geen accentknop per regel, twee
+links op een gemeten clusterkaart, het bedrag van een reputatieanalyse alleen voor wie hem start,
+een lopende analyse die vanzelf ververst, een 404 binnen de app en Sales in het Nederlands (Kansen,
+Bedrijven, Verstuurd).
+
+Wat niet gedaan is en waarom: de schermen zijn niet in de browser met echte data bekeken, want
+daarvoor is een database nodig die in deze werkomgeving niet beschikbaar is. P0.1 en P0.2 zijn dus
+in de code opgelost maar niet op een tablet en een telefoon nagekeken. Nagekomen: ook "Geef deze
+maand vrij" op het contentplan (Overzicht en het bord) zegt een klant nu vooraf dat dit via de
+consultant gaat, in de woorden van de weigermelding zelf. Getest, na het samenvoegen met `main`: `tsc --noEmit`,
+`test:unit` (5448), `test:chain` (781) en `build` groen.
+
+## 24 september 2026: een opgegeven Gemini-meting liet de analyse eeuwig op "meten" staan
+
+Gevonden in de kwaliteitsdoorlichting. Alle 90 Gemini-taken (via DataForSEO) van drie clusters gaven
+na vier pogingen op wegens "rate_limit_exceeded". Sinds 20 september wacht de aggregatie op alle drie
+de meetbronnen, maar `scheduleFollowUpAfterFailure()` plande de aggregatie na een opgegeven taak
+alleen in voor `measure_prompt`. De drie analyses bleven daardoor op "meten" staan, zonder rapport en
+zonder melding. Nu plant een opgegeven `measure_ai_overview` of `measure_llm_response` de aggregatie
+net zo goed in; de aggregatie beslist zelf of er genoeg gemeten is (de 70%-drempel).
+
+## 24 september 2026: twee fouten in het rapport, gevonden op drie echte rapporten
+
+(1) De naamcontrole onder het rapport haalde elke zin weg die zegt welke concurrent een vraag wint,
+ook als die klopte: 49 zinnen in drie rapporten, 47 daarvan juist. Het model ziet de gemiste vragen
+alleen als V1, V2 en gaf die codes terug waar de controle meet-id's verwachtte, dus er was nooit een
+toegestane naam. Nu vertaalt `resolveGapEvidence()` de codes eerst. (2) Het rapport van een rijschool
+zei "niet genoemd, 0 op 100" terwijl Google AI Overview de school in 17 van 74 antwoorden noemde. Het
+model kreeg alleen het ChatGPT-cijfer. Nu krijgt het te horen welke andere bron het merk wel noemde,
+zonder dat cijfer (de eigenaar wil naast de ChatGPT-score geen tweede getal), en zet
+`vulBronnenAan()` het recht als het toch misgaat. Details: `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`
+punt 20 en 22.
+Nagekomen dezelfde dag, na het opnieuw maken van de drie rapporten op productie: een eigen product
+van de klant telde in de naamcontrole als concurrent (4 juiste zinnen weg), een toevoeging tussen
+haakjes ("(VSB)") liet een juiste naam afkeuren (1 zin), en de rechtzetting over Google stond er
+twee keer als het model hem zelf al schreef. Alle drie opgelost; punt 21 en 23 in de bevindingenlijst.
+
+## 24 september 2026: een klaar cluster is weer aan te klikken
+
+De kaart op de clusterpagina gaf alleen bij status "gemeten" een link naar de cijfers en de
+pagina's van het cluster. Na het rapport is de status "gereed", de eindtoestand, dus bij elk klaar
+cluster viel er niets aan te klikken behalve het menu met de drie puntjes. Gezien bij alle drie de
+merken van de kwaliteitsdoorlichting; "gereed" hoort er nu bij. Punt 25 in
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md`, waar ook de open punten 24 en 26 tot en met 28
+uit dezelfde stap staan.
+
+## 24 september 2026: de potentie in het contentplan volgt nu de regel van het rapport
+
+Het rapport bepaalt met een meerderheidsregel (eerst per bron, dan één stem per bron) welke vragen
+gemist zijn. De potentie van een geplande pagina telde een vraag al als gewonnen bij één vermelding in
+één bron. Bij de installateur gaf dat de zwaarste gemiste vraag (gewicht 0,50) potentie 0, waardoor
+de eerste aanbeveling van het rapport de laatste pagina van de maand werd. Nu gebruiken beide
+`genoemdPerVraag()` en `bepaalGemisteVragen()` uit `lib/pipeline/missed-prompts.ts`. Daarnaast zegt
+het planscherm de klant nu vooraf dat de consultant het plan opstelt (punt 29 en 30 in
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md`).
+
+## 24 september 2026: een antwoord van de klant dekt nu de bewering waar het voor gevraagd werd
+
+Drie samenhangende fouten uit stap 19 tot en met 23 van de kwaliteitsdoorlichting. (1) Een bewering
+die bij de voorbereiding geen bron had, werd een vraag aan de klant, maar na het antwoord legde niets
+de lijn terug: de keuring bleef "Beantwoord deze vraag" zeggen en de schrijfopdracht "GEEN BRON: laat
+weg" over precies wat de klant aanleverde. Nu draagt een feit uit een antwoord de sleutel van zijn
+bewering (`claimKey()`), en telt de bewering daarmee als gedekt. (2) Het paginaplan koppelde een
+bewering zonder duidelijke pagina aan alle pagina's; drie pagina's van de hovenier hadden daardoor
+dezelfde 13 blokkades en dezelfde claimdekking van 27,6 procent. Nu koppelt het plan strikt. (3) Een
+antwoord op een paginavraag ging ook naar `proof_points` en kwam zo als "sitefeit" op de kaart van
+elke pagina. Punt 39, 40 en 41 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`.
+
+## 24 september 2026: vier kleinere reparaties uit de kwaliteitsdoorlichting
+
+(1) De consultant zag de clusters van een klantmerk niet ("Alle clusters (0)" en de knop "Start het
+eerste cluster"), omdat `loadBrandWork()` naast het merk ook op de maker filterde. Nu alleen op het
+merk; de database bepaalt wie wat ziet. (2) Vragen aan de klant gaan door een vangnet voor de
+schrijfregels (`pasSchrijfregelsToe()`): "en" en "of" met een schuine streep wordt "of", een
+losstaand kastlijntje een komma. (3) De bibliotheek zegt bij een tegengehouden pagina niet meer
+"wordt nu geschreven": het opgeslagen oordeel over de onderbouwing gaat nu mee naar de status. (4)
+Het planscherm zegt "wacht op vrijgave door je consultant" in plaats van "wacht op jouw vrijgave".
+Punt 26, 34, 37 en 44 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`.
+Nagekomen dezelfde dag: een nieuwe versie van een pagina liet de plantaak naar de oude versie wijzen,
+waardoor de bibliotheek elke herschreven pagina twee keer toonde. `persistDraft()` verhuist de
+plantaak nu mee (punt 51).
+Aanvulling, dezelfde dag: de reparatie van punt 39 werkte alleen in `buildFactBase()`. De schrijfronde
+voegt klantantwoorden samen met `mergeAnsweredFacts()`, en die liet de sleutel van de bewering vallen.
+Nu gaat hij mee. Daarnaast verhuizen bij een nieuwe versie ook de paginavragen mee
+(`fact_requests.content_piece_ids`), zoals de plantaak al deed.
+
+## 24 september 2026: de opmerking van de klant bij een nieuwe versie bereikt nu de schrijver
+
+Wat de klant bij "Schrijf een nieuwe versie" invulde, ging alleen naar de reparatieronde en niet naar
+de schrijfaanroep, en de feiten erin stonden niet op de feitenkaart. In de proef met een ideale klant
+kwam één van zes opgegeven feiten in de tekst. Nu staat de opmerking bovenaan de schrijfopdracht en als
+klantfeit op de kaart (`metKlantopmerking()`). Daarnaast herkent de controle op bronzinnen nu de
+vormen die de blinde lezers vonden ("geen vaste duur genoemd", "het genoemde", "zeggen we hiermee niet
+toe"). Punt 48 en 52 in `docs/tasks/bevindingen-kwaliteitsdoorlichting.md`; punt 53 (een nieuwe versie
+verliest het beweringenplan) staat open.
+
+## 24 september 2026: verbeterronde blok A, wat de klant weet bereikt meting, rapport en tekst
+
+Eerste blok van de verbeterronde na de kwaliteitsdoorlichting (besluiten en stand bovenaan
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md`). Zes punten. (5) De meetvragen gaan nu ook over
+de groeiplaatsen: minstens 3 van de 10 per funnelfase, met een telling en bijvraag in code; eerder
+0 van de 30, omdat de harde regel "alleen het werkgebied" won van de zachte "een deel over de
+groeiplaatsen". (27 en 24) Het rapport krijgt de groeidoelen, klantgroepen, ongewenst aanbod en het
+bewijs uit het gesprek mee, en de volgorde van de aanbevelingen staat in code: gewicht van de gemiste
+vragen, keer twee bij een groeidoel (besluit eigenaar: groeidoelen tellen zwaar), 1 is het
+belangrijkst. Op het opgeslagen rapport van de hovenier gaan Best en Nuenen van plek 10 naar 1 en 2.
+(35 en 36) Een open merkvraag die het gesprek beantwoordt, gaat bij het opslaan van het gesprek
+dicht, en rapport en merkonderzoek stellen geen vraag die het gesprek al beantwoordt of die er in
+andere woorden al staat. Streng gehouden: alleen als elk inhoudswoord van de vraag in één
+gespreksfeit staat; van de vier vragen van de installateur gaan er twee dicht. (47) Het bewijs uit het
+gesprek krijgt een eigen blok in de schrijfopdracht en een telling in de keuring. Daarbij bleek dat
+bewijs dat na de voorbereiding in het gesprek kwam, een eerder voorbereide pagina nooit bereikte;
+`metGespreksbewijs()` zet het nu alsnog op de kaart. Punt 7 (bewijs dat tussen crawl en dossier
+wegvalt) schuift naar blok B, bij de crawl.
+
+## 24 september 2026: verbeterronde blok B, de app leest de site zoals de eigenaar hem bedoelt
+
+Vijf punten uit de kwaliteitsdoorlichting. (4) De crawl van de hovenier leverde één pagina op omdat
+de site traag is, niet omdat hij blokkeert: 5 tot 12 seconden per sitemap, terwijl de app na 12
+opgaf. Nu 30 seconden voor sitemaps, 25 per pagina bij de ontdekkingsstap, minder tegelijk na een
+time-out, een tijdbudget van 180 seconden, en een rustige aanvulronde voor wat niet op tijd kwam.
+Lokaal nagemeten: 102 adressen in plaats van 1. (10) Tags, categorieën, auteurs en fotobijlagen gaan
+eruit, op het adres en daarna op de klasse `single-attachment`; de rijschool gaat van 109 naar 76
+adressen. (28) Het menu van de homepage wordt gelezen en gaat vooraan; de faalangstpagina van de
+rijschool, die in de sitemap ontbrak, zit er nu bij. (45) De homepage, contact en over-ons worden
+nooit meer vervangen door een onderwerppagina, en bij elke andere verbetering krijgen opzet en
+schrijver de functie van de pagina als vaste eis. (7) Kerncijfers van de site ("slagingspercentage
+van 93%") komen als citeerbaar feit op de kaart, als vangnet naast het merkonderzoek. Geen
+ketentest voor de aanvulronde: die hangt aan echte wachttijden, en een test van drie minuten per
+draai is erger dan de controle op de bedrading die er nu staat.
+
+## 24 september 2026: verbeterronde blok C, de keuring meet wat klopt
+
+Vier punten uit de kwaliteitsdoorlichting. (53) Een nieuwe versie van een pagina bewaarde het
+beweringenplan niet in zijn snapshot, en werd daarna niet meer op onderbouwing getoetst; dat oogde
+als verbetering (nul bewijsblokkades). Het plan reist nu mee, en de ketentest faalt zonder de
+reparatie. (43) Een verbod uit de opzet ("geen prijsbedragen") valt weg zodra de klant daarna een
+bedrag gaf, voor schrijver en keuring. (54) Een klantfeit in eigen woorden telt niet meer als "zin
+zonder bron", langs twee strenge wegen (dezelfde getallen, of twee gedeelde kernwoorden bij een
+klantfeit), zodat een verzonnen zin nog steeds blokkeert. (42) Besluit eigenaar: een tekst die de
+keuring tegenhoudt mag de klant zien, met de melding "onze controle houdt hem tegen: bekijk eerst
+de punten" in plaats van "keur hem goed".
+
+## 24 september 2026: verbeterronde blok D, schrijven als het bedrijf
+
+Drie punten uit de kwaliteitsdoorlichting. (48, besluit eigenaar) De bedrijfsnaam hoeft niet meer in
+de eerste zin van elke sectie: alleen in de eerste alinea, de afsluiting en de meta-title, en nooit
+aan het begin van een alinea. De koppeling tussen pagina en bedrijf voor zoekmachines en
+AI-assistenten staat nu in de gestructureerde gegevens (`about` en `author` naar de organisatie).
+De keuring telt alinea's die met de naam beginnen en feiten die vaker dan twee keer op één pagina
+staan. (46 en 49) Een belofte wordt overgenomen zoals hij er staat, en een onderwerp zonder feit
+valt weg in plaats van "bespreek dat vooraf"; `checkVoorbehoud()` vangt de zinnen die het toch doen.
+Of de citeerbaarheid onder de minder zichtbare naam lijdt, meet de herhaling van de doorloop.
+
+## 24 september 2026: verbeterronde blok E, een plan dat uitvoerbaar is
+
+Drie punten uit de kwaliteitsdoorlichting. (31, besluit eigenaar) Hooguit één verbetering per
+bestaande pagina per drie maanden: het rapport maakt van een tweede verbetering van dezelfde pagina
+een nieuwe pagina ernaast, en het plan houdt drie maanden tussen twee verbeteringen van hetzelfde
+adres. Bij de installateur stonden er vier van `/warmtepomp` in één week. (32) Opnieuw opzetten
+haalt eerst de pagina's uit de niet vrijgegeven maanden terug naar de voorraad; zonder dat faalde
+het bij elke klant wiens kansen allemaal in het eerste plan stonden. (33) De vrijgeefdialoog noemt
+geen streefdatum in het verleden meer, maar zegt "zo snel mogelijk" en dat de datum meeschuift.
+
+## 24 september 2026: verbeterronde blok F deel 1, kleine punten met grote gevolgen
+
+(3) Schrijfwijzen van het merk zelf staan niet meer op de lijst "gelijknamige bedrijven die jij niet
+bent", ook niet bij al gevulde profielen: de meting filtert ze eruit. (6) De kennistest telt een gok op
+de naam en "geen betrouwbare, actuele informatie" niet meer als herkenning; op de opgeslagen
+antwoorden gaat dat (hovenier, installateur, rijschool) van 5, 4 en 5 van 6 naar 2, 0 en 2. Een test uit augustus (Fysi-Unique) is
+daarvoor bewust omgedraaid. (12) De klant ziet op het conceptscherm dat de consultant de meting
+start, in plaats van een knop die pas na de klik weigert. (18) Een aanroep met ongeldige JSON komt in
+`ai_calls`. (23) "Naam (AFKORTING)" valt samen met "Naam" in het namenregister. (38) Het laatste
+antwoord op een pagina wordt meteen bevestigd; het klaarzetten van het schrijven gebeurt daarna.
+(13) bleek al opgelost door de UX-audit van 23 september.
+
+## 24 september 2026: verbeterronde blok F deel 2
+
+(8) Een meetvraag die alleen in de plaatsnaam verschilt van een andere, telt als dubbel; de
+twijfels uit het verkoopgesprek worden een bron voor oriëntatievragen. Dat elke vraag een plaats
+noemt, blijft: dat is de regel van 11 augustus. (9) Een dienst waarvan het bewijs een advies is ("moet
+regelmatig worden schoongemaakt"), komt niet in de aanbodboom; op de echte bomen valt precies die ene
+af. (11) Een blok op het gespreksscherm blijft open zolang er velden zijn die het onderzoek vulde en
+niemand langsliep. (14) De voortgang telt wachtende stappen mee in de tijdschatting en zet een stap met
+resultaat niet op "wacht". (17) Gemini-taken worden gespreid, vier seconden ertussen, over clusters
+heen.
+
+## 25 september 2026: Gemini als meetbron tijdelijk uit
+
+Besluit van de eigenaar: `DATAFORSEO_LLM_ENABLED` staat in productie op `false`. ChatGPT
+(`measure_prompt`, de primaire bron) en Google AI Overview (`AI_OVERVIEW_ENABLED`, ongewijzigd aan)
+blijven meten. Aanleiding: bij de herhaling van de kwaliteitsdoorlichting op 24/25 september
+faalden bij alle drie de meetronden tegelijk (drie merken) alle 30 Gemini-metingen op de
+leverancierslimiet, ondanks de spreiding van vier seconden tussen taken uit blok F. Zie
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md` punt 55.
+
+## 25 september 2026: de herhaling afgesloten
+
+Dezelfde drie bedrijven (hovenier, installateur, rijschool) zijn op 24 en 25 september opnieuw door
+de hele keten gegaan, met dezelfde blinde lezers en dezelfde meetlat als de nulmeting van 4,1 op 10.
+Uitslag over 21 nieuwe teksten: gemiddeld copywritercijfer 4,9 op 10 (was 4,1), "past niet bij het
+adres" van 5 van de 16 naar 0 van de 21, bezoeker neemt contact op van 3 naar 12 van de respectievelijk
+16 en 21 teksten "ja". Punt 45 (functie van de pagina) en 47 (sterkste bewijs) zijn bevestigd
+opgelost. Twee punten bleven of vielen terug: 17 (Gemini-limiet) faalde opnieuw volledig bij drie
+merken tegelijk, waarna Gemini als meetbron is uitgezet (zie hierboven); 50 (de reparatieknop) haalde
+bij een volledige herschrijving een juist klantfeit weg dat niet eens gemeld was als probleem. Vier
+nieuwe bevindingen kwamen boven water: een crawl die dit keer minder pagina's las dan de nulmeting
+(58), de bronherleidbaarheidscontrole die nog op niet-beweringen blokkeert zoals een datumstempel
+(59), een volledig verzonnen veiligheidscertificering die de keuring niet tegenhield (60), en twee
+verwisselde cijfers uit dezelfde feitenkaart (61). Alle details en de vergelijkingstabel staan in
+`docs/tasks/bevindingen-kwaliteitsdoorlichting.md` §"Herhaling" en bij de punten zelf.
+
+## 25 september 2026: reparatieplan blok G, de keuring ziet wat een bewering is
+
+Bij de herhaling hielden 67 zinnen 20 van de 21 nieuwe pagina's tegen als "zin zonder bron", en het
+overgrote deel was advies aan de lezer, een datumstempel of een verwijzing naar het CBR of 112
+(punt 59). Twee lagen: de code sluit een datumstempel en een verwijzing naar een externe partij uit
+(6 van de 67), en wat daarna nog ongedekt is, legt één modelaanroep per keuring voor met de vraag "is
+dit een bewering over het bedrijf, en welk feit onderbouwt hem exact" (`lib/pipeline/claim-judge.ts`,
+goedkope tier, parallel met het panel, alleen als er iets voor te leggen is). De code heeft het laatste
+woord: een zin met merknaam, wij-vorm of bedrag (14 van de 67) kan alleen een feit vrijspreken, en een
+aangewezen feit telt alleen als de getallen kloppen en zin en feit een kernwoord delen. Een mislukte
+aanroep laat de keuring zoals hij was. Punt 60 (verzonnen certificering) en 61 (verwisselde cijfers)
+bleken bij narekenen onterecht: de CO-certificering volgens de Gasketelwet staat letterlijk op de site
+van de installateur, de rijschool noemt een intake van € 50 op kantoor en € 80 in de auto. Daarmee klopt
+de alinea hierboven van dezelfde dag over punt 60 en 61 niet; de bevindingenlijst is leidend. Voor
+keurmerken is toch een vangnet gebouwd: alle keurmerkwoorden van een zin moeten in één feit staan, op
+stam. Onderweg gerepareerd: HTML-codes als "&euro;" en "&euml;" kwamen letterlijk op de feitenkaart
+(punt 63).
+
+## 25 september 2026: reparatieplan blok G nagerekend, blok H, de reparatieknop houdt feiten vast
+
+Blok G op productie nagerekend met een herkeuring van drie bestaande pagina's (één per merk, samen
+$0,023): de blokkades gingen van 5, 5 en 5 naar 1, 0 en 4, en de pagina van de installateur van
+tegengehouden naar goed. De zinnenbeoordelaar kost $0,0010 per keuring. Drie van de vier resterende
+blokkades bij de rijschool kwamen door "ons" als lijdend voorwerp; dat telt niet meer als wij-vorm,
+en een zin met twee bedragen mag door twee feiten samen gedekt worden (punt 64).
+
+Blok H (punt 50 en 62): "los alles op" schreef een volledig nieuwe versie zonder de vorige tekst te
+zien, en verloor bij de installateur drie juiste klantfeiten (twaalf monteurs, levertijd,
+onderhoudscontract), niet één zoals de bevinding zei. Nu krijgt de schrijver de feiten van de vorige
+versie mee met de opdracht ze te behouden, en telt de keuring na of ze er nog staan
+(`lib/pipeline/feitbehoud.ts`); ontbreekt er een, dan is dat een blokkerende bevinding. Een feit dat de
+nota zelf aanwijst, mag weg; een feit dat alleen in de gegevens voor zoekmachines stond, telt niet.
+Geen migratie nodig: de vorige versie staat al in `supersedes_id`, de nota in `revision_note`.
+
+## 25 september 2026: reparatieplan blok I, dezelfde vraag in andere woorden
+
+Punt 57: van de twaalf vervolgvragen die de installateur in één ronde kreeg, waren er acht een
+variant van een vraag die hij die ochtend al had overgeslagen, terwijl de claim-audit die vraag
+meekreeg met "stel deze niet opnieuw, ook niet in andere bewoordingen". De vragen ontstaan in
+`runBriefing()`, niet in `lib/facts.ts`. Nu legt één kleine modelaanroep per voorbereidingsronde de
+nieuwe vragen naast de bestaande (`vraag-judge.ts`), en de code voegt samen (`vraag-samenvoegen.ts`):
+een variant van een beantwoorde of overgeslagen vraag vervalt, een variant van een open vraag geeft
+die de nieuwe pagina's erbij. Op de negen echte vragen blijven er drie over, getest met een vast
+oordeel; het echte model is op productie nog niet nagerekend, omdat opnieuw voorbereiden bij een
+pagina zonder vragen meteen het schrijven kan starten. Punt 65: een verdwenen feit blijft na blok H
+op de lijst tot het terug is, ook over meerdere versies.
+
+Blok H op productie nagerekend (zelfde dag): een herkeuring van de echte versie 2 meldde precies de
+drie verdwenen feiten, en één keer "los alles op" leverde een versie 3 met alle drie terug en zonder
+blokkades, voor $0,18.
+
+## 25 september 2026: een mislukte rapportpoging is nog geen vastgelopen meting (punt 56)
+
+`generateReport()` zette de analyse bij de eerste mislukte poging op `mislukt`, terwijl de wachtrij
+nog drie keer opnieuw probeert (2, 4 en 8 minuten ertussen). Bij de herhaling, toen het OpenAI-tegoed
+even op was, zagen de klanten van alle drie de merken daardoor meteen "De meting is vastgelopen". Nu
+zet alleen de wachtrij de analyse op `mislukt`, na de vierde poging, zoals bij elke andere blokkerende
+taak. Getoetst met een ketenscenario dat tegen de oude code faalt.
+
+## 25 september 2026: plan voor publicatiewaardige content, besluiten van de eigenaar
+
+Externe feedback op de teksten van de hovenier, de installateur en de rijschool: te lang, te
+voorzichtig, schrijven als consumentengids, dezelfde stem bij elke klant, plaatspagina's als
+template. De analyse (`docs/tasks/contentpijplijn-publicatiewaardig.md`) legt de oorzaak vóór het
+schrijven: het contract is een verplichte checklist uit onderzoek zonder bedrijf, een ontbrekend feit
+krijgt tegenstrijdige opdrachten (gemiddeld zes indekformuleringen per pagina, ruwe telling), en de
+keuze wat er op de pagina komt maakt het goedkoopste model voor ongeveer een halve cent. Het
+merkdossier van alle drie de klanten bleek voor de stem op één zin te rusten; schuiven,
+kennisniveau, onderscheid en kernboodschappen zijn leeg, en de voorbeeldzinnen werken tegen de
+opgegeven toon in.
+
+Besluiten van de eigenaar: al het redactionele werk (paginastrategie, schrijven, eindredactie) op
+GPT-6 Sol, met extra denktijd voor strategie en redactie en de eigenaarstoets en merkstemtoets ook
+op Sol; geschat ongeveer $0,37 per artikel en $0,30 per landingspagina, tegen $0,155 en $0,142
+gemeten over de pagina's sinds 24 september. Geen losse proef vooraf; elke fase wordt wel nagerekend
+op de proefset van de doorlichting. Een werkgebiedpagina mag geadviseerd worden, grote steden (een
+gemeente vanaf 50.000 inwoners) houden een eigen pagina. De schrijfstijl hoort volledig in het merkdossier. Een bronconflict houdt een pagina
+alleen tegen als het betwiste feit op die pagina nodig is. Het bouwplan staat in drie fases en zestien
+werkpakketten in het plan zelf.
+
+## 25 september 2026: WP1, de invoer van de schrijver zonder herkomsttaal
+
+Eerste werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. De waardeproposities gingen
+letterlijk de schrijfopdracht in, met herkomst en dubbelingen: bij de hovenier 11 regels, waarvan 5
+tweemaal dezelfde en 5 met "volgens de website" of "naar eigen zeggen". Nu schoont
+`lib/pipeline/waardeproposities.ts` ze vóór de schrijfopdracht en bij het opslaan van het
+profielonderzoek: van 11 naar 7 regels bij de hovenier, van 8 naar 4 bij de installateur, van 9 naar
+6 bij de rijschool, en geen herkomsttaal meer. Een regel die niet zonder omzetting schoon te krijgen is
+("De website stelt dat het bedrijf tuinen ... realiseert") vervalt; bij alle drie stond dezelfde
+propositie ook in een schone vorm.
+
+Bij het narekenen op de schrijfaanroepen van 25 september bleek de feitenkaart zelf dezelfde afstand
+te dragen: 26 van de 45 proof points van de drie merken begonnen met "De website vermeldt" of "De
+website noemt". De kaart toont ze nu zonder dat voorvoegsel; wat overblijft is letterlijk een stuk van
+het feit, zodat de citaatcontrole blijft kloppen. Het profielonderzoek vraagt voortaan om de bewering
+zelf. De zes stemvelden die nergens heen gingen (kennisniveau, eigen uitdrukkingen, kernwoorden,
+onderscheid, USP, kernboodschappen) gaan nu mee in de schrijfopdracht (`lib/pipeline/stemvelden.ts`).
+Ze zijn bij alle drie de merken nog leeg; het voorstel om ze te vullen staat in
+`docs/tasks/schrijfstijl-voorstel-drie-klanten.md` en wacht op akkoord van de eigenaar.
+## 25 september 2026: WP2, het feitenregister en de conflictpoort
+
+Tweede werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, migratie `0113`. Tot nu toe
+zag de feitenbank alleen tegenspraak tussen twee feiten met dezelfde tekstsleutel; twee zinnen over
+dezelfde prijs in andere woorden stonden allebei op de kaart, en de schrijver schreef dan "De
+beschikbare informatie over de intakeprijs spreekt elkaar tegen". Nu krijgt elk feit een soort, een
+waarde, een geldigheid, een stand en een bewijskracht (L1, Luna, 40 feiten per aanroep, ongeveer een
+tiende cent per batch). Code zoekt paren met dezelfde soort en geldigheid en een andere waarde, en
+alleen die paren gaan naar een tweede Luna-aanroep die beslist of het echt een conflict is of twee
+varianten (L2). Een oordeel wordt per paar één keer betaald. Een antwoord van de klant wint vanzelf
+van de site; de rest beslist de adviseur op `admin/feiten` (dit geldt, dat geldt, of vraag het de
+ondernemer). Een betwist of vervangen feit gaat niet meer op de feitenkaart.
+
+Afwijking van het plan: "een recentere pagina van de eigen site vóór een oudere" wint niet vanzelf.
+Het register kent geen publicatiedatum per sitepagina, alleen wanneer wij hem lazen; op die volgorde
+beslissen zou een schijnrangorde zijn. Die conflicten gaan naar de adviseur. Het conflictscherm heeft
+geen eigen menu-item (Admin heeft er hooguit negen, `scripts/test-unit.ts`) maar een teller met link
+op Diagnose. De drie proefmerken hebben samen 408 actuele feiten; de eerste run (twaalf batches, vier
+tegelijk) kan pas draaien als de code op productie staat.
+
+## 25 september 2026: WP3, de paginastrategie
+
+Derde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, migratie `0114`. Tussen
+`content_plan` en `content_draft` staat nu `content_strategy`: Sol met denktijd hoog (nieuwe
+werksoort `redactioneel`) beslist wat er op de pagina komt en wat niet, met het contract als lijst
+van mogelijkheden in plaats van als opdracht. De code rekent de keuzes na en zet ze recht: een
+F-nummer dat niet op de kaart staat of betwist is valt eruit, hoogstens zes prioriteitsfeiten, een
+voorbehoud zonder een van de vijf redenen uit §7.2 wordt een vraag aan de ondernemer, een
+kernonderwerp zonder feit en zonder vakkennis wordt een vraag in plaats van een sectie, en het
+lengtebudget blijft binnen het vertrekpunt plus 30 procent (`lib/lengtebudget.ts`). De ruwe keuze en
+de correcties worden allebei bewaard.
+
+De conflictpoort uit WP2 is aangesloten: heeft een pagina een betwist feit nodig, dan wacht hij en
+start hij vanzelf opnieuw zodra de adviseur het conflict oplost. Elke AI-aanroep legt sinds deze
+migratie zijn duur vast (`ai_calls.duration_ms`); komt een strategieaanroep boven 120 seconden, dan
+draaien de volgende in de achtergrondmodus van de API, zodat een time-out de duurste aanroep nooit
+twee keer laat betalen. Er is nog geen gemeten strategieaanroep; de modus staat dus nog uit. De
+schrijver gebruikt de strategie pas vanaf WP4. Kosten en duur worden bij de nareken-plicht na fase 1
+op `ai_calls` gemeten.
+
+## 25 september 2026: WP4, de schrijver op de paginastrategie
+
+Vierde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Heeft een pagina een
+strategie, dan krijgt de schrijver voortaan de keuzes van de strategie, de opbouw die code daaruit
+afleidt, alleen de gekozen feiten (plus de verboden), de stem en de harde regels. Niet meer: het
+contract met "Alles wat hier staat MOET erop komen", de hele feitenkaart, het paginaplan met "GEEN
+BRON", het winnende antwoord, de bronanalyse en de lat van de concurrenten; die zijn al in de
+strategie gewogen. Weglaten mag en wordt gemeld in een eigen veld. De dekking meet voortaan de
+strategie in plaats van 85 procent van het contract; een uitgesloten onderwerp op de pagina en een
+ontbrekend prioriteitsfeit blokkeren (§12.1). Met een strategie wordt er geen schrijfopdracht op Luna
+meer gemaakt. Afwijking van het plan: het schrijven keurt nog zelf; de keuring verhuist in WP5 naar
+de eindredactie, zodat de keten na elk werkpakket werkt. De omvang van de schrijfinvoer (doel: onder
+9.000 tokens, was gemiddeld 14.100) wordt na merge op `ai_calls` gemeten.
+
+## 25 september 2026: WP5, de eindredactie
+
+Vijfde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Na het schrijven op een
+paginastrategie volgt de taak `content_edit`: een eindredactie op Sol met denktijd hoog die schrapt,
+voorbehouden na een bewijsstuk en herhaling weghaalt, de adviestoon omzet en de tekst naar de stem en
+het budget brengt, met een logboek per wijziging. De keuring verhuist bij zulke pagina's van het
+schrijven naar na de redactie: een oordeel over een tekst die daarna toch verandert, is weggegooid
+geld. Code rekent de redactie na: een getal dat in het concept en op de kaart ontbreekt, een
+F-nummer dat niet bestaat, of een tekst die langer wordt dan het budget plus 15 procent, en de
+redactie wordt teruggedraaid naar het concept. Een prioriteitsfeit dat verdwijnt, blokkeert via de
+keuring en gaat de reparatie in. Wordt de taak na de redactie onderbroken, dan pakt de volgende
+poging de bewaarde redactie op zonder hem opnieuw te betalen. Pagina's zonder strategie lopen zoals
+voorheen.
+
+## 25 september 2026: WP6, onzekerheid en bronpraat als blokkade
+
+Zesde werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Een zin over wat wij niet
+weten of over onze bronnen ("is niet vastgelegd", "staat niet als vaste werkwijze vast", "valt niet af
+te leiden", "De beschikbare prijsinformatie benoemt niet") was een waarschuwing en is nu een blokkade;
+`lib/pipeline/onzekerheid.ts` vangt ze als vorm in plaats van als losse zin, en alle acht voorbeelden
+uit de teksten van 25 september worden gevangen, de vier goede zinnen ernaast niet. Staat een punt dat
+de strategie naar de ondernemer (A) of naar de prullenbak (C) stuurde toch in de tekst, dan blokkeert
+dat ook. Een voorbehoud direct na een bewijsstuk ("maar dat zegt op zichzelf niets") is een
+waarschuwing, zoals §12.2 zegt. De reparatie mag niet meer nuanceren of algemener schrijven, alleen
+weglaten, en krijgt hoogstens twee rondes (was drie). De feitelijkheidsbeoordelaar meldt nog alleen
+een toezegging in de wij-vorm of met de bedrijfsnaam; zijn vroegere jacht op "algemene uitleg die als
+belofte gelezen kan worden" was de bron van de voorbehouden achter sterk bewijs.
+
+## 25 september 2026: WP7, de FAQ volgens de vier criteria
+
+Zevende werkpakket van `docs/tasks/contentpijplijn-publicatiewaardig.md`, en het laatste van fase 1.
+De FAQ was per ontwerp een restcategorie: het contract vroeg om vragen die de tekst niet al
+beantwoordde, meestal zonder feit, en het antwoord werd een voorbehoud ("Deze pagina geeft geen
+bevestigde lokale eis voor Best"). Nu kiest een Luna-aanroep na de paginastrategie nul tot vijf vragen
+uit kandidaten in volgorde van waarde (bezwaren uit het verkoopgesprek, gemeten vragen, vervolgvragen
+uit de vorige keuring, het dossier), en de code past de vier criteria van §11 opnieuw toe. Met de echte
+vragen: "Hoe lang lig ik met een kale tuin?" blijft, regenwater in Best en aanbetalen vallen af op het
+ontbreken van een feit en worden een vraag aan de ondernemer, "kopen of huren" valt af bij een bedrijf
+dat niet verhuurt. De schrijver krijgt precies de gekozen vragen, of de opdracht om geen FAQ te
+schrijven.
+
+## 25 september 2026: nameting fase 1, het doel niet gehaald
+
+Zuinig nagemeten op verzoek van de eigenaar: Best van de hovenier en de kostenpagina van de
+installateur door de hele nieuwe keten op productie, beoordeeld door dezelfde blinde lezer en
+vragenlijst als de doorlichting, plus een directe vergelijking met de vorige versie. Copywritercijfer 5
+en 3, gelijk aan de vorige versies; het doel na fase 1 was 6,5. De lezer koos bij Best de oude versie
+en bij de kostenpagina de nieuwe. Wat wel gehaald is: nul zinnen over wat wij niet weten, alle zinnen
+uit §14.3 weg, $0,26 en $0,31 per pagina, schrijfinvoer rond 5.500 tokens. De oorzaak van het lage
+cijfer is nu het omgekeerde van 25 september: niet te voorzichtig maar te dun. De strategie schrapt elk
+onderwerp zonder feit, ook de uitleg waar de lezer voor kwam, en laat sterk bewijs liggen. De meting
+vond drie fouten die met test zijn hersteld: een F-nummer met de feittekst erachter werd weggegooid
+(alle prioriteitsfeiten weg), en de eindredactie mocht een prioriteitsfeit schrappen, de tekst
+leegschrappen (345 naar 115 woorden) en de bedrijfsnaam in de metatitel afkappen. Een verdwenen
+prioriteitsfeit en leegschrappen draaien de redactie nu terug; in de laatste ronde gebeurde dat bij
+Best (417 naar 171 woorden, teruggedraaid). De cijfers per pagina staan in
+`docs/tasks/contentpijplijn-publicatiewaardig.md` §14.2.
+
+## 25 september 2026: reparatie van de dunne pagina's na de nameting van fase 1
+
+Vier vangnetten, elk op het echte geval uit de nameting. (1) Een kernvraag van de lezer valt niet meer
+weg omdat een bedrijfsfeit ontbreekt: de strategie krijgt de gecontroleerde algemene uitleg met
+U-nummer en mag een kernvraag daarmee beantwoorden, als wat gebruikelijk is en niet als belofte van het
+bedrijf; de vraag gaat toch naar de ondernemer. In code wordt een kernonderwerp op "eerst vragen" met
+passende uitleg of met bron vakkennis een uitlegsectie. Bij de kostenpagina stonden drie kernonderwerpen
+op "eerst vragen" en bleven er 210 woorden over. (2) Minstens twee verschillende stukken sterk bewijs
+van de kaart staan bij de prioriteitsfeiten, die van de ondernemer eerst, ook als de strategie ze
+uitsloot omdat "de site het al noemt"; 35 jaar en 35+ jaar tellen als één. (3) Het budget volgt de som
+van de opgenomen onderwerpen (meer dan 15 procent verschil wordt de som) en wordt niet meer opgehoogd
+naar het vertrekpunt: bij de kostenpagina werd 395 opgehoogd naar 600 en schreef de schrijver 227. Een
+budget onder het vertrekpunt is nu een waarschuwing. (4) De metabeschrijving krijgt hetzelfde vangnet
+als de metatitel ("... bij Wesley Keeris Installatietechnh" wordt "... bij Wesley Keeris."). Niet in
+code: het waarheidsdossier van de blinde lezer miste CO-certificering en de ketelmerken van
+`/ketelvervanging` en is daarmee aangevuld.
+
+Nagemeten met dezelfde twee pagina's: de lezer kiest nu bij allebei de nieuwe versie (Best zekerheid 3,
+de kostenpagina 4), het copywritercijfer is 5 en 4 (was 5 en 3), de kostenpagina groeit van 164 naar
+326 woorden en de ondernemer zou hem nu met aanpassingen publiceren (was nee). Het doel van 6,5 is niet
+gehaald. De grootste resterende oorzaken: herhaling en holle algemene uitleg zonder bron, en een
+keuring die op feitbehoud blokkeert tegen de keuzes van de strategie in. Kosten $0,29 en $0,26 per
+pagina. Cijfers in `docs/tasks/contentpijplijn-publicatiewaardig.md` §14.2.
+
+## 25 september 2026: stem in het merkdossier, en drie regels in plaats van lapwerk
+
+Het stemvoorstel (`docs/tasks/schrijfstijl-voorstel-drie-klanten.md`) is door de eigenaar goedgekeurd
+en staat in het merkdossier van de drie klanten, met herkomst "consultant". Eén afwijking: de
+voorbeeldzin over de levertijd noemt nu de hybride warmtepomp, omdat hij anders de fout van de
+kostenpagina (levertijd bij de ketel) aan de schrijver zou leren. Daarna drie wijzigingen die voor
+elke klant gelden: (1) bij een pagina met strategie telt feitbehoud alleen de feiten die de strategie
+koos; de schrijver kreeg daarvoor "neem ELK feit van de vorige versie over" naast "voeg niets toe", en
+de keuring blokkeerde beide nagemeten pagina's daarop; (2) algemene uitleg zonder feit en zonder
+gecontroleerde uitleg valt weg als bijzaak en krijgt hoogstens 40 woorden als kernvraag, en de
+schrijver hoort dat hij elk feit één keer noemt; (3) de FAQ-selectie weegt of een vraag over het
+onderwerp van deze pagina gaat. Bewust niet gebouwd: een lijst met holle formuleringen en een
+woordfilter op FAQ-vragen. Het eerste is lapwerk dat de volgende ronde niet vangt; het tweede gooide in
+de ketentest een algemeen bezwaar ("jullie zijn duurder") weg dat bij elke pagina hoort.
+
+## 25 september 2026: de vragenroute gesloten
+
+De paginastrategie en de FAQ-selectie bepalen per pagina wat de ondernemer eerst moet vertellen, maar
+die vragen bleven in `strategy_json.vragenAanOndernemer` liggen: geen code zette ze bij de ondernemer.
+Bij Best waren het er acht. Nu gaan hoogstens vier per pagina (kernvragen eerst, dan kernuitleg die
+concreter kan, dan onzekerheden met bestemming A, dan bijzaken en FAQ) langs dezelfde ontdubbeling en
+opslag als de briefing (`strategievragen.ts`, `bewaarVragen` in `briefing.ts`): een vraag die de
+ondernemer al beantwoordde of oversloeg komt niet terug, een open vraag die hetzelfde vraagt krijgt de
+pagina erbij. De vragen zijn niet verplicht en gelden voor het hele merk; het antwoord komt via de
+feitenkaart in de volgende versie. Eerst op sleutel zonder aanroep, alleen bij een nieuwe vraag één
+lichte aanroep (`briefing_vraag_judge`). Een mislukking hier houdt het schrijven niet tegen.
+
+## 25 september 2026: de eigenaarstoets in de keuring (WP9, eerste stap)
+
+Kwaliteit werd tot nu toe alleen achteraf gemeten, met de blinde lezer. In de pijplijn letten de
+controles op feiten en formuleringen, niet op herhaling, holle alinea's of een kop die niet bij de
+tekst past, precies wat die lezer bij beide nagemeten pagina's als eerste noemde. Nu leest een vijfde
+beoordelaar (L10, `content_eigenaarstoets`, Sol met denktijd medium) elke versie van een pagina met
+strategie als de ondernemer: publiceert hij zo, wat verandert hij eerst, welke zinnen haalt een
+copywriter eruit, en is de nieuwe beter dan de huidige sitepagina. "Nee" blokkeert en stuurt de
+reparatie met de eerste wijziging als opdracht; de problemen gaan als bevinding mee. Vangnet in code:
+een probleem telt alleen als het citaat letterlijk in de tekst staat, hoogstens zes. De vier bestaande
+beoordelaars blijven voorlopig staan; ze vervangen (WP9 volledig) wacht tot de eigenaarstoets op
+productie is nagemeten tegen de blinde lezer.
+
+## 25 september 2026: nameting van stem, vragenroute en eigenaarstoets
+
+Dezelfde twee pagina's, na PR 147 tot en met 152. Copywritercijfer 5 (Best, was 5) en 4 (kosten, was
+4). De lezer kiest bij de kostenpagina de nieuwe versie (zekerheid 4: de verkeerde levertijd is weg,
+de FAQ past bij het onderwerp) en bij Best de vorige (zekerheid 3: meer opvulling). Kosten $0,33 en
+$0,31 per pagina; de eigenaarstoets kost $0,013 per keuring en duurt 18 tot 21 seconden, parallel met
+de andere beoordelaars. Belangrijkste uitkomst: de eigenaarstoets vindt dezelfde problemen als de
+blinde lezer (bij Best "Dat bedrag geeft je houvast", "Een offerte beschrijft de werkzaamheden en de
+prijs" en de dubbele offerte-oproep; bij de kosten de kop "Wij plaatsen ook gewone cv-ketels" en dat
+niet staat wat er in de prijs zit), maar de reparatie lost ze niet op. Bij Best verloor de reparatie de
+terugkomafspraak en koos de versievergelijking de oude tekst; bij de kosten weigerde de reparatie de
+ketelmerken te noemen "omdat de instructie verbiedt andere bedrijven bij naam te noemen". De
+vergelijking met de huidige sitepagina stond steeds op "geen huidige": de keuring kreeg de huidige tekst
+niet mee. Bestanden in `kwaliteitsdoorlichting/nameting-eigenaarstoets/`.
+
+## 25 september 2026: de reparatie doet wat de eigenaarstoets zegt, sterk bewijs, eigen merken
+
+Drie wijzigingen uit de nameting van de eigenaarstoets. (1) De reparatie kreeg de tien zwaarste
+bevindingen, en de eigenaarstoets (zekerheid 0,7, gewicht 7) zakte onder de tientallen vaste controles
+(gewicht 10): geen van zijn punten kwam aan. Nu gaat wat blokkeert voor, dan de eigenaarstoets, dan de
+rest. Welke versie blijft, beslist bij gelijke blokkades de eigenaarstoets (`eigenaarVoorkeur`: eerst
+publiceren ja, met aanpassingen of nee, dan twee of meer problemen minder); zijn oordeel staat daarvoor
+in `quality_json.eigenaar`. (2) Sterk bewijs is ook een reviewcijfer, een garantie en bewijs dat de
+ondernemer zelf in het gesprek gaf, en er gaan er minstens drie mee (was twee). Bij de hovenier
+stonden de 4,9 uit 5 en het eigen 3D-ontwerp daardoor buiten de keuze. De garantie van vijf jaar staat
+niet in zijn register, dus die lost dit niet op. (3) Merken die het bedrijf zelf plaatst op de
+feitenkaart mogen genoemd worden; de reparatie liet de ketelmerken weg "omdat de instructie verbiedt
+andere bedrijven bij naam te noemen". De code controleert op de lijst met concurrenten, niet op merken.
+
+## 25 september 2026: de contentketen gaat opnieuw, van vijftien stappen naar vier
+
+Besluit van de eigenaar na de nameting van fase 1: de keten van pagina tot tekst is zo gegroeid (zeven
+taaksoorten voor content, ongeveer 12.700 regels, 12 tot 15 AI-aanroepen per pagina) dat kwaliteit niet
+meer te sturen is, en elke stap haalt alleen weg. Het cijfer van de blinde lezer bleef op 5 en 4 bij
+een doel van 6,5. Aangescherpt met de feedback van een senior collega, met als principe: de keten niet
+slimmer maken met meer beslissingen, maar de schrijver betere informatie geven. Nieuw: content brief
+(met hooguit drie gerichte vragen), klantinput (vast één open vraag per pagina), één schrijfbeurt,
+één kwaliteitscontrole, hooguit één herschrijving. De schrijver wijst geen bronnen aan; code en
+controle zoeken daarna naar verzonnen harde beweringen, en een zin zonder bron wordt geel voor de
+ondernemer in plaats van een blokkade. Geen woordbudget. Eerst de oude code weg, dan bouwen. Alle
+klantdata (6 merken) is verwijderd; de kostenlog is bewaard. Grens: $0,50 per pagina. Plan:
+`docs/tasks/contentketen-opnieuw.md`.
+
+Aangescherpt na een tweede review van dezelfde collega (zelfde dag): publiceerbaarheid is de enige
+maatstaf, met unieke klantinput als signaal; acht vragen is een bovengrens en geen doel, en een vraag
+moet iets opleveren wat niet uit bestaande kennis of webonderzoek te halen is; de brief mag geen keuzes
+voor de schrijver maken; de controle op harde beweringen is een conservatieve detectie en geen
+factchecker; geen scores op de tekst; en vooraf vastgelegd (B15) dat een tegenvallende uitslag nooit
+leidt tot een extra stap of beoordelaar.
+
+Gebouwd (zelfde dag, WP1 tot en met WP7): de nieuwe keten staat in `lib/pagina/` met vier taaksoorten
+(`pagina_brief`, `pagina_schrijven`, `pagina_controle`, `pagina_herschrijven`) en twee ingangen voor
+het contentplan (`bereidVoor`, `probeerTeSchrijven` in `lib/pagina/start.ts`). Getoetst met 4.844
+eenheidstests en 731 ketentests, zonder één echte AI-aanroep. Twee dingen die de ketentest vond en
+die zonder test in productie waren gegaan: een schrijver die de titel van een andere pagina kiest,
+liet de opslag stil mislukken op de unieke index uit migratie 0023 (de titel van de rij blijft nu
+de plantitel), en de testdatabase gaf een datum als Date-object terug waar PostgREST tekst geeft (nu
+gelijkgetrokken in `scripts/chain/postgres.ts`). Nog niet gedaan: WP8 tot en met WP10, want die vragen
+de code op productie en echte aanroepen; de kosten per pagina zijn dus nog een schatting.
+
+## 26 september 2026: de nieuwe contentketen op productie getoetst
+
+Negen pagina's van drie nieuwe proefmerken (hovenier, installateur, rijschool) gingen door de nieuwe
+keten, van vrijgeven tot goedkeuren, zonder handwerk. Kosten per pagina $0,10 tot $0,17, tegen een
+grens van $0,50 en ongeveer $0,97 voor één meetronde; de brief is de duurste stap ($0,06 tot $0,075,
+met zoeken op het web). Vier van de negen gingen na de controle direct door, vijf kregen één
+herschrijving. Eén gele zin in negen pagina's, en die was vals alarm: "tussen de 4.500 en 7.500 euro"
+werd gelezen als 4.500 met de eenheid "en" (gerepareerd). Elk bedrag en elke termijn in de teksten is
+te herleiden naar de site of naar wat de ondernemer vertelde; vier kleine zinnen zonder harde bewering
+niet, en die vangt geen van beide controles (zo is het ontworpen: de code zoekt alleen harde
+beweringen). Twee dingen voor de verbeterlus: één praktijkvoorbeeld van de ondernemer komt op meerdere
+pagina's terug, en "gratis" staat bij de installateur in de tekst omdat het niet in zijn lijst met verboden woorden
+stond (het ontbrak in het gespreksbestand), terwijl het dossier het alleen bij de offerte toestaat. Het oordeel over de kwaliteit komt van een onafhankelijke
+copywriter; de teksten en opdrachten staan in
+`docs/tasks/kwaliteitsdoorlichting/contentketen-proef/teksten-voor-copywriter.md`.
+
+Eerste verbeterronde (zelfde dag, WP9): schrijfopdracht en brief naar versie 2, en de verboden woorden
+van het merk kregen een vangnet in code (besluit B16), omdat een mechanische regel volgens conventie 1
+niet alleen op de belofte van het model mag rusten. Twee extra pagina's op productie gingen direct
+door de controle, zonder hergebruikt voorbeeld, zonder FAQ-antwoord uit het niets, en zonder het
+verboden woord. "Vraag een aanpassing" is op productie nagemeten: een nieuwe versie met de wens erin
+voor $0,028, zonder nieuwe beoordeling. De negen teksten voor de copywriter zijn bewust niet opnieuw
+geschreven: die blijven de uitslag van versie 1.
+
+Tweede verbeterronde (zelfde dag, WP9), na het oordeel van een onafhankelijke copywriter: 9 van de 9
+teksten "met kleine wijzigingen", gemiddeld 8,6. De zwakte die overal terugkwam was algemene kennis die
+als bedrijfskennis in de tekst stond (een vuistregel, een wettelijke termijn, een plantkeuze). Opgelost
+in de invoer en de opdracht, zonder nieuwe stap (B15): de schrijver ziet nu welk deel bedrijfskennis is
+en welk deel algemene kennis, en mag algemene kennis alleen als algemene uitleg schrijven; de bestaande
+controle telt het anders als verzonnen; de brief vraagt hoe het bedrijf iets doet als dat per bedrijf
+verschilt. Bewust niets per pagina bijgestuurd. Vier pagina's opnieuw geschreven voor $0,29: iets
+betrouwbaarder (de KLIC-melding en de leeftijdsregels staan er nu als algemene regel, het verzonnen
+"ja, je mag zelf planten" is weg, de metabeschrijving van de installateur noemt nu de voorwaarden bij
+de prijs) en even natuurlijk, maar geen grote sprong. De proefset is daarmee uitgeput als meetlat: de
+volgende verbeteringen komen uit wat een echte klant verandert vóór het goedkeuren (WP9, WP10).
+
+Oordeel van de copywriter over de vier nieuwe teksten (zelfde dag): twee duidelijk beter, twee ongeveer
+gelijk, geen reden om terug te gaan, geen bewijs voor een grote sprong. Zijn advies, overgenomen: geen
+derde vergelijkingsronde, maar bij de eerste echte klant meten welke zinnen de ondernemer verandert,
+welke beweringen de ondernemer niet herkent, of de tekst klinkt als het eigen bedrijf, hoeveel er inhoudelijk
+verandert, of dat feiten zijn of stijl, en welke vragen achteraf iets opleverden. Vier van die zes
+rekent `lib/pagina/klantmeting.ts` uit met wat de keten al bewaarde; de andere twee zijn mensenwerk
+(`docs/tasks/meting-eerste-klant.md`). Eén gat gedicht: de wens bij "vraag een aanpassing" stond alleen
+in de taak en niet bij de nieuwe versie; die staat nu in `revision_note`.
+
+Twee gaten gedicht die bij het nalopen van de keten voor de doorloop met een testklant naar boven kwamen
+(26 september 2026, `docs/doorloop-van-klant-tot-content.md`). Eén: een antwoord op een vraag uit het
+rapport (tot 8 per rapport, `scope = 'analyse'`) bereikte de schrijver alleen als een brief de vraag aan
+de pagina koppelde, en de brief zag hem als beantwoord en stelde hem niet opnieuw; het antwoord gaat nu
+mee in blok A van elke pagina van dat cluster (besluit B17). Twee: sinds WP1 zag de klant van een
+goedgekeurde pagina alleen de tekst, terwijl de schrijver ook een metatitel, een metabeschrijving en 0 tot
+5 veelgestelde vragen levert en de code gestructureerde gegevens bouwt. Het paginascherm toont die nu om
+te lezen vóór het goedkeuren, en daarna met kopieerknoppen, een download van alles in één HTML-bestand en
+de sjabloonexport die al bestond maar aan geen scherm meer hing. Nog open en bewust niet meegenomen: de
+controle op harde beweringen en de beoordeling kijken alleen naar de tekst, niet naar de FAQ en de
+metabeschrijving (een besluit voor §2 van `contentketen-opnieuw.md`).
+
+Het team besprak de doorloop van de hele keten (`docs/doorloop-van-klant-tot-content.md`) en kwam tot één
+hoofdconclusie: ORBIT ENGINE is opgebouwd als een reeks AI-stappen die elkaars uitvoer opnieuw
+interpreteren, en hoort opgebouwd te zijn rond één klantwaarheid met herkomst, met kansen, contentmotor en
+meetlaag daaromheen (26 september 2026). De code bevestigt het: `profiles` telt 94 kolommen, klantkennis
+staat in zes tabellen, en `proof_points` en de stijlvoorbeelden worden gemaakt maar door de schrijver niet
+gelezen. Op drie punten stond er meer dan de feedback aannam (herkomst in `brand_facts`, Search Console
+gebouwd maar bij 0 merken gekoppeld, een effectmeting met controlegroep die alleen ChatGPT meet). Omgezet in
+`docs/tasks/van-pijplijn-naar-kennissysteem.md`: 38 werkpakketten in negen fases, eerst de eerste echte
+klant op de huidige keten als meetlat, dan de kennislaag. Geen nieuwe AI-aanroepen; de contentketen blijft
+zoals hij is en krijgt alleen betere invoer. Acht besluiten (V1 tot en met V8) liggen bij de eigenaar.
+
+De acht besluiten van `docs/tasks/van-pijplijn-naar-kennissysteem.md` genomen door de eigenaar (26 september
+2026). Zes volgens advies: een nieuwe tabel voor klantkennis, een eigen pagina van de consultant mag zonder
+meting (B18 in de contentketen), alleen de voorbereiding van de pagina stelt nog vragen, de controle leest
+ook FAQ en metabeschrijving (B19), de gebeurtenissenlaag in de bestaande database, leren eerst per merk.
+Twee anders: de eerste echte klant wacht op de verbouwing (uitgewerkt als: na fase 5, zodat de meet- en
+leerfases met zijn pagina's worden afgemaakt; tot die tijd zijn de drie proefmerken de meetlat), en het
+kennisoverzicht is alleen voor de consultant, die vastlegt wat de klant in het gesprek bevestigt.
+
+K4: de vijf onderzoeksstappen (merkonderzoek, aanbodboom, markt, kennistest, samenvatting) schrijven wat ze vinden nu ook in de kennislaag, via `legVast()` (26 september 2026). Een item is alleen waargenomen als de code het citaat letterlijk op de pagina terugvond; al het andere is een vermoeden van het model, dat niet op een pagina komt. Voor een aanbodknoop is dat strenger dan het terugvullen van K3: die telde elk citaat, ook een citaat dat niet op de pagina staat (`confidence` 0,5). Het ketenscenario vond daarbij een fout voordat hij productie haalde: de zekerheid komt uit Postgres als tekst ("1.00") terug, en met een strikte vergelijking was geen enkele knoop ooit waargenomen geweest. Mislukt het wegschrijven, dan logt de stap het en loopt het onderzoek door: tot K8 lezen de app en de schrijver nog de oude tabellen, en een mislukte taak zou de AI-aanroep nog eens laten betalen. Besluit V18: een nieuw sitefeit komt tot K8 zonder soort in de kennislaag.
+
+K4 op productie nagelopen met een nieuw proefmerk, Fysiotherapie West Maas en Waal (26 september 2026): 82 kennisitems, waarvan 32 waargenomen met een citaat dat letterlijk op de bronpagina staat, en elke aanbodknoop en elk sitefeit gedekt. Eén bijwerking om te onthouden voor K6 en K7: de drie prijzen die de aanbodboom vond, staan op de tarievenpagina maar niet in het citaat bij hun dienst, en zijn daarom een vermoeden. Ze komen pas op een pagina als de consultant ze bevestigt. Veilig, maar bij een praktijk met een aparte tarievenpagina komt geen enkele prijs vanzelf door.
+
+K5: wat de klant vertelt, komt nu ook in de kennislaag (26 september 2026). Een antwoord op een vraag wordt verklaard, met de reikwijdte van de vraag: één pagina, één cluster of het hele merk. De open vraag van een pagina wordt letterlijk een verhaal voor alleen die pagina. Een veld op het gespreksscherm en de aantekeningen van het gesprek worden verklaard door het gesprek, en de keuze van de consultant bij een tegenstrijdigheid bevestigt het gekozen feit en wijst het andere af. De omzetting is dezelfde als bij het terugvullen van K3, zodat een antwoord van vandaag dezelfde sleutel krijgt als een antwoord van gisteren. Alleen wat een mens veranderde telt (besluit V20): een vermoeden van het model dat blijft staan, wordt daarmee geen uitspraak van de klant. Onderweg gevonden (besluit V19): de ontdubbelsleutel van K2 liet getallen van één of twee cijfers weg, zodat "80 procent" en "85 procent" dezelfde sleutel hadden en de tweede stil verdween; op productie raakt de reparatie 84 van de 517 items, en bij het terugvullen is hierdoor niets verloren gegaan. De bewakingstest op wie verklaard en bevestigd mag zetten, keek alleen naar het bestand zelf en zag een route die dat via een module in `lib/kennis/` deed niet; hij volgt nu ook de aanroepers.
+
+N1: een kans is nu een eigen object in de database, met het bewijs per bron ernaast (26 september 2026, migratie 0118). Nog leeg: het rapport vult de tabellen pas in N2. De volgorde rekent de code uit in vier lagen: eerst de diensten waar de ondernemer voorrang aan geeft, dan hoeveel bronnen de kans steunen, dan de potentiescore, dan hoeveel kennis er nog ontbreekt. Bewust geen gewogen som: gewichten zijn een gok zolang er nul gepubliceerde pagina's zijn om ze aan te toetsen, en een laag is in één zin uit te leggen aan de klant. De uitleg bij een kans wordt uit het bewijs opgebouwd, zonder model, en noemt een bron zonder meting "geen gegevens" en nooit nul; de tests lopen alle 64 combinaties van bronnen langs. Drie afwijkingen van het plan, daar vastgelegd: het cluster heet `analysis_id`, de bronnen van een kans volgen uit zijn bewijs in plaats van uit een eigen kolom, en commerciële waarde en potentie zijn twee velden.
+
+K5 op productie nagelopen (26 september 2026), met een eigen beheerdersaccount (`k5-controle@orbit-test.nl`, na afloop op slot gezet) dat dezelfde routes aanriep als de schermen. Een merkvraag van Fysiotherapie West Maas en Waal, de open vraag en een gerichte vraag van de faalangstpagina van Autorijschool Pompert, en een veld op het gespreksscherm: alle vier staan als verklaard in de kennislaag, met dat account als vastlegger, en de paginavragen bij de juiste pagina en het juiste cluster. Elk gewijzigd antwoord werd een nieuwe versie, en de oude bleef bewaard met een verwijzing naar de nieuwe. De paginavragen gingen via Pompert, omdat Fysiotherapie nog geen pagina heeft; een wijziging daar start geen nieuwe schrijfbeurt, want alle pagina's van Pompert zijn klaar. Bij Pompert staat daarna weer de oorspronkelijke tekst; bij Fysiotherapie staan een antwoord en een onderscheidend kenmerk die met "Controle K5" beginnen. De K6-voorwaarde van besluit V16 stond toen nog open: 20 open punten.
+
+N2: elke aanbeveling uit het rapport wordt nu ook een kans, met het bewijs van de meting per bron (26 september 2026, migratie 0119). Per bron staat erbij bij hoeveel doelvragen het merk genoemd werd en welke concurrenten wel; dezelfde meerderheidsregel als het rapport, zodat de kans en het rapport nooit iets anders over dezelfde vraag zeggen. De kans hangt aan de dienst van het onderwerp en aan een plaats die letterlijk in de kans staat ("Best" in "de beste rijschool" telt niet). De voorraad in het plan leest nu uit de kansen, met dezelfde sleutel als voorheen: vooraf op productie nagelopen dat alle 20 kaarten van de drie proefmerken hun aanbeveling terugvinden, met dezelfde titel en handeling, dus de klant ziet geen verschil. De kansen voor die drie oude rapporten maakt de voorraad zelf bij de eerste schermopening na de uitrol; dat moet daarna nog nagekeken worden. De opdracht aan het rapport zei tegelijk "het aantal ligt niet vast" en "geef 5 tot 8"; op productie kwamen er 6, 7 en 7 uit, precies binnen de band. Nu zegt hij op beide plekken hetzelfde.
+
+N2 op productie nagelopen (26 september 2026): na de uitrol het plan van de drie proefmerken geopend; de app maakte 20 kansen met 38 rijen bewijs en koppelde alle 20 kaarten, zonder dat er een titel of sleutel veranderde. Het bewijs van een kans (de faalangstpagina in Son en Breugel: ChatGPT en Google AI Overview elk 0 van de 2 vragen) klopt met een telling met de hand op de ruwe meting. Wel stond het CBR bij de concurrenten: de examenorganisatie, die in de antwoorden terloops genoemd wordt. De meting legt dat al vast (`zijdelings`, 982 van de 1852 vermeldingen van andere namen), en nu telt alleen een naam die aanbevolen wordt als concurrent. Het bewijs draagt sindsdien het nummer van de regel waarmee het geteld is, zodat het bewijs van open kansen bij de volgende synchronisatie één keer opnieuw geteld wordt.
+
+N6: per kans weet de app nu wat we over het bedrijf weten en wat de pagina nog nodig heeft (26 september 2026). Een vaste lijst per soort pagina, in code: een dienstpagina heeft een werkwijze, een prijsindicatie, een termijn, een voorbeeld uit de praktijk, voor wie het niet is en bewijs nodig. Bekend telt alleen wat op de pagina mag (dezelfde regel als straks blok A); een vermoeden van het model staat als ontbrekend, zodat de brief er later een bevestigingsvraag van kan maken in plaats van een open vraag. Kennis voor één pagina telt ook mee na een herschrijving: alle versies van een pagina horen bij de kans. De consultant ziet op het plan per kaart "Nog niet bekend: ...". "Voor wie het niet is" staat bij elk merk als ontbrekend: daar is nooit naar gevraagd.
+
+De twintig open punten van het terugvullen afgehandeld (27 september 2026), op verzoek van de eigenaar door Claude, met `scripts/kennis-open-punten.ts` via de databaseverbinding (V15). Zes feiten gekoppeld aan hun dienst (onder meer het starters- en het basispakket aan autorijles, de rijsimulatorcursus aan de cursus), zes blijven voor het hele bedrijf gelden (adres, openingstijden, een gratis offerte, offertes binnen vier uur, één vaste instructeur, "alle prijzen gelden per 1 november 2025"). Vier prijzen van Pompert stonden wel op de site, maar niet in het citaat bij hun dienst: nu vastgelegd met het letterlijke citaat van de prijzenpagina. Daarbij bleek er één fout: de aanbodboom schreef bij handgeschakelde autorijles "pakket vanaf € 76 per uur", maar op de site hoort € 76 per uur bij de automaat; het handgeschakelde starterspakket kost € 2525 voor 25 uur, ongeveer € 101 per uur. Zonder deze ronde had K6 die prijs als vermoeden bewaard en A1 hem aan de klant voorgelegd als iets om te bevestigen. De vier keer "offerte op aanvraag" was geen prijs en ging op in het feit over een gratis of vrijblijvende offerte. Niets is afgewezen of bevestigd: dat blijft werk van een mens (V6). De lijst is leeg, dus de voorwaarde voor K6 is vervuld.
+
+N6 op productie nagekeken (27 september 2026): de kennisgaten van alle 20 kansen waren uitgerekend, maar te klein. Bij Verstraaten ontbrak volgens de app bij geen enkele kans iets, omdat "een offerte aanvragen is gratis" (voor het hele bedrijf, soort prijs) als prijsindicatie telde en "offertes binnen vier uur" als termijn; bij Pompert telde "alle prijzen gelden per 1 november 2025" als termijn. Nu telt voor een prijs en een termijn alleen kennis die bij de dienst, het onderwerp of de pagina zelf hoort. Een merkbrede werkwijze, een verhaal of bewijs telt nog wel.
+
+K6: de schrijver haalt zijn bedrijfskennis nu uit de kennislaag (27 september 2026, besluit B20 in de contentketen). Wat alleen een model denkt, komt er niet meer in; dat verwijdert "waar het bedrijf voor staat" uit het merkonderzoek, dat tot nu toe als zekere kennis naar de schrijver ging. Per pagina gaat mee wat voor het hele merk geldt, wat bij de dienst van de kans hoort, wat bij het cluster hoort en wat bij een versie van deze pagina hoort. Vier pagina's van de vorige verbeterronde opnieuw geschreven op productie: de invoer is even groot, de kosten $0,31 tegen $0,29 voor alle vier samen (het verschil zit in welke pagina's een herschrijving kregen), en de teksten zijn gelijk tot iets beter; de warmtepomppagina van de installateur gebruikt meer van wat de ondernemer eerder vertelde. Eén gele zin was vals alarm van de controle: het jaartal stond letterlijk in het antwoord van de ondernemer. Gevonden bij het vergelijken: een categorie van het aanbod die nergens onder hing, telde als kennis voor het hele merk, zodat een warmtepomppagina ook airco en zinkwerk kreeg; gerepareerd en op de gegevens van productie nagerekend (van ongeveer 40 naar 23 items), niet opnieuw geschreven.
+
+K7 deel 1: het kennisoverzicht (27 september 2026). De consultant ziet per merk onder Admin wat ORBIT over het bedrijf weet, per onderwerp, met waar het vandaan komt; apart wat we alleen vermoeden en wat is afgewezen. Vier knoppen: bevestigen, aanpassen, klopt niet, niet op de site. Twee keuzes bij het bouwen. "Niet op de site" wijzigt alleen het gebruik in dezelfde rij, geen nieuwe versie: een nieuwe versie zou een bevestiging kwijtraken, want een nieuw item kan niet als bevestigd beginnen. En een bevestigd vermoeden mag op een pagina: het stond alleen op intern omdat het een vermoeden was. Op productie nagelopen bij Fysiotherapie West Maas en Waal: een bevestigd vermoeden komt in blok A, een afgewezen item eruit (34 items, voor en na nagerekend op de echte gegevens), en een gewone klant van het merk krijgt op scherm en route "niet gevonden".
+
+K7 deel 2 (27 september 2026). Bij het nalopen bleek dat blok A sinds K6 de conflictlijst niet meer las: twee feiten die elkaar tegenspreken (twee prijzen, twee termijnen) gingen dan allebei naar de schrijver, waar het oude blok A ze tegenhield. Op productie stond geen conflict open, dus er is niets verkeerd geschreven. Nu houdt een harde regel (`lib/kennis/betwist.ts`) tegen wat op een open conflict staat, wat bij een keuze verloor en wat in de kennislaag met iets anders botst; het kennisoverzicht zegt per item waarom de schrijver het niet krijgt. Botsingen in de kennislaag staan op het conflictscherm met "dit klopt" en "geen van beide"; de keuze bevestigt het ene item en wijst het andere af. "Niet van toepassing" op het gespreksscherm wijst af wat er in dat veld stond. Merkprofiel bewerken houdt zijn velden: sinds V6 is dat de plek waar de klant zelf iets vertelt, en het plan (geschreven vóór V6) wilde ze vervangen door een scherm dat de klant niet ziet.
+Op productie nagelopen na PR #176: "niet van toepassing" op het onderscheid van Fysiotherapie West Maas en Waal wees de proeftekst uit K5 af, en blok A ging van 34 naar 33 items. Het blokkeren bij een tegenstrijdigheid kon niet op productie: er stond er geen open. Dat is alleen in ketenscenario 26 nagelopen.
+
+K8 deel 1: de oude schrijvers en lezers opruimen, eerste deel (27 september 2026). Eerst geteld wie de kolommen nog leest die de kennislaag vervangt: honderden plekken (`industry` in 39 bestanden, `summary` in 38, `competitors` in 36, `brand_name` in 34). Het dubbele schrijven in één keer stoppen zou betekenen dat al die lezers tegelijk om moeten; daarom is K8 in drie delen gesplitst, en besluit V22 breidt V9 uit: de kolommen van het merkprofiel worden een kopie die alleen `lib/kennis/` schrijft, en de lezers blijven die kopie lezen. Deel 1 ruimt op wat niemand meer gebruikt: dertien velden weg van "merkprofiel bewerken" en het gespreksscherm (de zeven auteursvelden, missie, positionering, `usp`, tweede doelgroep en wettelijke beperkingen, die bij alle merken leeg waren, en `proof_points`, dat geen stap meer leest). Het formulier telt nu 38 velden in plaats van 51, de klantwizard 22 in plaats van 35. Een antwoord op een vraag gaat niet meer als extra regel naar `proof_points`, en het onderzoek zet geen toon, voorbeeldzinnen en bewijspunten meer op het profiel (de bewijspunten gaan als vermoeden alleen de kennislaag in). De twee plekken die klantkennis nog alleen in de oude tabel schreven, schrijven nu ook in de kennislaag: de opgehaalde tekst van een stemvoorbeeld (waargenomen, met het adres als bron; een nieuwe tekst wordt een nieuwe versie, een weggehaald adres wijst de mens af) en een feit uit een aangeleverd document (verklaard met de letterlijke zin als citaat, besluit V21, want waargenomen eist een bronadres). Een nieuwe test faalt als code een van de 35 kolommen noemt die de inventaris op "niet meer gebruiken" zette; de lijst komt uit de inventaris zelf. Daarbij gecorrigeerd: de twee kolommen `confidence` waren geen zelfoordeel van het model maar een controle door de code, en tellen niet meer mee (37 werd 35).
+
+K8 deel 1 op productie nagelopen door te lezen (27 september 2026): merkprofiel bewerken (elke stap, ook de oude auteursstap) en het gespreksscherm van Fysiotherapie West Maas en Waal tonen de dertien weggehaalde velden niet meer, en de gewone velden wel. Het opslaan van een stemvoorbeeld en het plakken van een merkdossier op productie is niet gedaan: de veiligheidscontrole van de werkomgeving weigerde schrijven via de app op productie. Dat staat als taak voor de eigenaar in §12 van het plan; in de ketentest (scenario 27) werkt het.
+
+K8 deel 2: de feiten van de site staan alleen nog in de kennislaag (27 september 2026). De samenvatting van het onderzoek schrijft niet meer in `brand_facts`; de taak `fact_register` deelt de nieuwe sitefeiten in op het kennisitem zelf (soort, waarde, waarvoor het geldt), met hetzelfde goedkope model als voorheen, en de code zoekt daarna of twee versies van hetzelfde gegeven botsen. Het tweede model dat elk paar feiten beoordeelde, is weg, net als de automatische winnaar en "vraag het de ondernemer" bij een conflict tussen feiten: een botsing beslist de consultant (besluit V14). Op productie stond geen conflict tussen feiten open en geen feit op betwist of vervangen, dus er ging geen besluit verloren; 11 sitefeiten van Fysiotherapie West Maas en Waal wachten op hun indeling en krijgen die bij de eerstvolgende voorbereiding. Een test faalt als iets anders dan het terugvullen `brand_facts` nog schrijft of leest.
+
+K8 deel 3: het merkprofiel is een kopie van de kennislaag (27 september 2026, besluit V22). De kolommen van `profiles` die klantkennis zijn (naam, andere namen, werkgebied, concurrenten, de commerciële laag, stem, verhalen, grenzen: 33 velden) schrijft alleen nog `lib/kennis/`, telkens in dezelfde handeling als de kennis zelf; een test faalt als iets anders dat doet. De meting en het rapport lezen de kopie zoals voorheen, dus er verandert niets aan hoe er gemeten wordt. Nieuw: wijst de consultant op het kennisoverzicht een naam of concurrent af, of past hij die aan, dan verandert dezelfde waarde op het profiel, zodat de meting er niet meer op telt. Daarbij gevonden: wat de consultant bij het aanmaken van een merk typt, kwam niet in de kennislaag (nu wel, verklaard), en de scan van Wikidata en het omzetten van een prospect zetten een kennisveld zonder kennisitem (nu met). Wat nog dubbel is, is de aanbodboom; dat wordt K8 deel 4.
+
+K8 deel 4 en daarmee K8 af (27 september 2026). De aanbodboom is nu ook een kopie die alleen de kennislaag schrijft. Wat een mens aan de aanbodboom deed (een dienst toevoegen, hernoemen, weghalen, terugzetten), kwam tot nu toe helemaal niet in de kennislaag: de schrijver en het kennisgat zagen dus nog de oude boom. Nu wel, met de ouder erbij. Daarbij gevonden: kreeg een dienst een nieuwe naam, dan wezen een prijs onder die dienst en de kans nog naar de oude versie, en viel die prijs stil weg bij het schrijven. Dat is gerepareerd: verwijzingen gaan mee naar de nieuwe versie. Na K8 schrijft geen code buiten `lib/kennis/` nog in de oude tabellen van klantkennis, en zes tests bewaken dat. Op productie nagelopen door te lezen, na deel 3: het conflictscherm van Fysiotherapie West Maas en Waal meldt dat 11 feiten van de site nog op hun indeling wachten en dat er geen tegenstrijdigheid openstaat, precies wat de database zegt; het kennisoverzicht, het gespreksscherm en het plan laden. Het schrijven via de app op productie kon niet vanuit de werkomgeving en staat als taak voor de eigenaar in §12 van het plan.
+
+A1 gebouwd (27 september 2026, besluit B21 in de contentketen): de content brief krijgt nu ook mee wat we voor deze pagina nog niet over het bedrijf weten, uit het kennisgat van de kans (bijvoorbeeld "een termijn" en "voor wie het niet is"), met één zin in de opdracht: vraag eerst daarnaar, en liever om een voorbeeld uit de praktijk dan om een los feit. Nog steeds hooguit acht vragen en geen extra aanroep. Brief versie 4. Nog niet op productie vergeleken met versie 3: dat vraagt nieuwe briefs op de proefmerken (betaald, en schrijven op productie), en de eigenaar kiest daarna welke vragen hij liever beantwoordt.
+
+A2 (27 september 2026, besluit V23): wat de ondernemer over een dienst vertelt, helpt nu ook de volgende pagina over die dienst. Tot nu gold het antwoord op een gerichte vraag alleen voor de pagina waar de vraag bij hoorde; nu geldt het voor de dienst van de kans achter die pagina. De tweede pagina over dezelfde dienst krijgt het antwoord bij het schrijven, en de brief vraagt er niet opnieuw naar. Een voorbeeld uit de praktijk blijft bij de pagina waarvoor het verteld is, zodat niet elke pagina hetzelfde voorbeeld krijgt. Nagelopen in een ketentest met twee pagina's (scenario 30).
+
+A3 (27 september 2026, besluit V3): de klant krijgt vragen nog maar uit één bron, de voorbereiding van een pagina (naast de open vraag per pagina en het merkdossier). Het rapport en het merkonderzoek stellen geen vragen meer; wat ze voorstelden, blijft in hun ruwe uitvoer bewaard. De open punten van het onderzoek (bij Fysiotherapie West Maas en Waal 6 van de samenvatting en 4 van de aanbodboom) staan nu op het kennisoverzicht van de consultant, als onderwerp voor het gesprek. Vragen die al openstonden, blijven staan. Hoeveel vragen een nieuw merk daardoor minder krijgt, tellen we bij het volgende proefmerk.
+
+C1 (27 september 2026, besluit V4/B19): de controle op harde beweringen en verboden woorden (`contentketen-opnieuw.md` §6.5) las tot nu toe alleen de hoofdtekst van een pagina; een verzonnen prijs of belofte in een FAQ-antwoord of de metabeschrijving ging ongezien de site op. Beide functies werken al per zin en zonder te weten waar een zin vandaan komt, dus de reparatie is het samenvoegen: `volledigeControletekst()` plakt de hoofdtekst, de metabeschrijving en de FAQ-antwoorden achter elkaar (de FAQ-vragen zelf niet, die beweren niets over het bedrijf) en dat gaat overal waar eerder alleen de hoofdtekst ging: na het schrijven, na de ene herschrijving, en bij "nog geel" op het goedkeuringsscherm en bij het goedkeuren zelf. De eindredacteur krijgt de metabeschrijving en de FAQ nu ook in zijn invoer, met een zin in de opdracht dat een verzonnen bewering daar net zo fout is als in de tekst. Op het scherm stond de FAQ al vóór het goedkeuren om te lezen (`Opleveren`, sinds 26 september 2026); een gele zin daarin of in de metabeschrijving wordt er nu ook echt geel, met dezelfde markering als de hoofdtekst op het goedkeuringsscherm. Bevestigen ("Klopt") ververst de pagina, zodat die markering meegaat; er is geen route om een FAQ-antwoord zelf te herschrijven, dus bevestigen is voorlopig de enige weg als de tekst zelf wel klopt. Eenheidstests en ketenscenario 31: een verzonnen prijs alleen in een FAQ-antwoord en een verzonnen belofte alleen in de metabeschrijving worden gevonden, blijven na de ene herschrijving geel omdat de schrijver ze liet staan, en goedkeuren lukt pas als beide bevestigd zijn.
+
+C2 (27 september 2026): het publicatiepakket krijgt het voorgestelde adres en een voorstel voor interne links. Het adres bestond al als functie (`resolvedContentUrl()`, `lib/pipeline/slug.ts`) maar stond alleen in de handleiding na het goedkeuren; het staat nu ook in het nieuwe blok "Adres en interne links" op `Opleveren`, vóór het goedkeuren al zichtbaar en met kopieerknop erna. De interne links zijn twee losse, deterministische voorstellen, geen model: `siteLinksVoorOnderwerp()` matcht een woord uit de dienstnaam van de kans achter deze pagina tegen de titel of het adres van een bestaande site-pagina (crawld in `profile_pages`), en `zusterPaginas()` neemt de kruising van `kansen.geldt_voor` met andere goedgekeurde pagina's van hetzelfde merk. Beide leveren hooguit vijf voorstellen, en zonder kans of zonder gedeelde dienst-id geen voorstel: liever niets dan een verzonnen relatie tussen twee pagina's. Op productie nagekeken bij Autorijschool Pompert: alle zeven kansen delen dezelfde drie diensten (rijangst, faalangstexamen, rijlessen Eindhoven), dus de zeven pagina's wijzen grotendeels naar elkaar, en de site heeft precies één bestaande pagina met "faalangst" in titel of adres; die komt terug als sitevoorstel bij de nieuwe faalangstpagina's van Son en Breugel en Veldhoven.
+
+M3 (27 september 2026), vóór M1 gebouwd omdat hij er niet van afhangt: de effectmeting weet nu ook of de eigen pagina geciteerd is, niet alleen of het merk genoemd is, en meet daarbij ook met AI Overview. `citeertEigenPagina()` in `lib/pipeline/impact-math.ts` gebruikt dezelfde regels als `isRedirectedElsewhere()` (`lib/url.ts`): http of https, www, hoofdletters, een slash aan het eind en een trackingcode maken niets uit voor de vergelijking. `computeImpact()` rekent per golf uit of het gepubliceerde adres in minstens één `cited_sources` van een eigen-merk-vermelding staat, over ChatGPT en AI Overview samen; onbekend (geen meting, geen adres) is NULL en nooit "nee" (migratie 0120). Tweede deel: `planImpactMeasurements()` plant nu ook een `measure_ai_overview`-taak per doel- en controlevraag als de omgevingsvariabele `AI_OVERVIEW_ENABLED` aanstaat, met dezelfde markering (pagina, golf, soort) als de ChatGPT-taak; `meetViaAiOverview()` ondersteunt een impact- en controlegolf net als de ChatGPT-meting dat al deed.
+
+Onderweg twee bestaande fouten gevonden en gerepareerd, allebei zichtbaar geworden doordat er nu voor het eerst een TWEEDE bron aan een impactmeting meedoet. Eén: de idempotentiesleutel van een impactmeting (`tracking_runs_impact_unique_idx`, migratie 0020) kende geen `engine`-kolom, dus een ChatGPT- en een AI Overview-meting van dezelfde vraag zouden op elkaars rij botsen, dezelfde soort fout die migratie 0066 destijds voor de periodieke meting repareerde. Migratie 0121 voegt `engine` toe aan de sleutel; geen bestaande rij kon in strijd zijn met een strengere sleutel, dus geen vooraf-telling nodig zoals bij 0066. Twee: de afteller die de effectberekening pas start als alle metingen van een golf binnen zijn (`scheduleImpactIfLastRun`) telde alleen `measure_prompt`-taken, en de afhandeling van een definitief mislukte taak routeerde op het taaktype (`measure_prompt` versus de rest) in plaats van op de payload (`impact` gezet of niet), waardoor een mislukte Google-meting van een impactgolf de gewone periodieke aggregatie aanstuurde in plaats van de effectberekening. Beide gerepareerd in `lib/jobs/handlers.ts`. Ketenscenario 32 dekt het inplannen met en zonder de schakelaar en `computeImpact()` over twee bronnen tegelijk, met de drie standen (waar, onwaar, onbekend).
+
+M1 (27 september 2026): het meetplan, vastgelegd zodra een pagina wordt goedgekeurd. Bij het bouwen kwam een echte, actieve fout aan het licht: sinds de contentketen opnieuw gebouwd is (WP1, 25 september 2026) schrijft niemand meer in `content_piece_targets` (de oude schrijver `content.ts` met zijn `saveTargets()` bestaat niet meer, en `targetsFromSourceRef()` in `lib/plan-backlog-data.ts` wordt sindsdien nooit meer aangeroepen). Elke pagina die via de nieuwe keten (WP6) geschreven is, had daardoor GEEN doelvragen, en `planImpactWaves()` sloeg de effectmeting stilzwijgend over: sinds 25 september is er geen enkele nieuwe effectmeting meer gestart. `lib/pipeline/meetplan.ts` repareert dat: `maakMeetplan()` leest de doelvragen terug uit het rapport (dezelfde bron als `laadDoelvragen()` voor de schrijver, met het prompt-id erbij), bevriest de controlegroep met dezelfde regels die `impact.ts` al gebruikte, en legt vast welke bronnen op dat moment meededen (migratie 0122, tabel `meetplannen`). `keurGoed()` roept hem aan bij het goedkeuren; `koppelAdresAanMeetplan()` (via `markPublished()`) zet het adres erbij zodra de pagina live gaat. Bijkomend voordeel van het bevriezen: golf 1 en golf 2 vergelijken nu altijd dezelfde controlegroep, waar die eerder bij elke golf opnieuw werd uitgerekend en tussentijds kon veranderen door een andere publicatie. `pickControlPrompts()` (verplaatst en geëxporteerd uit `impact.ts`) sluit een prompt nu uit via `meetplannen` van gepubliceerde pagina's in plaats van via het lege `content_piece_targets`. Ketenscenario 33.
+
+N4 en N7 (27 september 2026, in één ronde gebouwd): N4 maakt de kansen zichtbaar in wat AI daadwerkelijk citeert. `bewijsUitMetingen()` (`lib/kansen/rapport.ts`) telt per kans en per bron (ChatGPT, AI Overview) of `cited_sources` van een vermelding het eigen domein bevat (`isOnBrandDomain()`, `lib/url.ts`), en zet `eigenSiteGeciteerd` op waar, onwaar of onbekend (geen meting); Search Console en de consultant kennen dit veld niet. `kans_bewijs.eigen_site_geciteerd` bestond al sinds migratie 0118 maar werd nooit gevuld, dus deze reparatie kostte geen nieuwe migratie. N7 laat de voorraad zien waaróm een kans voorgesteld is: `lib/plans.ts` geeft nu `kansUitleg` (`kansen.uitleg`, N1) en `kansBewijs` (nieuwe `bewijsRegel()` in `lib/kansen/prioriteit.ts`, één zin per bron) mee in `PlanBundle`, met een gerichte extra query op `kans_bewijs` (alleen de kolommen die de zin nodig heeft). Op het bord staat de uitleg nu direct zichtbaar bij het uitklappen van een kaart, het bewijs per bron in een `<details>`-blokje eronder; beide voor klant en consultant gelijk. `docs/ux-design.md` bijgewerkt. Eenheidstests voor `bewijsRegel()`; N4's eigen productieverificatie op een proefmerk en N7's klantlogin-verificatie staan nog open.
+
+Op productie nagelopen (27 september 2026): 7 pagina's waren al goedgekeurd vóórdat M1 bestond en hadden dus geen meetplan, allemaal nog niet gepubliceerd. Voor elke pagina de doelvragen uit haar rapport en de actieve vragen van haar analyse opgehaald, met de hand tegen dezelfde regels als `maakMeetplan()` nagerekend (de doelvraag-runId's kwamen overeen met hun prompt-id in `tracking_runs`, ter controle nagerekend), en via de Supabase MCP-tool ingevoegd: 1 tot 5 doelvragen per pagina, evenveel bevroren controlevragen, bronnen `openai` en `ai_overview` (die stond aan op productie, nagekeken via de Vercel-omgevingsvariabelen). Achteraf per pagina het aantal doelvragen en controlevragen gecontroleerd tegen de invoer. `scripts/meetplan-achterstand.ts` doet dit voortaan automatisch, voor de volgende keer dat dit gebeurt (een tweede fase van fase 1, een nieuw profiel dat van vóór M1 stamt).
+
+G1 (27 september 2026, besluit V7, migratie 0123): de eerste, lichte bouwsteen van de
+gebeurtenissenlaag. `gebeurtenissen` is het logboek (merk, soort, welke rij veranderde); nu alleen de
+soort "kennis gewijzigd". `lib/gebeurtenissen/` heeft `publiceer()` (legt de gebeurtenis vast en zet
+per abonnee een taak in de bestaande wachtrij) en een register van abonnees, dat in G1 bewust leeg
+blijft: er valt pas iets te herzien als er kansen zijn die aan kennis hangen, en dat is G3 en G4.
+`lib/kennis/vastleggen.ts` publiceert al wel bij elke geslaagde schrijfactie (`legVast`, `bevestig`,
+`wijsAf`, `vervang`, `nietOpSite`, `deelIn`), best effort: een mislukte melding blokkeert de kennis
+zelf niet, maar wordt hard gelogd. Eén punt kreeg een eigen tabel in plaats van vertrouwen op de code:
+`gebeurtenis_verwerkingen` onthoudt per abonnee welke gebeurtenis al verwerkt is, en
+`verwerkGebeurtenis()` kijkt daar eerst, vóór het werk van de abonnee. Dat vangt af dat de werker
+dezelfde taak twee keer probeert (een mislukte poging die opnieuw start, of een taak die vastliep en
+teruggevorderd wordt), zonder dat elke toekomstige abonnee daar zelf aan hoeft te denken. Ketenscenario
+35 bewijst het met een testabonnee: `verwerkGebeurtenis()` twee keer achter elkaar aangeroepen voor
+dezelfde gebeurtenis geeft precies één aanroep van de abonnee en precies één verwerkingsrij.
+
+C3 (27 september 2026, migratie 0124): `content_pieces.gebruikte_kennis` (uuid-array) legt vast welke
+kennisitems in blok A van díe versie stonden. `tekstKolommen()` vult hem uit dezelfde keuze die de
+schrijver kreeg (`kiesVoorBlokA()`), dus geen extra query en geen oordeel van de schrijver zelf (B9
+blijft staan): de code wijst aan, niet het model. Geldt voor schrijven, een behouden herschrijving en
+een nieuwe versie op verzoek van de klant, want die drie paden lopen alle drie via `tekstKolommen()`.
+Voer voor G2 (afhankelijkheden): straks weet de app niet alleen wélke pagina's er zijn, maar ook welke
+op welk kennisitem leunen.
+
+G2 (27 september 2026, migratie 0125): de vraag "wat hangt er aan deze dienst" is nu één query.
+`afhankelijkheden` heeft één rij per (kans of pagina, kennisitem); `lib/afhankelijkheden/
+vastleggen.ts` is de enige schrijfingang, met dezelfde soort bewakingstest als `kansen`. Gevuld door
+wie het object maakt: `lib/kansen/uit-rapport.ts` en `handmatig.ts` bij het vastleggen van een kans
+(uit `geldt_voor`), `lib/pagina/taken.ts` bij het schrijven en herschrijven van een pagina (uit
+`gebruikte_kennis`, C3). Bewust nog niet gevuld: de meetvragen (`prompts`) dragen vandaag geen
+verwijzing naar een dienst of regio in de kennislaag, dus dat derde onderdeel van de opgave is nog
+open in plaats van geraden. Bestaande kansen en pagina's van vóór deze migratie zijn met een
+eenmalige, idempotente SQL-backfill (via de databaseverbinding van de beheertool, V15) nagevuld uit
+hun bestaande `geldt_voor` en `gebruikte_kennis`; een tweede run vindt niets nieuws. Ketenscenario 37.
+
+G3 (27 september 2026, migratie 0126): de eerste echte abonnee. "Wij doen geen warmtepompen meer"
+(een dienst afwijzen) zet de kansen die erop leunden nu op `vervallen`, een gewone wijziging (een
+nieuwe prijs) op `te_herzien`; een pagina die dezelfde kennis gebruikte krijgt een melding
+(`content_pieces.kennis_gewijzigd_op`). Niets draait vanzelf opnieuw: alleen een status en een
+melding veranderen, er wordt niets herschreven of opnieuw gemeten. `lib/gebeurtenissen/register.ts`
+werd een mutable lijst met een `registreer()`-functie: de echte abonnee (`lib/gebeurtenissen/
+abonnees/kennis-wijziging-impact.ts`) heeft `server-only` nodig (hij doet database-aanroepen), en
+zou dat via een gewone import naar het register slepen; dat register moet puur blijven, want
+`scripts/test-unit.ts` importeert het rechtstreeks. Nu registreert de abonnee zichzelf bij het
+laden, en dat bestand wordt alleen om die bijwerking geïmporteerd vanuit `lib/jobs/handlers.ts`
+(waar de werker toch al vandaan draait). Onderweg een echte fout gevonden: `vervang()` (een nieuwe
+versie van een kennisitem) publiceerde de gebeurtenis met het NIEUWE item-id, terwijl een bestaande
+kans of pagina nog naar het OUDE id verwijst (dat is waar `legAfhankelijkhedenVast()` destijds op
+schreef). Zonder reparatie zou een aanpassing via het kennisoverzicht (K7) nooit een kans of pagina
+raken. `meldWijziging()` publiceert nu met het oude id als de handeling een vervanging is.
+Ketenscenario 38.
+
+G3, het scherm (27 september 2026): het kennisoverzicht (`/merk/[id]/admin/kennis`) toont nu, alleen
+als er iets geraakt is, welke kansen op `te herzien` of `vervallen` staan en welke pagina's een
+melding hebben, met een kosteninschatting (`geraaktOverzicht()` in `lib/kansen/impact.ts`, de
+bovengrens van $0,17 per pagina uit de WP8-proef). Geen actieknop: het scherm laat alleen zien wat er
+is, ORBIT ENGINE herschrijft niets vanzelf. Ketenscenario 38 dekt ook `geraaktOverzicht()` zelf.
+Niet gedaan: bekijken met een echte browser en klantlogin, de werkomgeving heeft geen
+Supabase-omgevingsvariabelen om een dev-server tegen productie te draaien.
+
+G4 (27 september 2026, migratie 0127): de verversingslogica na het gesprek wordt een abonnee. Tot nu
+berekenden de bijwerkroute (`/api/profiles/[id]/refresh`) en het onboardingscherm allebei apart, op
+het moment zelf, welke profielvelden een mens zette sinds de laatste onderzoeksronde: een live
+vergelijking tegen `profile_field_sources` en `deep_research_at`. De tweede echte abonnee,
+`onderzoek_refresh`, houdt dat nu bij op `profiles.velden_te_verversen` zodra `slaProfielOp()`
+(`lib/kennis/uit-gesprek.ts`) een gebeurtenis publiceert met de gezette velden; beide plekken lezen
+voortaan die lijst. De regels zelf (`lib/pipeline/onboarding-refresh.ts`, `planRefresh()`, welk veld
+welke stap triggert, de kosteninschatting, de bevestigingsknop) zijn geen letter veranderd: dezelfde
+velden geven dezelfde uitkomst. `profile_field_sources` blijft bestaan en gevuld, want die tabel
+beschermt ook los hiervan een door een mens gezet veld tegen een volgende onderzoeksronde
+(`lib/pipeline/field-merge.ts`); alleen deze twee plekken lezen hem niet meer. Een nieuwe
+onderzoeksronde (`prepare-profile.ts`) maakt de lijst weer leeg, in dezelfde schrijfactie als
+`deep_research_at`. Het bewijs dat er niets veranderde aan het gedrag: de bestaande ketentest "Wat er
+in het gesprek verandert, verandert het onderzoek" (het verificatiecriterium van onboarding 3.0 fase
+4) slaagt ongewijzigd, zonder dat de test ook maar een regel hoefde te veranderen. Ketenscenario 39
+bewijst de nieuwe weg apart. Niet gedaan: bekijken in een echte browser, om dezelfde reden als bij G3.
+
+G5 (27 september 2026): besloten te stoppen bij de twee abonnees van G3 en G4. Ze lossen allebei een
+echt probleem op: wat een wijziging raakt, en de verversingslogica na een gesprek. "Maand vrijgegeven"
+en "pagina gepubliceerd" als gebeurtenis maken (de rest van G5) heeft vandaag geen probleem dat erom
+vraagt, en dat bouwen zou de laag alleen maar complexer maken zonder dat er iets tegenover staat
+(§11 risico 4 van het plan). Fase 3 (gebeurtenissen en afhankelijkheden) is daarmee af.
+
+N5 (27 september 2026, besluit V2): de consultant kan nu een kans toevoegen die de meting niet vond. `content_pieces.analysis_id` staat overal `not null`, dus zonder een analyse erachter kan zo'n kans nooit een pagina worden; `voegHandmatigeKansToe()` (`lib/kansen/handmatig.ts`) maakt daarom een minimale analyse aan (dezelfde `user_id`/`buildAnalysisName()` als bij een gewoon onderwerp) en archiveert hem meteen, zodat hij niet tussen de echte clusters verschijnt. `kansen.analysis_id` blijft zelf NULL: dat is het "Niet gemeten"-label op het bord. De opgegeven doelvragen worden als `prompts` vastgelegd, klaar voor een latere meting. Bewust nog niet gebouwd: die meting zelf ("een eigen nulmeting", besluit V2 letterlijk). De bestaande wachtrij (`enqueueMeasurement()`) eindigt in `generateReport()` zodra de laatste vraag binnen is, en dat zou voor één handmatige kans een tweede, overbodige aanbeveling en een dubbele kans proberen te maken; een eigen aftakking van die aggregatie is nodig en is met opzet buiten dit werkpakket gelaten. Formulier op het contentplan (`handmatige-kans-formulier.tsx`, staff-only), route `/api/profiles/[id]/kansen/handmatig`. Ketenscenario 34 dekt kans tot en met de aangemaakte pagina (status `briefing`) onder de schaduwanalyse, via dezelfde `bereidVoor()`-ketting als elke andere kans (geen wijziging nodig aan `clusterVan()`: die leest toch al `source_analysis_id` eerst).
+
+
+A4 en A5 van `docs/tasks/van-pijplijn-naar-kennissysteem.md` (27 september 2026). A4: het
+gespreksscherm (`admin/onboarding`) toont nu bovenaan de kennisgaten (N6) van elke kans die nog
+geschreven moet worden, per domein gegroepeerd en met de kansen met de hoogste prioriteit
+(`ordenKansen()`, N1) het eerst genoemd. Geen nieuwe berekening: `kennisrondeVoorMerk()`
+(`lib/kansen/kennisronde.ts`) leest alleen `kansen.kennis_ontbreekt`, al gevuld door N6. A5: een
+pagina die in de briefing wacht op de klant laat nu zien sinds wanneer, op het startscherm van de
+klant (`lib/work.ts`) en op het CSM-overzicht van de consultant, waar het ook meetelt in het segment
+"Wacht op de klant" (`lib/csm.ts`, `lib/csm-data.ts`). De e-mail (`lib/email/question-reminder.ts`)
+rijdt mee op de bestaande cron `/api/cron/reminders`, die al uit `vercel.json` gehaald was vanwege de
+Hobby-limiet van twee cron-taken; een derde, eigen cron kon dus niet. Een eigen kolom
+`analyses.question_reminder_sent_at` (migratie 0128, additief, op productie toegepast) houdt hem apart
+van de bestaande publicatieherinnering. Niet op productie gezien: er staat op dit moment geen enkele
+pagina in `briefing` (alle 11 staan op `ready`), dus de herinnering wacht op de volgende keer dat een
+pagina daar weer in komt te staan.
+
+M4, de bewijsladder (28 september 2026): het scherm Zoekverkeer toont per pagina niet langer één
+woordoordeel ("gestegen"), maar zeven tredes van gepubliceerd tot omzet, elk met de stand bewezen,
+geen verandering, te weinig gegevens of geen gegevens (`lib/meting/bewijsladder.ts`). "Genoemd door
+AI" en "geciteerd door AI" lezen de bestaande effectmeting (M1, M3) en rekenen niets opnieuw uit; een
+daling telt niet mee als bewijs van meer zichtbaarheid maar blijft wel als daling leesbaar in de
+uitleg. "Zichtbaar in Google" en "verkeer" gebruiken Search Console-tellingen sinds publicatie zonder
+foutmarge, want het zijn echte tellingen van Google en geen steekproef van 30 vragen zoals de
+AI-meting. "Conversie" en "omzet" staan altijd op "geen gegevens": er is geen Analytics- of
+CRM-koppeling (§5 van het plan), en de tekst zegt dat met zoveel woorden in plaats van het te
+verzwijgen. Niet op productie te zien: 0 gepubliceerde pagina's en 0 metingen op dit moment, dus de
+ladder wacht op de eerste live pagina.
+
+Toewijzen per e-mailadres (28 september 2026): `/merk/[id]/admin/toewijzen` kon een profiel alleen aan
+een BESTAANDE gebruiker koppelen, gekozen uit een keuzelijst; een nieuw klantaccount aanmaken kon
+alleen in het Supabase-dashboard, een bewuste keuze uit de tijd dat er nog geen echte klant was
+(comment bij `app/api/profiles/[id]/assign/route.ts`, "Accounts aanmaken hoort hier NIET"). Die
+aanname klopt niet meer zodra er echte klanten door de toewijsstap gaan: de eigenaar wil dit gewoon in
+het scherm kunnen doen. `AssignBox` heeft er daarom een e-mailveld bij gekregen, en de route
+`POST /api/profiles/[id]/assign-by-email` hergebruikt de bestaande uitnodigingsinfrastructuur van
+migratie 0047 (`account_invites`, al in gebruik door `TeamBox` op hetzelfde scherm) in plaats van een
+tweede uitnodigingsmechanisme te bouwen: bestaat het adres al als gebruiker, dan is het resultaat
+identiek aan de keuzelijst (`wijsToeAanGebruiker()`); bestaat het nog niet, dan maakt
+`wijsToeAanNieuwAccount()` een nieuw account, wijst het profiel er meteen aan toe en geeft een
+uitnodigingslink terug om te kopiëren (`lib/profile-assign.ts`). `profiles.user_id` blijft in dat
+tweede geval bewust op de consultant staan tot de klant de uitnodiging accepteert: de accountlaag
+(laag 1) geeft dan al toegang, precies zoals een extra teamlid via `TeamBox` dat ook al deed. Voor
+Van den Udenhout (udenhout.nl, het eerste profiel van de nieuwe kennissysteem-architectuur, F0.1)
+alvast klaargezet als eerste toepassing. Ketenscenario "Toewijzen per e-mailadres" dekt beide paden.
+
+Aanbodboom mist diensten bij een retailer (28 september 2026, gevonden bij Van den Udenhout, F0.1):
+`buildOfferingTree()` (`lib/pipeline/offering.ts`) kiest één instructie op basis van `business_model`,
+en die voor "retailer" vroeg alleen om categorieën, productgroepen en gevoerde merken, nooit om
+diensten. Van den Udenhout kreeg dat label (verkoopt auto's van andere merken) en de aanbodboom bleef
+daardoor steken op 11 knopen: financiering, lease, verhuur en schadeherstel, allemaal met eigen
+paginas op de site (nagekeken met een query op `profile_pages`, tientallen pagina's tot 4000 tekens),
+kwamen nooit in beeld. Geen bug in de crawl of de bewijscontrole, die werkten prima; de opdracht aan
+het model vroeg er simpelweg nooit naar. Veel retailers verdienen naast de verkoop ook aan dat soort
+diensten, dus de instructie voor "retailer" vraagt er nu expliciet ook naar (kind `dienst`), naast wat
+er al gevraagd werd. Geen nieuwe knoopsoort nodig: `dienst` bestond al in `lib/schemas/offering.ts`,
+voor het geval `dienstverlener`. Op productie nog niet opnieuw gedraaid: dat kan de eigenaar zelf met
+de knop "Onderzoek opnieuw" op het aanbodscherm van Van den Udenhout, zodra deze wijziging gemergd is.
+
+Search Console-koppelingen als tabel (28 september 2026): het scherm `/instellingen/koppelingen`
+zette alle merken met hun volledige formulier onder elkaar, en na "Opnieuw controleren" was niet te
+zien of het gelukt was: de melding verdween na een paar seconden en een property zonder geslaagde
+leespoging gaf geen enkel signaal. Nu staat er een tabel (datum toegevoegd, klant, website, status)
+met een groen of rood bolletje plus tekst, en het formulier per klant op
+`/instellingen/koppelingen/[id]`, met hetzelfde bolletje bovenaan. Groen vraagt een property, een
+geslaagde leespoging én geen fout sinds die poging (`lib/search-console/koppelstatus.ts`, zeven
+tests): de nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout, dus op de datum
+alleen afgaan hield een koppeling die gisteren brak groen.
+
+N3, Search Console als kansbron (28 september 2026): het schema en de prioritering stonden al
+sinds N1 klaar voor de bron `search_console` (`steunVan()`, `uitlegVan()` in `lib/kansen/
+prioriteit.ts` kenden hem al); dit werkpakket vulde de schrijfkant die daar nog ontbrak. Een
+zoekopdracht hoort bij een kans als zijn tekst een dienst of werkgebied uit `kansen.geldt_voor`
+als heel woord bevat, dezelfde regel als `geldtVoorVan()` al gebruikte voor een werkgebied
+(`bevatPlaats()` is daarom hernoemd naar `bevatHeelWoord()` en geëxporteerd). Bewuste vernauwing:
+alleen bewijs bij een bestaande kans, geen gloednieuwe kans puur uit een zoekterm zonder
+onderliggende kans. Dat laatste vergt een titel afleiden uit kale zoektermen zonder model
+(§4, P4), en `docs/tasks/zoekdata-in-de-keten.md` noemt precies die stap zelf al "de moeilijkste
+stap" voor hetzelfde vraagstuk bij het schrijven. Het "klaar als" van N3 (minstens één kans met
+Search Console-bewijs) vraagt niet meer dan de bestaande helft. `legZoekverkeerBewijsVast()`
+(`lib/kansen/uit-search-console.ts`) draait automatisch na elke geslaagde `gsc_sync`-taak.
+Ketenscenario 40 op een proefprofiel: de juiste kans krijgt bewijs (vertoningen, klikken en een
+op vertoningen gewogen positie, niet het gewone gemiddelde), een kans zonder dienst of werkgebied
+blijft ongemoeid, en een tweede aanroep overschrijft dezelfde rij in plaats van een tweede te
+maken. Op productie nog niet gezien: Van den Udenhout heeft Search Console gekoppeld en
+geverifieerd, maar nog geen kansen (geen cluster gestart).
 
 ## 28 september 2026: het Kwaliteitslab ook uit het menu
 

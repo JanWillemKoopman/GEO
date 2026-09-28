@@ -1,0 +1,86 @@
+[
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "46cc3058-7023-4334-9a5d-d52f570803fa",
+  "status": 200,
+  "ms": 1255,
+  "antwoord": "{\"id\":\"46cc3058-7023-4334-9a5d-d52f570803fa\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Welke bandbreedtes of voorbeeldbedragen kunnen jullie delen voor zwemvijvers, en welke onderdelen maken een project duurder of goedkoper?\""
+ },
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "2425df20-eac1-4390-8fc8-c03f2e8be1ef",
+  "status": 200,
+  "ms": 372,
+  "antwoord": "{\"id\":\"2425df20-eac1-4390-8fc8-c03f2e8be1ef\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Welke typen filters of zwemvijversystemen leggen jullie daadwerkelijk aan, en welk onderhoud vraagt elk type?\",\"reason\":\"Daarmee kan de ui"
+ },
+ {
+  "merk": "f14e89ab-6db2-41ea-8bbc-0827d6025470",
+  "factId": "5b06e595-7e28-476b-9bca-2af21dd866cb",
+  "status": 200,
+  "ms": 408,
+  "antwoord": "{\"id\":\"5b06e595-7e28-476b-9bca-2af21dd866cb\",\"profile_id\":\"f14e89ab-6db2-41ea-8bbc-0827d6025470\",\"analysis_id\":\"8382196f-47af-49c0-bed0-d6001120b9ae\",\"question\":\"Welke zwemvijverprojecten hebben jullie uitgevoerd in of rond Best, Veldhoven, Geldrop, Helmond en Son en Breugel?\",\"reason\":\"Plaatselijke"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "efa00d8e-3578-4b9f-b03a-24b8fee6a59e",
+  "status": 200,
+  "ms": 339,
+  "antwoord": "{\"id\":\"efa00d8e-3578-4b9f-b03a-24b8fee6a59e\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Wat zit bij een standaard ketelvervanging inbegrepen, bijvoorbeeld het verwijderen en afvoeren van de oude ketel, aansluiting en inbedrijf"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "53323243-8a07-4839-8484-af55b749f20d",
+  "status": 200,
+  "ms": 378,
+  "antwoord": "{\"id\":\"53323243-8a07-4839-8484-af55b749f20d\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Welke prijsrange mag je noemen voor ketelvervanging inclusief installatie, en welke zaken kunnen die prijs veranderen?\",\"reason\":\"Een onde"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "340e1190-6660-4807-a9a0-9ecba6a773b0",
+  "status": 200,
+  "ms": 398,
+  "antwoord": "{\"id\":\"340e1190-6660-4807-a9a0-9ecba6a773b0\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Hoe snel kun je doorgaans langskomen voor een offerte of vervanging, buiten de al genoemde storingsdienst voor contractklanten?\",\"reason\":"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "13218af1-06c4-476c-9807-e14554eb514c",
+  "status": 200,
+  "ms": 364,
+  "antwoord": "{\"id\":\"13218af1-06c4-476c-9807-e14554eb514c\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Welke woningkenmerken controleer je bij advies over een hybride warmtepomp, en wanneer raad je die juist niet aan?\",\"reason\":\"Dit maakt de"
+ },
+ {
+  "merk": "ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b",
+  "factId": "28dee428-306e-4cc2-bb2c-a5c564237dae",
+  "status": 200,
+  "ms": 380,
+  "antwoord": "{\"id\":\"28dee428-306e-4cc2-bb2c-a5c564237dae\",\"profile_id\":\"ca8313fb-3c2e-4b37-9985-0f8be8dc6e8b\",\"analysis_id\":\"4795ebff-c8d0-4e8e-ac58-1be4fc75e136\",\"question\":\"Bied je bij ketelvervanging een onderhoudscontract aan, en wat is daarin precies inbegrepen?\",\"reason\":\"Dit sluit aan op de gewenste groei"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "fd225ab6-1dd4-4db4-9362-7cd0173799cd",
+  "status": 200,
+  "ms": 468,
+  "antwoord": "{\"id\":\"fd225ab6-1dd4-4db4-9362-7cd0173799cd\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Welke plaatsen bedient Pompert momenteel voor rijles, en waar kan de leerling worden opgehaald?\",\"reason\":\"Dit maakt de informatie voor Be"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "1983ff0c-0508-4e62-bd69-44d7eaf86ec7",
+  "status": 200,
+  "ms": 360,
+  "antwoord": "{\"id\":\"1983ff0c-0508-4e62-bd69-44d7eaf86ec7\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Wat zijn de huidige kosten per les en eventuele pakketten voor automaatrijles?\",\"reason\":\"Een concrete vergelijking is nuttig voor mensen "
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "01d47076-afd1-4b62-aec9-33f09d5b0238",
+  "status": 200,
+  "ms": 308,
+  "antwoord": "{\"id\":\"01d47076-afd1-4b62-aec9-33f09d5b0238\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Welke theoriehulp biedt Pompert zelf aan, en helpt die ook bij de voorbereiding op het praktijkexamen?\",\"reason\":\"Dit is nodig om op de He"
+ },
+ {
+  "merk": "467f8307-74dd-4e84-b443-40cc1ce88f9e",
+  "factId": "332be0ff-24da-4ade-874a-4aefe0b6759e",
+  "status": 200,
+  "ms": 309,
+  "antwoord": "{\"id\":\"332be0ff-24da-4ade-874a-4aefe0b6759e\",\"profile_id\":\"467f8307-74dd-4e84-b443-40cc1ce88f9e\",\"analysis_id\":\"c7332aff-4ed8-4da5-b06d-d2189b42efba\",\"question\":\"Wat zijn op dit moment de eerst mogelijke proefles- en startdata voor leerlingen die extra begeleiding zoeken?\",\"reason\":\"Actuele informat"
+ }
+]

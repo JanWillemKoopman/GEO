@@ -1,0 +1,720 @@
+{
+ "analysis_id": "a3419688-ab38-4d8a-b03d-3ab0c78dc968",
+ "summary": "In deze eerste meting werd Autorijschool Pompert in ChatGPT niet genoemd bij de 30 onderzochte vragen. De zichtbaarheidsscore is ongeveer 0 op 100; de meetmarge is ±8 punten, dus zie dit als een orde van grootte en niet als een exact cijfer. Google AI Overview noemde Pompert wel. De meeste kansen liggen bij vragen van mensen die in Eindhoven, Best of Helmond direct een rijschool met faalangstbegeleiding zoeken.",
+ "gaps_json": [
+  {
+   "cluster": "Proefles bij faalangst en in Eindhoven",
+   "problem": "Pompert werd bij beide vragen niet genoemd. Bij de vraag over een proefles rond Eindhoven noemde het antwoord Rijschool Feka en Safane Rijschool. Bij de vraag over boeken in Eindhoven noemde het Rijschool Feka, Fit2Drive en Rijschool MXM.",
+   "evidenceRunIds": [
+    "e648a3ad-2ce3-4bbf-b5e5-67a2a48286f5",
+    "990f93b2-92bb-4e22-b623-ca65d2bfe236"
+   ]
+  },
+  {
+   "cluster": "Beschikbaarheid en boeken in Best",
+   "problem": "Pompert werd niet genoemd bij vragen over snel starten of boeken met extra begeleiding. In de antwoorden kwamen Rijschool Feka, Rijschool Best / De Verkeersopleider en Rijles-Best.nl voor.",
+   "evidenceRunIds": [
+    "edef28af-327d-46ca-9e69-3d3b43fcee8c",
+    "6ad3f205-0277-48d3-a7c3-45c15d8fa074"
+   ]
+  },
+  {
+   "cluster": "Beschikbaarheid in Helmond",
+   "problem": "Pompert werd niet genoemd bij de vraag over binnenkort starten in Helmond. Het antwoord noemde Rijschool Helmond / Verkeersopleider, Grow Rijopleidingen Helmond, Rijschool AutoPilot en Rijschool Aked.",
+   "evidenceRunIds": [
+    "f9117f7d-375a-4840-a280-c219e9de2b2c"
+   ]
+  },
+  {
+   "cluster": "Faalangstexamen en extra oefening",
+   "problem": "Pompert werd niet genoemd bij de vraag hoe rijscholen voor een faalangstexamen te vergelijken zijn. Het antwoord noemde onder meer Rijschool Wildenberg B.V., Rijschool Feka, Rijschool Simplicity en Roadmasters.",
+   "evidenceRunIds": [
+    "1fc39352-8726-4588-9e10-c4e4c0ec6e9d"
+   ]
+  },
+  {
+   "cluster": "Kennismaken vóór een lespakket",
+   "problem": "Pompert werd niet genoemd bij de vraag over eerst kennismaken met een instructeur. Het antwoord noemde onder meer Rijles24, NXXT Rijschool Eindhoven en Rijschool Feka.",
+   "evidenceRunIds": [
+    "eacd60b1-4d81-41f2-af6d-84bebf977ab3"
+   ]
+  },
+  {
+   "cluster": "Rustige begeleiding in Helmond en Waalre",
+   "problem": "Pompert werd niet genoemd bij vragen over rustig blijven of lessen aanpassen aan spanning. In Helmond noemde het antwoord onder meer Rijschool Aked en Rijwijs; in Waalre onder meer Roadmasters en Rijschool Heezen.",
+   "evidenceRunIds": [
+    "386e94c4-e4c5-421f-9e1e-43996a9fb615",
+    "73ad0047-eb9d-47b7-907f-deb35f8f91c6"
+   ]
+  },
+  {
+   "cluster": "Losse lessen bij faalangst",
+   "problem": "Pompert werd niet genoemd bij de vraag over losse lessen om begeleiding eerst uit te proberen. Rijschool Feka was de enige genoemde rijschool.",
+   "evidenceRunIds": [
+    "fbd94e58-1e40-428f-90aa-6377671c2122"
+   ]
+  },
+  {
+   "cluster": "Faalangstspecialist en rijschoolkeuze in Eindhoven",
+   "problem": "Pompert werd niet genoemd bij vragen over een specialist, ervaring met faalangst en het vergelijken van begeleiding. De antwoorden noemden onder meer Rijschool Feka en Rijschool Wildenberg B.V.",
+   "evidenceRunIds": [
+    "779524ed-784d-441c-a455-988daeed837c",
+    "697493a2-bbb1-4b21-8dc5-8012eedc285a",
+    "929f02f8-d20c-4ce7-9db8-d55e80c2b69a"
+   ]
+  },
+  {
+   "cluster": "Leren op eigen tempo in Best",
+   "problem": "Pompert werd niet genoemd bij de vraag over leren rijden op eigen tempo met faalangst. Het antwoord noemde Rijschool Dekker, Rijschool Best / De Verkeersopleider, Rijles-Best.nl en Rijschool Feka.",
+   "evidenceRunIds": [
+    "81338dd3-1964-41ae-8948-23b945e6004b"
+   ]
+  },
+  {
+   "cluster": "Extra begeleiding in Geldrop",
+   "problem": "Pompert werd niet genoemd bij de vraag over extra hulp bij zenuwen voor autorijles. Het antwoord noemde Autorijschool Elsenaar, Fit2Drive, Rijschool Dekker en Rijschool Waymaker.",
+   "evidenceRunIds": [
+    "d1591620-c604-4c55-b503-296024d569d5"
+   ]
+  }
+ ],
+ "recommendations_json": [
+  {
+   "why": "De bestaande pagina over rijangst sluit aan, maar moet duidelijker uitleggen hoe Pompert begeleiding aanpast, hoe je kennismaakt en hoe je een proefles aanvraagt. Dat helpt mensen die een specialist zoeken én ouders of begeleiders die willen beoordelen of de aanpak past.",
+   "type": "landing",
+   "title": "Maak de faalangstbegeleiding in Eindhoven concreet",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Kan ik rond Eindhoven een proefles krijgen om te kijken of de aanpak van een rijinstructeur bij mijn faalangst past?",
+     "runId": "e648a3ad-2ce3-4bbf-b5e5-67a2a48286f5",
+     "weight": 0.2,
+     "cluster": "Proefles bij faalangst",
+     "promptId": "13fdcf9d-1907-4d0c-92a7-1f608c43df34"
+    },
+    {
+     "text": "Waar kan ik in Eindhoven een proefles boeken bij een rijinstructeur die rustig omgaat met faalangst?",
+     "runId": "990f93b2-92bb-4e22-b623-ca65d2bfe236",
+     "weight": 0.2,
+     "cluster": "Proefles Eindhoven",
+     "promptId": "52aab7a1-5d09-4588-9a0c-3ea5f188d2e3"
+    },
+    {
+     "text": "Welke rijschool in Eindhoven is gespecialiseerd in rijles voor mensen met faalangst?",
+     "runId": "779524ed-784d-441c-a455-988daeed837c",
+     "weight": 0.12,
+     "cluster": "Faalangstspecialist Eindhoven",
+     "promptId": "4a2382a8-2c00-4211-b604-14eb87e41cbc"
+    },
+    {
+     "text": "Welke rijschool in Eindhoven is geschikt voor iemand met faalangst, en hoe vergelijk ik de begeleiding?",
+     "runId": "697493a2-bbb1-4b21-8dc5-8012eedc285a",
+     "weight": 0.12,
+     "cluster": "Rijschool kiezen bij faalangst",
+     "promptId": "63f8f9a5-fd95-42fe-869b-acd751289a91"
+    },
+    {
+     "text": "Waar vind ik in Eindhoven een rijschool die ervaring heeft met leerlingen met faalangst?",
+     "runId": "929f02f8-d20c-4ce7-9db8-d55e80c2b69a",
+     "weight": 0.12,
+     "cluster": "Rijschool vinden bij faalangst",
+     "promptId": "669edc25-432f-43ae-b94e-f191e1e66f66"
+    }
+   ],
+   "priority": 1,
+   "relatedUrl": null,
+   "existingUrl": "https://www.autorijschoolpompert.nl/angst-voor-autorijden/",
+   "targetIntent": "Iemand uit Eindhoven met faalangst achter het stuur die een rijschool zoekt en wil beslissen waar die een proefles boekt."
+  },
+  {
+   "why": "Mensen zoeken in Best niet alleen een rustige aanpak, maar willen ook weten hoe snel lessen kunnen beginnen en hoe extra begeleiding geregeld wordt. Zet die informatie duidelijk op de bestaande pagina voor Best.",
+   "type": "landing",
+   "title": "Werk de pagina over rijles in Best bij met starttijd en begeleiding",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Waar kan ik in Best terecht voor rijlessen met faalangstbegeleiding, en hoe snel is er plek?",
+     "runId": "edef28af-327d-46ca-9e69-3d3b43fcee8c",
+     "weight": 0.2,
+     "cluster": "Beschikbaarheid van lessen",
+     "promptId": "b55d8233-5e5c-400a-b86a-82ca0d6968d3"
+    },
+    {
+     "text": "Waar kan ik in Best autorijles met faalangst boeken bij een instructeur die voldoende tijd heeft voor extra begeleiding?",
+     "runId": "6ad3f205-0277-48d3-a7c3-45c15d8fa074",
+     "weight": 0.2,
+     "cluster": "Beschikbaarheid boeken",
+     "promptId": "e4dc78eb-0bec-4513-b591-b5d36d90b391"
+    },
+    {
+     "text": "Zijn er in Best rijscholen waar je op je eigen tempo kunt leren rijden als je last hebt van faalangst?",
+     "runId": "81338dd3-1964-41ae-8948-23b945e6004b",
+     "weight": 0.12,
+     "cluster": "Lestempo aanpassen",
+     "promptId": "baf3f41c-035c-4057-817e-92c0f4511454"
+    }
+   ],
+   "priority": 2,
+   "relatedUrl": null,
+   "existingUrl": "https://www.autorijschoolpompert.nl/rijschool-best/",
+   "targetIntent": "Iemand uit Best met faalangst die snel rijles wil nemen en wil kiezen bij welke rijschool die kan starten."
+  },
+  {
+   "why": "De bestaande pagina is gericht op Helmond, maar moet deze hulp en de mogelijkheid om binnenkort te starten duidelijk benoemen als dat klopt. Zo vinden zoekers in de buurt sneller antwoord op hun belangrijkste praktische vragen.",
+   "type": "landing",
+   "title": "Vul de pagina voor Helmond aan met faalangstbegeleiding en beschikbaarheid",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Waar kan ik in Helmond rijlessen met extra begeleiding voor faalangst volgen en binnenkort starten?",
+     "runId": "f9117f7d-375a-4840-a280-c219e9de2b2c",
+     "weight": 0.2,
+     "cluster": "Beschikbaarheid Helmond",
+     "promptId": "11e15868-4abc-4668-8fcb-3f6454ef0578"
+    },
+    {
+     "text": "Waar kan ik in Helmond terecht voor rijles met een instructeur die me helpt rustig te blijven achter het stuur?",
+     "runId": "386e94c4-e4c5-421f-9e1e-43996a9fb615",
+     "weight": 0.12,
+     "cluster": "Rustige begeleiding",
+     "promptId": "b9bdb026-87dd-4c97-8a14-77dc0a1c7ac3"
+    }
+   ],
+   "priority": 3,
+   "relatedUrl": null,
+   "existingUrl": "https://www.autorijschoolpompert.nl/rijschool-helmond/",
+   "targetIntent": "Iemand uit Helmond die door faalangst extra begeleiding nodig heeft en wil weten of die binnenkort met lessen kan beginnen."
+  },
+  {
+   "why": "De bestaande CBR-pagina kan duidelijker beschrijven of Pompert helpt oefenen voor een faalangstexamen en wat die voorbereiding inhoudt. Beantwoord ook wat de leerling vooraf met de instructeur kan bespreken.",
+   "type": "faq",
+   "title": "Leg uit hoe Pompert helpt bij voorbereiding op een faalangstexamen",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Hoe vergelijk ik in Eindhoven rijscholen die een faalangstexamen en extra oefening daarvoor aanbieden?",
+     "runId": "1fc39352-8726-4588-9e10-c4e4c0ec6e9d",
+     "weight": 0.12,
+     "cluster": "Faalangstexamen",
+     "promptId": "ea43d6c1-7534-4d67-807b-e1d28dc00af6"
+    }
+   ],
+   "priority": 4,
+   "relatedUrl": null,
+   "existingUrl": "https://www.autorijschoolpompert.nl/autorijschool-pompert/cbr-peter-pompert-2/",
+   "targetIntent": "Iemand met faalangst voor het rijexamen die extra oefening overweegt en wil beslissen hoe die zich voorbereidt."
+  },
+  {
+   "why": "De informatie over de eerste rijles kan duidelijk uitleggen of een kennismaking of proefles mogelijk is, hoe die werkt en wanneer iemand daarna een lespakket kiest. Zo hoeft een nieuwe leerling niet meteen een pakket te beslissen.",
+   "type": "faq",
+   "title": "Maak kennismaken vóór een lespakket eenvoudig te begrijpen",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Welke rijscholen in Eindhoven laten je eerst kennismaken met de instructeur voordat je een lespakket kiest?",
+     "runId": "eacd60b1-4d81-41f2-af6d-84bebf977ab3",
+     "weight": 0.12,
+     "cluster": "Kennismaking en proefles",
+     "promptId": "b2f6b9fe-556c-4c64-b5ba-f655065148b5"
+    }
+   ],
+   "priority": 5,
+   "relatedUrl": null,
+   "existingUrl": "https://www.autorijschoolpompert.nl/wat-kan-ik-verwachten-tijdens-mijn-eerste-rijles/",
+   "targetIntent": "Iemand uit Eindhoven die twijfelt over een lespakket en eerst wil weten of er een klik is met de instructeur."
+  },
+  {
+   "why": "De bestaande pagina over Waalre past bij deze zoekvraag. Beschrijf concreet hoe een leerling kan aangeven dat spanning oploopt en hoe de les dan aangepast kan worden, als dit bij Pomperts aanpak hoort.",
+   "type": "landing",
+   "title": "Maak de pagina voor Waalre concreet over lessen bij spanning",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Hoe vind ik in Waalre een rijinstructeur die lessen kan aanpassen als ik tijdens het rijden gespannen raak?",
+     "runId": "73ad0047-eb9d-47b7-907f-deb35f8f91c6",
+     "weight": 0.12,
+     "cluster": "Flexibele lesaanpak",
+     "promptId": "67e78249-d306-4198-ac39-98f52669cdf3"
+    }
+   ],
+   "priority": 6,
+   "relatedUrl": null,
+   "existingUrl": "https://www.autorijschoolpompert.nl/rijschool-waalre/",
+   "targetIntent": "Iemand uit Waalre die tijdens het rijden gespannen raakt en wil kiezen voor een instructeur die het tempo kan aanpassen."
+  },
+  {
+   "why": "De prijspagina is de logische plek om helder te maken of losse lessen mogelijk zijn, wat die kosten en hoe een leerling begeleiding eerst kan uitproberen. Zo krijgt iemand antwoord zonder direct een pakket te hoeven kiezen.",
+   "type": "faq",
+   "title": "Zet proefles en losse lessen duidelijk bij de prijzen",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Welke rijschool in Eindhoven biedt bij faalangst losse lessen aan, zodat ik eerst de begeleiding kan uitproberen voordat ik een pakket kies?",
+     "runId": "fbd94e58-1e40-428f-90aa-6377671c2122",
+     "weight": 0.12,
+     "cluster": "Losse lessen en begeleiding",
+     "promptId": "11d7b30b-9b51-43e0-b74b-a6ab034f1496"
+    }
+   ],
+   "priority": 7,
+   "relatedUrl": null,
+   "existingUrl": "http://www.autorijschoolpompert.nl/prijzen-lespakketten/",
+   "targetIntent": "Iemand uit Eindhoven met faalangst die eerst losse lessen wil proberen en daarna wil beslissen over een lespakket."
+  },
+  {
+   "why": "De bestaande pagina voor Geldrop kan duidelijker beschrijven hoe Pompert rekening houdt met zenuwen en het lestempo daarop afstemt. Vermeld ook hoe iemand contact opneemt om de aanpak te bespreken.",
+   "type": "landing",
+   "title": "Maak extra begeleiding in Geldrop zichtbaar",
+   "action": "verbeteren",
+   "targets": [
+    {
+     "text": "Welke rijscholen in Geldrop bieden extra begeleiding als je zenuwachtig bent voor autorijles?",
+     "runId": "d1591620-c604-4c55-b503-296024d569d5",
+     "weight": 0.12,
+     "cluster": "Extra begeleiding",
+     "promptId": "3d4e6659-dc9a-439c-a18a-91859570d68d"
+    }
+   ],
+   "priority": 8,
+   "relatedUrl": null,
+   "existingUrl": "https://www.autorijschoolpompert.nl/rijschool-geldrop/",
+   "targetIntent": "Iemand uit Geldrop die zenuwachtig is voor autorijles en wil beslissen of Pompert passend extra begeleiding biedt."
+  }
+ ],
+ "declined_json": [],
+ "rapport_invoer": "Eigen merk: Autorijschool Pompert (Autorijles met faalangst)\nEigen zichtbaarheidsscore: 0/100 (elke vraag telt gelijk), GEWOGEN naar volumeband × koopwaarde: 0/100 (0% van de vermeldingen, over 120 bevestigde merken)\nBETROUWBAARHEID: de score rust op 30 metingen; de 95%-marge is ±8 punten. Presenteer de score dus als een ORDE VAN GROOTTE, niet als een exact cijfer, en trek geen conclusies uit verschillen die binnen die marge vallen.\nBRONNEN: de score hierboven gaat alleen over ChatGPT. In Google AI Overview werd het merk WEL genoemd. Schrijf dus nooit dat het merk nergens, bij geen enkele vraag of in geen enkel AI-antwoord genoemd werd; zeg dan \"in ChatGPT\".\nAANTAL ONDERZOCHTE VRAGEN: 30. Noem dit getal als je in de samenvatting zegt hoeveel vragen er onderzocht zijn, en verzin er geen ander. Die zijn samen 120 keer gemeten, want de zwaarstwegende vragen worden herhaald.\n\nDit is de EERSTE meting (periode 0); er is nog niets om mee te vergelijken. Beschrijf de stand.\n\nBEWIJSDOSSIER: de vragen waarop het eigen merk NIET genoemd werd, gesorteerd op gewicht (hoog gewicht = populair en of koopklaar). Per vraag staat hieronder precies welke bedrijven er in DAT antwoord voorkwamen.\n\n⚠️ HARDE REGEL: noem een concurrent alleen bij naam in verband met een specifieke vraag als die naam hieronder ONDER DIE VRAAG staat. Staat er dat er geen enkel bedrijf genoemd werd, dan is dát je conclusie. Haal er geen concurrent bij uit een andere vraag.\n\nV1 [gewicht 0.20, Overweging, transactional, cluster: Proefles bij faalangst] \"Kan ik rond Eindhoven een proefles krijgen om te kijken of de aanpak van een rijinstructeur bij mijn faalangst past?\"\n  Genoemd in dit antwoord:\n  - Rijschool Feka (concurrent, positie 1; bronnen: https://www.rijschoolfeka.nl/faalangst.html)\n  - Safane Rijschool (concurrent, positie 2; bronnen: https://safane.nl/)\n  Antwoord (begin): \"Ja. **Rijschool Feka in Eindhoven** lijkt een goede eerste optie: ze bieden een **gratis, vrijblijvende proefles van 60 minuten** en zeggen begeleiding te geven bij faalangst, met rustige opbouw en een vaste instructeur. ([rijschoolfeka.nl](https://www.rijschoolfeka.nl/faalangst.html))\n\nJe kunt ook **Safane Rijschool…\"\n\nV2 [gewicht 0.20, Beslissing, transactional, cluster: Proefles Eindhoven] \"Waar kan ik in Eindhoven een proefles boeken bij een rijinstructeur die rustig omgaat met faalangst?\"\n  Genoemd in dit antwoord:\n  - Rijschool Feka (concurrent, positie 1; bronnen: https://www.rijschoolfeka.nl/faalangst.html)\n  - Fit2Drive (concurrent, positie 2; bronnen: https://fit2drive.nl/)\n  - Rijschool MXM (concurrent, positie 3; bronnen: https://www.rijschoolmxm.nl/)\n  Antwoord (begin): \"Een paar Eindhovense opties die op hun website expliciet **faalangstbegeleiding** noemen:\n\n- **Rijschool Feka** — lijkt een goede eerste optie: ze beschrijven een rustige, stapsgewijze aanpak met een vaste instructeur. Je kunt via hun faalangstpagina een kennismaking/proefles aanvragen; ze vermelden dat die gratis en…\"\n\nV3 [gewicht 0.20, Overweging, transactional, cluster: Beschikbaarheid van lessen] \"Waar kan ik in Best terecht voor rijlessen met faalangstbegeleiding, en hoe snel is er plek?\"\n  Genoemd in dit antwoord:\n  - Rijschool Feka (concurrent, positie 1; bronnen: https://www.rijschoolfeka.nl/rijschool-best.html?utm_source=openai)\n  - Rijschool Best / De Verkeersopleider (concurrent, positie 2; bronnen: https://rijschoolbest.nl/)\n  - Rijscholenvergelijken (vergelijker, positie 4; bronnen: https://www.rijscholenvergelijken.nl/wachttijden?utm_source=openai)\n  Antwoord (begin): \"In Best vond ik twee rijscholen die expliciet extra begeleiding bij faalangst noemen:\n\n- **Rijschool Feka** – geeft les in Best, haalt je daar op en biedt faalangst- en rijangstbegeleiding. De rijschool zegt dat je **meestal binnen een week kunt starten**; een gratis proefles wordt aangeboden. Bel **06 41 278 856**.…\"\n\nV4 [gewicht 0.20, Beslissing, transactional, cluster: Beschikbaarheid boeken] \"Waar kan ik in Best autorijles met faalangst boeken bij een instructeur die voldoende tijd heeft voor extra begeleiding?\"\n  Genoemd in dit antwoord:\n  - Rijles-Best.nl (concurrent, positie 1; bronnen: https://www.rijles-best.nl/)\n  - Rijschool Feka (concurrent, positie 2; bronnen: https://www.rijschoolfeka.nl/rijschool-best.html)\n  - Rijschool Best / De Verkeersopleider (concurrent, positie 3; bronnen: https://rijschoolbest.nl/)\n  Antwoord (begin): \"In Best zou ik **eerst Rijles-Best of Rijschool Feka benaderen**. Beide noemen faalangstbegeleiding expliciet; Feka vermeldt bovendien een vaste instructeur en een gratis proefles van 60 minuten.\n\n- **Rijles-Best** – instructeurs zijn volgens de rijschool gespecialiseerd in faalangst en werken met extra structuur,…\"\n\nV5 [gewicht 0.20, Beslissing, transactional, cluster: Beschikbaarheid Helmond] \"Waar kan ik in Helmond rijlessen met extra begeleiding voor faalangst volgen en binnenkort starten?\"\n  Genoemd in dit antwoord:\n  - Rijschool Helmond / Verkeersopleider (concurrent, positie 1; bronnen: https://rijschoolhelmond.nl/)\n  - Grow Rijopleidingen Helmond (concurrent, positie 2; bronnen: https://growrijopleidingen.nl/rijscholen/helmond/)\n  - Rijschool AutoPilot (concurrent, positie 3; bronnen: https://rijschool-autopilot.nl/tarieven)\n  - Rijschool Aked (concurrent, positie 4; bronnen: https://www.rijschoolaked.nl/)\n  Antwoord (begin): \"In Helmond zijn dit goede opties om **rustig te starten met begeleiding bij faalangst**:\n\n- **Rijschool Helmond / Verkeersopleider** — zegt extra ondersteuning te bieden bij faalangst. Je kunt een proefles aanvragen en bespreken welk tempo of lespakket past; ze bieden ook flexibele lestijden en maatwerk.…\"\n\nV6 [gewicht 0.12, Overweging, commercial, cluster: Faalangstexamen] \"Hoe vergelijk ik in Eindhoven rijscholen die een faalangstexamen en extra oefening daarvoor aanbieden?\"\n  Genoemd in dit antwoord:\n  - Rijschool Wildenberg B.V. (concurrent, positie 2; bronnen: https://www.rijschoolwildenberg.nl/rijles-plus)\n  - Rijschool Feka (concurrent, positie 3; bronnen: https://www.rijschoolfeka.nl/faalangst.html)\n  - Rijschool Simplicity (concurrent, positie 4; bronnen: https://www.rijschoolsimplicity.nl/faq/)\n  - Roadmasters (concurrent, positie 5; bronnen: https://www.roadmasters.nl/media/het-faalangstexamen)\n  - Rijloker Eindhoven (concurrent, positie 6; bronnen: https://rijloket.nl/rijscholen/eindhoven)\n  - Clickdrive Eindhoven (vergelijker, positie 7; bronnen: https://clickdrive.nl/rijscholen/eindhoven)\n  Antwoord (begin): \"Het vergelijken van rijscholen in Eindhoven voor een **faalangstexamen en specifieke begeleiding** vraagt om een andere aanpak dan een reguliere vergelijking. Omdat de CBR-examenlocatie in Eindhoven (op De Hurk) voor iedereen hetzelfde is, zit het grote verschil in de **expertise van de instructeur** en de **opbouw…\"\n\nV7 [gewicht 0.12, Overweging, commercial, cluster: Kennismaking en proefles] \"Welke rijscholen in Eindhoven laten je eerst kennismaken met de instructeur voordat je een lespakket kiest?\"\n  Genoemd in dit antwoord:\n  - Rijles24 (concurrent, positie 1; bronnen: https://rijles24.nl/goedkope-rijschool-eindhoven/)\n  - NXXT Rijschool Eindhoven (concurrent, positie 2; bronnen: https://www.nxxt.nl/rijscholen/rijschool-eindhoven-161, https://www.nxxt.nl/rijschool-eindhoven)\n  - Denny Rossis (concurrent, positie 3; bronnen: https://www.nxxt.nl/rijscholen/rijschool-eindhoven-161)\n  - Rijschool Feka (concurrent, positie 4; bronnen: https://www.rijschoolfeka.nl/proefles.html, https://www.rijschoolfeka.nl/, https://www.rijschoolfeka.nl/gratis-proefles-Eindhoven.html)\n  - DriveYOU (concurrent, positie 5; bronnen: https://www.driveyou.nl/autorijschool/eindhoven/, https://www.driveyou.nl/rijschool/eindhoven)\n  - Rijschool Kwaliteit Eindhoven (concurrent, positie 6; bronnen: https://rijschoolkwaliteiteindhoven.nl/)\n  - Rijschool Dekker (concurrent, positie 7; bronnen: https://rijschooldekker.nl/rijopleidingen/autorijbewijs-b/gratis-proefles/, https://rijschooldekker.nl/)\n  - Start Driving Eindhoven (concurrent, positie 8; bronnen: https://startdrivingeindhoven.nl/)\n  - Rijschool Simplicity (concurrent, positie 10; bronnen: https://www.rijschoolsimplicity.nl/rijschool-eindhoven/)\n  Antwoord (begin): \"In Eindhoven bieden `vrijwel alle grote en bekende rijscholen` de mogelijkheid om **eerst vrijblijvend kennis te maken met de instructeur via een proefles of intakeles** , voordat je een definitief lespakket kiest. Tijdens zo'n eerste les (vaak 60 tot 90 minuten) maak je kennis met de instructeur, de lesauto en de…\"\n\nV8 [gewicht 0.12, Oriëntatie, commercial, cluster: Rustige begeleiding] \"Waar kan ik in Helmond terecht voor rijles met een instructeur die me helpt rustig te blijven achter het stuur?\"\n  Genoemd in dit antwoord:\n  - Rijschool Aked (concurrent, positie 1; bronnen: https://www.rijschoolaked.nl/)\n  - Rijschool Dennis van Schijndel (concurrent, positie 2; bronnen: https://www.rijschooldennisvanschijndel.nl/informatie)\n  - Rijwijs (concurrent, positie 3; bronnen: https://rijwijs.com/persoonlijke-begeleiding-rijles-helmond/)\n  - FRANK Rijschool (concurrent, positie 4; bronnen: https://frankrijschool.nl/auto)\n  - Rijschool Dekker (concurrent, positie 5; bronnen: https://rijschooldekker.nl/rijschool-helmond/)\n  - VOC Rijschool van Oijen (concurrent, positie 6; bronnen: https://www.rijles-voc.nl/autorijschool)\n  - Rijschool Unique (concurrent, positie 7; bronnen: https://rijschoolunique.nl/)\n  Antwoord (begin): \"In Helmond zijn er verschillende `rijscholen` die gespecialiseerd zijn in het bieden van rust, structuur en persoonlijke begeleiding voor leerlingen die last hebben van stress, faalangst of spanning achter het stuur.De volgende rijscholen in Helmond staan bekend om hun geduldige en kalme benadering:\n\n### 1. Rijscholen…\"\n\nV9 [gewicht 0.12, Overweging, commercial, cluster: Flexibele lesaanpak] \"Hoe vind ik in Waalre een rijinstructeur die lessen kan aanpassen als ik tijdens het rijden gespannen raak?\"\n  Genoemd in dit antwoord:\n  - Roadmasters (concurrent, positie 2; bronnen: https://www.roadmasters.nl/media/het-faalangstexamen)\n  - Rijschool Heezen (concurrent, positie 3; bronnen: https://rijschoolheezen.nl/rijschool-waalre/, http://rijschoolheezen.nl/, https://rijschoolheezen.nl/rijlessen-in-een-automaat-waalre/)\n  - Rijschool Speed (concurrent, positie 4; bronnen: https://rijschool-speed.nl/faalangstopfris/)\n  - Key2Drive! (concurrent, positie 5; bronnen: https://www.key2drive.eu/rijschool-waalre/)\n  - BOVAG (brancheorganisatie, positie 7)\n  - Autorijschool N2 (concurrent, positie 9; bronnen: https://autorijschooln2.nl/)\n  - Safane Rijschool (concurrent, positie 10; bronnen: http://safane.nl/)\n  Antwoord (begin): \"Om in Waalre een rijinstructeur te vinden die flexibel inspeelt op spanning en angst, kun je specifiek zoeken naar een **gecertificeerde faalangst- of rijangstinstructeur** . Deze instructeurs bezitten specifieke coachingstechnieken (zoals ademhalings- en time-out-methoden) om de les direct aan te passen zodra de…\"\n\nV10 [gewicht 0.12, Overweging, commercial, cluster: Losse lessen en begeleiding] \"Welke rijschool in Eindhoven biedt bij faalangst losse lessen aan, zodat ik eerst de begeleiding kan uitproberen voordat ik een pakket kies?\"\n  Genoemd in dit antwoord:\n  - Rijschool Feka (concurrent, positie 1; bronnen: https://www.rijschoolfeka.nl/faalangst.html)\n  Antwoord (begin): \"**Rijschool Feka** lijkt goed aan te sluiten op wat je zoekt. Ze bieden in Eindhoven gespecialiseerde faalangstbegeleiding, een **gratis en vrijblijvende proefles van 60 minuten** én daarna losse lessen aan voor **€70 per 60 minuten**. Je hoeft dus niet meteen een pakket te nemen.…\"\n\nV11 [gewicht 0.12, Beslissing, commercial, cluster: Faalangstspecialist Eindhoven] \"Welke rijschool in Eindhoven is gespecialiseerd in rijles voor mensen met faalangst?\"\n  Genoemd in dit antwoord:\n  - Rijschool Feka (concurrent, positie 1; bronnen: https://www.rijschoolfeka.nl/faalangst.html?utm_source=openai)\n  - Rijschool Wildenberg B.V. (concurrent, positie 2; bronnen: https://www.rijschoolwildenberg.nl/rijles-plus?utm_source=openai)\n  Antwoord (begin): \"**Rijschool Feka** lijkt een goede optie in Eindhoven: ze bieden specifieke begeleiding bij faalangst, met lessen op jouw tempo, en je kunt vrijblijvend een gratis proefles aanvragen. Bel **06 41 278 856**. ([rijschoolfeka.nl](https://www.rijschoolfeka.nl/faalangst.html?utm_source=openai))\n\nOok **Rijschool…\"\n\nV12 [gewicht 0.12, Overweging, commercial, cluster: Rijschool kiezen bij faalangst] \"Welke rijschool in Eindhoven is geschikt voor iemand met faalangst, en hoe vergelijk ik de begeleiding?\"\n  Genoemd in dit antwoord:\n  - Rijschool Feka (concurrent, positie 1; bronnen: https://www.rijschoolfeka.nl/faalangst.html)\n  - Wildenberg – Rijles Plus (concurrent, positie 2; bronnen: https://www.rijschoolwildenberg.nl/rijles-plus)\n  - Rijschool Solid (concurrent, positie 3; bronnen: https://www.rs-solid.nl/rijlessen-rijschool-eindhoven.html)\n  - Rijstipt (concurrent, positie 5; bronnen: https://rijstipt.nl/auto/)\n  Antwoord (begin): \"Voor iemand met **faalangst bij het rijexamen** zou ik eerst een proefles bij **Rijschool Feka** plannen. De school noemt expliciet een vaste instructeur, een rustige opbouw, oefening met examensituaties en kalmeringstechnieken. De proefles is volgens de website gratis. Let op: Feka’s pagina’s noemen verschillende…\"\n\nV13 [gewicht 0.12, Oriëntatie, commercial, cluster: Rijschool vinden bij faalangst] \"Waar vind ik in Eindhoven een rijschool die ervaring heeft met leerlingen met faalangst?\"\n  Genoemd in dit antwoord:\n  - Rijschool Wildenberg B.V. (concurrent, positie 1; bronnen: https://www.rijschoolwildenberg.nl/?utm_source=openai)\n  - Rijles Plus (concurrent, positie 2; bronnen: https://www.rijschoolwildenberg.nl/?utm_source=openai)\n  - Rijschool Feka (concurrent, positie 3; bronnen: https://www.rijschoolfeka.nl/?utm_source=openai)\n  - Rijschool MXM (concurrent, positie 4; bronnen: https://www.rijschoolmxm.nl/?utm_source=openai)\n  - Rijschool Theo Cudok (concurrent, positie 5; bronnen: https://rijschooltheocudok.nl/?utm_source=openai)\n  Antwoord (begin): \"In Eindhoven kun je onder meer informeren bij:\n\n- **Rijschool Wildenberg** — heeft een speciaal **Rijles Plus**-traject voor leerlingen die extra rust en begeleiding nodig hebben, onder meer bij faalangst. Quinten Matsyslaan 33, Eindhoven; **040 211 99 42**. De proefles Rijles Plus duurt 120 minuten en kost volgens de…\"\n\nV14 [gewicht 0.12, Oriëntatie, commercial, cluster: Lestempo aanpassen] \"Zijn er in Best rijscholen waar je op je eigen tempo kunt leren rijden als je last hebt van faalangst?\"\n  Genoemd in dit antwoord:\n  - Rijschool Dekker (concurrent, positie 1; bronnen: https://rijschooldekker.nl/rijschool-best/)\n  - Rijschool Best / De Verkeersopleider (concurrent, positie 2; bronnen: https://rijschoolbest.nl/)\n  - Rijles-Best.nl (concurrent, positie 3; bronnen: https://www.rijles-best.nl/)\n  - Rijschool Feka (concurrent, positie 4; bronnen: https://www.rijschoolfeka.nl/rijschool-best.html)\n  Antwoord (begin): \"Ja. In Best zijn er meerdere rijscholen die aangeven dat ze rustig en op maat lesgeven en ervaring hebben met faalangst:\n\n- **Rijschool Dekker** zegt persoonlijke begeleiding te bieden en je op je eigen tempo te laten groeien. Ze noemen ook faalangst, ADHD en autisme als situaties waarbij ze begeleiding bieden.…\"\n\nV15 [gewicht 0.12, Oriëntatie, commercial, cluster: Extra begeleiding] \"Welke rijscholen in Geldrop bieden extra begeleiding als je zenuwachtig bent voor autorijles?\"\n  Genoemd in dit antwoord:\n  - Autorijschool Elsenaar (concurrent, positie 1; bronnen: https://rijschoolelsenaar.nl/)\n  - Fit2Drive (concurrent, positie 2; bronnen: https://fit2drive.nl/rijschool-geldrop/)\n  - Rijschool Dekker (concurrent, positie 3; bronnen: https://rijschooldekker.nl/rijschool-geldrop/?utm_source=openai)\n  - Rijschool Waymaker (concurrent, positie 4; bronnen: https://rijschoolwaymaker.nl/?utm_source=openai)\n  Antwoord (begin): \"In Geldrop zijn dit goede opties om te benaderen als je zenuwachtig bent voor autorijles:\n\n- **Autorijschool Elsenaar** – zegt rekening te houden met zenuwen of faalangst en het lestempo daarop aan te passen. Let op: de website vermeldt een verwachte starttijd van **3–6 maanden**.…\"\n\nConcurrentie-gap-analyse (JSON):\n{\n  \"gaps\": [\n    {\n      \"competitor\": \"Rijschool Feka\",\n      \"cluster\": \"Proefles bij faalangst\",\n      \"evidence\": \"In V1 (gewicht 0,20; Overweging, transactional) wordt Pompert niet genoemd. Rijschool Feka staat op positie 1 en Safane Rijschool op positie 2.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijschoolfeka.nl/faalangst.html\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Feka\",\n      \"cluster\": \"Proefles Eindhoven\",\n      \"evidence\": \"In V2 (gewicht 0,20; Beslissing, transactional) wordt Pompert niet genoemd. Rijschool Feka staat op positie 1, gevolgd door Fit2Drive en Rijschool MXM.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijschoolfeka.nl/faalangst.html\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Feka\",\n      \"cluster\": \"Beschikbaarheid van lessen\",\n      \"evidence\": \"In V3 (gewicht 0,20; Overweging, transactional) wordt Pompert niet genoemd. Rijschool Feka staat op positie 1; ook Rijschool Best / De Verkeersopleider en vergelijker Rijscholenvergelijken worden genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijschoolfeka.nl/rijschool-best.html?utm_source=openai\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijles-Best.nl\",\n      \"cluster\": \"Beschikbaarheid boeken\",\n      \"evidence\": \"In V4 (gewicht 0,20; Beslissing, transactional) wordt Pompert niet genoemd. Rijles-Best.nl staat op positie 1; Rijschool Feka en Rijschool Best / De Verkeersopleider worden ook genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijles-best.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Helmond / Verkeersopleider\",\n      \"cluster\": \"Beschikbaarheid Helmond\",\n      \"evidence\": \"In V5 (gewicht 0,20; Beslissing, transactional) wordt Pompert niet genoemd. Rijschool Helmond / Verkeersopleider staat op positie 1; Grow Rijopleidingen Helmond, Rijschool AutoPilot en Rijschool Aked worden eveneens genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://rijschoolhelmond.nl/\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Feka\",\n      \"cluster\": \"Losse lessen en begeleiding\",\n      \"evidence\": \"In V10 (gewicht 0,12; Overweging, commercial) wordt Pompert niet genoemd. Rijschool Feka is de enige genoemde rijschool in het antwoord.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijschoolfeka.nl/faalangst.html\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Feka\",\n      \"cluster\": \"Faalangstspecialist Eindhoven\",\n      \"evidence\": \"In V11 (gewicht 0,12; Beslissing, commercial) wordt Pompert niet genoemd. Rijschool Feka staat op positie 1 en Rijschool Wildenberg B.V. op positie 2.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijschoolfeka.nl/faalangst.html?utm_source=openai\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Feka\",\n      \"cluster\": \"Rijschool kiezen bij faalangst\",\n      \"evidence\": \"In V12 (gewicht 0,12; Overweging, commercial) wordt Pompert niet genoemd. Rijschool Feka staat op positie 1; Wildenberg – Rijles Plus, Rijschool Solid en Rijstipt worden ook genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijschoolfeka.nl/faalangst.html\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Wildenberg B.V.\",\n      \"cluster\": \"Rijschool vinden bij faalangst\",\n      \"evidence\": \"In V13 (gewicht 0,12; Oriëntatie, commercial) wordt Pompert niet genoemd. Rijschool Wildenberg B.V. staat op positie 1; Rijles Plus, Rijschool Feka, Rijschool MXM en Rijschool Theo Cudok worden eveneens genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://www.rijschoolwildenberg.nl/?utm_source=openai\"\n      ]\n    },\n    {\n      \"competitor\": \"Rijschool Dekker\",\n      \"cluster\": \"Lestempo aanpassen\",\n      \"evidence\": \"In V14 (gewicht 0,12; Oriëntatie, commercial) wordt Pompert niet genoemd. Rijschool Dekker staat op positie 1; Rijschool Best / De Verkeersopleider, Rijles-Best.nl en Rijschool Feka worden eveneens genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://rijschooldekker.nl/rijschool-best/\"\n      ]\n    },\n    {\n      \"competitor\": \"Autorijschool Elsenaar\",\n      \"cluster\": \"Extra begeleiding\",\n      \"evidence\": \"In V15 (gewicht 0,12; Oriëntatie, commercial) wordt Pompert niet genoemd. Autorijschool Elsenaar staat op positie 1; Fit2Drive, Rijschool Dekker en Rijschool Waymaker worden ook genoemd.\",\n      \"evidenceRunIds\": [],\n      \"citedSourcesForCompetitor\": [\n        \"https://rijschoolelsenaar.nl/\"\n      ]\n    }\n  ],\n  \"strengths\": [\n    {\n      \"cluster\": \"Positionering op faalangst en persoonlijke begeleiding\",\n      \"evidence\": \"De aangeleverde websitebeschrijving vermeldt rijles met faalangst en autisme, rustige persoonlijke begeleiding en een aanpak op maat. De meting gaat alleen over ChatGPT; het merk werd wel genoemd in Google AI Overview.\"\n    }\n  ]\n}\n\nBestaande pagina's op de website van de klant (voor de nieuw/verbeteren-beslissing):\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/cbr-peter-pompert-2/ · \"CBR - Peter Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/onze-unieke-benadering/whatsapp-image-2022-06-21-at-9-10-54-pm-1/ · \"WhatsApp Image 2022-06-21 at 9.10.54 PM (1) - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/onze-unieke-benadering/whatsapp-image-2022-06-21-at-9-10-54-pm/ · \"WhatsApp Image 2022-06-21 at 9.10.54 PM - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/cbr-peter-pompert/ · \"CBR - Peter Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/screenshot-2022-10-19-at-16-43-49/ · \"Liefde en aandacht voor je leerlingen - Autorijschool Pompert Eindhoven\"\n- http://www.autorijschoolpompert.nl/handige-links/ · \"Handige links | Reviews & Tips | AutorijschoolPompert.nl\"\n- https://www.autorijschoolpompert.nl/2249-2/ · \"- Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/5-tips-om-je-auto-theorie-te-leren/ · \"5 Tips om je Auto Theorie te Leren - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/6-tips-halen-theorie-examen/ · \"6 tips om je theorie-examen te halen | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/angst-voor-autorijden/ · \"Angst voor autorijden | Meer informatie | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/category/uncategorized/ · \"Uncategorized Archieven - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hoe-bereid-je-je-voor-op-je-eerste-rijles/ · \"Eerste rijles in Eindhoven? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/de-invloed-van-moderne-technologie-op-leren-autorijden/img_20220711_162136-2/ · \"IMG_20220711_162136 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijlessen-tijdens-zwangerschap-mag/ · \"Rijles tijdens zwangerschap, mag dat? | Autorijschool Pompert\"\n- http://www.autorijschoolpompert.nl · \"Autorijschool Pompert Eindhoven | Persoonlijk & Resultaat Gericht\"\n- http://www.autorijschoolpompert.nl/prijzen-lespakketten/ · \"Autorijles pakketten & prijzen | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/kosten-rijlessen-en-pakketten/ · \"Wat zijn de kosten van rijlessen in Eindhoven - Rijschool Pompert\"\n- http://www.autorijschoolpompert.nl/contact/ · \"Rijschool in Eindhoven | Contactgegevens | Autorijschool Pompert\"\n- http://www.autorijschoolpompert.nl/ons-gastenboek/ · \"Reviews over onze rijschool | Autorijschool Pompert\"\n- http://www.autorijschoolpompert.nl/theorie-praktijk/ · \"Theorie & Praktijk | Rijlessen op maat | Autorijschool Pompert\"\n- http://www.autorijschoolpompert.nl/onze-unieke-benadering/ · \"Unieke benadering | Focus op kwaliteit | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/pech-onderweg-moet/ · \"Pech onderweg, wat moet je doen? | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/wat-is-een-tussentijdse-toets/ · \"Wat is een tussentijdse toets en is het slim om die te doen? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/alles-over-verkeersangst/verkeersangst/ · \"verkeersangst - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/ons-team-en-wagenpark/268620538_922780285045704_451740331793072861_n/ · \"268620538_922780285045704_451740331793072861_n - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/ons-team-en-wagenpark/95588177_255747952474662_8504102822831612049_n/ · \"95588177_255747952474662_8504102822831612049_n - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/ons-team-en-wagenpark/whatsapp-image-2022-06-21-at-4-42-28-pm/ · \"WhatsApp-Image-2022-06-21-at-4.42.28-PM - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/onze-unieke-benadering/cbr-peter-pompert-3/ · \"CBR - Peter Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-eindhoven-centrum/ · \"Autorijschool Eindhoven Centrum | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/autorijschool-kiezen-in-eindhoven-waar-let-je-op/ · \"Autorijschool Eindhoven kiezen? 6 handige tips | Pompert\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert-structuur-en-vakmanschap-in-rijopleiding/ · \"Autorijschool Pompert: Structuur en Vakmanschap in Rijopleiding - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/cijfers-en-veranderingen-theorie-examen/ · \"Cijfers en veranderingen theorie-examen | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/de-invloed-van-moderne-technologie-op-leren-autorijden/ · \"De Invloed van Moderne Technologie op Leren Autorijden - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/elektrisch-rijden/ · \"Voor- en nadelen van elektrisch rijden | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/fileparkeren-zo-doe-je-dat/ · \"Fileparkeren, zo doe je dat | Tips | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/hoe-je-angst-voor-autorijden-kunt-overwinnen/ · \"Hoe je angst voor autorijden kunt overwinnen? - Rijschool Pompert\"\n- https://www.autorijschoolpompert.nl/hoe-lang-is-je-theoriecertificaat-geldig/ · \"Hoe lang is je theoriecertificaat geldig? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hoe-werkt-cruise-control/ · \"Cruise Control: Hoe Werkt Het en Wat Zijn de Voordelen? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hoe-werkt-een-tussentijdse-toets-bij-rijexamens/ · \"Hoe Werkt een Tussentijdse Toets bij Rijexamens? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hoe-werkt-lane-assist/ · \"Lane Assist: Hoe Werkt Dit Rijhulpsysteem? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hoeveel-rijlessen-heb-ik-nodig/ · \"Hoeveel rijlessen heb ik nodig? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hulpdiensten-voor-laten-gaan/ · \"Hulpdiensten voor laten, hoe zit dan nou? | Rijschool Pompert\"\n- https://www.autorijschoolpompert.nl/mag-je-rij-instructeur-mee-in-de-auto-tijdens-je-examen/ · \"Mag je rij-instructeur mee in de auto tijdens je examen? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/meest-gemaakte-fouten-tijdens-rijexamen/ · \"Veel gemaakte fouten bij het rij examen | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/meest-gemaakte-fouten-tijdens-theorie-examen/ · \"Fouten tijdens het theorie-examen | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/rijles-op-de-a2-in-eindhoven-met-vertrouwen-de-snelweg-op/ · \"Rijles op de A2 in Eindhoven: met vertrouwen de snelweg op - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijlessen-in-een-rijsimulator/ · \"Jouw eerste rijlessen in een rijsimulator? | Rijschool Pompert\"\n- https://www.autorijschoolpompert.nl/rijlessen-in-eindhoven-dit-zijn-de-drukste-verkeerspunten-om-op-te-letten/ · \"Drukste punten van Eindhoven - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijlessen-met-add/ · \"Rijles met ADD | Goede begeleiding | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_8/ · \"Autorijschool_Pompert_Eindhoven_8 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijlessen-vanaf-16-5-jarigen/ · \"Rijlessen vanaf 16,5 jaar - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijschool-best/ · \"Rijschool Best | Persoonlijke aandacht | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/rijschool-eindhoven/ · \"Rijschool Eindhoven | Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijschool-geldrop/ · \"Rijschool Geldrop | Gratis proefles | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/rijschool-helmond/ · \"Rijschool Helmond | Beste begeleiding | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/rijschool-waalre/ · \"Rijschool Waalre | Rijles naar wens | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/snel-en-goedkoop-rijbewijs-halen/ · \"Sneller én goedkoper je rijbewijs | Tips | Rijschool Pompert\"\n- https://www.autorijschoolpompert.nl/tips-rijden-regen-en-nat-weer/ · \"Tips voor rijden met regen en nat weer | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/tips-voor-autorijlessen-in-de-kou/ · \"Rijles in Eindhoven in de winter\"\n- https://www.autorijschoolpompert.nl/tips-voor-het-kiezen-van-een-rijschool/ · \"Tips voor het kiezen van een rijschool | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/top-5-tips-voor-rijlessen-bij-adhd/ · \"Top 5 Tips voor Rijlessen bij ADHD - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/veilig-rijden-in-de-sneeuw/ · \"Veilig rijden in de sneeuw - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_9/ · \"Autorijschool_Pompert_Eindhoven_9 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/waar-doe-je-examen-bij-cbr-in-eindhoven/ · \"Waar doe je examen bij CBR in Eindhoven? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/waarom-kiezen-eindhovenaren-voor-autorijschool-pompert/ · \"Waarom kiezen Eindhovenaren voor Autorijschool Pompert? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/waarom-kiezen-voor-autorijschool-pompert-in-eindhoven/ · \"Waarom kiezen voor Autorijschool Pompert in Eindhoven? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/waarom-rijles-in-de-stad/ · \"Waarom rijles in de stad? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/waarom-winterbanden-verstandig-zijn-werking-en-voordelen-uitgelegd/ · \"Waarom winterbanden verstandig zijn: werking en voordelen uitgelegd - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/wanneer-snelweg-rijles/ · \"Wanneer ga je met rijles de snelweg op - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/wat-betekenen-de-dashbaordlampjes/ · \"Wat betekenen de dashboardlampjes? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/wat-zijn-de-vereisten-om-te-beginnen-met-rijlessen/ · \"Wat zijn de vereisten om te beginnen met rijlessen? - Rijschool Pompert\"\n- https://www.autorijschoolpompert.nl/4-tips-laagstaande-zon-tijdens-lessen/pompert/ · \"Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_10/ · \"Autorijschool_Pompert_Eindhoven_10 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_11/ · \"Autorijschool_Pompert_Eindhoven_11 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_12/ · \"Autorijschool_Pompert_Eindhoven_12 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_4/ · \"Autorijschool_Pompert_Eindhoven_4 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_5/ · \"Autorijschool_Pompert_Eindhoven_5 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_6/ · \"Autorijschool_Pompert_Eindhoven_6 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_7/ · \"Autorijschool_Pompert_Eindhoven_7 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/meest-gemaakte-fouten-tijdens-rijexamen/traffic-car-vehicle-black/ · \"traffic-car-vehicle-black - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/nieuw-opstappunt/screenshot-2020-12-11-at-11-41-08/ · \"Screenshot 2020-12-11 at 11.41.08 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/pech-onderweg-moet/pexels-photo-1/ · \"pexels-photo-1 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijlessen-in-de-winter/winterweer-2/ · \"winterweer - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijlessen-in-de-winter/winterweer/ · \"- Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijlessen-met-add/rijlessen-met-add-bij-autorijschoolpompert-nl/ · \"rijlessen met add bij autorijschoolpompert.nl - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijsimulator/cbr-peter-pompert-4/ · \"CBR - Peter Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijsimulator/cbr-peter-pompert-5/ · \"CBR - Peter Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/tips-rijden-regen-en-nat-weer/autorijschoolpompert-nl/ · \"Regen bui - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/tips-voor-autorijlessen-in-de-kou/autorijschool_pompert_eindhoven_2/ · \"Rijlessen in Helmond bij de Rijschool Helmond - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hoeveel-rijlessen-rijexamen-halen/ · \"Hoeveel rijlessen heb ik nodig om mijn rijexamen te halen?\"\n- https://www.autorijschoolpompert.nl/neem-rijlessen-rijsimulator/ · \"Rijles in een rijsimulator | Online blog | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/rijles-donker-moeilijker/ · \"Is rijles in het donker moeilijker? | Blog | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/tussentijdse-toets-als-voorbereiding-op-praktijkexamen/ · \"Tussentijdse toets | Uitleg | Blog | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/zakken-voor-rijexamen/ · \"Wat als ik zak voor mijn rijexamen? - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/blog/ · \"Altijd op de hoogte van onze rijlessen | AutorijschoolPompert.nl\"\n- https://www.autorijschoolpompert.nl/neem-rijlessen-rijsimulator/pexels-photo-45113/ · \"pexels-photo-45113 - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijsimulator/img_20220711_162110/ · \"Rijsimulator Autorijschool Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/rijsimulator/img_20220711_162136/ · \"De rijsimulator van Autorijschool Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/hoe-werkt-een-tussentijdse-toets-bij-rijexamens/attachment/8722/ · \"CBR - Peter Pompert - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/tag/rijlessen/ · \"rijlessen Archieven - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/tag/rijsimulator/ · \"rijsimulator Archieven - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/tag/verkeersangst/ · \"verkeersangst Archieven - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/tag/virtuele-rijlessen/ · \"virtuele rijlessen Archieven - Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/alle-regels-voorwaarden-m-b-t-rijlessen-en-examens/ · \"Voorwaarden m.b.t. rijles en examens | Autorijschool Pompert\"\n- https://www.autorijschoolpompert.nl/wat-kan-ik-verwachten-tijdens-mijn-eerste-rijles/ · \"Wat kan ik verwachten tijdens mijn eerste rijles?\"\n- https://www.autorijschoolpompert.nl/author/roderickbryde/ · \"Roderick Bryde, auteur op Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/author/wetalkseo/ · \"Dennis, auteur op Autorijschool Pompert Eindhoven\"\n- https://www.autorijschoolpompert.nl/vacatures/vacature2020/ · \"Vacature 2020 - Autorijschool Pompert - Autorijschool Pompert Eindhoven\"\n\n\nSTRUCTURELE GATEN IN DE SITE: dit komt uit het aanbod van de klant zelf, niet uit de meting. Een dienst zonder eigen pagina kan door een assistent niet genoemd worden, ook al is er nooit een vraag over gesteld. Weeg deze mee in je aanbevelingen:\n- Vrijblijvende proefles (dienst): alleen zijdelings op /rijschool-geldrop\n- Intake voor rijlessen (dienst): alleen zijdelings op /theorie-praktijk\n- Autorijles in een automaat (dienst): alleen zijdelings op /prijzen-lespakketten\n- Begeleiding bij faalangst (dienst): alleen zijdelings op /rijlessen-met-add\n- Rijsimulator-cursus (dienst): alleen zijdelings op /neem-rijlessen-rijsimulator\n- Praktijkexamen CBR (dienst): alleen zijdelings op /tussentijdse-toets-als-voorbereiding-op-praktijkexamen\n- Faalangstexamen CBR (dienst): alleen zijdelings op /autorijschool-pompert/cbr-peter-pompert-2\n- Theoriecursus (dienst): alleen zijdelings op /theorie-praktijk\n- Verkoop van theorie-leermiddelen (dienst): alleen zijdelings op /theorie-praktijk\n\n\n\nHET DOEL OVER TWAALF MAANDEN: in eindhoven de bekendste rijschool voor faalangst en autisme zijn, en aangeraden worden door begeleiders en ouders\nPIEKEN EN DALEN IN HET JAAR: januari en september druk, zomer rustiger Zet werk dat op een piek mikt ruim vóór die piek in de planning.\n\nSchrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven (hoog gewicht = populair en of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen, genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen. Schrijf de toelichting bij een aanbeveling in gewone taal: NOOIT een vraagcode (V1, V2) en NOOIT een gewicht in de lopende tekst. Beschrijf de vraag in woorden, dus niet \"V5 heeft gewicht 0,50\" maar \"wie in Breda een occasion zoekt\". In `targetIntent` beschrijf je de LEZER van die pagina in één zin, in deze vorm: welk type persoon het is, welk probleem die persoon heeft, en welke beslissing hij daarna moet nemen. Dus niet \"Daklekkage Apeldoorn\" of \"informatie over dakisolatie\", maar \"iemand met water door zijn plafond die vandaag hulp zoekt en wil weten wat een reparatie kost\". Een onderwerp is geen lezer. Laat dit veld nooit leeg en schrijf er nooit \"onbekend\" in: kun je de lezer niet benoemen, doe dan geen aanbeveling.",
+ "paginas": [
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/cbr-peter-pompert-2/",
+   "titel": "CBR - Peter Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/onze-unieke-benadering/whatsapp-image-2022-06-21-at-9-10-54-pm-1/",
+   "titel": "WhatsApp Image 2022-06-21 at 9.10.54 PM (1) - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/onze-unieke-benadering/whatsapp-image-2022-06-21-at-9-10-54-pm/",
+   "titel": "WhatsApp Image 2022-06-21 at 9.10.54 PM - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/cbr-peter-pompert/",
+   "titel": "CBR - Peter Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/screenshot-2022-10-19-at-16-43-49/",
+   "titel": "Liefde en aandacht voor je leerlingen - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "http://www.autorijschoolpompert.nl/handige-links/",
+   "titel": "Handige links | Reviews & Tips | AutorijschoolPompert.nl"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/2249-2/",
+   "titel": "- Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/5-tips-om-je-auto-theorie-te-leren/",
+   "titel": "5 Tips om je Auto Theorie te Leren - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/6-tips-halen-theorie-examen/",
+   "titel": "6 tips om je theorie-examen te halen | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/angst-voor-autorijden/",
+   "titel": "Angst voor autorijden | Meer informatie | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/category/uncategorized/",
+   "titel": "Uncategorized Archieven - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoe-bereid-je-je-voor-op-je-eerste-rijles/",
+   "titel": "Eerste rijles in Eindhoven? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/de-invloed-van-moderne-technologie-op-leren-autorijden/img_20220711_162136-2/",
+   "titel": "IMG_20220711_162136 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-tijdens-zwangerschap-mag/",
+   "titel": "Rijles tijdens zwangerschap, mag dat? | Autorijschool Pompert"
+  },
+  {
+   "url": "http://www.autorijschoolpompert.nl",
+   "titel": "Autorijschool Pompert Eindhoven | Persoonlijk & Resultaat Gericht"
+  },
+  {
+   "url": "http://www.autorijschoolpompert.nl/prijzen-lespakketten/",
+   "titel": "Autorijles pakketten & prijzen | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/kosten-rijlessen-en-pakketten/",
+   "titel": "Wat zijn de kosten van rijlessen in Eindhoven - Rijschool Pompert"
+  },
+  {
+   "url": "http://www.autorijschoolpompert.nl/contact/",
+   "titel": "Rijschool in Eindhoven | Contactgegevens | Autorijschool Pompert"
+  },
+  {
+   "url": "http://www.autorijschoolpompert.nl/ons-gastenboek/",
+   "titel": "Reviews over onze rijschool | Autorijschool Pompert"
+  },
+  {
+   "url": "http://www.autorijschoolpompert.nl/theorie-praktijk/",
+   "titel": "Theorie & Praktijk | Rijlessen op maat | Autorijschool Pompert"
+  },
+  {
+   "url": "http://www.autorijschoolpompert.nl/onze-unieke-benadering/",
+   "titel": "Unieke benadering | Focus op kwaliteit | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/pech-onderweg-moet/",
+   "titel": "Pech onderweg, wat moet je doen? | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/wat-is-een-tussentijdse-toets/",
+   "titel": "Wat is een tussentijdse toets en is het slim om die te doen? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/alles-over-verkeersangst/verkeersangst/",
+   "titel": "verkeersangst - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/ons-team-en-wagenpark/268620538_922780285045704_451740331793072861_n/",
+   "titel": "268620538_922780285045704_451740331793072861_n - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/ons-team-en-wagenpark/95588177_255747952474662_8504102822831612049_n/",
+   "titel": "95588177_255747952474662_8504102822831612049_n - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/ons-team-en-wagenpark/whatsapp-image-2022-06-21-at-4-42-28-pm/",
+   "titel": "WhatsApp-Image-2022-06-21-at-4.42.28-PM - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/onze-unieke-benadering/cbr-peter-pompert-3/",
+   "titel": "CBR - Peter Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-eindhoven-centrum/",
+   "titel": "Autorijschool Eindhoven Centrum | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-kiezen-in-eindhoven-waar-let-je-op/",
+   "titel": "Autorijschool Eindhoven kiezen? 6 handige tips | Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert-structuur-en-vakmanschap-in-rijopleiding/",
+   "titel": "Autorijschool Pompert: Structuur en Vakmanschap in Rijopleiding - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/cijfers-en-veranderingen-theorie-examen/",
+   "titel": "Cijfers en veranderingen theorie-examen | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/de-invloed-van-moderne-technologie-op-leren-autorijden/",
+   "titel": "De Invloed van Moderne Technologie op Leren Autorijden - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/elektrisch-rijden/",
+   "titel": "Voor- en nadelen van elektrisch rijden | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/fileparkeren-zo-doe-je-dat/",
+   "titel": "Fileparkeren, zo doe je dat | Tips | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoe-je-angst-voor-autorijden-kunt-overwinnen/",
+   "titel": "Hoe je angst voor autorijden kunt overwinnen? - Rijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoe-lang-is-je-theoriecertificaat-geldig/",
+   "titel": "Hoe lang is je theoriecertificaat geldig? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoe-werkt-cruise-control/",
+   "titel": "Cruise Control: Hoe Werkt Het en Wat Zijn de Voordelen? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoe-werkt-een-tussentijdse-toets-bij-rijexamens/",
+   "titel": "Hoe Werkt een Tussentijdse Toets bij Rijexamens? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoe-werkt-lane-assist/",
+   "titel": "Lane Assist: Hoe Werkt Dit Rijhulpsysteem? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoeveel-rijlessen-heb-ik-nodig/",
+   "titel": "Hoeveel rijlessen heb ik nodig? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hulpdiensten-voor-laten-gaan/",
+   "titel": "Hulpdiensten voor laten, hoe zit dan nou? | Rijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/mag-je-rij-instructeur-mee-in-de-auto-tijdens-je-examen/",
+   "titel": "Mag je rij-instructeur mee in de auto tijdens je examen? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/meest-gemaakte-fouten-tijdens-rijexamen/",
+   "titel": "Veel gemaakte fouten bij het rij examen | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/meest-gemaakte-fouten-tijdens-theorie-examen/",
+   "titel": "Fouten tijdens het theorie-examen | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijles-op-de-a2-in-eindhoven-met-vertrouwen-de-snelweg-op/",
+   "titel": "Rijles op de A2 in Eindhoven: met vertrouwen de snelweg op - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-in-een-rijsimulator/",
+   "titel": "Jouw eerste rijlessen in een rijsimulator? | Rijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-in-eindhoven-dit-zijn-de-drukste-verkeerspunten-om-op-te-letten/",
+   "titel": "Drukste punten van Eindhoven - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-met-add/",
+   "titel": "Rijles met ADD | Goede begeleiding | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_8/",
+   "titel": "Autorijschool_Pompert_Eindhoven_8 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-vanaf-16-5-jarigen/",
+   "titel": "Rijlessen vanaf 16,5 jaar - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijschool-best/",
+   "titel": "Rijschool Best | Persoonlijke aandacht | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijschool-eindhoven/",
+   "titel": "Rijschool Eindhoven | Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijschool-geldrop/",
+   "titel": "Rijschool Geldrop | Gratis proefles | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijschool-helmond/",
+   "titel": "Rijschool Helmond | Beste begeleiding | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijschool-waalre/",
+   "titel": "Rijschool Waalre | Rijles naar wens | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/snel-en-goedkoop-rijbewijs-halen/",
+   "titel": "Sneller én goedkoper je rijbewijs | Tips | Rijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tips-rijden-regen-en-nat-weer/",
+   "titel": "Tips voor rijden met regen en nat weer | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tips-voor-autorijlessen-in-de-kou/",
+   "titel": "Rijles in Eindhoven in de winter"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tips-voor-het-kiezen-van-een-rijschool/",
+   "titel": "Tips voor het kiezen van een rijschool | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/top-5-tips-voor-rijlessen-bij-adhd/",
+   "titel": "Top 5 Tips voor Rijlessen bij ADHD - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/veilig-rijden-in-de-sneeuw/",
+   "titel": "Veilig rijden in de sneeuw - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_9/",
+   "titel": "Autorijschool_Pompert_Eindhoven_9 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/waar-doe-je-examen-bij-cbr-in-eindhoven/",
+   "titel": "Waar doe je examen bij CBR in Eindhoven? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/waarom-kiezen-eindhovenaren-voor-autorijschool-pompert/",
+   "titel": "Waarom kiezen Eindhovenaren voor Autorijschool Pompert? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/waarom-kiezen-voor-autorijschool-pompert-in-eindhoven/",
+   "titel": "Waarom kiezen voor Autorijschool Pompert in Eindhoven? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/waarom-rijles-in-de-stad/",
+   "titel": "Waarom rijles in de stad? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/waarom-winterbanden-verstandig-zijn-werking-en-voordelen-uitgelegd/",
+   "titel": "Waarom winterbanden verstandig zijn: werking en voordelen uitgelegd - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/wanneer-snelweg-rijles/",
+   "titel": "Wanneer ga je met rijles de snelweg op - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/wat-betekenen-de-dashbaordlampjes/",
+   "titel": "Wat betekenen de dashboardlampjes? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/wat-zijn-de-vereisten-om-te-beginnen-met-rijlessen/",
+   "titel": "Wat zijn de vereisten om te beginnen met rijlessen? - Rijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/4-tips-laagstaande-zon-tijdens-lessen/pompert/",
+   "titel": "Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_10/",
+   "titel": "Autorijschool_Pompert_Eindhoven_10 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_11/",
+   "titel": "Autorijschool_Pompert_Eindhoven_11 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_12/",
+   "titel": "Autorijschool_Pompert_Eindhoven_12 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_4/",
+   "titel": "Autorijschool_Pompert_Eindhoven_4 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_5/",
+   "titel": "Autorijschool_Pompert_Eindhoven_5 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_6/",
+   "titel": "Autorijschool_Pompert_Eindhoven_6 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/autorijschool-pompert/autorijschool_pompert_eindhoven_7/",
+   "titel": "Autorijschool_Pompert_Eindhoven_7 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/meest-gemaakte-fouten-tijdens-rijexamen/traffic-car-vehicle-black/",
+   "titel": "traffic-car-vehicle-black - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/nieuw-opstappunt/screenshot-2020-12-11-at-11-41-08/",
+   "titel": "Screenshot 2020-12-11 at 11.41.08 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/pech-onderweg-moet/pexels-photo-1/",
+   "titel": "pexels-photo-1 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-in-de-winter/winterweer-2/",
+   "titel": "winterweer - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-in-de-winter/winterweer/",
+   "titel": "- Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijlessen-met-add/rijlessen-met-add-bij-autorijschoolpompert-nl/",
+   "titel": "rijlessen met add bij autorijschoolpompert.nl - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijsimulator/cbr-peter-pompert-4/",
+   "titel": "CBR - Peter Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijsimulator/cbr-peter-pompert-5/",
+   "titel": "CBR - Peter Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tips-rijden-regen-en-nat-weer/autorijschoolpompert-nl/",
+   "titel": "Regen bui - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tips-voor-autorijlessen-in-de-kou/autorijschool_pompert_eindhoven_2/",
+   "titel": "Rijlessen in Helmond bij de Rijschool Helmond - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoeveel-rijlessen-rijexamen-halen/",
+   "titel": "Hoeveel rijlessen heb ik nodig om mijn rijexamen te halen?"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/neem-rijlessen-rijsimulator/",
+   "titel": "Rijles in een rijsimulator | Online blog | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijles-donker-moeilijker/",
+   "titel": "Is rijles in het donker moeilijker? | Blog | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tussentijdse-toets-als-voorbereiding-op-praktijkexamen/",
+   "titel": "Tussentijdse toets | Uitleg | Blog | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/zakken-voor-rijexamen/",
+   "titel": "Wat als ik zak voor mijn rijexamen? - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/blog/",
+   "titel": "Altijd op de hoogte van onze rijlessen | AutorijschoolPompert.nl"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/neem-rijlessen-rijsimulator/pexels-photo-45113/",
+   "titel": "pexels-photo-45113 - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijsimulator/img_20220711_162110/",
+   "titel": "Rijsimulator Autorijschool Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/rijsimulator/img_20220711_162136/",
+   "titel": "De rijsimulator van Autorijschool Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/hoe-werkt-een-tussentijdse-toets-bij-rijexamens/attachment/8722/",
+   "titel": "CBR - Peter Pompert - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tag/rijlessen/",
+   "titel": "rijlessen Archieven - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tag/rijsimulator/",
+   "titel": "rijsimulator Archieven - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tag/verkeersangst/",
+   "titel": "verkeersangst Archieven - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/tag/virtuele-rijlessen/",
+   "titel": "virtuele rijlessen Archieven - Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/alle-regels-voorwaarden-m-b-t-rijlessen-en-examens/",
+   "titel": "Voorwaarden m.b.t. rijles en examens | Autorijschool Pompert"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/wat-kan-ik-verwachten-tijdens-mijn-eerste-rijles/",
+   "titel": "Wat kan ik verwachten tijdens mijn eerste rijles?"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/author/roderickbryde/",
+   "titel": "Roderick Bryde, auteur op Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/author/wetalkseo/",
+   "titel": "Dennis, auteur op Autorijschool Pompert Eindhoven"
+  },
+  {
+   "url": "https://www.autorijschoolpompert.nl/vacatures/vacature2020/",
+   "titel": "Vacature 2020 - Autorijschool Pompert - Autorijschool Pompert Eindhoven"
+  }
+ ]
+}

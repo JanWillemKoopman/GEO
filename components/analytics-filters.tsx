@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Icon } from "@/components/icon";
 import {
   CLUSTERFILTER_ALLES,
   FUNNELFILTER_ALLES,
@@ -73,6 +74,20 @@ export function AnalyticsFilters({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // ── TWEE FILTERS IN BEELD, DE REST ACHTER "MEER FILTERS" (UX-AUDIT P1.7) ──
+  //
+  // Periode en cluster zijn de twee vragen die een klant stelt ("hoe was het
+  // vorige maand", "hoe doet dit onderwerp het"). Label, AI-assistent en fase
+  // zijn verdieping; vijf keuzelijsten naast elkaar boven het hoofdcijfer
+  // vroegen om een keuze voordat de klant het cijfer had gezien. Staat er al
+  // een van de drie aan (uit een gedeelde link), dan staat het blok open, anders
+  // zie je niet waarom het cijfer anders is.
+  const verdiepingAan =
+    labelfilter !== LABELFILTER_ALLES ||
+    funnelfilter !== FUNNELFILTER_ALLES ||
+    bronfilter.join(",") !== BRONFILTER_STANDAARD.join(",");
+  const [meer, setMeer] = useState(verdiepingAan);
+
   if (
     periodes.length < 2 &&
     labels.length === 0 &&
@@ -94,14 +109,14 @@ export function AnalyticsFilters({
 
   return (
     <div
-      className="analytics-filterbalk no-print sticky top-[var(--header-h)] z-20 -mx-6 flex flex-wrap items-center gap-4 border-b border-[var(--line-muted)] bg-[var(--bg-base)] px-6 py-3"
+      className="analytics-filterbalk no-print sticky top-[var(--header-h)] z-20 volle-breedte flex flex-wrap items-center gap-4 border-b border-[var(--line-muted)] bg-[var(--bg-base)] py-3"
       role="group"
       aria-label="Filters"
     >
       {periodes.length >= 2 && (
         <Filter label="Periode">
           <select
-            className="field"
+            className="field field-select"
             value={periodefilter}
             onChange={(e) => navigeer({ periode: e.target.value === PERIODEFILTER_ACTUEEL ? null : e.target.value })}
           >
@@ -115,10 +130,40 @@ export function AnalyticsFilters({
         </Filter>
       )}
 
+      {clustersBijLabel.length > 1 && (
+        <Filter label="Cluster">
+          <select
+            className="field field-select"
+            value={clusterfilter}
+            onChange={(e) => navigeer({ cluster: e.target.value === CLUSTERFILTER_ALLES ? null : e.target.value })}
+          >
+            <option value={CLUSTERFILTER_ALLES}>Alle clusters</option>
+            {clustersBijLabel.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Filter>
+      )}
+
+      {(labels.length > 0 || bronnen.length > 1 || funnelfasen.length > 1) && (
+        <button
+          type="button"
+          className="btn-ghost btn-sm"
+          aria-expanded={meer}
+          onClick={() => setMeer((m) => !m)}
+        >
+          {meer ? "Minder filters" : "Meer filters"}
+          <Icon naam="openen" size={14} />
+        </button>
+      )}
+      {meer && (
+        <>
       {labels.length > 0 && (
         <Filter label="Label">
           <select
-            className="field"
+            className="field field-select"
             value={labelfilter}
             // Een gekozen label beperkt de clusterlijst (F2); een nieuwe keuze
             // die niet meer bij dat label hoort is verwarrender dan de
@@ -143,7 +188,7 @@ export function AnalyticsFilters({
 
       {bronnen.length > 1 && (
         <div className="flex items-center gap-2 text-sm">
-          <span className="mono-label">Bron</span>
+          <span className="mono-label">AI-assistent</span>
           <Bronkeuze bronnen={bronnen} bronfilter={bronfilter} navigeer={navigeer} />
         </div>
       )}
@@ -158,27 +203,10 @@ export function AnalyticsFilters({
             </p>
           ))}
 
-      {clustersBijLabel.length > 1 && (
-        <Filter label="Cluster">
-          <select
-            className="field"
-            value={clusterfilter}
-            onChange={(e) => navigeer({ cluster: e.target.value === CLUSTERFILTER_ALLES ? null : e.target.value })}
-          >
-            <option value={CLUSTERFILTER_ALLES}>Alle clusters</option>
-            {clustersBijLabel.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </Filter>
-      )}
-
       {funnelfasen.length > 1 && (
-        <Filter label="Funnel">
+        <Filter label="Fase">
           <select
-            className="field"
+            className="field field-select"
             value={funnelfilter}
             onChange={(e) => navigeer({ funnel: e.target.value === FUNNELFILTER_ALLES ? null : e.target.value })}
           >
@@ -190,6 +218,8 @@ export function AnalyticsFilters({
             ))}
           </select>
         </Filter>
+      )}
+        </>
       )}
     </div>
   );
@@ -244,16 +274,19 @@ function Bronkeuze({
     <div ref={ref} className="relative">
       <button
         type="button"
-        className="field text-left"
+        className="field flex items-center justify-between gap-2 text-left"
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {samenvatting}
+        <span className="truncate">{samenvatting}</span>
+        <span className="text-[var(--text-subtle)]">
+          <Icon naam="openen" size={14} />
+        </span>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 flex min-w-full flex-col gap-1.5 whitespace-nowrap rounded-md border border-[var(--line-muted)] bg-[var(--bg-base)] p-3 shadow-md">
-          <label className="flex items-center gap-1.5">
+        <div className="menu-surface absolute left-0 top-full z-30 mt-1 flex min-w-full flex-col whitespace-nowrap">
+          <label className="menu-item cursor-pointer">
             <input
               type="checkbox"
               checked={alles}
@@ -268,7 +301,7 @@ function Bronkeuze({
             Alle bronnen
           </label>
           {bronnen.map((b) => (
-            <label key={b.id} className="flex items-center gap-1.5">
+            <label key={b.id} className="menu-item cursor-pointer">
               <input
                 type="checkbox"
                 checked={bronfilter.includes(b.id)}

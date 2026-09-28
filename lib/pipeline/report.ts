@@ -15,9 +15,22 @@ import { Report } from "@/lib/schemas/report";
 import { NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
 import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
 import { PRIMARY_ENGINE } from "@/lib/engines/types";
-import { resolveTargets, mergeOverlappingRecommendations } from "@/lib/pipeline/recommendation";
+import {
+  resolveTargets,
+  mergeOverlappingRecommendations,
+  rangschikAanbevelingen,
+  eenVerbeteringPerAdres,
+} from "@/lib/pipeline/recommendation";
+import { canonicalKey } from "@/lib/crawl-urls";
 import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
-import { correctQuestionCount, questionCountLine } from "@/lib/pipeline/report-summary";
+import {
+  bronnenDieWelNoemden,
+  bronnenRegel,
+  correctQuestionCount,
+  questionCountLine,
+  vulBronnenAan,
+} from "@/lib/pipeline/report-summary";
+import { BRONNEN } from "@/lib/engines/bron";
 import {
   buildEvidenceDossier,
   loadBrandsByRun,
@@ -30,6 +43,8 @@ import {
 } from "@/lib/pipeline/context-factors";
 import {
   formatEvidenceDossier,
+  resolveGapEvidence,
+  schoonGapCluster,
   type EvidenceEntry,
 } from "@/lib/pipeline/evidence-format";
 import {
@@ -45,11 +60,18 @@ import {
   assessStructureCoverage,
   formatCoverageForReport,
 } from "@/lib/pipeline/structure-gap";
-import { siteStructureRule, goalRule } from "@/lib/pipeline/commercial-context";
+import {
+  siteStructureRule,
+  goalRule,
+  reportSteering,
+  groeiKernwoorden,
+  raaktGroeidoel,
+} from "@/lib/pipeline/commercial-context";
 import { sendReportEmail } from "@/lib/email/report-email";
 import { emailsEnabled } from "@/lib/env";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { requireCount } from "@/lib/require-count";
+import { legKansenVast, werkKennisgatBij } from "@/lib/kansen/uit-rapport";
 import type {
   Analysis,
   AnalysisStatus,
@@ -122,6 +144,9 @@ const REPORT_SYSTEM =
   "met welke van de vier eisen hij niet haalde (geen bewijs, niets waars te zeggen, al gedekt door een " +
   "bestaande pagina, of overlapt met een andere aanbeveling). Dat is geen extra werk maar de andere " +
   "kant van dezelfde beslissing die je toch al nam. " +
+  // Punt 24 van de kwaliteitsdoorlichting: de richting stond nergens. De code
+  // rangschikt daarna zelf opnieuw (`rangschikAanbevelingen`).
+  "Geef priority als rangnummer: 1 is de belangrijkste aanbeveling, 2 de volgende, enzovoort. " +
   "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
   "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
   "jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt " +
@@ -186,7 +211,13 @@ function scoreLine(score: VisibilityScore | null): string {
         `binnen die marge vallen.`
       : "";
 
-  return base + weighted + sov + uncertainty;
+  // Zonder deze regel schreef het rapport "niet genoemd bij de 30 vragen" over
+  // een merk dat Google wel noemde (zie `vulBronnenAan()`).
+  const bronnen = bronnenRegel(
+    bronnenDieWelNoemden(score?.per_engine_json, PRIMARY_ENGINE, BRONNEN),
+  );
+
+  return base + weighted + sov + uncertainty + bronnen;
 }
 
 /**
@@ -327,11 +358,27 @@ function buildReportInput(
       goal_12m: profile?.goal_12m ?? null,
       seasonality: profile?.seasonality ?? null,
     }),
+    // Punt 27 van de kwaliteitsdoorlichting: waar de klant naartoe wil en wat
+    // hij al vertelde. De weging erachter staat in `rangschikAanbevelingen()`.
+    reportSteering({
+      priority_offerings: profile?.priority_offerings ?? [],
+      deprioritised_offerings: profile?.deprioritised_offerings ?? [],
+      growth_regions: profile?.growth_regions ?? [],
+      target_segments: profile?.target_segments ?? [],
+      forbidden_topics: profile?.forbidden_topics ?? [],
+      offline_proof: profile?.offline_proof ?? [],
+    }),
     "",
     "Schrijf op basis hiervan een kort, jargonvrij rapport. Noem in elk gap-item expliciet welke " +
       "concurrent het betreft. PRIORITEER de aanbevelingen op de zwaarwegende gemiste vragen hierboven " +
-      "(hoog gewicht = populair en of koopklaar). Geef 5 tot 8 concrete, geprioriteerde aanbevelingen, " +
-      "genoeg om de zwaarste gemiste vragen te dekken, niet zoveel dat het een boodschappenlijst wordt. " +
+      "(hoog gewicht = populair en of koopklaar). " +
+      // N2: hier stond tot 26 september 2026 "geef 5 tot 8", terwijl
+      // `REPORT_SYSTEM` zegt dat het aantal niet vastligt. Twee opdrachten die
+      // elkaar tegenspreken laten het model kiezen welke het volgt; op productie
+      // kwamen er 6, 7 en 7 uit, precies binnen de band. Eén regel nu.
+      "Het aantal aanbevelingen ligt niet vast: kies het aantal " +
+      "dat samen het meeste gemeten gemis dekt, gewogen naar het gewicht van de vragen, volgens de vier eisen " +
+      "in je opdracht. Laat geen zware gemiste vraag onbenoemd, en maak geen aanbeveling die geen gemis dekt. " +
       "Koppel elke aanbeveling aan de vraagcodes (V1, V2, …) die hij moet winnen. " +
       // ⚠️ De vraagcodes en de gewichten zijn ONZE notatie en horen in het veld
       // `targets`, niet in de zin die de klant leest. Ze stonden er wel: op het
@@ -519,46 +566,6 @@ async function computeMissedPrompts(
 }
 
 /**
- * Bewaart de feitenvragen bij het PROFIEL (optimalisatie.md 4.6).
- *
- * Bij het profiel en niet bij de analyse, want "hoeveel jaar bestaan jullie?"
- * is één keer beantwoorden en daarna weten we het voor elke pagina van dit merk.
- * De unieke index op (profile_id, question) zorgt dat een tweede rapport
- * dezelfde vraag niet opnieuw stelt, ook niet als de klant hem al oversloeg.
- */
-async function saveFactRequests(
-  admin: ReturnType<typeof createAdminClient>,
-  analysis: Analysis,
-  requests: Report["factRequests"],
-): Promise<void> {
-  if (!requests || requests.length === 0) return;
-
-  const rows = requests
-    .filter((r) => r.question?.trim())
-    .slice(0, FACT_REQUEST_CAP)
-    .map((r) => ({
-      profile_id: analysis.profile_id,
-      analysis_id: analysis.id,
-      question: r.question.trim(),
-      reason: r.reason?.trim() || null,
-    }));
-
-  // Botsingen (de vraag stond er al) negeren in plaats van de hele insert laten
-  // klappen; het rapport mag niet mislukken op een dubbele feitenvraag.
-  const { error } = await admin.from("fact_requests").upsert(rows, {
-    onConflict: "profile_id,question",
-    ignoreDuplicates: true,
-  });
-  if (error)
-    console.warn(
-      `Feitenvragen opslaan mislukt voor analyse ${analysis.id}: ${error.message}`,
-    );
-}
-
-/** Meer dan een handvol vragen is geen uitnodiging meer maar een formulier. */
-const FACT_REQUEST_CAP = 6;
-
-/**
  * Toetst de concurrentnamen in het rapport tegen het bewijs
  * (implementatieplan.md R1.3).
  *
@@ -582,7 +589,16 @@ async function validateReportClaims(
   gaps: Report["gaps"];
   stripped: StrippedClaim[];
 }> {
-  const { profileId, recommendations, gaps, dossier } = args;
+  const { profileId, recommendations, dossier } = args;
+  // Eerst de codes van het model ("V1") naar echte meet-id's; zonder die stap
+  // bleef er van elke gap geen enkele toegestane naam over (zie
+  // `resolveGapEvidence()`). De opgeloste id's gaan ook de opslag in, zodat
+  // de audit-trail naar echte metingen wijst.
+  const gaps = args.gaps.map((gap) => ({
+    ...gap,
+    cluster: schoonGapCluster(gap.cluster),
+    evidenceRunIds: resolveGapEvidence(gap, dossier),
+  }));
 
   // Alle metingen waar het rapport naar verwijst: de doelvragen van de
   // aanbevelingen plus het bewijs onder de gaps. Die laatste hoeven niet in het
@@ -626,7 +642,7 @@ async function validateReportClaims(
   });
 
   const checkedGaps = gaps.map((gap) => {
-    const allowed = (gap.evidenceRunIds ?? []).flatMap((runId) =>
+    const allowed = gap.evidenceRunIds.flatMap((runId) =>
       namesForRun(runId),
     );
     const result = validateField(gap.problem, {
@@ -886,6 +902,37 @@ export async function generateReport(
         dossier,
       },
     );
+    // ── De volgorde (punt 24 en 27 van de kwaliteitsdoorlichting) ──────────
+    // Gewicht van de gemiste vragen, groeidoelen zwaar, het getal van het
+    // model alleen als tweede sleutel. Aanbod dat de klant niet wil gaat eruit.
+    const { aanbevelingen: gerangschikt, geschrapt: nietGewenst } = rangschikAanbevelingen(
+      recommendations,
+      groeiKernwoorden({
+        priority_offerings: profileTyped?.priority_offerings ?? null,
+        growth_regions: profileTyped?.growth_regions ?? null,
+      }),
+      groeiKernwoorden({
+        priority_offerings: profileTyped?.deprioritised_offerings ?? null,
+        growth_regions: null,
+      }).woorden,
+      raaktGroeidoel,
+    );
+    // Punt 31: één verbetering per bestaande pagina, de rest wordt een nieuwe
+    // pagina ernaast.
+    const { aanbevelingen: perAdres, omgezet } = eenVerbeteringPerAdres(gerangschikt, canonicalKey);
+    if (omgezet.length > 0) {
+      console.info(
+        `Analyse ${id} periode ${weekNo}: ${omgezet.length} tweede verbetering(en) van dezelfde pagina ` +
+          `omgezet naar een nieuwe pagina: ${omgezet.map((t) => `"${t}"`).join(", ")}.`,
+      );
+    }
+    if (nietGewenst.length > 0) {
+      console.warn(
+        `Analyse ${id} periode ${weekNo}: ${nietGewenst.length} aanbeveling(en) over aanbod dat ` +
+          `de klant niet wil, weggelaten: ${nietGewenst.map((r) => `"${r.title}"`).join(", ")}. ` +
+          `De ruwe modeluitvoer staat in reports.raw_json.`,
+      );
+    }
     if (stripped.length > 0) {
       console.warn(
         `Analyse ${id} periode ${weekNo}: ${stripped.length} niet-onderbouwde bewering(en) ` +
@@ -898,10 +945,16 @@ export async function generateReport(
     // Zie `lib/pipeline/report-summary.ts` voor de fout uit de doorloop van
     // 31 augustus 2026, waar het rapport "15 onderzochte vragen" schreef bij
     // een meting van 30 vragen en zichzelf drie zinnen verder tegensprak.
-    const samenvatting = correctQuestionCount(
+    const geteld = correctQuestionCount(
       report.parsed.summary,
       measurementSize.questions,
     );
+    // En "niet genoemd" rechtzetten als een andere bron het merk wél noemde.
+    const bronnen = vulBronnenAan(
+      geteld.summary,
+      bronnenDieWelNoemden(score?.per_engine_json, PRIMARY_ENGINE, BRONNEN),
+    );
+    const samenvatting = { ...geteld, summary: bronnen.summary };
     if (samenvatting.corrected.length > 0) {
       console.warn(
         `Analyse ${id} periode ${weekNo}: het rapport noemde ` +
@@ -919,7 +972,7 @@ export async function generateReport(
         change_json: change as never,
         summary: samenvatting.summary,
         gaps_json: gaps as never,
-        recommendations_json: recommendations as never,
+        recommendations_json: perAdres as never,
         declined_json: report.parsed.declinedGaps as never,
         stripped_claims_json: stripped as never,
         gap_analysis_raw_json: gap.raw as never, // volledige ruwe OpenAI-output B1 (§5)
@@ -940,7 +993,18 @@ export async function generateReport(
       );
     }
 
-    await saveFactRequests(admin, analysis, report.parsed.factRequests);
+    // Tot A3 (`van-pijplijn-naar-kennissysteem.md`) werden de feitvragen van het
+    // rapport hier vragen aan de klant. Sinds besluit V3 vraagt alleen de
+    // voorbereiding van een pagina; wat het rapport voorstelde, staat nog in de
+    // ruwe uitvoer (conventie 8).
+
+    // N2 (`docs/tasks/van-pijplijn-naar-kennissysteem.md`): elke aanbeveling
+    // wordt meteen een kans, met het bewijs van de meting per bron. Gooit nooit:
+    // het dure denkwerk hierboven is al betaald, en de voorraad vangt een
+    // mislukte poging op bij de volgende schermopening (`syncBacklog()`).
+    await legKansenVast(admin, (reportRow as { id: string }).id);
+    // N6: meteen ook wat we voor die kansen al weten en wat ontbreekt.
+    await werkKennisgatBij(admin, analysis.profile_id);
 
     // Off-site scan erachteraan (optimalisatie.md fase 7). Pas nu, want hij
     // leidt het bronnenlandschap af uit de meetdata. Losse taak: faalt hij, dan
@@ -1020,7 +1084,15 @@ export async function generateReport(
 
     return "gereed";
   } catch (err) {
-    await admin.from("analyses").update({ status: "mislukt" }).eq("id", id);
+    // ⚠️ De analyse gaat hier NIET meer op 'mislukt' (punt 56 van de
+    // kwaliteitsdoorlichting, 25 september 2026). Dat gebeurde bij de eerste
+    // mislukte poging, terwijl de wachtrij daarna nog drie keer opnieuw
+    // probeert (`MAX_ATTEMPTS` = 4, met 2, 4 en 8 minuten ertussen). Bij de
+    // herhaling, toen het OpenAI-tegoed even op was, zagen de klanten van alle
+    // drie de merken daardoor meteen "De meting is vastgelopen" voor iets dat
+    // vanzelf goed had kunnen komen. De status blijft nu 'gemeten' zolang er
+    // pogingen over zijn; na de laatste zet `handleFailure()` in
+    // `lib/jobs/worker.ts` hem op 'mislukt', zoals bij elke blokkerende taak.
     throw err;
   }
 }

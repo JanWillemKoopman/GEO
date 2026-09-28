@@ -1,13 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedProfile } from "@/lib/profiles";
 import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
-import { clampToneSlider, clampEmotional } from "@/lib/pipeline/tone-sliders";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import { resolveWriteSource } from "@/lib/profile-source";
 import { isStaff } from "@/lib/staff";
 import { normalizeUrl, checkUrlFormat } from "@/lib/url";
+import { schoneAdressen } from "@/lib/pagina/stemvoorbeelden-regels";
+import { haalStemvoorbeeldenOp } from "@/lib/pagina/stemvoorbeelden";
+import { sluitVragenUitGesprek } from "@/lib/vraag-sluiten";
+import { slaProfielOp } from "@/lib/kennis/uit-gesprek";
+import { legStemVast } from "@/lib/kennis/uit-stem";
+import { GESPREKSVELDEN, nietVanToepassingVelden } from "@/lib/kennis/gesprek";
+import type { BronProfiel } from "@/lib/kennis/terugvullen";
 
 /**
  * PATCH /api/profiles/[id], klantprofiel bewerken. Geen AI-call: pure CRUD op
@@ -17,12 +23,12 @@ import { normalizeUrl, checkUrlFormat } from "@/lib/url";
  */
 const EDITABLE_FIELDS = EDITABLE_PROFILE_FIELDS;
 
+/** Ruimte voor het ophalen van hooguit drie stemvoorbeelden na het antwoord (§6.10). */
+export const maxDuration = 60;
+
 /** Lijstvelden: lege en niet-tekstuele items eruit, de rest getrimd. */
 const LIST_FIELDS = [
   "taboo_phrases",
-  "key_messages",
-  "identity_keywords",
-  "signature_phrases",
   // De commerciële laag (migratie 0060).
   "priority_offerings",
   "deprioritised_offerings",
@@ -32,7 +38,7 @@ const LIST_FIELDS = [
   "forbidden_topics",
   "offline_proof",
   "name_exclusions",
-  // A3: deze zes werden vóór 31 augustus 2026 alleen door de invoercomponent
+  // A3: deze (toen zes, sinds K8 zonder `proof_points`) werden vóór 31 augustus 2026 alleen door de invoercomponent
   // getrimd, nooit door de route zelf. Conventie 1 wil de garantie hier, niet
   // alleen in de client: een ander scherm of een aanroep buiten de app om kon
   // een lege string in `aliases` zetten, waar de meting op vergelijkt.
@@ -41,28 +47,19 @@ const LIST_FIELDS = [
   "competitors",
   "aliases",
   "service_regions",
-  "proof_points",
-  // Onboarding ronde B, stap B8.
-  "style_samples",
 ] as const;
 
 /** Vrije tekst: een leeg veld wordt `null`, nooit een lege string. */
 const NULLABLE_TEXT_FIELDS = [
-  "compliance_notes",
-  "brand_mission",
-  "brand_positioning",
-  "usp",
   "differentiator",
-  "audience_secondary",
-  "author_photo_url",
-  "author_facebook_url",
-  "author_other_url",
   // Migratie 0060.
   "seasonality",
   "goal_12m",
   "contact_name",
   "contact_email",
   "contact_phone",
+  // Migratie 0115 (contentketen-opnieuw.md §6.3).
+  "verhalen",
 ] as const;
 
 /** De aanspreekvorm van de CONTENT, niet van ORBIT ENGINE's eigen interface. */
@@ -74,9 +71,6 @@ const PRONOUNS = ["je", "u", "wij"] as const;
  * nooit een client-string rechtstreeks doorlaten.
  */
 const DEAL_VALUE_BANDS = ["onbekend", "klein", "midden", "groot"] as const;
-
-/** Velden die als 1-3 geklemd worden in plaats van rechtstreeks opgeslagen. */
-const TONE_SLIDER_FIELDS = ["tone_formality", "tone_energy", "tone_complexity", "tone_humor"] as const;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -164,23 +158,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ),
     ].slice(0, 10);
   }
-  // Tone-sliders: geklemd naar 1-3, of null bij een lege/ontbrekende waarde.
-  // Nooit rechtstreeks een client-getal doorlaten naar de databaseconstraint.
-  for (const field of TONE_SLIDER_FIELDS) {
-    if (field in update) {
-      const raw = update[field];
-      update[field] = raw === null || raw === "" || raw === undefined ? null : clampToneSlider(raw);
-    }
-  }
-  // Het kennisniveau van de doelgroep loopt óók van 1 tot 3, dus dezelfde klem.
-  if ("audience_knowledge_level" in update) {
-    const raw = update.audience_knowledge_level;
-    update.audience_knowledge_level =
-      raw === null || raw === "" || raw === undefined ? null : clampToneSlider(raw);
-  }
-  // De emotionele lading is de enige met vier standen (migratie 0048).
-  if ("tone_emotional" in update) {
-    update.tone_emotional = clampEmotional(update.tone_emotional);
+  // Stemvoorbeelden (besluit B14): alleen de adressen komen van de client. De
+  // tekst haalt de server zelf op, na het antwoord (`after()`), zodat een
+  // trage site het opslaan niet ophoudt. Tot dan staat er geen tekst.
+  let stemAdressen: string[] | null = null;
+  if ("stem_voorbeelden" in body) {
+    stemAdressen = schoneAdressen(body.stem_voorbeelden);
+    update.stem_voorbeelden = stemAdressen.map((url) => ({ url, tekst: null, opgehaald_op: null, fout: null }));
   }
   // Aanspreekvorm: alleen de drie bekende waarden, anders null. Nooit een
   // client-string rechtstreeks naar de databaseconstraint.
@@ -222,7 +206,39 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  const { error } = await admin.from("profiles").update(update).eq("id", id);
+  // ── Opslaan, en de kennislaag (K5, sinds K8 deel 3 in één handeling) ─────
+  //
+  // Wat een mens hier aan een veld veranderde, wordt verklaarde klantkennis:
+  // nieuw gezegd, een nieuwere versie, of weggehaald. Een veld dat hetzelfde
+  // bleef, verandert niet van status: laten staan is geen uitspraak
+  // (`lib/kennis/gesprek.ts`). De kolommen op `profiles` zijn de kopie die de
+  // meting leest; alleen `lib/kennis/` schrijft ze (besluit V22).
+  //
+  // "Niet van toepassing" (K7, gevonden in K5) zegt dat het veld voor dit merk
+  // niet bestaat: voor de kennislaag is het veld dan leeg, en wat er stond wordt
+  // afgewezen door wie het aanvinkte. Terugzetten doet niets: pas een nieuwe
+  // waarde is weer een uitspraak.
+  const nvt = body.nvt;
+  const bewerkteVelden = EDITABLE_FIELDS.filter((f) => f in body);
+  const nvtVelden = nietVanToepassingVelden(nvt);
+  const kennisVelden = [...new Set([...bewerkteVelden.filter((f) => (GESPREKSVELDEN as readonly string[]).includes(f)), ...nvtVelden])];
+  const { data: aanbod } = kennisVelden.includes("products")
+    ? await admin.from("profile_offerings").select("name, removed_at").eq("profile_id", id)
+    : { data: [] };
+  const { error } = await slaProfielOp(
+    admin,
+    {
+      profileId: id,
+      url: profile.url,
+      kolommen: update,
+      oud: profile as unknown as Partial<BronProfiel>,
+      velden: kennisVelden,
+      nietVanToepassing: nvtVelden,
+      bron: bron.source,
+      aanbod: (aanbod ?? []) as { name: string; removed_at: string | null }[],
+    },
+    { actor: "mens", gebruikerId: user.id },
+  );
   if (error) {
     return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
   }
@@ -254,7 +270,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // Een leeg veld is zonder dit dubbelzinnig: het kan "weten we nog niet"
   // betekenen of "niet van toepassing". Een merk zonder auteur heeft geen
   // auteursbio, en dat is geen gat.
-  const nvt = body.nvt;
   if (nvt && typeof nvt === "object" && !Array.isArray(nvt)) {
     const rijen = Object.entries(nvt as Record<string, unknown>)
       .filter(([field]) => (EDITABLE_FIELDS as readonly string[]).includes(field))
@@ -280,7 +295,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  const bewerkteVelden = EDITABLE_FIELDS.filter((f) => f in body);
   if (bewerkteVelden.length > 0) {
     const nu = new Date().toISOString();
     const { error: bronError } = await admin.from("profile_field_sources").upsert(
@@ -303,6 +317,32 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           `(${bewerkteVelden.length} veld(en) wél opgeslagen): ${bronError.message}`,
       );
     }
+  }
+
+  // ── Vragen die het gesprek nu beantwoordt, dicht (punt 35) ──────────────
+  // Het merkonderzoek zet zijn vragen klaar vóór het gesprek; bij de
+  // installateur 19 minuten ervoor. Zonder deze stap vroeg de app daarna nog
+  // steeds hoeveel monteurs er werken, terwijl "Twaalf monteurs in dienst" net
+  // was opgeslagen.
+  if (bewerkteVelden.some((f) => ["offline_proof", "service_regions", "growth_regions"].includes(f))) {
+    const gesloten = await sluitVragenUitGesprek(admin, id);
+    if (gesloten > 0) {
+      console.log(`Profiel ${id}: ${gesloten} open vraag of vragen gesloten, het gesprek beantwoordt ze.`);
+    }
+  }
+
+  // De tekst van de stemvoorbeelden gaat na het ophalen ook de kennislaag in
+  // (K8): waargenomen, met het adres als bron. Een weggehaald adres wijst de
+  // mens af die het weghaalde, ook als er geen adres meer over is.
+  if (stemAdressen) {
+    const adressen = stemAdressen;
+    const door = { actor: "mens" as const, gebruikerId: user.id };
+    after(async () => {
+      const voorbeelden = adressen.length > 0 ? await haalStemvoorbeeldenOp(adressen) : [];
+      // Veranderden de adressen intussen, dan slaat `legStemVast()` niets op:
+      // de latere opslag doet dit werk.
+      await legStemVast(admin, { profileId: id, url: profile.url, voorbeelden, gekozen: adressen }, door);
+    });
   }
 
   return NextResponse.json({ ok: true });

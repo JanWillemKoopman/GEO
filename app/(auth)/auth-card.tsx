@@ -72,7 +72,7 @@ export function AuthLabel({
   return (
     <label htmlFor={htmlFor} className="type-caption-emphasis block text-[var(--text-tertiary)]">
       {children}
-      {required && <span className="text-[var(--intent-danger-text)]"> *</span>}
+      {required && <span className="text-[var(--intent-danger-content)]"> *</span>}
     </label>
   );
 }

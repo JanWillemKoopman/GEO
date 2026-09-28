@@ -3,7 +3,7 @@ import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
 import { isVolumeBand } from "@/lib/pipeline/volume";
-import { regionGateMessage } from "@/lib/pipeline/geo-share";
+import { regionGateMessage, toegestanePlaatsen } from "@/lib/pipeline/geo-share";
 
 /**
  * PATCH/DELETE /api/analyses/[id]/prompts/[promptId], prompt wijzigen/verwijderen
@@ -88,12 +88,16 @@ export async function PATCH(
   if (typeof update.text === "string") {
     const { data: profile } = await admin
       .from("profiles")
-      .select("service_scope, service_regions")
+      .select("service_scope, service_regions, growth_regions")
       .eq("id", owned.profile_id)
       .maybeSingle();
     const gate = regionGateMessage(
       profile?.service_scope as string | null,
-      (profile?.service_regions as string[] | null) ?? [],
+      // Een groeiplaats is ook een toegestane plaats (punt 5 van de kwaliteitsdoorlichting).
+      toegestanePlaatsen(
+        profile?.service_regions as string[] | null,
+        profile?.growth_regions as string[] | null,
+      ),
       update.text,
     );
     if (gate) return NextResponse.json({ error: gate }, { status: 400 });

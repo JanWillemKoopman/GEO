@@ -11,7 +11,7 @@ export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
 
   if (measurementCount === 0) {
     return (
-      <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+      <span className="mono-label">
         Nog geen metingen
       </span>
     );
@@ -26,7 +26,7 @@ export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
       <Metric value={searchQueries != null ? String(searchQueries) : "-"} label="Zoekopdrachten" />
       <Metric value={String(suggestedArticles)} label="Voorgesteld" />
       <Metric value={String(writtenArticles)} label="Geschreven" />
-      <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+      <span className="mono-label">
         {measurementCount === 1
           ? "1 meting"
           : `${measurementCount} metingen`}
@@ -37,7 +37,7 @@ export function AnalysisCardMetrics({ metrics }: { metrics: Metrics }) {
 
 function Metric({ value, label }: { value: string; label: string }) {
   return (
-    <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+    <span className="mono-label">
       <span className="font-medium" style={{ color: "var(--text-primary)" }}>
         {value}
       </span>{" "}

@@ -2,30 +2,9 @@ import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnedAnalysis } from "@/lib/analyses";
-import { planContentDraft, toPayload } from "@/lib/jobs/content-jobs";
-import { readRecommendations } from "@/lib/pipeline/recommendation";
-import { loadSchemaOrg } from "@/lib/pipeline/content";
+import { laadOrganisatie } from "@/lib/pagina/organisatie";
 import { validateOrRebuildJsonLd, bestaandeDatePublished } from "@/lib/schema-jsonld";
 import { FaqEdit } from "@/lib/schemas/content-piece";
-import { describeError, classifyError } from "@/lib/errors";
-import { eindpoort, EINDPOORT_STATUS } from "@/lib/content-final-gate";
-import { countBlockingQuestions } from "@/lib/open-questions";
-import { checkManualEdit } from "@/lib/pipeline/manual-edit-checks";
-import type { ContentPiece, ContentPieceTarget } from "@/lib/types/database";
-import type { StoredRecommendation } from "@/lib/pipeline/recommendation";
-
-/**
- * POST /api/analyses/[id]/content/[pieceId], herschrijven met feedback van de
- * klant (optimalisatie.md 4.8).
- *
- * De belangrijkste ontbrekende knop in de hele app. Een pagina die er bijna was
- * kon alleen geaccepteerd of genegeerd worden; "maak hem korter", "de toon is te
- * formeel" of "noem onze levertijd erbij" was nergens te zeggen.
- *
- * Het resultaat is een NIEUWE VERSIE (4.7), geen overschrijving: de vorige
- * versie blijft bewaard zodat de klant terug kan als het slechter werd.
- */
-const MAX_NOTE_LENGTH = 2000;
 
 /**
  * PATCH: de klant schaaft de tekst zelf bij (optimalisatie.md 4.12, content-
@@ -115,25 +94,13 @@ export async function PATCH(
     return NextResponse.json({ error: "Niets om op te slaan." }, { status: 400 });
   }
 
-  // ── Punt 14: dezelfde vijf controles die Nova bij opslaan doet ───────────
-  //
-  // Op de EFFECTIEVE stand na deze bewerking, niet alleen op de velden die nu
-  // meekomen: een klant die alleen de tekst aanpast terwijl de meta-title al
-  // langer leeg stond, moet dat nu ook te horen krijgen, niet pas bij de
-  // volgende meting.
-  const problemen = checkManualEdit({
-    title: (update.title as string) ?? pieceRow.title,
-    bodyMarkdown: (update.body_markdown as string) ?? pieceRow.body_markdown ?? "",
-    metaTitle: (update.meta_title as string) ?? pieceRow.meta_title ?? "",
-    metaDescription: (update.meta_description as string) ?? pieceRow.meta_description ?? "",
-    cluster: pieceRow.cluster,
-  });
-  if (problemen.length > 0) {
+  // Alleen wat een pagina onbruikbaar maakt: een lege titel of een lege tekst.
+  // Geen controle op stijl of inhoud (`docs/tasks/contentketen-opnieuw.md` §3).
+  const titel = ((update.title as string) ?? pieceRow.title ?? "").trim();
+  const tekst = ((update.body_markdown as string) ?? pieceRow.body_markdown ?? "").trim();
+  if (!titel || !tekst) {
     return NextResponse.json(
-      {
-        error: problemen.map((p) => p.message).join(" "),
-        problemen: problemen.map((p) => p.code),
-      },
+      { error: !titel ? "De titel mag niet leeg zijn." : "De tekst mag niet leeg zijn." },
       { status: 422 },
     );
   }
@@ -156,7 +123,7 @@ export async function PATCH(
   if (update.faq_json && pieceRow.type === "faq") {
     const [{ data: profileRow }, schemaOrg] = await Promise.all([
       admin.from("profiles").select("business_model").eq("id", analysis.profile_id).maybeSingle(),
-      loadSchemaOrg(admin, analysis.profile_id),
+      laadOrganisatie(admin, analysis.profile_id),
     ]);
     update.schema_jsonld = validateOrRebuildJsonLd(pieceRow.schema_jsonld, {
       type: "faq",
@@ -203,125 +170,4 @@ export async function PATCH(
     );
   }
   return NextResponse.json({ ok: true, updatedAt: update.updated_at });
-}
-
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string; pieceId: string }> },
-) {
-  const { id, pieceId } = await params;
-
-  const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Je bent niet ingelogd." }, { status: 401 });
-
-  const admin = createAdminClient();
-  const analysis = await getOwnedAnalysis(admin, id, user.id);
-  if (!analysis) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
-
-  const { data: pieceRow } = await admin
-    .from("content_pieces")
-    .select("*")
-    .eq("id", pieceId)
-    .eq("analysis_id", id)
-    .maybeSingle();
-  if (!pieceRow) return NextResponse.json({ error: "Pagina niet gevonden." }, { status: 404 });
-  const piece = pieceRow as ContentPiece;
-
-  let body: { note?: unknown };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Ongeldige aanvraag." }, { status: 400 });
-  }
-
-  const note = typeof body.note === "string" ? body.note.trim().slice(0, MAX_NOTE_LENGTH) : "";
-  if (!note) {
-    return NextResponse.json({ error: "Schrijf even wat er anders moet." }, { status: 400 });
-  }
-
-  // ── De eindpoort (28 augustus 2026) ──────────────────────────────────────
-  //
-  // Een nieuwe versie is de versie die definitief wordt, en die schrijft ORBIT
-  // ENGINE pas als de vragen behandeld zijn. Het eerste concept mag wél met open
-  // vragen: de scherpste vragen ontstaan pas tijdens dat schrijven. Zie
-  // `lib/content-final-gate.ts` voor het volledige waarom, inclusief de
-  // tegenspraak met "geen muur" uit het vrijgavepaneel.
-  //
-  // ⚠️ Conventie 1: de knop toont dezelfde melding, maar een melding is een
-  // intentie en deze regel is de garantie. Zonder deze controle is de poort met
-  // één `fetch` te omzeilen, en er hangt echt geld aan een schrijfronde.
-  const poort = eindpoort(await countBlockingQuestions(admin, id, pieceId));
-  if (!poort.mag) {
-    return NextResponse.json(
-      { error: poort.melding, openVragen: poort.open },
-      { status: EINDPOORT_STATUS },
-    );
-  }
-
-  // De doelvragen van de vorige versie meenemen (4.1). Zonder dat zou een
-  // herschrijving de koppeling met de meting verliezen, en schrijft versie 2
-  // ineens zonder te weten welke vraag hij moet winnen.
-  const { data: targetRows } = await admin
-    .from("content_piece_targets")
-    .select("*")
-    .eq("content_piece_id", pieceId);
-
-  const targets = ((targetRows ?? []) as ContentPieceTarget[]).map((t) => ({
-    promptId: t.prompt_id,
-    runId: t.tracking_run_id,
-    text: t.prompt_text,
-    cluster: t.cluster,
-    weight: 0,
-  }));
-
-  // De oorspronkelijke aanbeveling terugzoeken in het rapport, zodat "waarom
-  // deze pagina" en de nieuw/verbeteren-keuze bewaard blijven. Staat hij er niet
-  // meer in (rapport vervangen), dan reconstrueren we uit de pagina zelf.
-  const { data: report } = await admin
-    .from("reports")
-    .select("id, recommendations_json")
-    .eq("id", piece.report_id ?? "")
-    .maybeSingle();
-
-  const fromReport = readRecommendations(report?.recommendations_json).find(
-    (r) => r.title === piece.title,
-  );
-
-  const recommendation: StoredRecommendation = fromReport ?? {
-    title: piece.title,
-    type: piece.type,
-    targetIntent: piece.target_intent ?? "",
-    why: "",
-    priority: 1,
-    action: piece.action,
-    existingUrl: piece.existing_url,
-    // Migratie 0083: de pagina die dit onderwerp al raakt, bewaard bij de tekst
-    // zelf. Bij het opnieuw schrijven moet die waarschuwing blijven staan, ook
-    // als het rapport intussen vervangen is.
-    relatedUrl: piece.related_url ?? null,
-    targets,
-  };
-
-  try {
-    const { created } = await planContentDraft(admin, {
-      analysisId: id,
-      userId: user.id,
-      recommendation: toPayload(
-        { ...recommendation, targets: targets.length > 0 ? targets : recommendation.targets },
-        piece.report_id,
-        note,
-      ),
-      // Altijd een nieuwe versie: de klant vraagt om iets ánders, niet om
-      // hetzelfde nog eens.
-      regenerate: true,
-    });
-
-    return NextResponse.json({ queued: true, created }, { status: 202 });
-  } catch (err) {
-    console.error(`herschrijven inplannen mislukt voor pagina ${pieceId}:`, err);
-    return NextResponse.json(
-      { error: "ORBIT ENGINE kon het herschrijven niet inplannen.", detail: describeError(err), problem: classifyError(err) },
-      { status: 500 },
-    );
-  }
 }

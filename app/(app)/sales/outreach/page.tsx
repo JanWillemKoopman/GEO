@@ -13,7 +13,7 @@ import {
 } from "@/lib/sales/workflow";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Outreach" };
+export const metadata: Metadata = { title: "Verstuurd" };
 
 /**
  * Wat er verstuurd is en wat eruit kwam (plan §5.5 en hoofdstuk 18).
@@ -67,7 +67,7 @@ export default async function SalesOutreachPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Sales"
-        title="Outreach"
+        title="Verstuurd"
         description="Wat je hebt uitstaan, wat erop terugkwam en welke soort aanleiding het beste werkt. Versturen doe je zelf, vanuit je eigen mailbox."
       />
 

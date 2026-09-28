@@ -12,7 +12,6 @@ import { ProfileReadinessPanel } from "./profile-readiness-panel";
 import {
   BRAND_FIELDS,
   SESSION_BLOCKS,
-  SESSION_AUTHOR_FIELDS,
   missingRequired,
   isFilled,
 } from "@/lib/pipeline/brand-fields";
@@ -25,6 +24,9 @@ import {
   FIELD_TASKS,
 } from "@/lib/pipeline/onboarding-refresh";
 import { sessionMeter, notApplicableFields, type FieldState } from "@/lib/profile-meter";
+import { isHumanSet } from "@/lib/pipeline/field-merge";
+import { DOMEIN_KOP } from "@/lib/kennis/overzicht";
+import type { KennisrondeDomein } from "@/lib/kansen/kennisronde";
 import type { ContextFactor, Profile } from "@/lib/types/database";
 
 /**
@@ -66,6 +68,7 @@ export function OnboardingSession({
   recordedAt,
   changedSinceResearch,
   openAnalyses,
+  kennisronde,
 }: {
   profileId: string;
   brandName: string;
@@ -80,6 +83,8 @@ export function OnboardingSession({
   changedSinceResearch: string[];
   /** Analyses waarvan de vragen nog opnieuw opgesteld kunnen worden. */
   openAnalyses: number;
+  /** A4: het kennisgat (N6) over alle kansen heen, per domein. */
+  kennisronde: KennisrondeDomein[];
 }) {
   const router = useRouter();
   const [waarden, setWaarden] = useState<Record<string, unknown>>(() => {
@@ -117,7 +122,6 @@ export function OnboardingSession({
       findGaps(
         {
           aliases: (waarden.aliases as string[]) ?? [],
-          proof_points: (waarden.proof_points as string[]) ?? [],
           service_scope: (waarden.service_scope as string | null) ?? null,
           service_regions: (waarden.service_regions as string[]) ?? [],
           business_model: (waarden.business_model as string | null) ?? null,
@@ -145,8 +149,15 @@ export function OnboardingSession({
   }, [waarden]);
 
   function zet(key: string, value: unknown) {
-    setWaarden((w) => ({ ...w, [key]: value }));
     openstaandeVelden.current.add(key);
+    // ⚠️ De ref direct bijwerken, niet pas na de volgende render. Een lijstveld
+    // en een keuzeknop roepen `onChange` en `onCommit` in dezelfde klik aan;
+    // `bewaarVeld` las toen nog de waarde van vóór die klik. Gevolg, gemeten op
+    // 23 september 2026 in de kwaliteitsdoorlichting: van elke lijst ging het
+    // laatst toegevoegde punt verloren (7 van 7 lijsten) en elke keuze bleef
+    // leeg (3 van 3), terwijl het scherm "opgeslagen" toonde.
+    waardenRef.current = { ...waardenRef.current, [key]: value };
+    setWaarden((w) => ({ ...w, [key]: value }));
   }
 
   /**
@@ -158,12 +169,14 @@ export function OnboardingSession({
    * dat bij het weglopen verdwijnt is de duurste fout die dit scherm kan maken.
    */
   async function bewaarVeld(key: string) {
+    // Uit de ref, niet uit `waarden`: zie de toelichting bij `zet()`.
+    const waarde = waardenRef.current[key];
     setStanden((s) => ({ ...s, [key]: "opslaan" }));
     try {
       const res = await fetch(`/api/profiles/${profileId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [key]: waarden[key], bron: "gesprek" }),
+        body: JSON.stringify({ [key]: waarde, bron: "gesprek" }),
       });
       if (!res.ok) {
         setStanden((s) => ({ ...s, [key]: "mislukt" }));
@@ -172,7 +185,9 @@ export function OnboardingSession({
       setStanden((s) => ({ ...s, [key]: "opgeslagen" }));
       setStates((s) => ({ ...s, [key]: { ...s[key], source: "gesprek" } }));
       setGewijzigd((v) => (v.includes(key) ? v : [...v, key]));
-      openstaandeVelden.current.delete(key);
+      // Alleen van de lijst "nog op te slaan" af als er intussen niets nieuws
+      // is ingevuld; anders vangt het sluiten van de pagina het nog op.
+      if (waardenRef.current[key] === waarde) openstaandeVelden.current.delete(key);
       setLaatsteOpslag(new Date());
     } catch {
       setStanden((s) => ({ ...s, [key]: "mislukt" }));
@@ -297,10 +312,16 @@ export function OnboardingSession({
       Object.fromEntries(
         SESSION_BLOCKS.map((blok) => {
           const gevuld = blok.velden.filter((k) => isFilled(waarden[k as string])).length;
-          return [blok.id, { gevuld, totaal: blok.velden.length }];
+          // Punt 11 van de kwaliteitsdoorlichting: gevuld is niet gecontroleerd.
+          // Een veld dat het onderzoek vulde en dat nog geen mens bevestigde (de
+          // naamuitsluitingen van punt 3 bijvoorbeeld), houdt het blok open.
+          const teControleren = blok.velden.filter(
+            (k) => isFilled(waarden[k as string]) && !isHumanSet(states[k as string]?.source),
+          ).length;
+          return [blok.id, { gevuld, totaal: blok.velden.length, teControleren }];
         }),
       ),
-    [waarden],
+    [waarden, states],
   );
 
   function veld(key: string) {
@@ -352,7 +373,7 @@ export function OnboardingSession({
               veld. Springt niet, en zegt precies wat de klant wil weten: dat
               er niets kwijtraakt. */}
           {laatsteOpslag && (
-            <p className="mono-label text-muted" role="status">
+            <p className="mono-label" role="status">
               Alles bewaard · laatste wijziging{" "}
               {laatsteOpslag.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
             </p>
@@ -369,6 +390,38 @@ export function OnboardingSession({
               uitleg={`${initial.url} · ${initial.industry ?? "branche nog niet bekend"}. Wat ORBIT ENGINE al weet, en wat er nog moet gebeuren voordat je dit scherm deelt.`}
             />
             <ProfileReadinessPanel profileId={profileId} brandName={brandName} />
+            {/* A4: het gesprek richt zich op wat het meeste oplevert. Geen
+                nieuwe berekening: dit is het kennisgat (N6) van elke kans die
+                nog geschreven moet worden, gegroepeerd per onderwerp en met de
+                belangrijkste kansen het eerst genoemd (`ordenKansen()`). */}
+            {kennisronde.length > 0 && (
+              <div className="card flex flex-col gap-3">
+                <span className="mono-label">Wat dit gesprek het meest oplevert</span>
+                <p className="text-sm text-muted">
+                  Dit weten we nog niet over de onderwerpen waar de belangrijkste pagina&apos;s over
+                  gaan. Vraag dit het eerst.
+                </p>
+                <ul className="flex flex-col gap-3">
+                  {kennisronde.map((d) => (
+                    <li key={d.domein} className="flex flex-col gap-1">
+                      <span className="text-sm font-medium">{DOMEIN_KOP[d.domein] ?? d.domein}</span>
+                      <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-secondary">
+                        {d.regels.map((r) => (
+                          <li key={r.behoefte}>
+                            {r.label}
+                            <span className="text-xs text-muted">
+                              {" "}
+                              (bij {r.kansen.slice(0, 2).join(", ")}
+                              {r.kansen.length > 2 ? ` en ${r.kansen.length - 2} meer` : ""})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
 
           {/* ── 2 tot en met 6, 8. De blokken van hoofdstuk 3 ─────────────────
@@ -377,14 +430,22 @@ export function OnboardingSession({
               met wat alleen het gesprek kan opleveren; de herkomstchip per veld
               (`BrandFieldInput`) laat zien welke van de twee het is. */}
           {SESSION_BLOCKS.map((blok) => {
-            const p = { ...blokVoortgang[blok.id], compleet: blokVoortgang[blok.id].gevuld === blokVoortgang[blok.id].totaal };
+            const p = {
+              ...blokVoortgang[blok.id],
+              compleet:
+                blokVoortgang[blok.id].gevuld === blokVoortgang[blok.id].totaal &&
+                blokVoortgang[blok.id].teControleren === 0,
+            };
             return (
               <section key={blok.id} id={blok.id} className="flex flex-col gap-3">
                 <Kop nummer={blok.volgnummer} titel={blok.titel} uitleg={blok.uitleg} />
                 {/* A1, toegepast op de negen blokken: een blok dat al compleet is
                     hoeft niet in de weg te staan tijdens het gesprek. */}
                 <CollapsibleSection
-                  title={`${p.gevuld} van de ${p.totaal} ingevuld`}
+                  title={
+                    `${p.gevuld} van de ${p.totaal} ingevuld` +
+                    (p.teControleren > 0 ? `, ${p.teControleren} nog te controleren` : "")
+                  }
                   defaultOpen={!p.compleet}
                 >
                   {blok.velden.map((k) => veld(k as string))}
@@ -412,7 +473,7 @@ export function OnboardingSession({
                               value={urlWaarde}
                               onChange={(e) => setUrlWaarde(e.target.value)}
                             />
-                            <p className="text-sm text-[var(--status-error)]">
+                            <p className="text-sm text-[var(--intent-danger-content)]">
                               Let op: dit verandert het domein waar ORBIT ENGINE op leest. De crawl
                               en de inventaris moeten daarna opnieuw.
                             </p>
@@ -431,7 +492,7 @@ export function OnboardingSession({
                               </button>
                               <button
                                 type="button"
-                                className="text-sm text-secondary underline-offset-2 hover:underline"
+                                className="btn-ghost btn-sm"
                                 onClick={() => {
                                   setUrlBewerken(false);
                                   setUrlWaarde(initial.url);
@@ -479,7 +540,7 @@ export function OnboardingSession({
                             <span className="chip chip-neutral">Nog niet gekoppeld</span>
                           )}
                           <a
-                            href="/instellingen/koppelingen"
+                            href={`/instellingen/koppelingen/${profileId}`}
                             className="text-sm text-secondary underline-offset-2 hover:underline"
                           >
                             Naar koppelingen
@@ -530,7 +591,7 @@ export function OnboardingSession({
           />
 
           <div className="flex flex-col gap-3">
-            <span className="mono-label text-muted">Contactpersoon</span>
+            <span className="mono-label">Contactpersoon</span>
             <div className="flex flex-col gap-4">
               {veld("contact_name")}
               {veld("contact_email")}
@@ -538,15 +599,6 @@ export function OnboardingSession({
             </div>
           </div>
 
-          <CollapsibleSection title="Auteur, voor later" defaultOpen={false}>
-            <div className="flex flex-col gap-4">
-              <p className="text-sm text-muted">
-                Zeven velden voor de naam onder je artikelen. Vastgelegd, maar nog niet
-                automatisch onder gepubliceerde content gezet.
-              </p>
-              {SESSION_AUTHOR_FIELDS.map((k) => veld(k as string))}
-            </div>
-          </CollapsibleSection>
 
           <div className="card flex flex-col gap-3">
             <Meter meter={meter} />
@@ -589,6 +641,13 @@ export function OnboardingSession({
               {recordedAt
                 ? `Het gesprek is vastgelegd op ${nlDatum(recordedAt)}. Pas je hierboven iets aan, bewaar het dan opnieuw bij "Veranderingen die eraan komen".`
                 : "Leg het gesprek vast bij “Veranderingen die eraan komen”. Dan staat er wat je hebt afgesproken, met de datum erbij."}
+            </p>
+            {/* Contentketen WP4: de open vraag per pagina is de belangrijkste
+                invoer van de schrijver, en mag niet afhangen van of de klant
+                later zelf gaat typen. */}
+            <p className="text-sm text-secondary">
+              Staan er pagina&apos;s in het plan, vul dan de open vraag per pagina samen met de
+              ondernemer in, in de woorden van de ondernemer. Die vind je bij Openstaande vragen.
             </p>
           </div>
 
@@ -668,7 +727,7 @@ export function OnboardingSession({
                 </span>
               )}
               {bijwerken === "mislukt" && (
-                <span className="text-sm text-[var(--status-error)]">
+                <span className="text-sm text-[var(--intent-danger-content)]">
                   Het is niet gelukt om dit in gang te zetten. Probeer het zo nog eens.
                 </span>
               )}
@@ -737,7 +796,7 @@ function Kop({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="mono-label text-muted">{nummer}</span>
+      <span className="mono-label">{nummer}</span>
       <h2 className="type-section">{titel}</h2>
       <p className="text-secondary">{uitleg}</p>
     </div>
@@ -767,8 +826,8 @@ export function Meter({
 function Getal({ waarde, label }: { waarde: number; label: string }) {
   return (
     <span className="flex flex-col">
-      <span className="stat-value text-2xl">{waarde}</span>
-      <span className="mono-label text-muted">{label}</span>
+      <span className="data-card-waarde">{waarde}</span>
+      <span className="mono-label">{label}</span>
     </span>
   );
 }

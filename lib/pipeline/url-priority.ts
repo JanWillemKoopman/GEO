@@ -348,3 +348,32 @@ export function selectUrls(
       .sort((a, b) => b.found - a.found || a.segment.localeCompare(b.segment)),
   };
 }
+
+/**
+ * De menupagina's vooraan, binnen hetzelfde maximum (punt 28 van de
+ * kwaliteitsdoorlichting).
+ *
+ * Vooraan en niet alleen "erbij": bij een trage site leest de crawl de lijst
+ * van boven naar beneden tot het tijdbudget op is, en dan hoort de pagina uit
+ * het hoofdmenu er zeker bij. De homepage blijft eerst. Wat er door het menu
+ * bij komt, gaat van de staart af, en dat zijn de laagst gescoorde pagina's.
+ */
+export function metMenuVoorrang(
+  gekozen: readonly string[],
+  menu: readonly string[],
+  max: number,
+  exclude: ReadonlySet<string> = new Set(),
+): string[] {
+  const uit: string[] = [];
+  const gezien = new Set<string>();
+  const neem = (u: string) => {
+    const k = canonicalKey(u);
+    if (gezien.has(k) || exclude.has(u)) return;
+    gezien.add(k);
+    uit.push(u);
+  };
+  for (const u of gekozen) if (segmentsOf(u).length === 0) neem(u);
+  for (const u of menu) neem(u);
+  for (const u of gekozen) neem(u);
+  return uit.slice(0, max);
+}

@@ -1,8 +1,8 @@
 # Design System
 
 **Bron: OKX** (`okx.com`), hun `okd`-tokensysteem, gemeten op 17 september 2026 uit de gecompileerde
-CSS van hun webapp. **Peildatum van dit document: 21 september 2026**, na afronding van de volledige
-OKX-omzetting (stap 1 tot en met 10 van de herontwerpronde die op 17 september begon).
+CSS van hun webapp. **Peildatum van dit document: 23 september 2026**, na de UI-audit op consistentie
+die volgde op de OKX-omzetting (`docs/logbook.md`, 23 september 2026 (7)).
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
 `schrijfstijl.md`, voor de opbouw van schermen `ux-design.md`, voor het waarom achter beslissingen
@@ -121,9 +121,17 @@ betekenis te tonen, en `--accent-highlight` te bewaren voor een vlak waar zwarte
 
 - De primaire actie op een scherm (`.btn-accent`), hooguit één per scherm
 - De actieve staat in de navigatie, als streep, niet als vulling
-- De eigen merklijn in een grafiek (`--chart-1`)
-- De linkerrand van een kaart die om een handeling vraagt (`.card-rail-accent`, §5.5)
-- Het label "kans" in de concurrentenanalyse en vergelijkbare AI-uitkomsten (`.chip-attention`)
+- Het eigen merk: de lijn in een grafiek (`--chart-1`), de balk in een vergelijking, de markering
+  van de merknaam in een AI-antwoord (`HighlightedText`)
+- De voortgangsbalk (`.stappenflow-voortgang-balk`, de briefing) en de standbalk van een pagina
+- Het label "kans" in de concurrentenanalyse (`.chip-attention`), en op het paginascherm "wacht op
+  jou" en "niet opgeslagen": daar is oranje op besluit van de eigenaar voorbehouden aan "Te
+  verbeteren" (23 september 2026)
+- De GEO-kaart op Support (`.card-accent`): de kern van het product
+
+**Niet meer** (UI-audit, 23 september 2026): een geselecteerde rij of filterknop, een sleepdoel, een
+link, een infomelding of het statuslabel "actie nodig". Die droegen via de oude naam `intelligence`
+de accentkleur, en daarmee stond limoen op tientallen plekken waar het niets betekende.
 
 **Waar het niet komt:** niet op koppen, niet op links in lopende tekst, niet als achtergrond van een
 sectie, niet op meer dan ongeveer 1% van het zichtbare oppervlak. Dat percentage komt uit de gemeten
@@ -182,9 +190,12 @@ stap 10 (§10.5 van de afgeronde herontwerpronde, samengevat hier):
 | `--intent-info-solid` | `#4a4a4a` | `#4a4a4a` |
 
 De oude namen (`--intent-growth-*`, `--intent-information-*`, `--intent-intelligence-*`,
-`--intent-attention-*`) blijven als alias in `app/globals.css` staan zodat bestaand gebruik niet
-breekt, maar wijzen nu allemaal naar de tokens hierboven of naar `--accent`/`--trend-up`. **Gebruik in
-nieuw werk de nieuwe namen**, niet de aliassen.
+`--intent-attention-*`, en 72 andere uit de Nova-periode) stonden tot 23 september 2026 als alias in
+`app/globals.css`. Elke verwijzing is omgezet naar het echte token en de aliaslaag is weg; een
+verwijzing naar een oude naam is nu een lege kleur, en de derde controle van §12 vangt dat.
+
+Van Tailwinds kleurnamen zijn er drie over, rechtstreeks op hun token: `text-secondary`
+(`--text-secondary`), `text-muted` (`--text-tertiary`) en `bg-surface` (`--bg-surface`).
 
 ### 2.6 Stijging en daling
 
@@ -281,7 +292,7 @@ verandert.
 | Klasse | Maat/regelhoogte | Gewicht | Waarvoor |
 |---|---|---|---|
 | `.type-hero` | 36/47,5px | 600 | Paginakop van een hoofdscherm (marketing/404-achtig; zeldzaam) |
-| `.type-heading-lg` | 30/40px | 500 | De kop van elke pagina (`PageHeader`, 34 schermen), en de inlogroute |
+| `.type-heading-lg` | 30/40px | 500 | De kop van elke pagina (`PageHeader`, en sinds 23 september 2026 ook het clusterdossier, de contentpagina, "Nieuw cluster", "Nieuw merk", de marktpagina en de 404), en de inlogroute |
 | `.type-title` | 24/30px | 500 | De kop van een dialoog of een kaart |
 | `.type-section` | 18/24px | 500 | De kop boven een blok |
 | `.type-lead` / `.type-label` | 12/15px | 500 | Kleinste label, kapitalen, 0,04em spatiëring |
@@ -329,6 +340,14 @@ GEMETEN uit OKX' paddings: 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 48, op een basis
 --space-16: 64px      boven een paginakop
 ```
 
+**Het ritme van een pagina** (vastgelegd 23 september 2026, na een telling die 16, 24, 32 en 40px
+door elkaar vond): tussen de blokken van een pagina staat 24px (`gap-6`), en 32px (`gap-8`) op een
+pagina die uit secties met een eigen `SectionHeading` bestaat.
+
+**De paginamarge is een variabele** (`--stand-marge` op `.stand`, 16/20/24px). Een balk die van rand
+tot rand moet lopen gebruikt `.volle-breedte` en rekent met dezelfde variabele terug; een vaste
+`-mx-6 px-6` stak op een telefoon 8px buiten de pagina.
+
 **De kaartpadding schaalt zelf mee met het scherm** (`.card` in `app/globals.css`): 16px op mobiel,
 20px vanaf 768px, 24px vanaf 1024px. Dat is het enige wat aan een kaart responsief is.
 
@@ -341,8 +360,8 @@ GEMETEN uit OKX' paddings: 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 48, op een basis
 ```
 --radius-sm:    2px     tekstmarkeringen
 --radius-md:    4px     knop rechthoekig, chip, badge, invoerveld, navigatie-item
---radius-lg:    6px
---radius-xl:    8px     kaart, menu, selectiechip
+--radius-lg:    6px     niet in gebruik voor componenten (sinds 23 september 2026)
+--radius-xl:    8px     kaart, vlak, melding, menu, selectiechip
 --radius-xxl:  10px
 --radius-xxxl: 12px     dialoog, grote datakaart
 --radius-pill: 60px     knop standaard
@@ -394,10 +413,10 @@ hover, alleen de kleur verandert (`.card-interactive`, §7).
 | Invoerveld groot (`.field-lg`) | bestond niet | **48px**, tot nu toe alleen op de inlogroute |
 | Kaartpadding | 20px vast | **16/20/24px**, schaalt met het scherm (§4) |
 
-> ⚠️ **`.field-lg` (48px) hoort volgens de oorspronkelijke herontwerpronde onder 768px de maat voor
-> élk veld in de app te zijn** (Safari zoomt in bij focus op een veld onder 16px lettergrootte). Dat
-> raakt zo'n vijftig schermen en is nooit doorgevoerd buiten de inlogroute. Zie
-> `docs/tasks/openstaand-na-okx-omzetting.md`.
+| Invoerveld klein (`.field-sm`) | bestond niet | **36px**, even hoog als `.btn-sm`, voor een filterveld in een smalle kolom |
+
+**Onder 768px is elk veld 48px met 16px tekst** (sinds 23 september 2026, één regel in `.field`).
+Safari zoomt anders in bij focus op een veld met kleinere tekst.
 
 ### 5.5 De stang links op een kaart
 
@@ -408,14 +427,15 @@ hover, alleen de kleur verandert (`.card-interactive`, §7).
 dezelfde kaart met dezelfde rand als de kaarten eronder. De hiërarchie zat alleen in de
 lettergrootte, en die verdwijnt zodra iemand scrollt of op een telefoon kijkt.
 
-**Waarom de kleur meebeweegt.** Een vaste groene stang boven een zichtbaarheid van 8% zou een
-uitspraak doen die het cijfer niet waarmaakt. De tint volgt daarom de eerste zin van `insights()`
-(`lib/insights.ts`): `goed` wordt `--trend-up`, `let_op` wordt oranje, en zonder oordeel (nooit
-gemeten, eerste meting, of een verschil binnen de meetruis) blijft hij `--border-emphasis`.
+**De kleur op het overzicht.** Tot 21 september 2026 volgde de tint de eerste zin van `insights()`
+(`lib/insights.ts`). Sindsdien is de stang op het overzicht op verzoek van de eigenaar altijd
+`.card-rail-success` (`--trend-up`): het is het hoofdgetal van het hele scherm en verdient dezelfde
+nadruk ongeacht de richting. (Tot 23 september 2026 stond die kleur daar als losse hexwaarde.)
 
-**`.card-rail-accent` (toegevoegd stap 10, §8.5 van de herontwerpronde)** is de vierde variant: voor
-een kaart die om een handeling vraagt en geen meetuitkomst weergeeft, zoals een openstaande vraag in
-`FactRequests`. Geen richting, geen oordeel, alleen "hier is iets te doen".
+**Een kaart die om een handeling vraagt** krijgt `.card-rail` (neutraal, `--border-emphasis`): een
+openstaande vraag, een uitnodigingslink die je nu voor het laatst ziet, een nieuwere tekst dan die
+je voor je hebt. `.card-rail-accent` bestaat nog als naam maar is ook neutraal: de eigenaar haalde
+het groen daar weg ("Groene rand weg bij openstaande vragen").
 
 **Van vier pixels naar twee.** OKX kent zelf maar twee randdiktes (1 en 1,5) en gebruikt een
 gekleurde linkerrand nergens dikker dan 2. Vier pixels las als een tabblad, niet als een markering.
@@ -440,7 +460,7 @@ OKX' eigen pictogramfont, dat zelf niet overdraagbaar is). De keuze per betekeni
 |---|---|---|
 | Lijndikte | 1,75 | **1,5** |
 | In een tekstregel | 16px | 16px |
-| In een knop | 16px | 18px |
+| In een knop | 16px | **18px**, 16 in `.btn-sm`, 14 in `.btn-xs`; afgedwongen in `app/globals.css`, niet per aanroeper |
 | Losse pictogramknop | 20px | 16px klein, 24px groot |
 | Kleur | `currentColor` | `currentColor`, ongewijzigd |
 
@@ -527,13 +547,21 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.btn-actie` | **Actieknoppen**: elke knop die een cluster of onderwerp start ("Nieuwe cluster", "Cluster starten"), zoveel per scherm als er onderwerpen zijn. Omgekeerd contrast, zelfde kleur als `.btn-primary`. Zie §2.4a |
 | `.btn-outline` / `.btn-ghost` | De keuze ernaast, resp. de uitweg. Zelfde maten |
 | `.btn-sm` / `.btn-lg` | 36px en 48px, BEREKEND uit padding × 2 + regelhoogte + rand × 2 |
-| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-outline` | `--radius-md` (4px, niet meer een pil), gewicht 500. `-attention` draagt sinds stap 10 de accentkleur, niet roze (§2.5) |
-| `.alert` + `-success` / `-warning` / `-danger` | Blok in de pagina, geen zwevende toast. Toegevoegd in stap 8 (de inlogroute), sindsdien ook elders |
+| `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-outline` | `--radius-md` (4px, niet meer een pil), gewicht 500. `-attention` draagt sinds stap 10 de accentkleur, niet roze (§2.5). Een status loopt via `TONE_CHIP` (`lib/analysis-status.ts`) of `STAND_CHIP` (`lib/pagina-stand.ts`), nooit via inline kleuren |
+| `.chip-stijging` / `.chip-daling` | Een verschil ten opzichte van de vorige meting, op de `--trend-*`-tokens. Nooit `chip-success`/`chip-danger` voor een richting (§2.6) |
+| `.alert` + `-success` / `-warning` / `-danger` / `-info` (`Alert`) | Blok in de pagina, geen zwevende toast, 8px rond. Sinds 23 september 2026 de enige vorm voor een melding in de app, niet alleen op de inlogroute |
+| `.vlak` / `.vlak-gevuld` | Een blok binnen een kaart: rand, 8px rond, 12px lucht; `-gevuld` legt `--bg-surface-raised` eronder. Nooit `--bg-layer-2` als vulling van een blok, dat is de chipkleur |
+| `.tabel` / `.tabel-dicht` / `.tabel-klikbaar` | Elke tabel. Kop in kleine kapitalen, rijen gescheiden door `--line-muted`, 10px lucht (6px in `-dicht`). Een gekozen rij (`aria-selected`) is een rand en een waas |
+| `.link` | Een link in lopende tekst: de tekstkleur met een onderstreping. Nooit het accent. Een titel die een link is, houdt `hover:underline` |
+| `.menu-surface` + `.menu-item` / `-dubbel` / `-gevaar`, `.menu-kop`, `.menu-sectie`, `.menu-scheiding`, `.popover` | Elk zwevend vlak dat geen dialoog is: 8px, `--shadow-lg`. Een gekozen regel krijgt een vinkje en een waas |
+| `Dialog` (`components/dialog.tsx`) + `DialogKnoppen` | De enige omhulling van een dialoog: scrim, paneel, focus en Escape. Onder 768px een blad tegen de onderrand, de hoofdactie bovenaan. Titel in `.type-title` |
+| `.live-dot` / `.live-dot-sm` | "Er gebeurt nu iets": een ring die uitdijt, in succesgroen. `.vraag-dot` ("er wacht iets op jou") heeft dezelfde kleur en een andere beweging |
 | `.type-hero` … `.type-caption-emphasis` | De tekststijlen van OKX. Zie §3.2 |
 | `.mono-label` | De kicker boven een titel. Rendert sinds deze omzetting in Archivo, niet meer in mono; de naam is historisch |
 | `.stat-value` / `.tabular` / `.field-number` | Cijfers die je vergelijkt, `tabular-nums`, gewicht 500 |
-| `.field` / `.field-lg` / `.field-error` | Oppervlakkleur met een rand, 40px (of 48px voor `.field-lg`). Hover maakt de rand donkerder, focus zet hem op `--border-focus` |
-| `.stand`, `.wil-lezen`, `.wil-data` | De drie opmaakstanden van een pagina. Zie §8 |
+| `.field` / `.field-sm` / `.field-lg` / `.field-error` / `.field-select` | Oppervlakkleur met een rand, 40px (36px `.field-sm`, 48px `.field-lg`, en 48px voor elk veld onder 768px). Een keuzelijst krijgt altijd `.field-select`. Hover maakt de rand donkerder, focus zet hem op `--border-focus` |
+| `.stand`, `.wil-lezen`, `.wil-data` | De drie opmaakstanden van een pagina. Zie §8. Geen eigen `max-w-xl`: een smalle pagina is `.wil-lezen` |
+| `.volle-breedte` | Een balk die tot de rand van de pagina loopt, met `--stand-marge` (§4) |
 | `.topbar-sales` | 2px `--intent-warning-solid` onder de bovenbalk, alleen op `/sales/*`: een visueel signaal dat dit een interne (niet-klant) omgeving is |
 | `.skeleton` | Laadvlak, de vorm van wat er komt |
 | `.prose` | Lange tekst: rapport, contentpagina |
@@ -544,6 +572,8 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `Drawer` | Rechts uitschuivend paneel, vervangt sinds stap 10 `DetailPanel` overal waar dat de tabel ernaast versmalde |
 | `CollapsibleSection` | Vlakke accordeon met alleen een onderrand, geen kader. `compact`-variant voor een kleinere trede |
 | `EmptyState`, `ErrorState`, `ConfidenceChip` | Eén variant per patroon |
+| `DataCard` | Elk cijfer naast het ene hoofdgetal van een scherm: 24px (`.data-card-waarde`, ook los te gebruiken in een kaart). Het hoofdgetal zelf staat op `text-5xl` in de kaart met de stang. `verschil.oordeel` kleurt naar beter of slechter als lager beter is |
+| `FilterChip` (`.chip-select`), `Segment` (`.segment`) | Een filter is een filterchip, een wissel van weergave is een segment. Geen eigen schakelknoppen |
 | `ThemeToggle` | De schakelaar licht/donker, in `workspace-chrome.tsx` |
 | `AnalyticsFilters`, `AnalyticsTable` | De filterbalk en de sorteerbare tabel van Analytics |
 
@@ -579,7 +609,7 @@ tweede omzetting. Dat stond ook al open ná de Nova-ronde en is niet opnieuw dic
 
 ---
 
-## 11. De negen regels
+## 11. De tien regels
 
 1. **Een kleur heeft een betekenis, geen naam.** `--intent-danger-content`, nooit `--accent-purple`
    (die alias bestaat alleen voor bestaand gebruik), en nooit een hexwaarde of rauwe `rgba()` in een
@@ -600,6 +630,11 @@ tweede omzetting. Dat stond ook al open ná de Nova-ronde en is niet opnieuw dic
 9. **Een icoon komt uit `lib/icons.ts`.** Nooit een letterteken in de tekst, nooit een met de hand
    getekende SVG, nooit een rechtstreekse import uit `lucide-react`. In de zijbalk draagt alleen de
    kop er een. Zie §6.
+10. **Een eigen klasse staat in `@layer components`.** Buiten een laag wint CSS altijd van Tailwinds
+    hulpklassen, en dan doet een `p-3` of `border-[...]` in een scherm stil niets. Tot 23 september
+    2026 stond alles buiten een laag; 126 randkleuren en een handvol maten kwamen daardoor nooit door.
+    Een lettermaat onder 12px bestaat niet (behalve het label van 10px in de onderbalk), en 6px radius
+    evenmin.
 
 ---
 
@@ -689,6 +724,26 @@ grep -rnP "(*UTF)[\x{2190}-\x{21FF}\x{25A0}-\x{25FF}\x{2713}-\x{2718}\x{2699}]" 
 ```
 
 Nul regels is het doel; wat eruit komt hoort in `lib/icons.ts` (§6, regel 9 van §11).
+
+**En een zesde: bestaat elke eigen klasse, en staat er geen losse lettermaat of 6px radius?**
+
+```bash
+python3 - <<'EOF2'
+import re, glob, io
+css = re.sub(r"/\*.*?\*/", "", io.open("app/globals.css").read(), flags=re.S)
+bestaat = set(re.findall(r"\.([a-z][a-z0-9-]*)", css))
+eigen = re.compile(r"^(card|btn|chip|field|type|menu|tabel|vlak|alert|segment|tab|link|dialoog|live-dot|stat|mono|data-card|nav|icon-btn|popover)(-[a-z0-9-]+)?$")
+for p in glob.glob("app/**/*.tsx", recursive=True) + glob.glob("components/**/*.tsx", recursive=True):
+    if "solliciteren" in p: continue
+    for m in re.finditer(r'className=(?:"([^"]*)"|\{`([^`]*)`\})', io.open(p).read()):
+        for c in re.split(r"\s+", re.sub(r"\$\{[^}]*\}", " ", m.group(1) or m.group(2) or "")):
+            if eigen.match(c) and not c.endswith("-") and c not in bestaat: print("bestaat niet:", p, c)
+EOF2
+grep -rnE '0\.(55|6|65|68|7)rem|radius-lg\)' app components --include="*.tsx" | grep -v solliciteren
+```
+
+Beide geven nul regels. De eerste vond op 23 september 2026 `type-heading` (een kop die gewone tekst
+werd) en `.input` (een formulier in kale browservelden); de tweede 21 labels van 9,6 tot 11,2px.
 
 **En een vijfde: klopt de donkere stand met de lichte?**
 

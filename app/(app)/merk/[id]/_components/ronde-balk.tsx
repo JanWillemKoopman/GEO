@@ -34,8 +34,12 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
     <div className="card flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="type-section">Je {ronde.maand}</h2>
-          {ronde.periode && <span className="text-sm text-muted">{ronde.periode}</span>}
+          {/* "Deze maand" en niet "Je september" (UX-audit P2.3): de kop zegt
+              wat het is, de naam van de maand staat er klein naast. */}
+          <h2 className="type-section">Deze maand</h2>
+          <span className="text-sm text-muted">
+            {ronde.periode ? `${ronde.maand}, ${ronde.periode}` : ronde.maand}
+          </span>
         </span>
         <span className="text-sm text-muted">{ronde.volgende}</span>
       </div>
@@ -45,7 +49,7 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
           <li
             key={fase.id}
             aria-current={fase.actief ? "step" : undefined}
-            className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-lg)] px-3 py-2.5"
+            className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-xl)] px-3 py-2.5"
             style={{
               // ⚠️ De stap van nu krijgt een eigen vlak. Een ander icoontje en
               // iets dikkere letters (tot 23 september 2026) vielen tussen vijf
@@ -63,12 +67,12 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
                 style={{
                   width: fase.klaar ? 18 : undefined,
                   height: fase.klaar ? 18 : undefined,
-                  background: fase.klaar ? "var(--trend-up-surface)" : undefined,
+                  background: fase.klaar ? "var(--intent-success-surface)" : undefined,
                   color: fase.klaar
-                    ? "var(--trend-up-text)"
+                    ? "var(--intent-success-content)"
                     : fase.actief
                       ? "var(--text-primary)"
-                      : "var(--text-muted)",
+                      : "var(--text-tertiary)",
                 }}
               >
                 <Icon
@@ -89,7 +93,9 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
             {fase.detail && <span className="text-sm text-muted">{fase.detail}</span>}
 
             {fase.actief && (
-              <span className="chip chip-attention mt-1 w-fit">
+              // Aan de beurt is geen waarschuwing (UX-audit P2.1): oranje zegt
+              // "let op", en jouw beurt is gewoon de volgende stap.
+              <span className={`chip ${fase.aanZet === "jij" ? "chip-attention" : "chip-info"} mt-1 w-fit`}>
                 {fase.aanZet === "jij"
                   ? "jij, nu"
                   : fase.aanZet === "consultant"

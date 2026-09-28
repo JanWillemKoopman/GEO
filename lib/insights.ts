@@ -130,7 +130,7 @@ function wateNu(input: InsightInput): Insight {
     return { text: "Begin bij de techniek: geef de AI-crawlers toegang in robots.txt.", toon: "let_op" };
   }
   if (input.klaarOmTePubliceren > 0) {
-    return { text: "Zet de pagina's die klaarstaan online en markeer ze als geplaatst.", toon: "let_op" };
+    return { text: "Zet de pagina's die klaarstaan op je site en meld dat ze live staan.", toon: "let_op" };
   }
   if (input.openKansen > 0) {
     return {

@@ -5,15 +5,9 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { markPosted, removePage, assignToMonth, moveToBacklog, setPageDate } from "@/lib/plans";
 import { swapWithNeighbour, type OrderablePage } from "@/lib/plan-order";
 import { isStaff } from "@/lib/staff";
-import { keurTekstGoed } from "@/lib/content-approve";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
-import {
-  startVoorbereiding,
-  probeerTeSchrijven,
-  SCHRIJFPAGINA_KOLOMMEN,
-  SCHRIJFBLOKKADE_TEKST,
-  type TeSchrijvenPagina,
-} from "@/lib/plan-write-start";
+import { bereidVoor, probeerTeSchrijven } from "@/lib/pagina/start";
+import { keurGoed } from "@/lib/pagina/goedkeuren";
 
 /**
  * POST /api/profiles/[id]/plan/pages/[pageId], een handeling op één pagina.
@@ -57,7 +51,7 @@ export async function POST(
   // De pagina moet écht bij dít merk horen.
   const { data: page } = await admin
     .from("planned_pages")
-    .select("id, profile_id, status, plan_month_id")
+    .select("id, profile_id, status, plan_month_id, content_piece_id")
     .eq("id", pageId)
     .eq("profile_id", id)
     .maybeSingle();
@@ -103,69 +97,33 @@ export async function POST(
     const budget = await checkBudgetForProfile(id);
     if (!budget.ok) return NextResponse.json({ error: budget.message }, { status: 402 });
 
-    const { data: volledig } = await admin
-      .from("planned_pages")
-      .select(SCHRIJFPAGINA_KOLOMMEN)
-      .eq("id", pageId)
-      .eq("profile_id", id)
-      .maybeSingle();
-
-    if (!volledig) return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
-
-    // ── Ook de beheerder schrijft niet om de vragen heen (23 september 2026) ──
-    //
-    // Deze knop sloeg tot die dag de vragenronde over. Nu slaat hij alleen nog
-    // de twee WACHTREGELS over (de vrijgegeven maand en de schrijfdatum), en
-    // nooit de vragen: het besluit in `docs/tasks/contentflow-een-lijn.md` §1
-    // geldt voor iedereen. Nog niet voorbereid: voorbereiding starten. Wel
-    // voorbereid: de schrijfpoort vragen, zonder datumregel.
-    const nu = new Date();
-    const pagina = volledig as unknown as TeSchrijvenPagina & { content_piece_id?: string | null };
-    const { data: koppeling } = await admin
+    // De maand hoeft niet vrijgegeven te zijn en de datum telt niet; de vragen
+    // wel. Er komt nooit een schrijftaak met een open vraag (WP6 van
+    // `docs/tasks/contentketen-opnieuw.md`). Staat de pagina nog niet klaar,
+    // dan begint de voorbereiding nu en schrijft ORBIT ENGINE zodra de vragen
+    // beantwoord zijn en de datum nadert.
+    const uitslag = await bereidVoor(admin, [pageId], { negeerMaand: true });
+    const { data: gekoppeld } = await admin
       .from("planned_pages")
       .select("content_piece_id")
       .eq("id", pageId)
       .maybeSingle();
-    let pieceId = (koppeling?.content_piece_id as string | null) ?? null;
-
+    const pieceId = (gekoppeld as { content_piece_id?: string | null } | null)?.content_piece_id;
     if (!pieceId) {
-      const uitkomsten = await startVoorbereiding(admin, [pagina], nu, { negeerPlanning: true });
-      const u = uitkomsten.get(pageId);
-      if (!u) return NextResponse.json({ error: "Deze pagina wordt al geschreven of is al klaar." }, { status: 409 });
-      if (u.uitkomst === "geblokkeerd") {
-        return NextResponse.json({ error: SCHRIJFBLOKKADE_TEKST[u.reden] }, { status: 409 });
-      }
-      if (u.uitkomst === "al_klaar") {
-        return NextResponse.json({ ok: true, melding: "Er stond al een afgeronde tekst voor deze pagina klaar." });
-      }
-      if (u.uitkomst === "gestart") {
-        return NextResponse.json({
-          ok: true,
-          melding: "ORBIT ENGINE bereidt deze pagina nu voor. Zodra de vragen beantwoord zijn, begint het schrijven.",
-        });
-      }
-      pieceId = u.pieceId;
+      return NextResponse.json(
+        { error: uitslag.zonderCluster > 0 ? "Deze pagina hangt aan geen gemeten cluster." : "Deze pagina kan nu niet geschreven worden." },
+        { status: 409 },
+      );
     }
-
-    const probeer = await probeerTeSchrijven(admin, pieceId, nu, { negeerPlanning: true });
-    if (probeer.uitkomst === "geschreven_ingepland") {
-      return NextResponse.json({ ok: true, melding: "ORBIT ENGINE begint nu aan deze pagina." });
-    }
-    if (probeer.uitkomst === "geblokkeerd") {
-      return NextResponse.json({ error: SCHRIJFBLOKKADE_TEKST[probeer.reden] }, { status: 409 });
-    }
-    if (probeer.uitkomst === "mislukt") {
-      return NextResponse.json({ error: "ORBIT ENGINE kon het schrijven niet starten." }, { status: 500 });
-    }
-    const WACHT_TEKST: Record<string, string> = {
-      vragen_open: "Er staan nog vragen open voor deze pagina. Daarna begint het schrijven vanzelf.",
-      voorbereiding_loopt: "De voorbereiding loopt nog. Daarna volgen de vragen.",
-      te_weinig_onderbouwd: "Er is te weinig bekend om deze pagina te schrijven. De klant kiest eerst: algemeen schrijven of laten vallen.",
-    };
-    return NextResponse.json(
-      { error: WACHT_TEKST[probeer.reden] ?? "Deze pagina wordt al geschreven of is al klaar." },
-      { status: 409 },
-    );
+    const schrijven = await probeerTeSchrijven(admin, pieceId, { negeerDatum: true });
+    if (schrijven.uitkomst === "ingepland" || schrijven.uitkomst === "al_bezig") return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      melding:
+        schrijven.uitkomst === "wacht" && schrijven.reden === "vragen_open"
+          ? "Er staan nog vragen open voor deze pagina. ORBIT ENGINE schrijft zodra die beantwoord of overgeslagen zijn."
+          : "De voorbereiding loopt. Daarna staan de vragen voor deze pagina klaar.",
+    });
   }
 
   // ── Inplannen en terugleggen ─────────────────────────────────────────────
@@ -197,21 +155,12 @@ export async function POST(
       return NextResponse.json({ error: result.probleem }, { status: 409 });
     }
 
-    // In een maand die al vrijgegeven is: meteen voorbereiden, zodat de vragen
-    // er vandaag staan en niet pas na de cron van morgenochtend. Kost ongeveer
-    // twee dollarcent (contentflow-een-lijn.md §3.1); het schrijven zelf wacht
-    // op de antwoorden en valt dus niet onder deze klik.
+    // In een vrijgegeven maand start hier de voorbereiding; in een andere maand
+    // doet `bereidVoor` niets (WP6 van `docs/tasks/contentketen-opnieuw.md`).
     try {
-      const { data: rij } = await admin
-        .from("planned_pages")
-        .select(SCHRIJFPAGINA_KOLOMMEN)
-        .eq("id", pageId)
-        .eq("status", "gepland")
-        .eq("plan_months.status", "goedgekeurd")
-        .maybeSingle();
-      if (rij) await startVoorbereiding(admin, [rij as unknown as TeSchrijvenPagina], new Date());
+      await bereidVoor(admin, [pageId]);
     } catch (err) {
-      console.error(`Voorbereiding na inplannen van ${pageId} mislukte:`, err);
+      console.error(`Voorbereiding van plan-pagina ${pageId} mislukte, de ochtendronde pakt hem op:`, err);
     }
     return NextResponse.json({ ok: true });
   }
@@ -276,26 +225,15 @@ export async function POST(
   }
 
   if (actie === "goedkeuren") {
-    // ── Goedkeuren is overal hetzelfde (23 september 2026) ──────────────────
-    // Met een tekst: `keurTekstGoed()`, dezelfde eindpoort en dezelfde twee
-    // rijen als in de bibliotheek. Zonder tekst valt er niets goed te keuren.
-    const { data: rij } = await admin
-      .from("planned_pages")
-      .select("content_piece_id, content_pieces(analysis_id)")
-      .eq("id", pageId)
-      .maybeSingle();
-    const pieceId = (rij?.content_piece_id as string | null) ?? null;
-    const analysisId =
-      ((rij as { content_pieces?: { analysis_id?: string } | null } | null)?.content_pieces?.analysis_id as
-        | string
-        | undefined) ?? null;
-    if (!pieceId || !analysisId) {
-      return NextResponse.json({ error: "Er is nog geen tekst om goed te keuren." }, { status: 409 });
-    }
-    const uitkomst = await keurTekstGoed(admin, { pieceId, analysisId, userId: user.id });
-    if (!uitkomst.ok) {
-      return NextResponse.json({ error: uitkomst.error, openVragen: uitkomst.openVragen }, { status: uitkomst.status });
-    }
+    // Dezelfde regel als op het paginascherm: pas als elke gele zin bevestigd
+    // is (`lib/pagina/goedkeuren.ts`, §6.9 van contentketen-opnieuw.md).
+    const pieceId = page.content_piece_id as string | null;
+    if (!pieceId) return NextResponse.json({ error: "Er is nog geen tekst om goed te keuren." }, { status: 409 });
+    const { data: stuk } = await admin.from("content_pieces").select("analysis_id").eq("id", pieceId).maybeSingle();
+    const analysisId = (stuk as { analysis_id?: string } | null)?.analysis_id;
+    if (!analysisId) return NextResponse.json({ error: "Pagina niet gevonden." }, { status: 404 });
+    const uitkomst = await keurGoed(admin, { pieceId, analysisId, userId: user.id });
+    if (!uitkomst.ok) return NextResponse.json({ error: uitkomst.error }, { status: uitkomst.status });
     return NextResponse.json({ ok: true });
   }
 

@@ -12,12 +12,12 @@ export default function NotFound() {
   return (
     <main className="relative flex min-h-dvh items-center justify-center px-6 py-12">
       <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-5 text-center">
-        <Link href="/" className="text-2xl font-medium tracking-tight">
-          <span className="brand-gradient-text">ORBIT ENGINE</span>
+        <Link href="/" className="text-xl">
+          <span className="brand-logo">ORBIT ENGINE</span>
         </Link>
         <div className="card flex flex-col items-center gap-4 py-14">
           <span className="mono-label">404 · buiten bereik</span>
-          <h1 className="text-xl font-medium">Deze pagina bestaat niet</h1>
+          <h1 className="type-heading-lg">Deze pagina bestaat niet</h1>
           <p className="max-w-sm text-secondary">
             De link klopt niet meer, of het item is verwijderd. Vanaf je overzicht kom je overal.
           </p>

@@ -40,7 +40,10 @@ export async function generateProfileResearch(args: {
   // later concreet én on-brand kan schrijven zonder iets te verzinnen.
   const writingBasisRule =
     `Extraheer daarnaast, UITSLUITEND op basis van wat letterlijk in de website-tekst staat (niet verzinnen, niet uit web search): ` +
-    `(a) proofPoints: concrete, citeerbare feiten (garanties, jaartallen, aantallen, specialisaties, werkwijze, keurmerken); laat leeg als er niets hards staat; ` +
+    `(a) proofPoints: concrete, citeerbare feiten (garanties, jaartallen, aantallen, specialisaties, werkwijze, keurmerken); laat leeg als er niets hards staat. ` +
+    // WP1 van contentpijplijn-publicatiewaardig.md: 26 van de 45 proof points van de drie
+    // proefklanten begonnen met "De website vermeldt", en die afstand nam de schrijver over.
+    `Schrijf de bewering zelf op, niet dat de site hem doet: "Meer dan 35 jaar ervaring", niet "De website vermeldt 35+ jaar ervaring"; ` +
     `(b) styleSamples: 2-3 letterlijke voorbeeldzinnen van de site die de merkstem tonen.`;
 
   // Zonder zoekfunctie moet de instructie NIET om actuele marktcontext vragen,
@@ -80,6 +83,12 @@ export async function generateProfileResearch(args: {
     `Je bent een merk- en marktanalist. Analyseer dit bedrijf op basis van de website-tekst en het web. ` +
     `Bepaal: branche, kernproducten/-diensten, tone-of-voice, doelgroep-persona's, waardeproposities en 3–5 belangrijkste concurrenten ` +
     `van het HELE bedrijf, niet van één product of segment; dat wordt per analyse apart bepaald. ` +
+    // WP1 van contentpijplijn-publicatiewaardig.md: de waardeproposities gaan
+    // letterlijk de schrijfopdracht in, en "volgens de website" werd daar "maar
+    // dat zegt op zichzelf niets". Het vangnet in code is `waardeproposities.ts`.
+    `Formuleer elke waardepropositie als stellige, korte uitspraak over het bedrijf, zonder ` +
+    `herkomst ("volgens de website", "naar eigen zeggen", "het bedrijf zegt") en zonder dezelfde ` +
+    `propositie twee keer in andere woorden. ` +
     `${brandNameRule} ${businessModelRule} ${scopeFieldRule} ${writingBasisRule} ${groundingRule} Antwoord in het Nederlands.`;
 
   // Hoeveel de context waard is, hangt af van hoeveel pagina's erin zitten. Bij

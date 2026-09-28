@@ -38,6 +38,15 @@
 import type { PlanMonthStatus } from "@/lib/types/database";
 import { BUFFER_PER_MONTH } from "@/lib/plan-constants";
 
+/**
+ * Hoeveel maanden er minstens tussen twee verbeteringen van dezelfde pagina
+ * zitten. Besluit van de eigenaar op 24 september 2026, na punt 31 van de
+ * kwaliteitsdoorlichting: bij de installateur stonden vier verbeteringen van
+ * `/warmtepomp` in dezelfde week, vier herschrijvingen die elkaar overschrijven.
+ * Eén per drie maanden laat de vorige ook tijd om effect te meten.
+ */
+export const VERBETER_TUSSENRUIMTE_MAANDEN = 3;
+
 export interface OpenMaand {
   id: string;
   monthNumber: number;
@@ -98,9 +107,45 @@ export function bepaalVulling(input: {
   openMaanden: OpenMaand[];
   voorraadIds: string[];
   pagesPerMonth: number;
+  /**
+   * Het adres van elke voorraadkans die een bestaande pagina VERBETERT
+   * (genormaliseerd). Een nieuwe pagina staat er niet in. Zonder deze kaart
+   * gedraagt de vulling zich zoals vóór punt 31.
+   */
+  adresVan?: ReadonlyMap<string, string>;
+  /** Per adres de maandnummers waar al een verbetering van die pagina staat. */
+  bezet?: ReadonlyMap<string, readonly number[]>;
 }): VulUitkomst {
   const { openMaanden, pagesPerMonth } = input;
   const voorraad = [...input.voorraadIds];
+  const bezet = new Map<string, number[]>(
+    [...(input.bezet ?? new Map<string, readonly number[]>()).entries()].map(([k, v]) => [k, [...v]]),
+  );
+  const botst = (id: string, maand: number): boolean => {
+    const adres = input.adresVan?.get(id);
+    if (!adres) return false;
+    return (bezet.get(adres) ?? []).some((m) => Math.abs(m - maand) < VERBETER_TUSSENRUIMTE_MAANDEN);
+  };
+  const registreer = (id: string, maand: number): void => {
+    const adres = input.adresVan?.get(id);
+    if (!adres) return;
+    bezet.set(adres, [...(bezet.get(adres) ?? []), maand]);
+  };
+  /** Neemt tot `aantal` kansen uit de voorraad die in deze maand passen, in volgorde. */
+  const neem = (aantal: number, maand: number): string[] => {
+    const uit: string[] = [];
+    for (let i = 0; i < voorraad.length && uit.length < aantal; ) {
+      const id = voorraad[i];
+      if (botst(id, maand)) {
+        i++;
+        continue;
+      }
+      voorraad.splice(i, 1);
+      registreer(id, maand);
+      uit.push(id);
+    }
+    return uit;
+  };
   const opdrachten = new Map<string, VulOpdracht>();
   const heeftAlTerGoedkeuring = openMaanden.some((m) => m.status === "ter_goedkeuring");
   let bevorderMaand: string | null = null;
@@ -119,7 +164,9 @@ export function bepaalVulling(input: {
   // dan wisselgeld in maand een.
   for (const maand of openMaanden) {
     const ruimte = maand.magNogVullen ? pagesPerMonth - maand.huidigAantal : 0;
-    const toegewezen = voorraad.splice(0, Math.max(0, ruimte));
+    // Punt 31: een tweede verbetering van dezelfde pagina binnen drie maanden
+    // wordt overgeslagen en schuift door naar een latere maand.
+    const toegewezen = neem(Math.max(0, ruimte), maand.monthNumber);
 
     if (toegewezen.length > 0) {
       opdracht(maand).backlogIds.push(...toegewezen);
@@ -144,7 +191,7 @@ export function bepaalVulling(input: {
     if (maand.status === "goedgekeurd" || !maand.magNogVullen) continue;
     const nogTeVullen = BUFFER_PER_MONTH - maand.huidigBuffers;
     if (nogTeVullen <= 0) continue;
-    const buffers = voorraad.splice(0, nogTeVullen);
+    const buffers = neem(nogTeVullen, maand.monthNumber);
     if (buffers.length > 0) {
       opdracht(maand).bufferIds.push(...buffers);
     }

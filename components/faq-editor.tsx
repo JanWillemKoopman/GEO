@@ -56,10 +56,10 @@ export function FaqEditor({
       {items.map((item, i) => (
         <div
           key={i}
-          className="flex flex-col gap-2 rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3"
+          className="vlak flex flex-col gap-2"
         >
           <div className="flex items-start justify-between gap-2">
-            <span className="mono-label" style={{ fontSize: "0.65rem" }}>
+            <span className="mono-label">
               Vraag {i + 1}
             </span>
             <div className="flex shrink-0 items-center gap-2">
@@ -85,7 +85,7 @@ export function FaqEditor({
                 type="button"
                 onClick={() => remove(i)}
                 aria-label={`Verwijder vraag ${i + 1}`}
-                className="text-sm text-[var(--status-error)] hover:underline"
+                className="text-sm text-[var(--intent-danger-content)] hover:underline"
               >
                 Verwijderen
               </button>
@@ -112,7 +112,7 @@ export function FaqEditor({
         type="button"
         onClick={add}
         disabled={items.length >= maxItems}
-        className="btn-outline w-fit disabled:opacity-50"
+        className="btn-outline w-fit"
       >
         + Vraag toevoegen
       </button>

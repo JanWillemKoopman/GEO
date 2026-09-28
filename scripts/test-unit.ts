@@ -17,6 +17,83 @@
  * niet te testen zonder een echt project, en een test met een nagebootste
  * database toetst vooral of je nabootsing klopt.
  */
+import {
+  controleerItem,
+  magInBlokA,
+  setVoorBlokA,
+  magVoorVragenEnKansen,
+  rolInOverzicht,
+  magOvergaan as kennisMagOvergaan,
+  magNieuwMetStatus,
+  isVerlopen,
+  isActueel,
+  type KennisRegelItem,
+} from "@/lib/kennis/regels";
+import { kennisSleutel, botsingenMet, geldigheid, type SamenvoegItem } from "@/lib/kennis/samenvoegen";
+import {
+  KANS_BRONNEN,
+  KANS_HANDELINGEN,
+  KANS_STATUSSEN,
+  COMMERCIELE_WAARDEN,
+  steunVan,
+  bronnenVan,
+  bewijsSterkte,
+  ordenKansen,
+  uitlegVan,
+  bewijsRegel,
+  type KansBewijs,
+  type KansBron,
+  type KansInvoer,
+} from "@/lib/kansen/prioriteit";
+import {
+  kansUitAanbeveling,
+  kansSleutel,
+  bewijsUitMetingen,
+  bronVanEngine,
+  commercieleWaardeVan,
+  geldtVoorVan,
+  MAX_CONCURRENTEN,
+  isConcurrent,
+  type MetingVoorBewijs,
+  type KennisVoorKans,
+} from "@/lib/kansen/rapport";
+import { BESLUITEN } from "./kennis-open-punten";
+import { openPuntenSql, foutenVan } from "@/lib/kennis/open-punten";
+import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
+import { kennisrondeVoorMerk, BEHOEFTE_DOMEIN, type KennisrondeKans } from "@/lib/kansen/kennisronde";
+import { matchendeZoekopdrachten, zoekverkeerBewijsVan } from "@/lib/kansen/zoekverkeer";
+import {
+  maakTerugvulplan,
+  dekking,
+  zetOm,
+  koppelAanAanbod,
+  veldStatus,
+  ouderEerst,
+  type BronMerk,
+  type BronAanbod,
+  type PlanItem,
+} from "@/lib/kennis/terugvullen";
+import {
+  kennisUitMerkonderzoek,
+  kennisUitAanbod,
+  kennisUitSynthese,
+  kennisUitMarkt,
+  kennisUitKennistest,
+  doorVoor,
+  ONDERZOEK_TAKEN,
+} from "@/lib/kennis/onderzoek";
+import { moetIngedeeld, indelingVoorKennis } from "@/lib/kennis/indeling";
+import { KENNISVELDEN, kopieNaHandeling } from "@/lib/kennis/profielvelden";
+import { PROFIEL_MEENEMEN, type BronVraag } from "@/lib/kennis/terugvullen";
+import {
+  GESPREKSVELDEN,
+  kennisUitAntwoord,
+  kennisUitProfielveld,
+  kennisUitGesprek,
+  sleutelVan,
+  wijzigingen,
+} from "@/lib/kennis/gesprek";
+import { sleutelUpdateSql } from "@/lib/kennis/sleutels";
 import { binomialStderr, weightedScoreStderr, confidenceBand, changeIsMeaningful, bandInAntwoorden, Z95 } from "@/lib/stats/uncertainty";
 import {
   normalizeEntityName,
@@ -36,6 +113,9 @@ import {
   VOLUME_FACTOR,
 } from "@/lib/pipeline/volume";
 import { promptWeight, NEUTRAL_WEIGHT } from "@/lib/pipeline/prompt-weight";
+import { bouwInvoerOpname, promptHash } from "@/lib/openai/input-capture";
+import { spoorPaginering, isUuid, SPOOR_MAX, SPOOR_STANDAARD } from "@/lib/spoor";
+import { topicPrioriteit } from "@/lib/topic-volgorde";
 import { parseRobots, isAllowed, sitemapsFrom } from "@/lib/audit/robots";
 import { splitByTerms } from "@/lib/highlight";
 import { vloeiendPad, vloeiendPadTerug } from "@/lib/chart-curve";
@@ -44,6 +124,7 @@ import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { publicFactRequest } from "@/lib/fact-request-public";
 import { plattetekst, kopieeropties } from "@/lib/kopieervormen";
 import { legeStaat } from "@/lib/search-console/lege-staat";
+import { koppelStatus } from "@/lib/search-console/koppelstatus";
 import {
   startdatumBijToewijzing,
   afspraakGaten,
@@ -51,57 +132,20 @@ import {
   leesStartdatum,
 } from "@/lib/verkoopafspraak";
 import { rateLimitWindowStart, rateLimitVerdict } from "@/lib/rate-limit-rules";
-// ── Het kwaliteitsraamwerk (migratie 0091) ─────────────────────────────────
+import { heelMetabeschrijving, heelMetatitel, MAX_METABESCHRIJVING } from "@/lib/pipeline/metatitel";
+import { moetAchtergrond, ophaalVertragingSeconden, ACHTERGROND_GRENS_MS } from "@/lib/openai/achtergrond";
 import {
-  QUALITY_DIMENSIONS,
-  QUALITY_DIMENSION_SOURCES,
-  DIMENSION_LABELS,
-} from "@/lib/pipeline/quality-dimensions";
-import {
-  QUALITY_PROFILES,
-  UNIVERSELE_REGELS,
-  checkTypeRegels,
-  profielVoorType,
-  profielMistUniverseleDimensie,
-} from "@/lib/pipeline/quality-profile";
-import {
-  beoordeelKwaliteit,
-  weegDimensies,
-  kiesBesteVersie,
-  nietSlechterDan,
-  klantOordeel,
-  adviseurOordeel,
-} from "@/lib/pipeline/quality-score";
-import {
-  issueTekst,
-  issueTeksten,
-  issueUitTekst,
-  issuesUitJson,
-  issuesPerSectie,
-  prioriteerIssues,
-  blokkerendeIssues,
-} from "@/lib/pipeline/quality-issue";
-import type { QualityIssue } from "@/lib/pipeline/quality-issue";
-import {
-  berekenGewogenDekking,
-  berekenClaimDekking,
-  claimIsOnderbouwd,
-  bewijsDimensie,
-  claimSoortVan,
-  poortGraad,
-} from "@/lib/pipeline/evidence-weight";
-import {
-  faseVanIssue,
-  analyseerRootCause,
-  beschrijfRootCause,
-  reparatieHeeftZin,
-} from "@/lib/pipeline/root-cause";
-import {
-  bouwReparatieOpdracht,
-  bouwBlokkadeKop,
-  issuesUitTekstOfType,
-} from "@/lib/pipeline/quality-repair";
-import { begrensKernsecties } from "@/lib/pipeline/contract-format";
+  getallenIn,
+  veiligeWaarde,
+  vindKandidaten,
+  automatischeWinnaar,
+  houdtPaginaTegen,
+  conflictpoort,
+  ernstVan,
+  zonderBetwisteFeiten,
+  type RegisterFeit,
+} from "@/lib/pipeline/conflict-detect";
+import { schoonWaardepropositie, schoneWaardeproposities, zelfdePropositie, zonderVindplaats } from "@/lib/pipeline/waardeproposities";
 import type { AuditedClaim } from "@/lib/schemas/claim-audit";
 import type { FactItem } from "@/lib/pipeline/factcard";
 import {
@@ -109,6 +153,9 @@ import {
   readRecommendations,
   mergeOverlappingRecommendations,
   describeActionRatio,
+  rangschikAanbevelingen,
+  GROEI_FACTOR,
+  eenVerbeteringPerAdres,
 } from "@/lib/pipeline/recommendation";
 
 
@@ -128,19 +175,24 @@ import {
   EXISTING_PAGE_COVERAGE_THRESHOLD,
 } from "@/lib/pipeline/existing-page-match";
 import type { ExistingPageCandidate } from "@/lib/pipeline/existing-page-match";
-import { geoScore, geoIssues } from "@/lib/schemas/critique";
-import type { GeoCriteria } from "@/lib/schemas/critique";
-import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal } from "@/lib/pipeline/impact-math";
+import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal, citeertEigenPagina } from "@/lib/pipeline/impact-math";
 import { impactUitleg, type ImpactCijfers } from "@/lib/impact-uitleg";
+import {
+  bewijsladder,
+  hoogsteBewezenTrede,
+  TREDE_LABEL,
+  MIN_DAGEN_ZOEKMACHINE,
+  type BewijsladderInvoer,
+  type Trede,
+} from "@/lib/meting/bewijsladder";
 import { faseVoorPagina } from "@/lib/plan-funnel";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
 import { domainOf } from "@/lib/offsite/domain";
-import { schrijfpoort, schrijfdatum } from "@/lib/content-write-gate";
 import { paginaNaam } from "@/lib/pagina-naam";
-import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes } from "@/lib/pagina-lijst";
-import { bundelOpSoort } from "@/lib/pipeline/quality-groups";
-import { paginaStand, streefdatum, standVolgorde, FASEN, type PaginaStandInput } from "@/lib/pagina-stand";
+import { tellingen, filterPaginas, groepVan, LEEG_FILTER, filterKeuzes, statusRegel } from "@/lib/pagina-lijst";
+import { markeerZinnen, zinInBron } from "@/lib/tekst-markering";
+import { paginaStand, streefdatum, streefzin, standVolgorde, FASEN, heeftEigenScherm, type PaginaStandInput } from "@/lib/pagina-stand";
 import { checkUrlFormat, isOnBrandDomain, isRedirectedElsewhere, volledigAdres } from "@/lib/url";
 import { sanitizeForPostgres, hasUnstorableChars } from "@/lib/pg-text";
 import { countOpenPeriodicMeasurements } from "@/lib/jobs/pending";
@@ -166,8 +218,8 @@ import {
   LLM_RESPONSE_REPEATS,
   LLM_RESPONSE_POGINGEN,
 } from "@/lib/llm-responses/types";
-import { bepaalGemisteVragen } from "@/lib/pipeline/missed-prompts";
-import { formatEvidenceDossier, excerpt } from "@/lib/pipeline/evidence-format";
+import { bepaalGemisteVragen, genoemdPerVraag } from "@/lib/pipeline/missed-prompts";
+import { formatEvidenceDossier, excerpt, resolveGapEvidence, schoonGapCluster } from "@/lib/pipeline/evidence-format";
 import type { EvidenceEntry } from "@/lib/pipeline/evidence-format";
 import { stripUnsupportedClaims, validateField, NEUTRAL_FALLBACK } from "@/lib/pipeline/validate-claims";
 import { normalizePosition, averagePosition, weightedAveragePosition } from "@/lib/pipeline/position";
@@ -175,118 +227,25 @@ import { shareByRun, sumShare, roundQuestions } from "@/lib/pipeline/question-sh
 import {
   numberFacts,
   formatFactCard,
+  normalizeForQuote,
   isSupported,
   claimKey,
   topicKey,
   factFromAnswer,
   mergeAnsweredFacts,
+  metKlantopmerking,
+  metGespreksbewijs,
   sourceCoverage,
   buildFactFindingAddendum,
 } from "@/lib/pipeline/factcard";
-import {
-  selectBriefingQuestions,
-  slotQuestions,
-  describeSkipped,
-  positioningQuestion,
-  MAX_QUESTIONS,
-} from "@/lib/pipeline/briefing-select";
-import type { BriefingQuestion } from "@/lib/pipeline/briefing-select";
-import {
-  splitSections,
-  joinSections,
-  applySectionPatch,
-  normalizeHeading,
-} from "@/lib/pipeline/content-sections";
-import { checkContractCoverage } from "@/lib/pipeline/content-coverage";
-import type { ContentContract, ContractSection } from "@/lib/schemas/content-contract";
-import {
-  berekenInputCoverage,
-  leesSectieVerwijzing,
-  sectiesVanPagina,
-  sectieVerwijzing,
-  zetContractVast,
-} from "@/lib/pipeline/input-coverage";
-import { inputpoort, GOED_GENOEG, TE_WEINIG } from "@/lib/content-input-gate";
-import { bepaalLezersopdracht, lezersblok, noemtPersoon, MIN_WOORDEN } from "@/lib/lezersopdracht";
 import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-sliders";
-import { checkAanspreekvorm, checkAdresinstructie } from "@/lib/pipeline/content-gate";
-import { vindKlantinstructies, instructieblok, verbiedtAdres } from "@/lib/klantinstructies";
-import { checkFaqBlokken, overlapMetBody, FAQ_OVERLAP_MAX } from "@/lib/pipeline/faqblokken";
-import { zetActieAchteraan, MIN_WOORDEN_PER_SECTIE } from "@/lib/pipeline/contract-format";
-import { noemtSituatie } from "@/lib/lezersopdracht";
-import {
-  bruikbareOpdracht,
-  opdrachtblok,
-  checkSchrijfopdracht,
-  vroegeDeel,
-  MIN_KERNFEITEN,
-} from "@/lib/schrijfopdracht";
-import {
-  checkBewijspunten,
-  betekenisStaatInTekst,
-  bewijspuntenBehoudblok,
-  MIN_BEWIJSPUNTEN,
-} from "@/lib/pipeline/bewijspunten";
-import {
-  vindCiteerbareAntwoorden,
-  checkKlantcitaten,
-  overlapMetTekst,
-  citatenblok,
-} from "@/lib/pipeline/klantcitaten";
-import {
-  checkOpening,
-  checkMerkstem,
-  checkVraagkoppen,
-  eersteZin,
-  MERK_PER_HONDERD_MAX,
-  VRAAGKOPPEN_MAX,
-} from "@/lib/pipeline/paginavorm";
-import {
-  checkAdviestoon,
-  checkZelfondermijning,
-  GEBIEDEND_PER_HONDERD_MAX,
-  SLAP_PER_HONDERD_MAX,
-} from "@/lib/pipeline/adviestoon";
-import { checkHerhaling } from "@/lib/pipeline/similarity";
-import {
-  rangcorrelatie,
-  berekenIjking,
-  RANGCORRELATIE_NORM,
-  RANG_MINIMUM,
-} from "@/lib/quality-benchmark";
-import {
-  normaliseerContract,
-  formatContract,
-  stripFactRefs,
-  openingIsMeta,
-  describeImprovements,
-  describeImprovementCount,
-} from "@/lib/pipeline/contract-format";
-import { answerBelongsHere } from "@/lib/pipeline/answer-scope";
 import { stripChrome } from "@/lib/pipeline/page-text";
-import { prioriteerBevindingen, MAX_BEVINDINGEN_PER_RONDE } from "@/lib/pipeline/content-issues";
-import { beslisReparatieRonde, binnenRuis } from "@/lib/pipeline/content-repair-decision";
-import {
-  groepeerBevindingen,
-  aangebodenAanReparatie,
-  issueSleutel,
-  beschrijfPogingen,
-  leesbareBevinding,
-  type Keuringsronde,
-} from "@/lib/pipeline/quality-groups";
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
 import { htmlToText } from "@/lib/pipeline/html-text";
 import { identifyEmptyProfiles } from "@/lib/profile-status";
-import { ontwijkendeZinnen } from "@/lib/pipeline/content-gate";
 import { isRapportageVorm } from "@/lib/pipeline/factcard";
 import { describePronoun } from "@/lib/pipeline/tone-sliders";
-import {
-  checkContentGate,
-  openingVan,
-  geoRegels,
-  checkSourceTalk,
-} from "@/lib/pipeline/content-gate";
 import {
   brandNav,
   generalNav,
@@ -509,8 +468,6 @@ import {
 } from "@/lib/search-console/rankings";
 import { berekenOpbrengst, type OpbrengstPagina } from "@/lib/search-console/opbrengst";
 import { kandidaatZoektermen, MIN_KEYWORD_LENGTH, binnenWoordlimiet, MAX_WOORDEN_PER_ZOEKTERM } from "@/lib/search-demand/keywords";
-
-import { splitSentences, stripMarkdown, firstSentences } from "@/lib/pipeline/sentences";
 import { extractHeadings, renderMarkdown } from "@/lib/markdown";
 import {
   topicTerms,
@@ -519,12 +476,8 @@ import {
   selectRelevantPages,
   scoreTermOverlap,
 } from "@/lib/pipeline/page-relevance";
-import { verifyAtoms } from "@/lib/pipeline/atom-verify";
 import { verifyDossierFacts, answerTypeOf } from "@/lib/pipeline/dossier-verify";
 import { wilsonBounds, maySkip, elicitLabel, describeElicit } from "@/lib/pipeline/elicit-rate";
-import { planFactMerge, describeContradictions } from "@/lib/pipeline/fact-merge";
-import type { IncomingFact, StoredFact } from "@/lib/pipeline/fact-merge";
-import { detectClaimSentences, claimMatchesSentence, detectedCoverage } from "@/lib/pipeline/claim-extract";
 import { resolveTuning, isReasoningModel, isUnsupportedTemperatureError } from "@/lib/openai/sampling";
 import { zoekCliches, telCliches } from "@/lib/solliciteren/cliches";
 import {
@@ -615,8 +568,14 @@ import {
   sameDomain,
   sectionOf,
   parseUrlList,
+  isArchiefOfBijlage,
+  isArchiefSitemap,
+  isBijlageHtml,
+  volgendeBatchgrootte,
+  menuLinks,
+  canonicalKey,
 } from "@/lib/crawl-urls";
-import { scoreUrl, selectUrls, type UrlSignal } from "@/lib/pipeline/url-priority";
+import { scoreUrl, selectUrls, metMenuVoorrang, type UrlSignal } from "@/lib/pipeline/url-priority";
 import { openCandidates } from "@/lib/pipeline/light-scan-select";
 import { buildPageBlocks } from "@/lib/pipeline/page-select";
 import {
@@ -625,6 +584,8 @@ import {
   sameBrand,
 } from "@/lib/audit/entity-consistency";
 import { dedupe } from "@/lib/jobs/dedupe";
+import { abonneesVoor, registreer } from "@/lib/gebeurtenissen/register";
+import type { Abonnee } from "@/lib/gebeurtenissen/types";
 import {
   buildVerdict,
   checkFacts,
@@ -691,7 +652,7 @@ import {
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
 } from "@/lib/plan-backlog";
-import { bepaalVulling, type OpenMaand } from "@/lib/plan-fill";
+import { bepaalVulling, VERBETER_TUSSENRUIMTE_MAANDEN, type OpenMaand } from "@/lib/plan-fill";
 import {
   PLAN_STATUS_META,
   planRunningDate,
@@ -729,13 +690,10 @@ import {
 } from "@/lib/feitenvraag";
 import { navActief } from "@/lib/nav";
 import { openVragenTotaal, openVragenLabel } from "@/lib/open-questions-count";
-import { eindpoort } from "@/lib/content-final-gate";
-import { checkManualEdit } from "@/lib/pipeline/manual-edit-checks";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import {
   isEersteMaand,
-  overzichtCijfers,
-  totalenKop,
+  totalenZin,
   planRegels,
   versheidsregel,
   volgendeMeting,
@@ -749,8 +707,19 @@ import {
   isLokaal,
   REGIO_DREMPEL,
   regionGateMessage,
+  containsPlace,
+  groeiBalans,
+  toegestanePlaatsen,
+  wijkbaarVoorGroei,
+  vraagZonderPlaats,
 } from "@/lib/pipeline/geo-share";
 import { COST_DENIED } from "@/lib/cost-rules";
+import { gesprekBeantwoordt, zelfdeVraag } from "@/lib/vraag-dekking";
+import { isAdviesCitaat } from "@/lib/pipeline/aanbod-citaat";
+import { spreidTijden, GEMINI_AFSTAND_MS } from "@/lib/jobs/spreiding";
+import { buildSteps as bouwStappen } from "@/lib/pipeline/research-steps";
+import { paginaSoort, isFunctiepagina, functieblok } from "@/lib/pipeline/paginafunctie";
+import { knowsBrand as kentMerk, extractConfusions as haalVerwarringen, isEigenSchrijfwijze } from "@/lib/pipeline/baseline-verdict";
 import { requireCount } from "@/lib/require-count";
 import { mayMeasureAgain, MIN_DAGEN_TUSSEN_PERIODES } from "@/lib/measure-cadence";
 import { poolRecent, describePooled, MAX_POOLED_ROUNDS } from "@/lib/stats/pooling";
@@ -826,7 +795,6 @@ import {
   CLIENT_STEPS,
   SESSION_STEPS,
   SESSION_BLOCKS,
-  SESSION_AUTHOR_FIELDS,
   STEP_META,
   STEP_ORDER,
   fieldsOfStep,
@@ -867,6 +835,9 @@ import {
   forbiddenTopicHits,
   siteStructureRule,
   goalRule,
+  reportSteering,
+  groeiKernwoorden,
+  raaktGroeidoel,
 } from "@/lib/pipeline/commercial-context";
 import { buildTopicBrief } from "@/lib/pipeline/topic-brief";
 import {
@@ -901,9 +872,6 @@ import {
   withFreshnessLine,
   bestaandeDatePublished,
 } from "@/lib/schema-jsonld";
-import { similarity, mostSimilar, describeDuplicate } from "@/lib/pipeline/similarity";
-import { assessReadability, describeReadability } from "@/lib/pipeline/readability";
-import { checkQuality } from "@/lib/pipeline/content-gate";
 import { buildSteps, researchRunning, displaySteps } from "@/lib/pipeline/research-steps";
 import {
   filterProtectedFields,
@@ -922,7 +890,8 @@ import {
   regionsFromDescription,
   discontinuedNames,
 } from "@/lib/pipeline/context-factors";
-import { correctQuestionCount, kortSamengevat, questionCountLine } from "@/lib/pipeline/report-summary";
+import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
+import { bronnenDieWelNoemden, bronnenRegel, correctQuestionCount, kortSamengevat, questionCountLine, vulBronnenAan } from "@/lib/pipeline/report-summary";
 import {
   PACKAGE_SIZES,
   DEFAULT_PACKAGE_SIZE,
@@ -963,10 +932,7 @@ import {
   FUNNELFILTER_ALLES,
 } from "@/lib/analytics-filters";
 import { describeToneSliders, clampToneSlider } from "@/lib/pipeline/tone-sliders";
-import { versionReasonLabel } from "@/lib/pipeline/version-reason";
-import { checkTabooWords } from "@/lib/pipeline/content-gate";
 import { slugFrom, suggestedPath, resolvedContentUrl, displayTitle } from "@/lib/pipeline/slug";
-import { diffContent } from "@/lib/pipeline/content-diff";
 import { FaqEdit } from "@/lib/schemas/content-piece";
 import { ReputationSourceKinds } from "@/lib/schemas/reputation";
 import {
@@ -1042,6 +1008,50 @@ import {
   MAX_MELDINGEN,
   type ClusterStand,
 } from "@/lib/cluster-melding";
+import {
+  kiesConcurrenten,
+  variantSleutel,
+  voegVariantenSamen,
+  voorfilter,
+  alleenBestaandeTermen,
+  kandidaatFeiten,
+  kandidaatSoort,
+  kandidaatScore,
+  lijktOp,
+  kaartFeiten,
+  dubbelInRonde,
+  schoonThema,
+  themaStammen,
+  binnenThema,
+  themaSuggesties,
+  type OntdekTerm,
+} from "@/lib/cluster-discovery";
+import { controleerHardeBeweringen, getallenIn as hardeGetallen, geleZinnen, splitsZinnen, vindHardeBeweringen } from "@/lib/pagina/harde-beweringen";
+import { repareerMechanisch } from "@/lib/pagina/mechanisch";
+import { blokA } from "@/lib/pagina/bedrijfskennis";
+import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
+import { blokkadesVan } from "@/lib/kennis/betwist";
+import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
+import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib/kennis/overzicht";
+import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam, siteLinksVoorOnderwerp, zusterPaginas } from "@/lib/oplevering";
+import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
+import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
+import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
+import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, BRIEF_VERSIE, type ContentBrief } from "@/lib/pagina/brief-regels";
+import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
+import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
+import {
+  moetHerschrijven,
+  kiesVersie,
+  geleZinnenNa,
+  allesBevestigd,
+  zinnenMetVerbodenWoord,
+  CONTROLE_SYSTEEM,
+  controleInvoer,
+  volledigeControletekst,
+  faqRijen,
+} from "@/lib/pagina/controle-regels";
+import { zinnenVerschil, antwoordGebruik, kenmerkenVan, meetrapport } from "@/lib/pagina/klantmeting";
 import type {
   ProfileOffering,
   ProfileTopic,
@@ -1757,24 +1767,6 @@ group("De verhouding nieuw/verbeteren in een zin (werkpakket B §4.3)", () => {
   );
 });
 
-group("GEO-score", () => {
-  const all = (v: boolean): GeoCriteria => ({
-    answersTargetQuestionUpFront: v, hasStandaloneCitableSentences: v,
-    namesTheBusinessExplicitly: v, usesConcreteFacts: v, answersFollowUpQuestions: v,
-  });
-  ok("alles goed = 100", geoScore(all(true)) === 100);
-  ok("niets goed = 0", geoScore(all(false)) === 0);
-  ok("drie van vijf = 60", geoScore({ ...all(false), answersTargetQuestionUpFront: true, usesConcreteFacts: true, answersFollowUpQuestions: true }) === 60);
-  ok("geen issues bij alles goed", geoIssues(all(true)).length === 0);
-  ok("elk gemist criterium wordt een verbeterpunt", geoIssues(all(false)).length === 5);
-  ok(
-    "issue is leesbaar",
-    geoIssues({ ...all(true), namesTheBusinessExplicitly: false })[0].includes(
-      "koppelt het bedrijf aan het antwoord",
-    ),
-  );
-});
-
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nGemeten effect (optimalisatie.md 5.4/5.5)");
 
@@ -1831,6 +1823,20 @@ group("minQuestionsForSignal: hoeveel vragen zijn er nodig, echte cijfers", () =
     "wat al significant is (0 naar 20 van de 20), krijgt geen 'meer nodig'-getal",
     verdictOf(duidelijkeStijging) === "gestegen",
   );
+});
+
+group("M3: citeertEigenPagina, zelfde regels als isRedirectedElsewhere (van-pijplijn-naar-kennissysteem.md)", () => {
+  const p = "https://hovenier.nl/tuinontwerp";
+  ok("hetzelfde adres", citeertEigenPagina(p, p));
+  ok("http tegenover https maakt niets uit", citeertEigenPagina("http://hovenier.nl/tuinontwerp", p));
+  ok("www of niet maakt niets uit", citeertEigenPagina("https://www.hovenier.nl/tuinontwerp", p));
+  ok("hoofdletters maken niets uit", citeertEigenPagina("https://Hovenier.NL/Tuinontwerp".toLowerCase(), p));
+  ok("een slash aan het eind maakt niets uit", citeertEigenPagina("https://hovenier.nl/tuinontwerp/", p));
+  ok("een trackingcode achter ? maakt niets uit", citeertEigenPagina("https://hovenier.nl/tuinontwerp?utm_source=chatgpt", p));
+  ok("een fragment achter # maakt niets uit", citeertEigenPagina("https://hovenier.nl/tuinontwerp#prijzen", p));
+  ok("een andere pagina van dezelfde site is geen citatie", !citeertEigenPagina("https://hovenier.nl/onderhoud", p));
+  ok("een ander domein is geen citatie", !citeertEigenPagina("https://concurrent.nl/tuinontwerp", p));
+  ok("een onleesbaar adres is geen citatie, geen crash", !citeertEigenPagina("geen adres", p) && !citeertEigenPagina(p, "geen adres"));
 });
 
 // docs/tasks/funnelfase-nooit-gevuld.md: de fase van een geplande pagina komt
@@ -1964,6 +1970,148 @@ group("impactUitleg: het oordeel met de cijfers eronder", () => {
   ok("geen gedachtestreepjes in de uitleg", !/[—–]/.test(allesTekst));
 });
 
+group("M4: de bewijsladder", () => {
+  function vermeldingRij(d: Partial<ImpactCijfers>): ImpactCijfers {
+    const basis: ImpactCijfers = {
+      wave: 1,
+      target_total: 10,
+      target_before_mentioned: 2,
+      target_after_mentioned: 8,
+      control_total: 5,
+      control_before_mentioned: 1,
+      control_after_mentioned: 1,
+      target_delta: null,
+      control_delta: null,
+      delta_threshold: null,
+      verdict: "gestegen",
+    };
+    return { ...basis, ...d };
+  }
+
+  const basisInvoer: BewijsladderInvoer = {
+    gepubliceerdOp: null,
+    zoekmachine: null,
+    vermelding: null,
+    eigenSiteGeciteerd: null,
+    verkeer: null,
+  };
+
+  // ── Elke trede heeft een label en de vaste volgorde is de plan-volgorde ──
+  const leeg = bewijsladder(basisInvoer);
+  eq2("zeven tredes", leeg.length, 7);
+  eq(
+    "de volgorde uit het plan",
+    leeg.map((t) => t.sleutel).join(","),
+    "publicatie,zichtbaarheid,vermelding,citatie,verkeer,conversie,omzet",
+  );
+  ok("elke trede heeft het label uit TREDE_LABEL", leeg.every((t) => t.label === TREDE_LABEL[t.sleutel]));
+  ok("zonder enige invoer is alles geen gegevens", leeg.every((t) => t.status === "geen_gegevens"));
+  ok("geen enkele trede bewezen zonder invoer", hoogsteBewezenTrede(leeg) === null);
+
+  // ── Publicatie ──
+  const gepubliceerd = bewijsladder({ ...basisInvoer, gepubliceerdOp: "2026-09-01T00:00:00Z" });
+  eq("gepubliceerd is bewezen", gepubliceerd[0]!.status, "bewezen");
+  ok("met de datum als cijfer", gepubliceerd[0]!.cijfer?.includes("2026") ?? false);
+
+  // ── Zichtbaarheid en verkeer: een echte telling, geen steekproef ──
+  const nogNietGepubliceerd = bewijsladder({ ...basisInvoer, zoekmachine: { aantal: 40, dagenSindsPublicatie: 30 } });
+  eq("zonder publicatie ook geen zoekmachinecijfer", nogNietGepubliceerd[1]!.status, "geen_gegevens");
+
+  const geenKoppeling = bewijsladder({ ...basisInvoer, gepubliceerdOp: "2026-08-01T00:00:00Z" });
+  eq("geen Search Console gekoppeld: geen gegevens", geenKoppeling[1]!.status, "geen_gegevens");
+
+  const teVroeg = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 0, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE - 1 },
+  });
+  eq("te kort geleden gepubliceerd: te weinig gegevens", teVroeg[1]!.status, "te_weinig_gegevens");
+
+  const welVertoningen = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 12, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("genoeg dagen en vertoningen: bewezen", welVertoningen[1]!.status, "bewezen");
+  ok("met het aantal als cijfer", welVertoningen[1]!.cijfer === "12 vertoningen", welVertoningen[1]!.cijfer ?? "");
+
+  const nulVertoningen = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 0, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("genoeg dagen maar nul vertoningen: geen verandering", nulVertoningen[1]!.status, "geen_verandering");
+
+  const éénVertoning = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 1, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  ok("één vertoning is enkelvoud", éénVertoning[1]!.cijfer === "1 vertoning", éénVertoning[1]!.cijfer ?? "");
+
+  const klikken = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    verkeer: { aantal: 3, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("verkeer volgt dezelfde regel als zichtbaarheid", klikken[4]!.status, "bewezen");
+  ok("met klikken in het cijfer", klikken[4]!.cijfer === "3 klikken", klikken[4]!.cijfer ?? "");
+
+  // ── Genoemd door AI: leest het bestaande oordeel, verzint niets nieuws ──
+  const zonderMeting = bewijsladder(basisInvoer);
+  eq("geen golf gemeten: geen gegevens", zonderMeting[2]!.status, "geen_gegevens");
+
+  const gestegen = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "gestegen" }) });
+  eq("gestegen is bewezen", gestegen[2]!.status, "bewezen");
+  ok("het cijfer komt uit impactUitleg().kort", gestegen[2]!.cijfer === impactUitleg(vermeldingRij({ verdict: "gestegen" })).kort);
+
+  const gedaald = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "gedaald", target_before_mentioned: 8, target_after_mentioned: 2 }) });
+  eq("gedaald is geen bewijs van meer zichtbaarheid", gedaald[2]!.status, "geen_verandering");
+  ok("maar de daling blijft leesbaar in de uitleg", gedaald[2]!.uitleg.includes("daling"), gedaald[2]!.uitleg);
+
+  const gelijk = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "gelijk", target_total: 5, target_before_mentioned: 0, target_after_mentioned: 1 }) });
+  eq("gelijk is geen verandering", gelijk[2]!.status, "geen_verandering");
+
+  const teWeinigData = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "te_weinig_data", target_total: 1, target_before_mentioned: 0, target_after_mentioned: 1 }) });
+  eq("te weinig data blijft te weinig gegevens", teWeinigData[2]!.status, "te_weinig_gegevens");
+
+  // ── Geciteerd door AI: alleen samen met een gemeten golf ──
+  const zonderCitatiemeting = bewijsladder({ ...basisInvoer, eigenSiteGeciteerd: true });
+  eq("een citatie zonder golf telt niet mee (geen dubbele waarheid)", zonderCitatiemeting[3]!.status, "geen_gegevens");
+
+  const welGeciteerd = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({}), eigenSiteGeciteerd: true });
+  eq("geciteerd is bewezen", welGeciteerd[3]!.status, "bewezen");
+
+  const nietGeciteerd = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({}), eigenSiteGeciteerd: false });
+  eq("niet geciteerd is geen verandering, geen 'nee' zonder onderscheid", nietGeciteerd[3]!.status, "geen_verandering");
+
+  const onbekendeCitatie = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({}), eigenSiteGeciteerd: null });
+  eq("golf gemeten maar geen adres bekend: geen gegevens, nooit 'nee' (conventie 3)", onbekendeCitatie[3]!.status, "geen_gegevens");
+
+  // ── Conversie en omzet: buiten de scope van dit plan (§5), altijd geen gegevens ──
+  eq("conversie", leeg[5]!.status, "geen_gegevens");
+  eq("omzet", leeg[6]!.status, "geen_gegevens");
+  ok(
+    "de reden noemt geen CRM- of Analytics-koppeling, geen belofte die niet klopt",
+    leeg[5]!.uitleg.includes("niet gekoppeld") && leeg[6]!.uitleg.includes("niet gekoppeld"),
+  );
+
+  // ── De hoogste bewezen trede, voor een compacte samenvatting ──
+  const volledig: Trede[] = bewijsladder({
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 12, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+    vermelding: vermeldingRij({ verdict: "gestegen" }),
+    eigenSiteGeciteerd: true,
+    verkeer: { aantal: 0, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("de verste bewezen trede, niet per se de laatste", hoogsteBewezenTrede(volledig)?.sleutel ?? "", "citatie");
+  eq("niet aaneengesloten hoeft geen probleem te zijn: verkeer is apart gemeten", volledig[4]!.status, "geen_verandering");
+
+  // ── Geen gedachtestreepjes en geen los cijfer als opbrengst verpakt (P7) ──
+  const alleTeksten = [...leeg, ...volledig].flatMap((t) => [t.label, t.uitleg, t.cijfer ?? ""]).join(" ");
+  ok("geen gedachtestreepjes", !/[—–]/.test(alleTeksten));
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nPeriodieke verandering (optimalisatie.md 6.2/6.7)");
 
@@ -2050,22 +2198,41 @@ group("webadres controleren", () => {
   ok("e-mailadres wordt geweigerd", !checkUrlFormat("jan@voorbeeld.nl").ok);
 });
 
-// Herstelplan na audit T3.1: op 2 september 2026 gaf de publiceerroute een 202
-// voor https://www.example.com/, een adres dat niets met het merk te maken had.
-group("bundelOpSoort: vijf keer dezelfde bevinding wordt één bundel", () => {
-  const b = (finding: string) => ({ issue: { finding } as never, herkomst: "nieuw" as never, aangebodenInRonde: null });
-  const uit = bundelOpSoort([
-    b("Deze zin zegt iets over je bedrijf zonder bron: \"Je wilt weten wat het kost.\""),
-    b("De inleiding is te lang."),
-    b("Deze zin zegt iets over je bedrijf zonder bron: \"Vanaf 359 euro.\""),
-    b("Deze zin zegt iets over je bedrijf zonder bron: \"Binnen 24 uur vervangend vervoer.\""),
+// 23 september 2026: de zinnen van een verbeterpunt staan gemarkeerd in de
+// leestekst, en de lijst ernaast springt ernaartoe. Een markering op de
+// verkeerde plek of een kapotte tag is erger dan geen markering.
+group("markeerZinnen: verbeterpunten in de leestekst", () => {
+  const html = '<p>Wij leveren binnen 24 uur. Bel ons op &quot;werkdagen&quot; voor een offerte.</p><p><a href="/binnen-24-uur-geleverd">link</a></p>';
+  const uit = markeerZinnen(html, [
+    "Wij leveren binnen 24 uur.",
+    '"Bel ons op "werkdagen" voor een offerte."',
+    "Deze zin staat er niet in.",
+    "Ja.",
   ]);
-  ok("twee groepen: de bundel en de losse", uit.length === 2);
-  ok("de bundel draagt de gedeelde aanhef", uit[0].kop === "Deze zin zegt iets over je bedrijf zonder bron" && uit[0].items.length === 3);
-  ok("met alleen het citaat per regel", uit[0].details[1] === '"Vanaf 359 euro."');
-  ok("een losse bevinding blijft los", uit[1].kop === null && uit[1].details[0] === "De inleiding is te lang.");
-  const uniek = bundelOpSoort([b("Sectie prijs: te vaag."), b("Sectie werkgebied: ontbreekt.")]);
-  ok("verschillende aanhef wordt niet samengevoegd", uniek.every((x) => x.kop === null));
+  ok("gevonden zinnen krijgen een markering", uit.html.includes('<mark class="tekst-punt" id="punt-0">Wij leveren binnen 24 uur.</mark>'));
+  ok("aanhalingstekens in de zin volgen de escaping van de renderer", uit.html.includes('id="punt-1">Bel ons op &quot;werkdagen&quot; voor een offerte.</mark>'));
+  ok("per zin of hij gevonden is", JSON.stringify(uit.gevonden) === "[true,true,false,false]");
+  ok("een te kort stuk wordt niet gemarkeerd", !uit.html.includes('id="punt-3"'));
+  const inHref = markeerZinnen('<a href="/binnen-24-uur-geleverd-vandaag">binnen-24-uur-geleverd-vandaag</a>', ["binnen-24-uur-geleverd-vandaag"]);
+  ok("nooit binnen een tag", inHref.html.startsWith('<a href="/binnen-24-uur-geleverd-vandaag"><mark'));
+  const dubbel = markeerZinnen("<p>Onderhoud in zes werkplaatsen.</p>", ["Onderhoud in zes werkplaatsen.", "Onderhoud in zes werkplaatsen."]);
+  ok("dezelfde zin twee keer: de tweede nestelt niet in de eerste", (dubbel.html.match(/<mark/g) ?? []).length === 1 && dubbel.gevonden[1] === false);
+  const bron = "## Kop\n\nWij leveren binnen 24 uur. En meer.";
+  const plek = zinInBron(bron, "Wij leveren binnen 24 uur.");
+  ok("zinInBron vindt de plek in de markdown", plek !== null && bron.slice(plek.begin, plek.eind) === "Wij leveren binnen 24 uur.");
+  ok("zinInBron geeft null bij een onbekende zin", zinInBron(bron, "Niet aanwezig in de tekst.") === null);
+});
+
+group("renderMarkdown en de WordPress-export herkennen een tabel", () => {
+  const md = "Inleiding.\n\n| Bedrijfswagen | Vanafprijs |\n|---|---:|\n| Caddy Cargo | € 359 |\n| Crafter | € 589 |\n\nNa de tabel.";
+  const html = renderMarkdown(md);
+  ok("een tabel wordt een tabel", html.includes("<table><thead><tr><th>Bedrijfswagen</th><th>Vanafprijs</th></tr></thead>"));
+  ok("met alle rijen", html.includes("<tr><td>Caddy Cargo</td><td>€ 359</td></tr><tr><td>Crafter</td><td>€ 589</td></tr>"));
+  ok("en de alinea erna blijft een alinea", html.includes("<p>Na de tabel.</p>"));
+  ok("geen streepjes meer in de tekst", !html.includes("|---"));
+  ok("zonder scheidingsregel is het geen tabel", !renderMarkdown("| dit | is een zin |").includes("<table"));
+  const wp = markdownToGutenbergBlocks(md);
+  ok("de export zet hem in een tabelblok", wp.includes("<!-- wp:table -->") && wp.includes("<td>Crafter</td>"));
 });
 
 group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
@@ -2088,7 +2255,7 @@ group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
   // Van den Udenhout, 23 september 2026: "Klaar voor vrijgave 0" boven twee
   // rijen die op vrijgave wachtten.
   ok("wat op jou wacht telt de twee teksten en de vragen", t.wacht === 3);
-  ok("wordt gemaakt", t.gemaakt === 1);
+  ok("wordt binnenkort geschreven", t.binnenkort === 1);
   ok("staat live", t.live === 1);
   ok("vervallen telt nergens", groepVan(rijen[5].stand) === null);
   ok("filter op status", filterPaginas(rijen, { ...LEEG_FILTER, status: "goedkeuren" }).length === 2);
@@ -2102,6 +2269,59 @@ group("bibliotheek: tegels en chips tellen dezelfde stand", () => {
   ok("filter op type", filterPaginas(soorten, { ...LEEG_FILTER, actie: "verbeteren" })[0]?.naam === "B");
   ok("filter op cluster", filterPaginas(soorten, { ...LEEG_FILTER, cluster: "c2" }).length === 1);
   ok("vervallen staat niet in de keuzes", !filterKeuzes(rijen).status.some(([k]) => k === "vervallen"));
+
+  // Avond 23 september 2026: elke pagina staat op het contentplan of in de
+  // bibliotheek. Alleen een pagina in een maand die nog niet vrij is, staat
+  // alleen in het plan; alleen vervallen staat nergens.
+  const alleStanden = [
+    mk("gepland", { plan: { status: "gepland", scheduled_for: "2026-12-01", maandVrij: false } }),
+    mk("volgt", { plan: { status: "gepland", scheduled_for: "2026-10-20", maandVrij: true } }),
+    mk("voorbereid", { plan: { status: "gepland", scheduled_for: "2026-10-20", maandVrij: true }, tekst: { status: "briefing", needs_review: false, voorbereid: false } }),
+    mk("datum", { plan: { status: "gepland", scheduled_for: "2026-11-20", maandVrij: true }, tekst: tekst("briefing") }),
+    mk("zonder plan", { tekst: tekst("briefing") }),
+    mk("mislukt", { plan: { status: "mislukt", scheduled_for: "2026-10-20", maandVrij: true } }),
+  ];
+  ok("maand niet vrij: alleen in het contentplan", groepVan(alleStanden[0].stand) === null);
+  const losZonderCluster = mk("apk", { plan: { status: "gepland", scheduled_for: "2026-09-26", maandVrij: true, onderwerp: false } });
+  ok(
+    "zonder cluster: geen belofte van morgenochtend (Van den Udenhout, APK-pagina)",
+    losZonderCluster.stand.label === "Geen cluster" &&
+      !statusRegel({ stand: losZonderCluster.stand, openVragen: 0, datum: null }).includes("morgenochtend"),
+  );
+  ok("zonder cluster staat hij toch in de bibliotheek", groepVan(losZonderCluster.stand) === "binnenkort");
+  ok(
+    "al het andere wordt binnenkort geschreven, ook zonder plek in het plan",
+    alleStanden.slice(1).every((r) => groepVan(r.stand) === "binnenkort"),
+    alleStanden.map((r) => `${r.naam}:${r.stand.sleutel}:${groepVan(r.stand)}`).join(", "),
+  );
+  ok(
+    "vragen: het aantal in de zin",
+    statusRegel({ stand: rijen[2].stand, openVragen: 5, datum: "2026-10-20" }) ===
+      "5 openstaande vragen om de pagina te kunnen schrijven",
+  );
+  ok("één vraag: enkelvoud", statusRegel({ stand: rijen[2].stand, openVragen: 1, datum: null }).startsWith("1 openstaande vraag "));
+  ok(
+    "alles bekend: de schrijfdatum, tien dagen voor de publicatie",
+    statusRegel({ stand: alleStanden[3].stand, openVragen: 0, datum: "2026-11-20" }) ===
+      "Alle gegevens bekend, wordt op 10 november geschreven",
+  );
+  ok(
+    "nog niet voorbereid: geen belofte van minuten",
+    statusRegel({ stand: alleStanden[1].stand, openVragen: 0, datum: null }).includes("morgenochtend"),
+  );
+  ok(
+    "geen regel zonder tekst, en zonder gedachtestreepje",
+    [...rijen, ...alleStanden].every((r) => {
+      const z = statusRegel({ stand: r.stand, openVragen: 2, datum: "2026-11-20" });
+      return z.length > 0 && !/[\u2013\u2014]/.test(z);
+    }),
+  );
+  // Twee teksten van dezelfde soort gaven Status, Content en Type elk één
+  // keuze, en dan stond het filter uit: "de filters doen het niet".
+  ok(
+    "een filter met één keuze staat niet uit",
+    !leesBestand("app/(app)/merk/[id]/strategie/bibliotheek/library-view.tsx").includes("opties.length < 2"),
+  );
 });
 
 group("paginaNaam: één naam per pagina, overal", () => {
@@ -2131,11 +2351,21 @@ group("paginaStand: elke combinatie geeft precies één stand", () => {
     paginaStand({ plan: null, tekst: null, openVragen: 0, vandaag, ...i });
 
   ok("maand niet vrij: gepland", st({ plan: plan("gepland", false) }).sleutel === "gepland");
-  ok("maand vrij, nog geen rij: wordt voorbereid", st({ plan: plan("gepland") }).sleutel === "voorbereiden");
+  // Van den Udenhout, 23 september 2026: vijf pagina's zonder rij en zonder
+  // taak zeiden "Dat duurt een paar minuten".
+  const nietGestart = st({ plan: plan("gepland") });
+  ok(
+    "maand vrij, nog geen rij: voorbereiding volgt, geen belofte van minuten",
+    nietGestart.sleutel === "voorbereiden" && nietGestart.label === "Voorbereiding volgt" && !nietGestart.zin.includes("minuten"),
+  );
+  const gestart = st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) });
   ok(
     "rij zonder vragen-snapshot: wordt voorbereid",
-    st({ plan: plan("gepland"), tekst: tekst("briefing", { voorbereid: false }) }).sleutel === "voorbereiden",
+    gestart.sleutel === "voorbereiden" && gestart.label === "Wordt voorbereid",
   );
+  ok("voorbereiden heeft geen eigen scherm", !heeftEigenScherm("voorbereiden") && !heeftEigenScherm("niet_ingepland"));
+  ok("vragen wel", heeftEigenScherm("vragen"));
+  ok("tekst om te lezen wel", heeftEigenScherm("goedkeuren") && heeftEigenScherm("effect_bekend"));
   const vragen = st({ plan: plan("gepland"), tekst: tekst("briefing"), openVragen: 3 });
   ok("open vragen: jouw antwoorden nodig", vragen.sleutel === "vragen" && vragen.aanZet === "klant");
   ok("met de handeling erbij", vragen.handeling === "Beantwoord 3 vragen");
@@ -2148,10 +2378,6 @@ group("paginaStand: elke combinatie geeft precies één stand", () => {
   ok("alles beantwoord is nooit 'wacht op jou' (Van den Udenhout)", udenhout.aanZet !== "klant" && udenhout.sleutel === "schrijven");
   const vroeg = st({ plan: plan("gepland", true, "2026-11-20"), tekst: tekst("briefing"), openVragen: 0 });
   ok("alles gedaan, datum ver weg: wacht op de schrijfdatum", vroeg.sleutel === "wacht_op_datum" && vroeg.zin.includes("10 november"));
-  ok(
-    "te weinig feiten: jouw keuze",
-    st({ plan: plan("gepland"), tekst: tekst("briefing"), inputStand: "tegenhouden" }).sleutel === "keuze",
-  );
   ok(
     "oude route zonder plan, alles gedaan: niet ingepland, nooit 'wordt geschreven'",
     st({ tekst: tekst("briefing"), openVragen: 0 }).sleutel === "niet_ingepland",
@@ -2176,39 +2402,6 @@ group("paginaStand: elke combinatie geeft precies één stand", () => {
   ok("een handeling alleen als de klant aan zet is", alle.every((a) => (a.aanZet === "klant") === (a.handeling !== null)));
   ok("wat achterloopt komt bovenaan", standVolgorde(achter) < standVolgorde(vragen) && standVolgorde(vragen) < standVolgorde(udenhout));
   ok("geen gedachtestreepje of en/of", !alle.some((a) => /[—–]|en\/of/.test(a.zin + a.label)));
-});
-
-// contentflow-een-lijn.md fase B: pas schrijven als elke vraag gedaan is.
-group("schrijfpoort: eerst alle vragen, dan pas schrijven", () => {
-  const basis = {
-    openVragen: 0,
-    voorbereidingKlaar: true,
-    inputStand: "schrijven" as const,
-    writeMode: null,
-    publicatiedatum: "2026-10-20",
-    vandaag: "2026-10-15",
-  };
-  ok("alles gedaan en binnen tien dagen: schrijven", schrijfpoort(basis).mag);
-  ok("voorbereiding loopt nog: niet", schrijfpoort({ ...basis, voorbereidingKlaar: false }).reden === "voorbereiding_loopt");
-  const open = schrijfpoort({ ...basis, openVragen: 2 });
-  ok("twee open vragen: niet", !open.mag && open.reden === "vragen_open");
-  ok("en de melding noemt het aantal", open.melding.includes("Nog 2 vragen"));
-  ok("één open vraag in enkelvoud", schrijfpoort({ ...basis, openVragen: 1 }).melding.includes("Nog 1 vraag."));
-  ok("een onbekend aantal is geen nul", !schrijfpoort({ ...basis, openVragen: Number.NaN }).mag);
-  ok("een negatief aantal is geen nul", !schrijfpoort({ ...basis, openVragen: -1 }).mag);
-  const weinig = schrijfpoort({ ...basis, inputStand: "tegenhouden" });
-  ok("alles gedaan maar te weinig feiten: de klant kiest", !weinig.mag && weinig.reden === "te_weinig_onderbouwd");
-  ok("koos hij algemeen, dan schrijven", schrijfpoort({ ...basis, inputStand: "tegenhouden", writeMode: "algemeen" }).mag);
-  ok("een waarschuwing houdt niet tegen", schrijfpoort({ ...basis, inputStand: "waarschuwing" }).mag);
-  ok("zonder contract geldt de inputpoort niet", schrijfpoort({ ...basis, inputStand: null }).mag);
-  const vroeg = schrijfpoort({ ...basis, vandaag: "2026-10-01" });
-  ok("alles gedaan maar weken te vroeg: wachten", !vroeg.mag && vroeg.reden === "nog_niet_aan_de_beurt");
-  ok("en zegt vanaf wanneer", vroeg.schrijftVanaf === "2026-10-10" && vroeg.melding.includes("10 oktober"));
-  ok("precies op de schrijfdatum mag het", schrijfpoort({ ...basis, vandaag: "2026-10-10" }).mag);
-  ok("zonder datum niet wachten", schrijfpoort({ ...basis, publicatiedatum: null, vandaag: "2026-01-01" }).mag);
-  ok("open vragen gaan vóór de datum", schrijfpoort({ ...basis, openVragen: 3, vandaag: "2026-10-01" }).reden === "vragen_open");
-  ok("schrijfdatum over een maandgrens", schrijfdatum("2026-11-03") === "2026-10-24");
-  ok("geen gedachtestreepje in de meldingen", ![open, weinig, vroeg].some((o) => /[—–]/.test(o.melding)));
 });
 
 // contentflow-een-lijn.md fase A: het contentplan vraagt om een pad, de
@@ -2667,167 +2860,6 @@ group("Bronnendekking van geschreven content (contentbriefing.md §9 / R5.3)", (
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-group("Briefingvragen selecteren (contentbriefing.md §3.4 / R5.1)", () => {
-  const basis = {
-    reason: "reden",
-    kind: "aanvulling" as const,
-    answerType: "tekst_kort" as const,
-    options: [],
-    suggestedAnswer: null,
-    scope: "analyse" as const,
-    priority: 1,
-  };
-
-  // Dezelfde vraag vanuit drie pagina's → één vraag die alle drie voedt.
-  const samengevoegd = selectBriefingQuestions({
-    candidates: [
-      { ...basis, claimKey: "a", question: "Zit pechhulp erbij?", required: false, contentPieceIds: ["p1"] },
-      { ...basis, claimKey: "a", question: "Zit pechhulp erbij?", required: true, contentPieceIds: ["p2"] },
-      { ...basis, claimKey: "a", question: "Zit pechhulp erbij?", required: false, contentPieceIds: ["p3"] },
-    ],
-    alreadyKnown: new Set(),
-  });
-  ok("drie keer dezelfde vraag wordt één vraag", samengevoegd.length === 1);
-  ok("alle drie de pagina's blijven eraan hangen", samengevoegd[0].contentPieceIds.length === 3);
-  // Verplicht wint van optioneel: is de vraag voor één pagina kern, dan is hij kern.
-  ok("verplicht wint van optioneel", samengevoegd[0].required === true);
-
-  // ── Minstens één vraag per pagina (A8) ────────────────────────────────────
-  //
-  // De sortering is `aantal pagina's × kern × prioriteit`, dus een vraag die
-  // vier pagina's dient wint altijd van een vraag die er één scherp maakt. Bij
-  // een batch van tien pagina's kreeg een individuele pagina daardoor nul
-  // vragen, terwijl juist die de dunste feitendekking kon hebben.
-  const breedEnSmal = selectBriefingQuestions({
-    candidates: [
-      // Tien echt verschillende onderwerpen, want vragen over hetzelfde
-      // onderwerp worden eerst samengevoegd (`dedupeOpOnderwerp`).
-      ...[
-        "Hoeveel behandelkamers zijn er?",
-        "Welke openingstijden gelden er?",
-        "Is er gratis parkeergelegenheid?",
-        "Werken jullie met contracten van zorgverzekeraars?",
-        "Hoeveel therapeuten staan er ingeschreven?",
-        "Bestaat de praktijk langer dan tien jaar?",
-        "Wordt er ook aan huis behandeld?",
-        "Welke keurmerken heeft de praktijk?",
-        "Kunnen kinderen ook terecht?",
-        "Is er een wachtlijst voor nieuwe klanten?",
-      ].map((question, i) => ({
-        ...basis,
-        claimKey: `breed${i}`,
-        question,
-        required: false,
-        contentPieceIds: ["p1", "p2", "p3", "p4"],
-      })),
-      {
-        ...basis,
-        claimKey: "smal",
-        question: "Wat kost een losse sessie?",
-        required: false,
-        contentPieceIds: ["p9"],
-      },
-    ],
-    alreadyKnown: new Set(),
-  });
-  ok(
-    "een pagina die anders leeg zou blijven krijgt alsnog zijn eigen vraag",
-    breedEnSmal.some((v) => v.contentPieceIds.includes("p9")),
-  );
-  ok(
-    "en de brede vragen worden er niet voor weggeruild",
-    breedEnSmal.filter((v) => v.contentPieceIds.includes("p1")).length >= 8,
-  );
-
-  // Nooit vragen wat we al weten. Dat is geloofwaardigheidsverlies (§4 regel 6).
-  const bekend = selectBriefingQuestions({
-    candidates: [{ ...basis, claimKey: "a", question: "Al bekend?", required: true, contentPieceIds: ["p1"] }],
-    alreadyKnown: new Set(["a"]),
-  });
-  ok("al bekende vraag wordt niet gesteld", bekend.length === 0);
-
-  // Harde grens van acht, en het belangrijkste bovenaan.
-  const veel = selectBriefingQuestions({
-    candidates: Array.from({ length: 20 }, (_, i) => ({
-      ...basis,
-      claimKey: `k${i}`,
-      question: `Vraag ${i}?`,
-      required: i === 19,
-      contentPieceIds: i === 19 ? ["p1", "p2", "p3"] : ["p1"],
-    })),
-    alreadyKnown: new Set(),
-  });
-  ok("afgekapt op acht", veel.length === MAX_QUESTIONS);
-  ok("de zwaarste vraag staat bovenaan", veel[0].question === "Vraag 19?");
-
-  // ⚠️ Twaalf `kern`-vragen gaan allemaal mee, ook al is dat meer dan acht
-  // (werkpakket A §3.3, 30 augustus 2026). Vóór deze wijziging verdwenen de
-  // laatste vier stilzwijgend uit `fact_requests`, en dan kon
-  // `content-final-gate.ts` ze nooit tegenhouden: de eindpoort stond open op
-  // precies de pagina's met de meeste onbeantwoorde kernfeiten.
-  const veelKern = selectBriefingQuestions({
-    candidates: Array.from({ length: 12 }, (_, i) => ({
-      ...basis,
-      claimKey: `kern${i}`,
-      question: `Kernvraag ${i}?`,
-      required: true,
-      contentPieceIds: ["p1"],
-    })),
-    alreadyKnown: new Set(),
-  });
-  ok(
-    "alle twaalf kernvragen gaan mee, de grens van acht geldt niet voor verplicht",
-    veelKern.length === 12,
-    String(veelKern.length),
-  );
-
-  // Vijf verplichte en tien optionele: de vijf gaan altijd mee, de resterende
-  // drie plekken (acht min vijf) naar de sterkste optionele vragen.
-  const gemengd = selectBriefingQuestions({
-    candidates: [
-      ...Array.from({ length: 5 }, (_, i) => ({
-        ...basis,
-        claimKey: `verplicht${i}`,
-        question: `Verplicht ${i}?`,
-        required: true,
-        contentPieceIds: ["p1"],
-      })),
-      ...Array.from({ length: 10 }, (_, i) => ({
-        ...basis,
-        claimKey: `optie${i}`,
-        question: `Optie ${i}?`,
-        required: false,
-        contentPieceIds: ["p1"],
-        priority: 10 - i,
-      })),
-    ],
-    alreadyKnown: new Set(),
-  });
-  ok("vijf verplicht plus drie optioneel is acht", gemengd.length === MAX_QUESTIONS, String(gemengd.length));
-  ok(
-    "alle vijf verplichte vragen zitten erin",
-    gemengd.filter((v) => v.required).length === 5,
-  );
-
-  // Lege vragen horen er nooit in te belanden.
-  const leeg = selectBriefingQuestions({
-    candidates: [{ ...basis, claimKey: "x", question: "   ", required: true, contentPieceIds: ["p1"] }],
-    alreadyKnown: new Set(),
-  });
-  ok("lege vraag valt af", leeg.length === 0);
-
-  // De eerlijke telling onder de knop: de klant mag altijd door, maar ziet wat
-  // het overslaan hem kost (§6).
-  ok("geen open vragen → geen tekst", describeSkipped([]) === "");
-  const tekst = describeSkipped([
-    { question: "Zit pechhulp erbij?", required: true },
-    { question: "Wat is de looptijd?", required: true },
-    { question: "Heb je een cijfer?", required: false },
-  ]);
-  ok("noemt alleen de verplichte", tekst.includes("pechhulp") && !tekst.includes("cijfer"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
 group("Antwoord van de klant → feit of verbod (contentbriefing.md §3.1)", () => {
   // Het subtielste stukje van de briefing: "nee" is geen ontbrekend feit maar
   // een VERBOD. Zonder dat onderscheid redeneert het model bij een ontkennend
@@ -2996,99 +3028,6 @@ group("Antwoorden van de klant in de feitenkaart (implementatieplan.md R8.1)", (
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-group("Bijna-dezelfde vraag samenvoegen (implementatieplan.md R8.4)", () => {
-  // De drie echte formuleringen uit de Fysi-Unique-briefing. Alle drie kregen
-  // een eigen claimKey en dus een eigen plek in de lijst van maximaal acht.
-  const a = "Biedt Fysi-Unique preventieve begeleiding na herstel van hardloopblessures? Zo ja, welke specifieke diensten?";
-  const b = "Welke preventieve begeleiding biedt Fysi-Unique na herstel van een hardloopblessure?";
-  const c = "Biedt Fysi-Unique preventieve begeleiding aan na herstel van een hardloopblessure? Zo ja, welke specifieke diensten of programma's?";
-
-  ok("drie formuleringen, één onderwerp", topicKey(a) === topicKey(b) && topicKey(b) === topicKey(c));
-  ok("claimKey zag ze nog als verschillend", claimKey(a) !== claimKey(b));
-
-  // Enkelvoud en meervoud mogen niet uit elkaar lopen. Dat was de eerste bug
-  // in deze functie: "hardloopblessures" verloor z'n s en stopte, terwijl
-  // "hardloopblessure" wél z'n e verloor.
-  ok(
-    "enkelvoud en meervoud vallen samen",
-    topicKey("Welke hardloopblessure behandelen jullie") ===
-      topicKey("Welke hardloopblessures behandelen jullie"),
-  );
-
-  // Echt andere onderwerpen blijven apart.
-  ok(
-    "andere onderwerpen blijven gescheiden",
-    topicKey("Wat kost een behandeling bij Fysi-Unique?") !== topicKey(a),
-  );
-
-  const maakVraag = (question: string, extra: Partial<Parameters<typeof selectBriefingQuestions>[0]["candidates"][number]> = {}) => ({
-    claimKey: claimKey(question),
-    question,
-    reason: "reden",
-    kind: "aanvulling" as const,
-    answerType: "tekst_kort" as const,
-    options: [],
-    suggestedAnswer: null,
-    required: false,
-    scope: "analyse" as const,
-    contentPieceIds: ["p1"],
-    priority: 1,
-    ...extra,
-  });
-
-  const gekozen = selectBriefingQuestions({
-    candidates: [maakVraag(a), maakVraag(b, { contentPieceIds: ["p2"] }), maakVraag(c)],
-    alreadyKnown: new Set(),
-  });
-  ok("drie varianten worden één vraag", gekozen.length === 1);
-  // De verliezers verdwijnen niet zonder sporen: hun pagina's worden aan de
-  // winnaar gekoppeld, want het antwoord voedt ze allebei.
-  ok(
-    "de pagina's van alle varianten blijven gekoppeld",
-    gekozen[0].contentPieceIds.includes("p1") && gekozen[0].contentPieceIds.includes("p2"),
-  );
-  ok("de kortste formulering wint", gekozen[0].question === b);
-
-  // Vaste slots doen niet mee aan de grove ontdubbeling: die zijn met de hand
-  // geformuleerd en bewust verschillend.
-  const slots = slotQuestions("landing", "p1");
-  const naSelectie = selectBriefingQuestions({ candidates: slots, alreadyKnown: new Set() });
-  ok("vaste slots blijven allemaal staan", naSelectie.length === slots.length);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Vaste slots per bedrijfsmodel (implementatieplan.md R8.5)", () => {
-  const lokaal = slotQuestions("landing", "p1", null, "dienstverlener");
-  ok(
-    "een dienstverlener krijgt de adresvraag",
-    lokaal.some((v) => v.question.includes("telefoonnummer en adres")),
-  );
-
-  // Bol, Coolblue en Van der Valk konden deze vraag niet naar waarheid
-  // beantwoorden; een verplichte vraag zonder waar antwoord nodigt uit tot
-  // invullen wat niet klopt.
-  for (const model of ["retailer", "platform"] as const) {
-    const zonderVestiging = slotQuestions("landing", "p1", null, model);
-    ok(
-      `een ${model} krijgt geen adresvraag`,
-      !zonderVestiging.some((v) => v.question.includes("telefoonnummer en adres")),
-    );
-    ok(
-      `een ${model} krijgt wel een contactkanaal-vraag`,
-      zonderVestiging.some((v) => v.question.includes("klanten met vragen")),
-    );
-  }
-
-  // Onbekend model = onveranderd gedrag. Onbekend is geen reden om de vragenset
-  // te wijzigen.
-  ok(
-    "onbekend bedrijfsmodel verandert niets",
-    JSON.stringify(slotQuestions("landing", "p1", null, null)) ===
-      JSON.stringify(slotQuestions("landing", "p1")),
-  );
-});
-
-// ════════════════════════════════════════════════════════════════════════════
 group("Gerichte fact-finding bij algemene context-gaten (S9, gesprek 1 september)", () => {
   ok(
     "zonder gaten valt hij terug op de generieke vuistregel",
@@ -3118,201 +3057,7 @@ group("Gerichte fact-finding bij algemene context-gaten (S9, gesprek 1 september
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-group("Deterministische kwaliteitspoort (implementatieplan.md R8.2/R8.7/R8.8)", () => {
-  // De kop wordt bewust NIET als opening geteld: de Coolblue-pagina herhaalde
-  // de doelvraag als kop, en een vraag herhalen is het tegenovergestelde van
-  // hem beantwoorden.
-  const opening = openingVan("### Kan ik een wasmachine afhalen?\n\nCoolblue biedt veel keuze.");
-  ok("koppen tellen niet mee in de opening", !opening.includes("Kan ik een wasmachine afhalen"));
-  ok("de eerste bewerende zin telt wel mee", opening.includes("Coolblue biedt veel keuze"));
-
-  const doelvraag = "Kan ik een wasmachine online bestellen en hem daarna in de winkel afhalen?";
-
-  // Het echte Coolblue-geval: opent met een omweg, en verwijst in de FAQ door
-  // naar de site in plaats van de vraag te beantwoorden.
-  const ontwijkend = checkContentGate({
-    bodyMarkdown:
-      "### Kan ik een wasmachine online bestellen en hem daarna in de winkel afhalen?\n\n" +
-      "Coolblue biedt een uitgebreid assortiment wasmachines online en heeft 22 fysieke winkels.\n",
-    faq: [
-      {
-        q: "Kan ik een wasmachine online bestellen en hem daarna in de winkel afhalen bij Coolblue?",
-        a: "Coolblue heeft 22 winkels. Kijk voor de actuele mogelijkheden op de website.",
-      },
-    ],
-    brandName: "Coolblue",
-    targetQuestions: [doelvraag],
-    distinctiveAnswers: [],
-  });
-  ok("een ja-of-nee-vraag zonder ja of nee valt door de poort", ontwijkend.checks.directAntwoord === false);
-  ok("doorverwijzen telt als ontwijken", ontwijkend.checks.geenOntwijking === false);
-  ok("de poort levert concrete verbeterpunten", ontwijkend.issues.length >= 2);
-
-  // Hetzelfde onderwerp, maar mét een direct antwoord: dit moet er wél door.
-  const direct = checkContentGate({
-    bodyMarkdown:
-      "Ja, je kunt een wasmachine online bestellen bij Coolblue en hem daarna afhalen in de winkel. " +
-      "Coolblue heeft 22 winkels in Nederland waar dat kan.\n",
-    faq: [],
-    brandName: "Coolblue",
-    targetQuestions: [doelvraag],
-    distinctiveAnswers: [],
-  });
-  ok("een expliciet ja komt erdoor", direct.checks.directAntwoord === true);
-  ok("de doelvraag staat in de opening", direct.checks.doelvraagInOpening === true);
-  ok("de merknaam staat er expliciet in", direct.checks.merknaamExpliciet === true);
-  ok("er staan concrete cijfers in", direct.checks.concreteFeiten === true);
-
-  // Een open vraag ("welke", "waar") is geen ja-of-nee-vraag: dan is die controle
-  // niet van toepassing en telt hij niet mee. Onbekend is geen onvoldoende.
-  const openVraag = checkContentGate({
-    bodyMarkdown: "Fysi-Unique in Amersfoort behandelt shin splints en hielspoor bij 200 hardlopers.",
-    faq: [],
-    brandName: "Fysi-Unique",
-    targetQuestions: ["Welke praktijk in Amersfoort behandelt hardloopblessures?"],
-    distinctiveAnswers: [],
-  });
-  ok("geen ja-of-nee-vraag → controle niet van toepassing", openVraag.checks.directAntwoord === null);
-  ok("niet-uitgevoerde controles tellen niet mee", openVraag.score !== null && openVraag.score > 0);
-
-  // R8.8, het onderscheidende antwoord van de klant moet terugkomen.
-  const zonderOnderscheid = checkContentGate({
-    bodyMarkdown: "Fysi-Unique in Amersfoort behandelt hardloopblessures met 20 jaar ervaring.",
-    faq: [],
-    brandName: "Fysi-Unique",
-    targetQuestions: ["Welke praktijk behandelt hardloopblessures?"],
-    distinctiveAnswers: ["Wij hebben een eigen looplab met videoanalyse op de loopband"],
-  });
-  ok("ongebruikt onderscheid valt op", zonderOnderscheid.checks.onderscheidGebruikt === false);
-
-  const metOnderscheid = checkContentGate({
-    bodyMarkdown:
-      "Fysi-Unique in Amersfoort heeft een eigen looplab met videoanalyse op de loopband, " +
-      "waarmee we sinds 2005 hardloopblessures behandelen.",
-    faq: [],
-    brandName: "Fysi-Unique",
-    targetQuestions: ["Welke praktijk behandelt hardloopblessures?"],
-    distinctiveAnswers: ["Wij hebben een eigen looplab met videoanalyse op de loopband"],
-  });
-  ok("gebruikt onderscheid wordt herkend", metOnderscheid.checks.onderscheidGebruikt === true);
-  ok(
-    "zonder opgegeven onderscheid is er niets te toetsen",
-    direct.checks.onderscheidGebruikt === null,
-  );
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Scorekaart leest beide formaten (implementatieplan.md R8.7)", () => {
-  // Pagina's van vóór R8.7 hebben de kale zelfrapportage in geo_json. Die
-  // mogen niet leeg of fout renderen omdat het formaat veranderd is.
-  const oud = geoRegels({
-    answersTargetQuestionUpFront: true,
-    hasStandaloneCitableSentences: false,
-    namesTheBusinessExplicitly: true,
-    usesConcreteFacts: true,
-    answersFollowUpQuestions: true,
-  });
-  ok("oude vorm levert vijf regels", oud.length === 5);
-  ok("oude vorm behoudt de waarden", oud.filter((r) => r.ok === true).length === 4);
-
-  const nieuw = geoRegels({
-    zelfrapportage: { answersTargetQuestionUpFront: true },
-    deterministisch: {
-      doelvraagInOpening: true,
-      directAntwoord: null,
-      geenOntwijking: false,
-      merknaamExpliciet: true,
-      concreteFeiten: true,
-      citeerbareZin: true,
-      onderscheidGebruikt: null,
-    },
-  });
-  ok("nieuwe vorm gebruikt de deterministische uitkomst", nieuw.length === 8);
-  // Twee controles stonden hier op null, en de derde is de controle op de
-  // rapportagevorm (verbetering 8): die bestond nog niet toen deze pagina
-  // geschreven werd. Een controle die niet gedraaid heeft, hoort geen kruisje te
-  // krijgen (conventie 3).
-  ok("niet-uitgevoerde controles blijven null", nieuw.filter((r) => r.ok === null).length === 3);
-  ok("een gezakte controle blijft zichtbaar", nieuw.some((r) => r.ok === false));
-
-  // Een leeg veld mag niet crashen en niet doen alsof alles goed is.
-  ok("leeg veld levert geen valse vinkjes", geoRegels(null).every((r) => r.ok === null));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
 console.log("\nZinnen en markdown (S3, gedeelde basis)");
-
-group("zinnen knippen en markdown strippen", () => {
-  ok("Bol.com blijft heel", splitSentences("Bol.com is groot. En snel.").length === 2);
-  ok("3.5 blijft heel", splitSentences("Het cijfer is 3.5 gemiddeld.").length === 1);
-
-  const plat = stripMarkdown("### Kop\n\n**Fysi-Unique** biedt [zorg](/zorg) op maat.\n\n- punt een");
-  ok("kopmarkering weg", !plat.includes("#"));
-  ok("nadruk weg, woorden blijven", plat.includes("Fysi-Unique") && !plat.includes("**"));
-  ok("linklabel blijft, doel weg", plat.includes("zorg") && !plat.includes("/zorg"));
-
-  // De echte openingszin van de Fysi-Unique-pagina van 31 juli staat vetgedrukt.
-  // Zou de vetmarkering blijven staan, dan zou de doelvraag-echo op de sterretjes
-  // struikelen in plaats van op de woorden.
-  const opening = firstSentences(
-    "**Fysi-Unique in Amersfoort biedt preventieve begeleiding.** Dat doen we zo. En verder nog dit.",
-    2,
-  );
-  ok("eerste twee zinnen, zonder opmaak", opening.includes("Fysi-Unique") && !opening.includes("**"));
-  ok("derde zin blijft buiten", !opening.includes("verder nog dit"));
-});
-
-// ── R0: een kop is geen zin, en een lijstnummer is geen zinseinde ───────────
-//
-// Alle twaalf pagina's van de benchmarkronde van 3 september 2026 werden
-// geblokkeerd. 30 van de 123 blokkerende bevindingen gingen over tekst die
-// helemaal geen zin was: 27 keer een kop die aan de alinea eronder vastgeplakt
-// zat, 3 keer een half lijstitem. De zinnen hieronder komen letterlijk uit die
-// ronde.
-group("R0: koppen en opsommingen breken de zinsgrens niet meer", () => {
-  const kop = splitSentences(
-    stripMarkdown("## Snel hulp bij daklekkage in Zutphen\nBel MJB Dakservice op 0578 234 502."),
-  ).map((z) => z.trim());
-  ok("kop en alinea zijn twee zinnen", kop.length === 2);
-  ok("de kop staat op zichzelf", kop[0] === "Snel hulp bij daklekkage in Zutphen");
-  ok("de alinea bevat geen kop meer", kop[1] === "Bel MJB Dakservice op 0578 234 502.");
-
-  const lijst = splitSentences(
-    "Spreek bij spoed deze volgorde af: 1. meld de lekkage, 2. beperk de schade, " +
-      "3. laat de oorzaak vastleggen.",
-  );
-  ok("een opsomming op één regel blijft één zin", lijst.length === 1);
-
-  // De tegenproef. Zonder deze twee zou de reparatie een echte zinsgrens
-  // wegnemen, en dat is erger dan de fout die hij oplost.
-  ok(
-    "een jaartal aan het eind van een zin splitst wél",
-    splitSentences("Wij bestaan sinds 1995. Daarom kennen we deze daken.").length === 2,
-  );
-  ok(
-    "een genummerde stap met een hoofdletter erna splitst wél",
-    splitSentences("Stap 1. Bel ons meteen.").length === 2,
-  );
-
-  // Een kop die zelf iets over het bedrijf beweert, blijft een bewering. Het
-  // gaat erom dat hij niet ONGEMERKT met de volgende alinea versmelt.
-  const beweringen = detectClaimSentences(
-    {
-      bodyMarkdown:
-        "## Snel hulp bij daklekkage in Zutphen\nBel MJB Dakservice op 0578 234 502.\n\n" +
-        "Spreek bij spoed deze volgorde af: 1. meld de lekkage, 2. beperk de schade.",
-    },
-    "MJB Dakservice",
-  ).map((c) => c.sentence);
-  ok(
-    "geen enkele bewering draagt nog een kop met zich mee",
-    beweringen.every((z) => !z.includes("\n")),
-  );
-  ok(
-    "geen enkele bewering eindigt op het cijfer van het volgende lijstitem",
-    beweringen.every((z) => !/,\s*\d+\.$/.test(z)),
-  );
-});
 
 group("kop-ankers voor de inhoudsopgave (H.68)", () => {
   const md = "## Wat het kost\n\ntekst\n\n## Veelgestelde vragen\n\n### Hoe lang duurt het\n\ntekst\n\n## Veelgestelde vragen\n\ntekst";
@@ -3422,373 +3167,13 @@ group("de concurrentielat per aanbeveling herrangschikken (S10)", () => {
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nSitetekst atomiseren: het vangnet (S1)");
 
-group("alleen letterlijke zinnen overleven", () => {
-  const pagina = [
-    {
-      url: "https://www.coolblue.nl/winkels",
-      title: "Winkels",
-      text: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg. Alles voor een glimlach.",
-    },
-  ];
-
-  const echt = verifyAtoms(
-    [{ sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 1 }],
-    pagina,
-  );
-  ok("letterlijke zin komt door", echt.length === 1);
-  ok("en is citeerbaar", echt[0]?.citable === true);
-  ok("met de juiste bron", echt[0]?.source.includes("coolblue.nl/winkels"));
-
-  // Dit is de hele reden dat het vangnet bestaat: een gladgestreken samenvatting
-  // ziet er beter uit en is niet na te trekken.
-  ok(
-    "samengevatte zin valt weg",
-    verifyAtoms([{ sentence: "Coolblue heeft winkels door heel Nederland.", pageIndex: 1 }], pagina).length === 0,
-  );
-  ok(
-    "te korte zin valt weg",
-    verifyAtoms([{ sentence: "Almere.", pageIndex: 1 }], pagina).length === 0,
-  );
-  ok(
-    "verkeerd paginanummer wordt hersteld, niet afgestraft",
-    verifyAtoms(
-      [{ sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 7 }],
-      pagina,
-    ).length === 1,
-  );
-  ok(
-    "dezelfde zin twee keer levert één feit",
-    verifyAtoms(
-      [
-        { sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 1 },
-        { sentence: "Je vindt onze wasmachines in de winkels in Almere, Amsterdam en Tilburg.", pageIndex: 1 },
-      ],
-      pagina,
-    ).length === 1,
-  );
-});
-
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nWelke zinnen zijn een bewering? (S3)");
 
-group("de noemer die de code bepaalt", () => {
-  // Letterlijk de zin uit de Van der Valk-pagina die nooit als claim getagd werd
-  // en dus onzichtbaar bleef voor elke controle.
-  const gevonden = detectClaimSentences(
-    {
-      bodyMarkdown:
-        "Op valk.com zoekt en vergelijkt u snel alle opties en reserveert u direct online. " +
-        "Vergaderen is een vak apart. " +
-        "Van der Valk heeft meer dan 100 hotels wereldwijd. " +
-        "Wat kost een vergaderzaal?",
-      faq: [{ q: "Is parkeren gratis?", a: "Van der Valk biedt gratis parkeren op eigen terrein." }],
-    },
-    "Van der Valk",
-  );
-
-  const zinnen = gevonden.map((g) => g.sentence);
-  ok("de onbewaakte marketingzin wordt gezien", zinnen.some((z) => z.includes("reserveert u direct online")));
-  ok("merknaamzin wordt gezien", zinnen.some((z) => z.includes("100 hotels")));
-  ok("FAQ-antwoord telt mee", zinnen.some((z) => z.includes("gratis parkeren")));
-  ok("een vraag is geen bewering", !zinnen.some((z) => z.includes("Wat kost")));
-  ok("sfeerzin zonder signaal valt buiten", !zinnen.some((z) => z.includes("vak apart")));
-
-  ok(
-    "parafrase hoort bij de zin",
-    claimMatchesSentence(
-      "Van der Valk heeft meer dan 100 hotels",
-      "Van der Valk heeft meer dan 100 hotels wereldwijd.",
-    ),
-  );
-  ok(
-    "een andere bewering hoort er niet bij",
-    !claimMatchesSentence("Van der Valk biedt gratis wifi", "Van der Valk heeft meer dan 100 hotels wereldwijd."),
-  );
-});
-
-// ── R0b: een oproep tot actie belooft niets ─────────────────────────────────
-//
-// Alle zinnen hieronder komen uit de benchmarkronde van 3 september 2026 en
-// werden daar allemaal BLOKKEREND afgekeurd, terwijl er niets te onderbouwen
-// valt. Ze blokkeerden om twee redenen: `GETAL` zag een telefoonnummer als een
-// getal, en de toezeggingslijst matchte midden in langere woorden.
-group("R0b: contactgegevens en woordmidden zijn geen belofte", () => {
-  const geen = (zin: string, merk: string) =>
-    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 0;
-
-  ok(
-    "een telefoonnummer maakt van een oproep geen bewering",
-    geen("Bel 0578 234 502 of stuur via WhatsApp de locatie en de schade door.", "MJB Dakservice"),
-  );
-  ok(
-    "ook niet met een e-mailadres erbij",
-    geen(
-      "Bellen kan via 030 227 04 37 en mailen via info@fysiocentrumutrecht.nl.",
-      "Fysio Centrum Utrecht",
-    ),
-  );
-  ok(
-    "mogelijk in contactmogelijkheden is geen toezegging",
-    geen(
-      "De adressen en contactmogelijkheden van beide vestigingen staan op de contactpagina.",
-      "Fysio Centrum Utrecht",
-    ),
-  );
-  ok(
-    "beschikbaar in beschikbaarheid is geen toezegging",
-    geen("Beschikbaarheid kan per plaats en per moment verschillen.", "MJB Dakservice"),
-  );
-
-  // De tegenproef, en die weegt zwaarder dan de vier hierboven: wat wél een
-  // belofte is, moet een bewering blijven.
-  const wel = (zin: string, merk: string) =>
-    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 1;
-
-  ok(
-    "een getal dat geen contactgegeven is, blijft tellen",
-    wel("Wij staan binnen 24 uur op het dak bij een actieve lekkage.", "MJB Dakservice"),
-  );
-  ok(
-    "een zin met de merknaam blijft altijd tellen",
-    wel("MJB Dakservice reageert binnen 24 uur op de aanvraag.", "MJB Dakservice"),
-  );
-  ok(
-    "een vervoegde toezegging blijft tellen",
-    wel("Op valk.com reserveert u direct online een zaal.", "Van der Valk"),
-  );
-  ok(
-    "een verbogen toezegging ook",
-    wel("Wij leveren de offerte binnen twee werkdagen.", "MJB Dakservice"),
-  );
-});
-
-group("dekking over de gedetecteerde noemer", () => {
-  const facts = numberFacts([
-    { text: "Meer dan 100 hotels en restaurants wereldwijd", source: "site", allowed: true, citable: true },
-  ]);
-
-  const detected = detectClaimSentences(
-    {
-      bodyMarkdown:
-        "Van der Valk heeft meer dan 100 hotels wereldwijd. " +
-        "Op valk.com reserveert u direct online een zaal.",
-    },
-    "Van der Valk",
-  );
-
-  const zonderTag = detectedCoverage({ detected, claims: [], facts });
-  ok("niets taggen geeft geen 100 meer", zonderTag.coverage === 50);
-  ok(
-    "de ware, niet-getagde zin krijgt alsnog krediet via de kaart zelf",
-    zonderTag.untagged.length === 1,
-  );
-  ok(
-    "en de fabricage is het exemplaar dat overblijft",
-    zonderTag.untagged[0]?.sentence.includes("reserveert u direct online"),
-  );
-
-  const metTag = detectedCoverage({
-    detected,
-    claims: [
-      {
-        claim: "Van der Valk heeft meer dan 100 hotels wereldwijd",
-        factRef: "F1",
-        quote: "Meer dan 100 hotels en restaurants wereldwijd",
-      },
-    ],
-    facts,
-  });
-  ok("de onderbouwde zin telt als gedekt", metTag.coverage === 50);
-  ok("de fabricage blijft over als ongetagd", metTag.untagged.length === 1);
-  ok(
-    "en het is de juiste zin",
-    metTag.untagged[0]?.sentence.includes("reserveert u direct online"),
-  );
-
-  ok(
-    "een pagina zonder beweringen geeft null, niet 100",
-    detectedCoverage({ detected: [], claims: [], facts }).coverage === null,
-  );
-});
-
-// ── Ongetagd maar wel bewezen: het gat dat de herkeuring van 3 september
-// 2026 blootlegde (docs/tasks/contentkwaliteit-framework.md §10) ────────────
-group("een ongetagde zin die de kaart zelf wél draagt", () => {
-  const facts = numberFacts([
-    {
-      text: "Binnen 24 uur ter plaatse bij een lekkage",
-      source: "klant, bevestigd 3 september",
-      allowed: true,
-      citable: true,
-    },
-  ]);
-
-  const detected = detectClaimSentences(
-    {
-      bodyMarkdown:
-        "MJB Dakservice kan bij een daklekkage in Zutphen binnen 24 uur ter plaatse zijn. " +
-        "Vraag daarom altijd naar een gratis vervolginspectie.",
-    },
-    "MJB Dakservice",
-  );
-
-  const dekking = detectedCoverage({ detected, claims: [], facts });
-  ok(
-    "de zin die het feit parafraseert telt als gedekt, ook zonder tag",
-    !dekking.untagged.some((d) => d.sentence.includes("binnen 24 uur ter plaatse")),
-  );
-  ok(
-    "een onbewezen belofte blijft gewoon blokkeren",
-    dekking.untagged.some((d) => d.sentence.includes("gratis vervolginspectie")),
-  );
-
-  ok(
-    "een kort, generiek feit geeft geen krediet aan een willekeurige zin",
-    detectedCoverage({
-      detected: detectClaimSentences(
-        { bodyMarkdown: "MJB Dakservice is gevestigd in Apeldoorn en werkt in de hele regio." },
-        "MJB Dakservice",
-      ),
-      claims: [],
-      facts: numberFacts([{ text: "gratis", source: "site", allowed: true, citable: true }]),
-    }).untagged.length === 1,
-  );
-
-  ok(
-    "een verboden feit telt nooit mee, ook niet blind",
-    detectedCoverage({
-      detected: detectClaimSentences(
-        { bodyMarkdown: "MJB Dakservice kan bij een daklekkage binnen 24 uur ter plaatse zijn." },
-        "MJB Dakservice",
-      ),
-      claims: [],
-      facts: numberFacts([
-        {
-          text: "Binnen 24 uur ter plaatse bij een lekkage",
-          source: "klant",
-          allowed: false,
-          citable: true,
-        },
-      ]),
-    }).untagged.length === 1,
-  );
-});
-
-// ── Een instructie aan de lezer is geen belofte van het bedrijf, gevonden bij
-// dezelfde herkeuring ────────────────────────────────────────────────────────
-group("instructiezinnen blokkeren niet meer als een belofte", () => {
-  const geen = (zin: string, merk: string) =>
-    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 0;
-  const wel = (zin: string, merk: string) =>
-    detectClaimSentences({ bodyMarkdown: zin }, merk).length === 1;
-
-  ok(
-    "maak foto's van mogelijke schade is een instructie, geen belofte",
-    geen("Maak foto's en video's van de mogelijke waterschade aan het plafond.", "MJB Dakservice"),
-  );
-  ok(
-    "controleer de meterstand is ook een instructie",
-    geen("Controleer of de hoofdkraan beschikbaar en bereikbaar is.", "MJB Dakservice"),
-  );
-
-  ok(
-    "dezelfde instructie mét de merknaam blijft gewoon tellen",
-    wel(
-      "Maak foto's en stuur ze naar MJB Dakservice voor een eerste inschatting.",
-      "MJB Dakservice",
-    ),
-  );
-  ok(
-    "een oproep tot actie met een onbewezen claim blijft blokkeren",
-    wel("Bel ons voor een gratis inspectie.", "MJB Dakservice"),
-  );
-});
-
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe positioneringsvraag en de reservering (S4)");
-
-group("de vraag die 0 van de 62 keer gesteld werd", () => {
-  const vraag = positioningQuestion({
-    evidence: [
-      { attribute: "prijs", evidence: "Zitting manuele therapie: €60,00 per sessie" },
-      { attribute: "service", evidence: "biedt fysiotherapie aan zonder dat een verwijsbrief nodig is" },
-    ],
-    contentPieceIds: ["p1"],
-  });
-  ok("er komt een vraag uit", vraag !== null);
-  ok("van de juiste soort", vraag?.kind === "onderscheid");
-  ok("met het letterlijke bewijs erin", vraag?.question.includes("€60,00 per sessie") === true);
-  ok("merkbreed, want dit geldt voor elke pagina", vraag?.scope === "merk");
-  ok("niet verplicht, je moet door kunnen", vraag?.required === false);
-  ok("zonder bewijs geen vraag", positioningQuestion({ evidence: [], contentPieceIds: ["p1"] }) === null);
-});
-
-group("de gereserveerde plek", () => {
-  // Acht inhoudelijk verschillende, verplichte vragen die alle pagina's raken,
-  // precies de soort die in productie alle plekken innam.
-  //
-  // ⚠️ De aantallen hieronder tellen op ACHT en niet op MAX_QUESTIONS. Dat was
-  // tot 2 september 2026 hetzelfde getal; sinds het plafond op twaalf staat
-  // (docs/tasks/vragen-voor-het-schrijven.md §5) is het dat niet meer, en de
-  // vraag die deze groep stelt gaat over verplichte vragen die de ruimte
-  // vullen, niet over de hoogte van het plafond.
-  const onderwerpen = [
-    "tarieven vergoeding zorgverzekeraar",
-    "wachttijd eerste afspraak inplannen",
-    "parkeergelegenheid bereikbaarheid locatie",
-    "openingstijden avondbehandeling weekend",
-    "verwijsbrief huisarts noodzakelijk",
-    "behandelduur intakegesprek minuten",
-    "oefenprogramma thuis begeleiding",
-    "samenwerking sportclubs trainers",
-  ];
-  const vulling: BriefingQuestion[] = onderwerpen.map((onderwerp, i) => ({
-    claimKey: claimKey(onderwerp),
-    question: `Vraag over ${onderwerp}?`,
-    reason: "r",
-    kind: "verificatie" as const,
-    answerType: "ja_nee" as const,
-    options: [],
-    suggestedAnswer: null,
-    required: true,
-    scope: "analyse" as const,
-    contentPieceIds: ["p1", "p2"],
-    priority: 2,
-  }));
-
-  const positionering = positioningQuestion({
-    evidence: [{ attribute: "prijs", evidence: "Zitting manuele therapie: €60,00 per sessie" }],
-    contentPieceIds: ["p1"],
-  })!;
-
-  ok(
-    "acht verplichte vragen gaan alle acht mee",
-    selectBriefingQuestions({ candidates: vulling, alreadyKnown: new Set() }).length ===
-      onderwerpen.length,
-  );
-
-  const met = selectBriefingQuestions({
-    candidates: [...vulling, positionering],
-    alreadyKnown: new Set(),
-  });
-  // Negen en niet acht: de positioneringsvraag komt erbij zonder dat er een
-  // verplichte vraag voor sneuvelt. Met een plafond van twaalf past hij in de
-  // optionele ruimte; stond het plafond op acht, dan kwam hij erbovenop. Beide
-  // uitkomsten zijn goed, en dát is wat deze regel bewaakt: een `kern`-vraag
-  // wordt er nooit voor geruild (werkpakket A §3.3).
-  ok("acht verplicht plus de positioneringsvraag erbij", met.length === onderwerpen.length + 1);
-  // Zonder reservering verliest deze vraag altijd: hij is nooit `kern` en raakt
-  // zelden alle pagina's, dus de sortering op impact duwt hem er structureel uit.
-  // Dat is precies waarom hij 0 van de 62 keer gesteld werd.
-  ok("de positioneringsvraag haalt de lijst", met.some((v) => v.kind === "onderscheid"));
-  ok(
-    "geen enkele verplichte vraag sneuvelt ervoor",
-    met.filter((v) => v.required).length === onderwerpen.length,
-    String(met.filter((v) => v.required).length),
-  );
-});
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nMerkdossier: het vangnet (implementatieplan.md S5)");
@@ -3957,64 +3342,6 @@ group("de afgeleide vlag", () => {
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nFeiten samenvoegen met de feitenbank (migratie 0036)");
 
-group("nieuw, ongewijzigd en vervangen", () => {
-  const bestaand: StoredFact[] = [
-    {
-      id: "f-oud",
-      text: "Zit pechhulp in het maandbedrag: NEE",
-      source: "klant, bevestigd 29-07-2026",
-      kind: "klant",
-      citable: true,
-      allowed: false,
-      factKey: "bedrag inbegrepen maandbedrag pechhulp zit",
-    },
-  ];
-
-  const zelfde: IncomingFact = {
-    text: "Zit pechhulp in het maandbedrag: NEE",
-    source: "klant, bevestigd 29-07-2026",
-    kind: "klant",
-    citable: true,
-    allowed: false,
-    factKey: "bedrag inbegrepen maandbedrag pechhulp zit",
-  };
-  const ongewijzigd = planFactMerge(bestaand, [zelfde]);
-  ok("hetzelfde feit blijft staan", ongewijzigd.unchanged.length === 1);
-  ok("en levert geen tegenspraak op", ongewijzigd.contradictions.length === 0);
-
-  // Het scherpste geval: de klant draait zijn antwoord om. Vóór 0036 stonden
-  // beide antwoorden op de kaart en mocht het model kiezen.
-  const omgedraaid: IncomingFact = { ...zelfde, text: "Zit pechhulp in het maandbedrag: ja", allowed: true };
-  const conflict = planFactMerge(bestaand, [omgedraaid]);
-  ok("een omgedraaid antwoord vervangt het oude", conflict.supersede.length === 1);
-  ok("het oude feit wordt niet verwijderd", conflict.supersede[0]?.oldId === "f-oud");
-  ok("en het telt als tegenspraak", conflict.contradictions.length === 1);
-  ok("herkend als omkering", conflict.contradictions[0]?.omgekeerd === true);
-  ok("en als afkomstig van de klant", conflict.contradictions[0]?.vanKlant === true);
-
-  const nieuw: IncomingFact = { ...zelfde, text: "Kortste looptijd: 12 maanden", factKey: "kortste looptijd maanden" };
-  const toegevoegd = planFactMerge(bestaand, [nieuw]);
-  ok("een onbekend feit komt erbij", toegevoegd.insert.length === 1);
-  ok("zonder iets te vervangen", toegevoegd.supersede.length === 0);
-});
-
-group("wat de klant hierover leest", () => {
-  const regels = describeContradictions([
-    {
-      factKey: "k",
-      oud: "Zit pechhulp in het maandbedrag: NEE",
-      nieuw: "Zit pechhulp in het maandbedrag: ja",
-      vanKlant: true,
-      omgekeerd: true,
-    },
-    // Een sitewijziging is meestal gewoon een update; die hoeft de klant niet
-    // lastig te vallen.
-    { factKey: "s", oud: "22 winkels", nieuw: "23 winkels", vanKlant: false, omgekeerd: false },
-  ]);
-  ok("de omkering wordt gemeld", regels.length === 1);
-  ok("met beide teksten erin", regels[0].includes("NEE") && regels[0].includes("ja"));
-});
-
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nModelparameters en kosten (GPT-5.6-overstap, augustus 2026)");
 
@@ -4025,6 +3352,12 @@ group("welk model redeneert", () => {
   ok("o3", isReasoningModel("o3-mini"));
   ok("gpt-4.1 niet", !isReasoningModel("gpt-4.1"));
   ok("gpt-4.1-nano niet", !isReasoningModel("gpt-4.1-nano"));
+  // Tot 23 september 2026 herkende de regel alleen `gpt-5`, en viel GPT-6 in de
+  // tak voor oude modellen: geen redeneerinspanning mee, alles op `medium`.
+  ok("gpt-6 luna", isReasoningModel("gpt-6-luna"));
+  ok("gpt-6 sol", isReasoningModel("gpt-6-sol"));
+  ok("een latere generatie ook", isReasoningModel("gpt-7-sol"));
+  ok("maar gpt-4o niet", !isReasoningModel("gpt-4o"));
   // Alle drie de tiers die de app draait moeten in dezelfde tak vallen: anders
   // krijgt de content-stap stilzwijgend andere parameters dan de rest.
   ok("alle tiers van de app", Object.values(MODELS).every(isReasoningModel));
@@ -4098,6 +3431,16 @@ group("kosten per model", () => {
   ok("sol staat in de tabel", hasKnownRate("gpt-5.6-sol"));
   ok("terra staat in de tabel", hasKnownRate("gpt-5.6-terra"));
   ok("gpt-4.1 blijft narekenbaar", hasKnownRate("gpt-4.1"));
+  ok("elke tier van de app heeft een tarief", Object.values(MODELS).every(hasKnownRate));
+
+  // GPT-6, prijzen van 23 september 2026. Zonder deze regels valt elke aanroep
+  // op de terugval van $5/$30: een kostenoverzicht tot tien keer te hoog.
+  const luna6 = estimateCostUsd({ model: "gpt-6-luna", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("gpt-6 luna 1M+1M = $0,60", Math.abs(luna6 - 0.6) < 1e-6, `${luna6}`);
+  const sol6 = estimateCostUsd({ model: "gpt-6-sol", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
+  ok("gpt-6 sol 1M+1M = $12", Math.abs(sol6 - 12) < 1e-6, `${sol6}`);
+  const zoek6 = estimateCostUsd({ model: "gpt-6-luna", inputTokens: 0, outputTokens: 0, webSearch: true });
+  ok("zoekactie op gpt-6 luna = $0,010", Math.abs(zoek6 - 0.01) < 1e-6, `${zoek6}`);
 
   // 1M in + 1M uit op Luna = $0,20 + $1,20.
   const luna = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 1e6, outputTokens: 1e6, webSearch: false });
@@ -4129,9 +3472,7 @@ group("kosten per model", () => {
  * `ai_calls`, zodat een terugval naar Sol niet stil gebeurt maar een rode test
  * oplevert die uitlegt wat het kost.
  */
-group("de contenttier staat op Terra (4 september 2026)", () => {
-  ok("content-tier is terra", MODELS.content === "gpt-5.6-terra", MODELS.content);
-  ok("meten en beoordelen blijven op luna", MODELS.quality === "gpt-5.6-luna");
+group("de contenttier: van Sol naar Terra (4 september 2026)", () => {
 
   // Gemeten op ai_calls over de twaalf pagina's van 3 september 2026:
   // content_draft 15.845 invoer / 5.925 uitvoer, mét web_search ($0,01).
@@ -4142,7 +3483,7 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
     webSearch: true,
   });
   const draftTerra = estimateCostUsd({
-    model: MODELS.content,
+    model: "gpt-5.6-terra",
     inputTokens: 15_845,
     outputTokens: 5_925,
     webSearch: true,
@@ -4157,7 +3498,7 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
 
   // content_revise: 13.625 invoer / 4.657 uitvoer, zonder web_search.
   const reviseTerra = estimateCostUsd({
-    model: MODELS.content,
+    model: "gpt-5.6-terra",
     inputTokens: 13_625,
     outputTokens: 4_657,
     webSearch: false,
@@ -4189,6 +3530,35 @@ group("de contenttier staat op Terra (4 september 2026)", () => {
     reviseTerra / 0.0119 >= 6,
     `${(reviseTerra / 0.0119).toFixed(1)} keuringen`,
   );
+});
+
+/**
+ * De overstap naar GPT-6 op 23 september 2026, met de tokenaantallen uit
+ * `ai_calls` over 24 augustus tot 23 september 2026. Faalt deze groep, dan is
+ * een tier stil teruggezet of klopt een tarief niet meer.
+ */
+group("de app draait op GPT-6 (23 september 2026)", () => {
+  ok("meten en beoordelen op gpt-6-luna", MODELS.volume === "gpt-6-luna" && MODELS.quality === "gpt-6-luna");
+  ok("schrijven op gpt-6-sol", MODELS.content === "gpt-6-sol", MODELS.content);
+
+  // Luna: 14.568.695 invoer, 1.770.650 uitvoer. De 510 zoekacties ($5,10)
+  // kosten op beide generaties hetzelfde en tellen hier niet mee.
+  const lunaOud = estimateCostUsd({ model: "gpt-5.6-luna", inputTokens: 14_568_695, outputTokens: 1_770_650, webSearch: false });
+  const lunaNieuw = estimateCostUsd({ model: MODELS.quality, inputTokens: 14_568_695, outputTokens: 1_770_650, webSearch: false });
+  ok("luna-tokens: $5,04 wordt $2,34", Math.abs(lunaOud - 5.04) < 0.01 && Math.abs(lunaNieuw - 2.34) < 0.01, `${lunaOud} → ${lunaNieuw}`);
+
+  // Schrijven: 793.755 invoer, 185.867 uitvoer op Terra.
+  const schrijfOud = estimateCostUsd({ model: "gpt-5.6-terra", inputTokens: 793_755, outputTokens: 185_867, webSearch: false });
+  const schrijfNieuw = estimateCostUsd({ model: MODELS.content, inputTokens: 793_755, outputTokens: 185_867, webSearch: false });
+  ok("schrijven wordt niet duurder", schrijfNieuw < schrijfOud, `${schrijfOud} → ${schrijfNieuw}`);
+  ok("en scheelt ~$0,37", Math.abs(schrijfOud - schrijfNieuw - 0.37) < 0.01, `${(schrijfOud - schrijfNieuw).toFixed(4)}`);
+
+  // De temperatuurregel moet op GPT-6 net zo gelden: classificeren op `none`
+  // met temperatuur 0, schrijven met redeneertijd en zonder temperatuur.
+  const det = resolveTuning(MODELS.volume, "deterministic");
+  ok("classificeren op gpt-6 blijft op none en 0", det.reasoningEffort === "none" && det.temperature === 0);
+  const con = resolveTuning(MODELS.content, "content");
+  ok("schrijven op gpt-6 zonder temperatuur", con.reasoningEffort === "medium" && con.temperature === undefined);
 });
 
 group("gestructureerde data oogsten (fase 0, nul API-kosten)", () => {
@@ -5368,11 +4738,15 @@ group("het model dat de naam niet kan thuisbrengen, kent het merk niet", () => {
     "behandelaren, openingstijden, specialisaties of reviews.";
 
   ok("twijfel over een detail is geen twijfel over het merk", !admitsUnknown(b1));
-  ok("'geen betrouwbare details' evenmin", !admitsUnknown(b2));
-  ok(
-    "het model kent het merk in allebei",
-    knowsBrand(b1, "Fysi-Unique", []) && knowsBrand(b2, "Fysi-Unique", []),
-  );
+  ok("het model kent het merk in b1", knowsBrand(b1, "Fysi-Unique", []));
+  // ⚠️ Bijgesteld op 24 september 2026 (punt 6 van de kwaliteitsdoorlichting).
+  // b2 telde hier als kennen. Maar "lijkt een fysiotherapiepraktijk in
+  // Amersfoort te zijn" is dezelfde vorm als "lijkt de naam van een
+  // hoveniersbedrijf in Eindhoven te zijn": de soort komt uit de naam (Fysi),
+  // de plaats uit de vraag. Bij de drie merken van de doorlichting maakte juist
+  // deze vorm van "weet het niet" een hoge herkenning. b1 blijft kennen: daar
+  // staat iets wat niet uit de naam of de vraag af te leiden is.
+  ok("een gok op de soort bedrijf telt niet meer als kennen", !knowsBrand(b2, "Fysi-Unique", []));
 
   // Het omgekeerde moet blijven werken: een echt antwoord is geen twijfel.
   ok(
@@ -6005,107 +5379,6 @@ group("de zichtbare versheidsregel", () => {
   ok(
     "zonder datum verandert er niets",
     withFreshnessLine("Tekst.", null) === "Tekst.",
-  );
-});
-
-group("lijken twee pagina's te veel op elkaar?", () => {
-  const a =
-    "Bij onze praktijk in Amersfoort behandelen wij knieklachten met een persoonlijk " +
-    "plan. Wij kijken eerst naar de oorzaak van de klacht en stellen daarna een " +
-    "behandelplan op dat bij jouw situatie past.";
-  const bijnaGelijk =
-    "Bij onze praktijk in Amersfoort behandelen wij heupklachten met een persoonlijk " +
-    "plan. Wij kijken eerst naar de oorzaak van de klacht en stellen daarna een " +
-    "behandelplan op dat bij jouw situatie past.";
-  const anders =
-    "Medische fitness is trainen onder begeleiding van een fysiotherapeut. Je krijgt " +
-    "een schema op maat en er is altijd iemand aanwezig die meekijkt naar je houding.";
-
-  ok("bijna identieke teksten scoren hoog", similarity(a, bijnaGelijk) > 0.5);
-  ok("onafhankelijke teksten scoren laag", similarity(a, anders) < 0.1);
-  ok("identiek is 1", similarity(a, a) === 1);
-  // Te kort voor een oordeel: nul en niet één, want een vals alarm is hier
-  // duurder dan een gemist geval.
-  ok("te korte tekst levert 0", similarity("drie woorden hier", a) === 0);
-
-  const beste = mostSimilar(a, [
-    { title: "Medische fitness", body: anders },
-    { title: "Heupklachten behandelen", body: bijnaGelijk },
-  ]);
-  ok(
-    "de meest gelijkende pagina wordt gevonden",
-    beste?.title === "Heupklachten behandelen",
-  );
-  ok("zonder zusterpagina's geen oordeel", mostSimilar(a, []) === null);
-});
-
-group("leest deze tekst een beetje?", () => {
-  const kort =
-    "Wij behandelen knieklachten. De eerste afspraak duurt een half uur. " +
-    "Daarna maken we een plan. Je hoort meteen wat er aan de hand is.";
-  ok("korte zinnen zijn goed", assessReadability(kort).oordeel === "goed");
-
-  const lang = Array.from(
-    { length: 5 },
-    () =>
-      "Wanneer u bij ons in de praktijk komt voor een uitgebreide intake zullen wij " +
-      "eerst zorgvuldig in kaart brengen welke klachten er precies spelen en op welke " +
-      "manier deze klachten uw dagelijks functioneren op dit moment beperken.",
-  ).join(" ");
-  const r = assessReadability(lang);
-  ok("vijf zinnen van veertig woorden zijn moeilijk", r.oordeel === "moeilijk");
-  ok("en het aantal lange zinnen wordt geteld", r.langeZinnen === 5);
-  // Het verbeterpunt noemt het AANTAL en niet een score van 0 tot 100.
-  ok(
-    "het verbeterpunt is uitvoerbaar",
-    describeReadability(r).includes("5 zinnen zijn langer dan 30 woorden"),
-  );
-  ok(
-    "een lege tekst levert geen oordeel over lengte",
-    assessReadability("").zinnen === 0,
-  );
-});
-
-group("de kwaliteitspoort staat NAAST de GEO-score, niet erin", () => {
-  const tekst =
-    "Wij behandelen knieklachten in Amersfoort. De intake duurt dertig minuten. " +
-    "Daarna volgt een behandelplan op maat.";
-
-  const schoon = checkQuality({ bodyMarkdown: tekst, mostSimilar: null });
-  // Geen zusterpagina's betekent ONBEKEND en niet "goedgekeurd" (conventie 3).
-  ok("zonder vergelijking is 'niet dubbel' onbekend", schoon.checks.nietDubbel === null);
-  ok("een korte heldere tekst is leesbaar", schoon.checks.leesbaar === true);
-  ok("en levert geen verbeterpunten op", schoon.issues.length === 0);
-
-  const dubbel = checkQuality({
-    bodyMarkdown: tekst,
-    mostSimilar: { title: "Heupklachten behandelen", score: 0.62, origin: "eigen_content" },
-  });
-  ok("boven de drempel is het een duplicaat", dubbel.checks.nietDubbel === false);
-  ok(
-    "en het verbeterpunt noemt het percentage en de pagina",
-    dubbel.issues[0].includes("62%") &&
-      dubbel.issues[0].includes("Heupklachten behandelen"),
-  );
-
-  const onderDrempel = checkQuality({
-    bodyMarkdown: tekst,
-    mostSimilar: { title: "Iets anders", score: 0.2, origin: "eigen_content" },
-  });
-  ok("onder de drempel is het geen duplicaat", onderDrempel.checks.nietDubbel === true);
-  // De gemeten waarde wordt altijd teruggegeven, ook onder de drempel. Anders
-  // kan hij nooit op echte data bijgesteld worden.
-  ok(
-    "maar de gemeten waarde staat er wel",
-    onderDrempel.gemeten.gelijkenis === 0.2,
-  );
-
-  // ⚠️ DE KERN VAN HET ONTWERP: deze poort raakt `geo_score` niet aan.
-  // `checkQuality` geeft geen score terug, er is geen veld waarmee hij de
-  // GEO-score zou kunnen beïnvloeden, en dat is met opzet zo.
-  ok(
-    "checkQuality levert geen score op die in geo_score kan lekken",
-    !("score" in dubbel),
   );
 });
 
@@ -7168,26 +6441,35 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // (`brand_name`), en 60 sinds stap B8: `style_samples`, `max_inventory_pages`
   // en `crawl_priority_paths` stonden al in de database maar niet in de
   // catalogus, alleen op `/merkprofiel/bewerken`.
+  // 51 sinds de contentketen opnieuw (25 september 2026, besluit B14): elf
+  // stemvelden eruit, `stem_voorbeelden` en `verhalen` erbij.
+  // 38 sinds K8 (27 september 2026, besluit V10): de twaalf lege velden en
+  // `proof_points` eruit.
   ok(
-    `het zijn er 60 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 60 && EDITABLE_PROFILE_FIELDS.length === 60,
+    `het zijn er 38 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    BRAND_FIELDS.length === 38 && EDITABLE_PROFILE_FIELDS.length === 38,
   );
 
   ok(
     "elk veld hoort bij een bestaande stap",
     BRAND_FIELDS.every((f) => STEP_ORDER.includes(f.step)),
   );
-  ok("negen stappen", STEP_ORDER.length === 9);
+  ok("acht stappen (de auteursstap verviel in K8)", STEP_ORDER.length === 8);
   // De verdeling van 17 augustus 2026 (`docs/logbook.md`). Staat hier voluit zodat
   // een veld dat naar een andere stap verhuist een bewuste wijziging is en geen
   // stille verschuiving.
   const perStap = STEP_ORDER.map((s) => `${s}:${fieldsOfStep(s).length}`).join(" ");
   // Onboarding ronde B, stap B8: `max_inventory_pages` en `crawl_priority_paths`
   // erbij in "bedrijf" (9 → 11), `style_samples` erbij in "stem" (6 → 7).
+  // Contentketen opnieuw (B14): "stem" van 7 naar 1 (alleen de stemvoorbeelden),
+  // "woorden" van 5 naar 3, "klant" en "bekend" elk één minder, "strategie"
+  // één meer (`verhalen`).
+  // K8 (besluit V10): "merk" van 3 naar 1, "klant" van 5 naar 4, "woorden" van 3
+  // naar 2, "bekend" van 5 naar 3, en de auteursstap met zijn 7 velden weg.
   ok(
-    `de verdeling is 11-3-6-7-5-7-6-12-3 (nu ${perStap})`,
+    `de verdeling is 11-1-4-1-2-3-13-3 (nu ${perStap})`,
     perStap ===
-      "bedrijf:11 merk:3 klant:6 stem:7 woorden:5 auteur:7 bekend:6 strategie:12 contact:3",
+      "bedrijf:11 merk:1 klant:4 stem:1 woorden:2 bekend:3 strategie:13 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -7207,9 +6489,8 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
       (f) => (f.options?.length ?? 0) >= 2,
     ),
   );
-  // De vijfde schuif is de enige met vier standen, net als bij Nova.
-  const lading = BRAND_FIELDS.find((f) => f.key === "tone_emotional");
-  ok("de emotionele lading heeft vier standen", lading?.options?.length === 4);
+  // De stemschuiven zijn weg (besluit B14): toon laten zien, niet beschrijven.
+  ok("geen stemschuif meer in de catalogus", !BRAND_FIELDS.some((f) => String(f.key).startsWith("tone_")));
 
   // ⚠️ Een `keuze` slaat een wóórd op dat in een database-constraint staat, geen
   // nummer. Loopt de waardenlijst niet gelijk met de labels, dan kiest de klant
@@ -7263,12 +6544,13 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // `csm-data.ts` gebruikt om te bepalen of een dossier deelbaar is, en staat
   // élk merk eeuwig in "wacht op jouw nakijkwerk".
   const klantVelden = BRAND_FIELDS.filter((f) => CLIENT_STEPS.includes(f.step));
-  // 45 sinds stap B8: de drie nieuwe velden staan in "bedrijf" en "stem", allebei
-  // klantstappen.
+  // 45 sinds stap B8; 35 sinds de contentketen opnieuw (B14): tien stemvelden
+  // uit de klantstappen, `stem_voorbeelden` erbij. 22 sinds K8: dertien velden
+  // zonder lezer eruit.
   ok(
-    `de noemer is de klantlijst van 45 (nu ${overallProgress(leeg).totaal})`,
+    `de noemer is de klantlijst van 22 (nu ${overallProgress(leeg).totaal})`,
     overallProgress(leeg).totaal === klantVelden.length &&
-      klantVelden.length === 45,
+      klantVelden.length === 22,
   );
   ok(
     "de sessie kan alle negen stappen meetellen",
@@ -7277,20 +6559,14 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   ok("geen enkele stap is compleet", allStepsIncompleet(leeg));
 
   const stem = {
-    tone_formality: 2,
-    tone_energy: 2,
-    tone_complexity: 2,
-    tone_humor: 1,
-    tone_emotional: 2,
-    tone_of_voice: "Een ervaren monteur",
-    style_samples: ["Een stukje uit de eigen tarievenpagina"],
+    stem_voorbeelden: [{ url: "https://voorbeeld.nl/over-ons", tekst: null, opgehaald_op: null, fout: null }],
   } as never;
   const p = stepProgress(stem, "stem");
   ok("een volledig ingevulde stap is compleet", p.compleet === true);
-  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 7);
+  ok("en telt al zijn velden", p.gevuld === p.totaal && p.totaal === 1);
   ok(
     "terwijl een andere stap dan nog leeg is",
-    stepProgress(stem, "auteur").gevuld === 0,
+    stepProgress(stem, "bekend").gevuld === 0,
   );
 
   function allStepsIncompleet(prof: Record<string, unknown>): boolean {
@@ -7332,7 +6608,7 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   ok("de klant ziet de commerciële laag niet", !CLIENT_STEPS.includes("strategie"));
   ok("en de contactpersoon ook niet", !CLIENT_STEPS.includes("contact"));
   ok("de sessie ziet ze allebei wel", SESSION_STEPS.includes("strategie") && SESSION_STEPS.includes("contact"));
-  ok("de klantwizard houdt zijn zeven stappen", CLIENT_STEPS.length === 7);
+  ok("de klantwizard houdt zijn zes stappen (de auteursstap verviel in K8)", CLIENT_STEPS.length === 6);
 
   // Elke stap heeft een eigen titel en uitleg, ook de twee nieuwe. Nova geeft
   // per blok een `nav.*Subtitle` die zegt waaróm het blok bestaat; zonder dat
@@ -7350,7 +6626,7 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   const commercieel = BRAND_FIELDS.filter(
     (f) => f.step === "strategie" || f.step === "contact",
   );
-  ok("het zijn er vijftien", commercieel.length === 15);
+  ok("het zijn er zestien (met de verhalen)", commercieel.length === 16);
   ok(
     "en geen enkele is af te leiden",
     commercieel.every((f) => !f.derivable),
@@ -7396,7 +6672,7 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
     BRAND_FIELDS.filter((f) => f.priority === "verplicht").map((f) => f.key as string),
   );
   ok(
-    "brand_name, aliases, industry, business_model, service_scope, competitors, products, proof_points, summary, intake_audience en priority_offerings zijn verplicht",
+    "brand_name, aliases, industry, business_model, service_scope, competitors, products, summary, intake_audience en priority_offerings zijn verplicht",
     [
       "brand_name",
       "aliases",
@@ -7405,7 +6681,6 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
       "service_scope",
       "competitors",
       "products",
-      "proof_points",
       "summary",
       "intake_audience",
       "priority_offerings",
@@ -7447,12 +6722,12 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
 
   // ── B4: de negen blokken dekken samen exact BRAND_FIELDS ────────────────
   const inBlokken = SESSION_BLOCKS.flatMap((b) => b.velden as string[]);
-  const samenB4 = [...inBlokken, ...(SESSION_AUTHOR_FIELDS as string[])];
+  const samenB4 = inBlokken;
   const bestaandeSleutels = BRAND_FIELDS.map((f) => f.key as string);
   ok("geen dubbel veld in de blokindeling", new Set(samenB4).size === samenB4.length);
   const missenB4 = bestaandeSleutels.filter((k) => !samenB4.includes(k));
   ok(
-    `elk veld staat in een blok of bij de auteursvelden${missenB4.length ? " (mist: " + missenB4.join(", ") + ")" : ""}`,
+    `elk veld staat in een blok${missenB4.length ? " (mist: " + missenB4.join(", ") + ")" : ""}`,
     missenB4.length === 0,
   );
   const teveelB4 = samenB4.filter((k) => !bestaandeSleutels.includes(k));
@@ -7461,8 +6736,8 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
     teveelB4.length === 0,
   );
   ok(
-    "samen zijn het er 60",
-    samenB4.length === 60 && samenB4.length === BRAND_FIELDS.length,
+    "samen zijn het er 38",
+    samenB4.length === 38 && samenB4.length === BRAND_FIELDS.length,
   );
   ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
   ok(
@@ -7875,48 +7150,8 @@ group("clampToneSlider", () => {
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nWaarom een contentversie bestaat (C.24)");
 
-group("versionReasonLabel", () => {
-  ok(
-    "versie 1 is altijd origineel",
-    versionReasonLabel({ version: 1, revisionNote: "iets", editedByUser: true }).includes("ORBIT ENGINE geschreven"),
-  );
-  ok(
-    "door de klant bewerkt wint van een oud verzoek",
-    versionReasonLabel({ version: 2, revisionNote: "maak het korter", editedByUser: true }).includes("bewerkt"),
-  );
-  ok(
-    "een verzoek zonder eigen bewerking",
-    versionReasonLabel({ version: 2, revisionNote: "maak het korter", editedByUser: false }).includes("herschreven"),
-  );
-  ok(
-    "geen verzoek en geen bewerking komt uit de kritiekronde",
-    versionReasonLabel({ version: 2, revisionNote: null, editedByUser: false }).includes("eigen kritiekronde"),
-  );
-});
-
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nVerboden woorden, deterministisch (migratie 0045, C.29)");
-
-group("checkTabooWords", () => {
-  const leeg = checkTabooWords("Wij zijn gratis en de beste.", [], []);
-  ok("geen verboden lijst = niets gevonden", leeg.found.length === 0);
-
-  const schoon = checkTabooWords("Wij helpen je snel en persoonlijk.", [], ["gratis", "beste"]);
-  ok("schone tekst blijft schoon", schoon.found.length === 0 && schoon.issues.length === 0);
-
-  const vuil = checkTabooWords("Bij ons is alles gratis, wij zijn de beste.", [], ["gratis", "beste"]);
-  ok("vindt beide verboden woorden", vuil.found.length === 2, vuil.found.join(","));
-  ok("levert een verbeterpunt op", vuil.issues.length === 1);
-
-  const woordgrens = checkTabooWords("Onze specialiteit is uitgebreide zorg.", [], ["breid"]);
-  ok(
-    "woordgrens: 'breid' matcht niet binnen 'uitgebreide'",
-    woordgrens.found.length === 0,
-  );
-
-  const inFaq = checkTabooWords("Nette tekst.", [{ q: "Is het gratis?", a: "Ja, altijd gratis." }], ["gratis"]);
-  ok("verboden woord in de FAQ telt ook mee", inFaq.found.length === 1);
-});
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nVoorgestelde URL van een pagina (content-editie, slug.ts)");
@@ -7991,32 +7226,6 @@ group("displayTitle", () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nVerschil tussen twee versies (content-editie, content-diff.ts)");
-
-group("diffContent", () => {
-  const gelijk = diffContent("precies dezelfde tekst", "precies dezelfde tekst");
-  ok("identieke tekst geeft alleen 'gelijk'", gelijk.ops.every((o) => o.type === "gelijk"));
-
-  const vervangen = diffContent("de prijs is laag", "de prijs is hoog");
-  const verwijderdIdx = vervangen.ops.findIndex((o) => o.type === "verwijderd");
-  const toegevoegdIdx = vervangen.ops.findIndex((o) => o.type === "toegevoegd");
-  ok("een vervangen woord geeft verwijderd én toegevoegd", verwijderdIdx !== -1 && toegevoegdIdx !== -1);
-  ok("verwijderd komt vóór toegevoegd", verwijderdIdx < toegevoegdIdx);
-
-  const toevoeging = diffContent("start einde", "start midden einde");
-  ok("een toegevoegd stuk in het midden", toevoeging.ops.some((o) => o.type === "toegevoegd" && o.text.includes("midden")));
-
-  const eersteVersie = diffContent("", "helemaal nieuwe tekst");
-  ok(
-    "een lege oude tekst (eerste versie) is helemaal 'toegevoegd'",
-    eersteVersie.ops.every((o) => o.type !== "verwijderd"),
-  );
-
-  ok("normale lengtes blijven op woordniveau", vervangen.granularity === "woord");
-
-  const groteTekst = "woord ".repeat(500);
-  const forceer = diffContent(groteTekst, groteTekst + "erbij", 10);
-  ok("een lage maxProduct forceert de terugval naar alineaniveau", forceer.granularity === "alinea");
-});
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nFAQ-invoer valideren bij bewerken (content-editie, FaqEdit)");
@@ -8370,6 +7579,8 @@ group("segmentOf: elk merk in precies één segment", () => {
     geplaatstDezeMaand: 10,
     laatstGeplaatst: "2026-08-01",
     pijplijnfouten: 0,
+    paginasWachtenOpAntwoorden: 0,
+    wachtOpAntwoordenSinds: null,
     fase: "overgedragen",
     ...over,
   });
@@ -8446,6 +7657,23 @@ group("segmentOf: elk merk in precies één segment", () => {
   ok(
     "en klaar om te plaatsen ook",
     flagsOf(merk({ paginasTePlaatsen: 2 })).some((v) => v.includes("klaar om te plaatsen")),
+  );
+  // A5: een pagina die op antwoorden wacht, met sinds wanneer.
+  ok(
+    "een pagina die op antwoorden wacht legt de bal bij de klant",
+    segmentOf(merk({ paginasWachtenOpAntwoorden: 1 })) === "wacht_op_klant",
+  );
+  ok(
+    "de vlag noemt het aantal en de oudste datum",
+    flagsOf(merk({ paginasWachtenOpAntwoorden: 2, wachtOpAntwoordenSinds: "2026-09-01" })).some(
+      (v) => v.includes("2 pagina's wachten op antwoorden") && v.includes("sep"),
+    ),
+  );
+  ok(
+    "één pagina krijgt enkelvoud",
+    flagsOf(merk({ paginasWachtenOpAntwoorden: 1, wachtOpAntwoordenSinds: "2026-09-01" })).some((v) =>
+      v.startsWith("1 pagina wacht op antwoorden"),
+    ),
   );
   // Blok D, punt 24: een mislukt onderzoek is een andere oorzaak dan mislukte
   // taken, en moet een eigen vlag krijgen, ook als er geen enkele taak faalde.
@@ -8972,8 +8200,11 @@ group("wie mag betaald werk starten", () => {
     Object.values(COST_DENIED).every((z) => !/geen toegang|niet toegestaan|mag niet/i.test(z)),
   );
   ok(
-    "en elke zin noemt de customer success manager, niet 'je consultant'",
-    Object.values(COST_DENIED).every((z) => /customer success manager/i.test(z) && !/je consultant/i.test(z)),
+    // Tot de UX-audit van 23 september 2026 (P1.10) was dit andersom: deze zeven
+    // zinnen zeiden "customer success manager", de rest van de app 24 keer "je
+    // consultant". Eén woord per begrip (docs/schrijfstijl.md §11).
+    "en elke zin noemt je consultant bij Outer Orbit",
+    Object.values(COST_DENIED).every((z) => /je consultant bij Outer Orbit/.test(z) && !/customer success manager/i.test(z)),
   );
 });
 
@@ -9013,82 +8244,21 @@ group("welk menu-item licht op", () => {
   ok("en niet Clusters", !navActief("/merk/abc/strategie/bibliotheek/p1", clusters));
 });
 
-group("overzichtCijfers: drie totalen en één stand van nu", () => {
-  // ⚠️ Herschreven op 28 augustus 2026. Tot die dag kwamen twee van de vier
-  // cijfers uit de KANSENLIJST, dus uit voorstellen: bij Van den Udenhout stond
-  // de rij op 0 · 0 · 7 · 5 terwijl er nog geen letter geschreven was. De rij
-  // telt nu wat er gemaakt is, over de hele looptijd.
-  const c = overzichtCijfers({
-    clusters: 1,
-    geschreven: 1,
-    geoptimaliseerd: 1,
-    gepubliceerd: 1,
-  });
-
-  ok("altijd precies vier cijfers", c.length === 4);
-  ok(
-    "de clusters staan vooraan, de publicaties achteraan",
-    c[0].label === "Cluster actief" && c[3].label === "Gepubliceerd",
+group("totalenZin: de totalen als één zin (UX-audit P1.1)", () => {
+  // Tot 23 september 2026 een rij van vier grote cijfers. Wat er van die rij
+  // moet blijven: tellen wat er GEMAAKT is (niet wat er voorgesteld is, zie 28
+  // augustus 2026), het aantal clusters als stand van nu, en geen enkele
+  // vergelijking met een vorige periode.
+  const zin = totalenZin({ clusters: 3, geschreven: 12, geoptimaliseerd: 4, gepubliceerd: 6 });
+  eq("de hele zin", zin, "3 clusters actief. Sinds de start: 12 nieuwe pagina's geschreven, 4 bestaande bijgewerkt, 6 live op je site.");
+  ok("geen groeiclaim", !/\+|steeg|daalde|vorige/.test(zin));
+  const een = totalenZin({ clusters: 1, geschreven: 1, geoptimaliseerd: 1, gepubliceerd: 0 });
+  eq("enkelvoud, en nul live zegt dat", een, "1 cluster actief. Sinds de start: 1 nieuwe pagina geschreven, 1 bestaande bijgewerkt, nog niets live.");
+  eq(
+    "zonder geschreven pagina geen rij nullen",
+    totalenZin({ clusters: 2, geschreven: 0, geoptimaliseerd: 0, gepubliceerd: 0 }),
+    "2 clusters actief. Er is nog geen pagina geschreven.",
   );
-
-  // ⚠️ Geen enkel cijfer draagt een vergelijking met een vorige periode. Het
-  // aantal clusters verandert door een besluit, niet doordat er gemeten is, en
-  // de andere drie zijn optellingen over de hele looptijd.
-  ok(
-    "geen enkele detailregel claimt groei",
-    c.every((x) => !/\+|sinds|steeg|daalde|vorige/.test(x.detail)),
-  );
-  ok("en elk cijfer heeft een toelichting", c.every((x) => x.detail.length > 0));
-
-  // ⚠️ Alleen het eerste cijfer is een stand van NU. Dat verschil moet uit de
-  // toelichting blijken, want de kop boven de rij zegt "sinds de start" en die
-  // geldt voor de andere drie.
-  ok("het eerste cijfer zegt dat het van nu is", c[0].detail === "Nu actief");
-
-  // Enkelvoud en meervoud, want deze getallen staan vaak op 1 of op 0.
-  ok("één geschreven pagina is enkelvoud", c[1].label === "Pagina geschreven");
-  ok("één optimalisatie is enkelvoud", c[2].label === "Pagina geoptimaliseerd");
-  const meer = overzichtCijfers({
-    clusters: 3,
-    geschreven: 4,
-    geoptimaliseerd: 2,
-    gepubliceerd: 5,
-  });
-  ok("meer clusters is meervoud", meer[0].label === "Clusters actief");
-  ok("meer pagina's is meervoud", meer[1].label === "Pagina's geschreven");
-  ok("meer optimalisaties is meervoud", meer[2].label === "Pagina's geoptimaliseerd");
-  // ⚠️ "Gepubliceerd" kent geen enkelvoud. Het label slaat op twee soorten
-  // tegelijk (nieuwe pagina's én optimalisaties), en "1 gepubliceerde pagina of
-  // optimalisatie" past niet in een kolom van 190 pixels.
-  ok("gepubliceerd verandert nooit van vorm", meer[3].label === "Gepubliceerd");
-
-  // ⚠️ Nul is hier een echte telling en geen onbekende waarde (conventie 3 gaat
-  // over gokken, niet over tellen). De detailregel zegt wel wat nul betekent.
-  const leeg = overzichtCijfers({
-    clusters: 0,
-    geschreven: 0,
-    geoptimaliseerd: 0,
-    gepubliceerd: 0,
-  });
-  ok("nul blijft nul", leeg.every((x) => x.waarde === "0"));
-  ok("en zegt waarom het nul is", leeg[1].detail === "Nog niets geschreven");
-
-  // ⚠️ Vier kolommen naast elkaar, waarvan drie ook een scheidingslijn met
-  // inspringing dragen: die zijn 24 pixels smaller dan de eerste. Een
-  // toelichting die daar over twee regels valt, maakt de rij rafelig en de
-  // kolommen ongelijk hoog. 23 tekens is wat er in de smalste kolom past.
-  ok(
-    "elke toelichting past op één regel",
-    [...c, ...meer, ...leeg].every((x) => x.detail.length <= 23),
-  );
-  ok("ook de nulvarianten", leeg.every((x) => x.detail.length <= 23));
-});
-
-group("totalenKop: de regel die zegt dat het totalen zijn", () => {
-  // ⚠️ Zonder deze regel leest een klant met twaalf geschreven pagina's de rij
-  // als "deze maand". Vaste tekst sinds 21 september 2026: geen datum meer die
-  // kan wijzen naar een moment dat niet meer bestaat (zie lib/overview.ts).
-  ok("altijd dezelfde vaste tekst", totalenKop() === "Sinds start ORBIT ENGINE");
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -9559,7 +8729,7 @@ group("insights: drie zinnen, en de ruis is de hoofdregel", () => {
   });
   ok(
     "publiceren gaat voor op nieuwe kansen",
-    wachtOpPublicatie[2].text.includes("online"),
+    wachtOpPublicatie[2].text.includes("live staan"),
   );
 });
 
@@ -9685,9 +8855,6 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
     "app/api/profiles/[id]/plan/months/[monthId]/route.ts",
     "app/api/analyses/[id]/confirm/route.ts",
     "app/api/analyses/[id]/measure/route.ts",
-    "app/api/analyses/[id]/generate/route.ts",
-    "app/api/analyses/[id]/generate-all/route.ts",
-    "app/api/analyses/[id]/briefing/route.ts",
     // De reputatieanalyse (22 augustus 2026). Een zesde dure route, en hij
     // stelt precies dezelfde twee vragen aan precies dezelfde functies. Twee
     // functies die hetzelfde zouden moeten doen drijven uit elkaar (P2), en dat
@@ -9728,7 +8895,7 @@ group("elke dure route vraagt het aan dezelfde functie", () => {
   // hij niet dat dit product er is, en dan verkoop je het nooit.
   ok(
     "en de reputatiemelding zegt bij wie de klant moet zijn",
-    /customer success manager/i.test(COST_DENIED.reputatie_starten),
+    /je consultant/i.test(COST_DENIED.reputatie_starten),
     COST_DENIED.reputatie_starten,
   );
 });
@@ -10599,111 +9766,6 @@ group("openVragenLabel: nul verdwijnt, één is enkelvoud", () => {
   ok("meer is meervoud", openVragenLabel(4) === "4 openstaande vragen");
 });
 
-group("eindpoort: geen definitieve versie met vragen open", () => {
-  const dicht = eindpoort(2);
-  ok("twee open vragen houden hem tegen", dicht.mag === false && dicht.open === 2);
-  // ⚠️ De melding noemt de uitweg in dezelfde zin als de blokkade. Een melding
-  // die alleen zegt wat niet mag, is een dood einde (`docs/ux-design.md` §4), en
-  // dan weet de klant niet dat "weet ik niet" ook een antwoord is.
-  ok("en de melding noemt de uitweg", /overslaan|sla de vraag dan over/i.test(dicht.melding));
-  ok("en zegt waarom het uitmaakt", /geciteerd|algemeen/i.test(dicht.melding));
-
-  const een = eindpoort(1);
-  ok("één vraag is enkelvoud", een.melding.startsWith("Er staat nog één vraag open"));
-
-  const open = eindpoort(0);
-  ok("niets open, dus het mag", open.mag === true && open.open === 0);
-  // Ook als het mag staat er iets: een lege melding zou het scherm laten zien
-  // dat er niets gebeurd is, terwijl er juist een controle geslaagd is.
-  ok("en er staat nog steeds een zin", open.melding.length > 0);
-
-  // Een negatieve telling kan alleen uit een fout komen, en dan hoort de poort
-  // open te staan: een geschreven pagina niet kunnen afronden omdat een telling
-  // misging is erger dan een pagina afronden met een vraag open.
-  ok("een onmogelijke telling blokkeert niet", eindpoort(-2).mag === true);
-});
-
-group("vijf controles bij een handmatige bewerking (blok C punt 14)", () => {
-  const geldig = {
-    title: "Cv-ketel onderhoud in Tilburg",
-    bodyMarkdown: "Wij onderhouden je cv-ketel in Tilburg en omgeving.",
-    metaTitle: "Cv-ketel onderhoud Tilburg | Voorbeeld",
-    metaDescription: "Snel en vakkundig cv-ketel onderhoud in Tilburg.",
-    cluster: "cv-ketel onderhoud",
-  };
-
-  ok("een volledige pagina heeft geen problemen", checkManualEdit(geldig).length === 0);
-
-  ok(
-    "lege titel blokkeert",
-    checkManualEdit({ ...geldig, title: "  " }).some((p) => p.code === "lege-titel"),
-  );
-  ok(
-    "lege meta-title blokkeert",
-    checkManualEdit({ ...geldig, metaTitle: "" }).some((p) => p.code === "lege-meta-titel"),
-  );
-  ok(
-    "lege meta-description blokkeert",
-    checkManualEdit({ ...geldig, metaDescription: "" }).some((p) => p.code === "lege-meta-omschrijving"),
-  );
-  ok(
-    "een link zonder adres blokkeert",
-    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina]()." }).some(
-      (p) => p.code === "lege-link",
-    ),
-  );
-  ok(
-    "een link met adres is geen probleem",
-    checkManualEdit({ ...geldig, bodyMarkdown: "Lees ook [onze andere pagina](/andere-pagina)." })
-      .length === 0,
-  );
-
-  ok(
-    "het zoekwoord moet ergens voorkomen",
-    checkManualEdit({
-      ...geldig,
-      title: "Iets anders",
-      metaTitle: "Iets anders",
-      bodyMarkdown: "Dit gaat nergens over ketels.",
-    }).some((p) => p.code === "zoekwoord-ontbreekt"),
-  );
-  ok(
-    "geen cluster bekend is geen aanname over het zoekwoord (conventie 3)",
-    checkManualEdit({ ...geldig, title: "Iets anders", cluster: null }).length === 0,
-  );
-  ok(
-    "meerdere problemen komen allemaal terug",
-    checkManualEdit({ title: "", bodyMarkdown: "", metaTitle: "", metaDescription: "", cluster: null })
-      .length === 3,
-  );
-});
-
-group("de vragenpagina staat in Strategie, tussen plan en bibliotheek", () => {
-  const items = brandNav("00000000-0000-0000-0000-000000000001", false);
-  const strategie = items.filter((i) => i.hoofdstuk === "Strategie").map((i) => i.label);
-  // ⚠️ Clusters blijft eerst: zonder meting valt er niets te plannen. Op 22
-  // september 2026 (commit 91d9a18) zijn Contentplan en Openstaande vragen op
-  // verzoek van de eigenaar van plek gewisseld; deze test volgt dat besluit.
-  ok(
-    "de volgorde is clusters, plan, vragen, bibliotheek",
-    strategie.join(" · ") === "Clusters · Contentplan · Openstaande vragen · Bibliotheek",
-    strategie.join(" · "),
-  );
-  // ⚠️ En hij staat niet meer onder Merkprofiel. Twee vragenschermen naast
-  // elkaar is precies de splitsing die op 17 augustus 2026 is opgeheven.
-  ok(
-    "er is geen tweede vragenscherm",
-    !items.some((i) => i.label === "Vraagt jouw input"),
-  );
-  // ⚠️ Sinds 1 september 2026 houdt Merkprofiel er nog maar één over: het
-  // leesscherm ("Merkdossier") is opgesplitst en naar Admin verhuisd, als
-  // "0-meting" en "Aanbodboom". Zie `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
-  ok(
-    "en Merkprofiel houdt er één over",
-    items.filter((i) => i.hoofdstuk === "Merkprofiel").length === 1,
-  );
-});
-
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe appstructuur: hoofdstukken en doorverwijzingen (17 augustus 2026)");
 
@@ -10721,6 +9783,24 @@ group("de zijbalk kent vijf klanthoofdstukken plus Sales en Admin", () => {
   ok(
     "en Overzicht staat vóór allebei",
     HOOFDSTUKKEN.indexOf("Overzicht") < HOOFDSTUKKEN.indexOf("Strategie"),
+  );
+  // Clusters vóór Strategie: zonder meting valt er niets te plannen.
+  ok(
+    "Clusters staat tussen Overzicht en Strategie",
+    HOOFDSTUKKEN.indexOf("Overzicht") < HOOFDSTUKKEN.indexOf("Clusters") &&
+      HOOFDSTUKKEN.indexOf("Clusters") < HOOFDSTUKKEN.indexOf("Strategie"),
+  );
+  // UX-audit 23 september 2026 (P1.5): de klant ziet eerst wat hij heeft, de
+  // consultant eerst waar hij zoekt.
+  eq(
+    "de klant ziet eerst Mijn clusters",
+    (klant.find((k) => k.naam === "Clusters")?.items ?? []).map((i) => i.label).join(", "),
+    "Mijn clusters, Clusters ontdekken",
+  );
+  eq(
+    "de consultant eerst Clusters ontdekken",
+    (beheerder.find((k) => k.naam === "Clusters")?.items ?? []).map((i) => i.label).join(", "),
+    "Clusters ontdekken, Mijn clusters",
   );
 
   // Dit is het hele punt van de herindeling: van 7 regels met een bak van
@@ -10772,11 +9852,13 @@ group("de zijbalk kent vijf klanthoofdstukken plus Sales en Admin", () => {
   // blijven op drie, met Analytics en Strategie als de twee genoemde
   // uitzonderingen op vier.
   const klantKoppen = HOOFDSTUKKEN.filter((n) => n !== "Sales" && n !== "Admin");
+  // Strategie is sinds 23 september 2026 terug op drie: Clusters werd een eigen
+  // hoofdstuk. Alleen Analytics houdt zijn vierde.
   const teRuim = klantKoppen.filter(
-    (n) => GRENS_PER_HOOFDSTUK[n] > (n === "Analytics" || n === "Strategie" ? 4 : 3),
+    (n) => GRENS_PER_HOOFDSTUK[n] > (n === "Analytics" ? 4 : 3),
   );
   ok(
-    "de klanthoofdstukken blijven op drie, alleen Analytics en Strategie mogen er vier",
+    "de klanthoofdstukken blijven op drie, alleen Analytics mag er vier",
     teRuim.length === 0,
     teRuim.join(", "),
   );
@@ -10938,81 +10020,6 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nDe merkbrede bibliotheek");
-
-group("filteren, zoeken en de kerncijfers", () => {
-  const rijen: LibraryRow[] = [
-    r("1", "a", "Cluster A", "Onderhoud aan je CV-ketel", "article", "published", 82, "https://x.nl/cv"),
-    r("2", "a", "Cluster A", "Wat kost een onderhoudsbeurt", "faq", "ready", 71, null),
-    r("3", "b", "Cluster B", "Airco laten plaatsen", "landing", "draft", null, null),
-    r("4", "b", "Cluster B", "Storing aan je ketel", "article", "briefing", null, null),
-  ];
-
-  // De trechter, geen drie stapels: geschreven telt álles, ook wat live staat.
-  // Drie getallen die optellen tot meer dan er is, is precies hoe een klant
-  // denkt dat hij meer pagina's heeft gekocht dan hij heeft.
-  const t = libraryTotals(rijen);
-  ok("geschreven telt alles", t.geschreven === 4);
-  ok("klaar voor vrijgave telt alleen 'ready'", t.klaarVoorVrijgave === 1);
-  ok("gepubliceerd telt alleen 'published'", t.gepubliceerd === 1);
-
-  ok("zonder filter blijft alles staan", filterLibrary(rijen, LEGE_FILTERS).length === 4);
-  ok(
-    "filteren op type",
-    filterLibrary(rijen, { ...LEGE_FILTERS, type: "article" }).length === 2,
-  );
-  ok(
-    "filteren op cluster gaat op id en niet op naam",
-    filterLibrary(rijen, { ...LEGE_FILTERS, cluster: "b" }).length === 2,
-  );
-  ok(
-    "filters stapelen",
-    filterLibrary(rijen, { ...LEGE_FILTERS, cluster: "b", type: "article" }).length === 1,
-  );
-
-  // Zoeken kijkt ook in het adres: een klant die een pagina terugzoekt heeft
-  // vaker de URL bij de hand (uit zijn CMS, uit Search Console) dan de titel.
-  ok("zoeken op titel", filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "ketel" }).length === 2);
-  ok(
-    "zoeken is hoofdletterongevoelig",
-    filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "KETEL" }).length === 2,
-  );
-  ok("zoeken op adres", filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "x.nl/cv" }).length === 1);
-  ok(
-    "spaties eromheen tellen niet mee",
-    filterLibrary(rijen, { ...LEGE_FILTERS, zoek: "  airco  " }).length === 1,
-  );
-
-  const w = beschikbareWaarden(rijen);
-  ok("de typefilter kent drie waarden", w.types.length === 3);
-  ok("de clusterfilter is ontdubbeld", w.clusters.length === 2);
-  ok("en op naam gesorteerd", w.clusters[0].naam === "Cluster A");
-
-  function r(
-    id: string,
-    analysisId: string,
-    cluster: string,
-    title: string,
-    type: string,
-    status: string,
-    geoScore: number | null,
-    publishedUrl: string | null,
-    needsReview = false,
-  ): LibraryRow {
-    return {
-      id,
-      analysisId,
-      cluster,
-      title,
-      type,
-      action: "nieuw",
-      status,
-      needsReview,
-      geoScore,
-      publishedUrl,
-      createdAt: "2026-08-01T00:00:00Z",
-    };
-  }
-});
 
 // ⚠️ Herstelplan na audit T1.2: `status: "ready"` betekent "de pijplijn is
 // klaar", niet "een mens hoeft niets meer te doen". Een pagina met
@@ -12041,10 +11048,14 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // nergens, dan wist de klant wel wat hij vandaag moest doen maar niet waar
   // het toe leidde. Eerst hoe het werkt, dan hoe het ervoor staat.
   ok("de ronde staat op de startpagina", overzicht.includes("<RondeBalk"));
+  // ⚠️ Omgedraaid in de UX-audit van 23 september 2026 (P1.1): wat er op de
+  // klant wacht staat bovenaan, de maand onderaan als naslag.
   ok(
-    "en boven de cijfers",
-    overzicht.indexOf("<RondeBalk") < overzicht.indexOf("<CijferRij"),
+    "de wachtrij staat boven het cijfer, het cijfer boven de maand",
+    overzicht.indexOf("<WachtrijLijst") < overzicht.indexOf("text-5xl") &&
+      overzicht.indexOf("text-5xl") < overzicht.indexOf("<RondeBalk"),
   );
+  ok("geen rij van vier grote tellers meer", !overzicht.includes("CijferRij"));
   // ⚠️ Eén maandtelling op het scherm (23 september 2026). "Maand 4 sinds de
   // start" boven de merknaam telde planmaanden, "Je september" telt de
   // kalender; samen lieten ze de klant zoeken welke de echte was.
@@ -12118,10 +11129,12 @@ group("het contentplan heeft drie weergaven", () => {
   ok("het bord bestaat", scherm.includes("<PlanView"));
   ok("de kalenderweergave bestaat", scherm.includes("<PlanCalendarView"));
   ok("er is een schakelaar tussen de drie", scherm.includes("<WeergaveKiezer"));
+  // UX-audit 23 september 2026 (P1.6): de rol bepaalt weer waar je landt.
   ok(
-    "zonder weergave in de URL land je op Plannen",
-    /:\s*"plannen";/.test(scherm),
+    "zonder weergave in de URL landt de consultant op Plannen en de klant op Overzicht",
+    scherm.includes('return staff ? "plannen" : "overzicht";'),
   );
+  ok("de schakelaar heeft de gedeelde segmentvorm", scherm.includes('className="segment-item"'));
   // Een weergave in de URL wint van het standaardgedrag, zodat een gedeelde
   // link bij iedereen hetzelfde opent.
   ok("en de URL wint van het standaardgedrag", scherm.includes("searchParams"));
@@ -12157,7 +11170,9 @@ group("een klant ziet nooit twee merken tegelijk", () => {
   ok("de werklader kent geen 'over alle merken heen' meer", !werk.includes("loadWorkAcross"));
   ok(
     "en het merk gaat mee de database in",
-    /\.eq\("user_id", userId\)\.eq\("profile_id", profileId\)/.test(werk),
+    // Sinds 24 september 2026 op merk alleen (punt 26 van de
+    // kwaliteitsdoorlichting); de database bepaalt wie het mag zien.
+    /from\("analyses"\)\.select\("\*"\)\.eq\("profile_id", profileId\)/.test(werk),
   );
 
   const dash = zonderUitleg(readFileSync("lib/dashboard.ts", "utf8"));
@@ -12351,8 +11366,8 @@ group("de zijbalk verraadt niets aan een klant", () => {
   eq("een salesmedewerker heeft vijf Sales-bestemmingen", String(salesItems.length), "5");
   ok("allemaal gemarkeerd als alleen voor Outer Orbit", salesItems.every((i) => i.staffOnly === true));
   ok(
-    "Opportunities staat boven Markten",
-    salesItems.findIndex((i) => i.label === "Opportunities") <
+    "Kansen (was Opportunities, UX-audit P2.13) staat boven Markten",
+    salesItems.findIndex((i) => i.label === "Kansen") <
       salesItems.findIndex((i) => i.label === "Markten"),
   );
   ok(
@@ -12424,7 +11439,6 @@ console.log("\nOpen punten op het merkprofiel");
 group("findGaps noemt het gevolg, niet het gemis", () => {
   const compleet = {
     aliases: ["Fysi Unique"],
-    proof_points: ["sinds 2009", "12 fysiotherapeuten", "4,8 op Google"],
     service_scope: "lokaal",
     service_regions: ["Amersfoort"],
     business_model: "dienstverlener",
@@ -12435,13 +11449,8 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
     "geen schrijfwijzen is een punt",
     findGaps({ ...compleet, aliases: [] }).some((g) => g.label.includes("schrijfwijzen")),
   );
-  // Onder de drie, niet onder de één: met twee feiten wordt een tekst nog
-  // steeds algemeen, en algemeen wordt niet geciteerd.
-  ok(
-    "twee bewijspunten is te weinig",
-    findGaps({ ...compleet, proof_points: ["a", "b"] }).length === 1,
-  );
-  ok("drie is genoeg", findGaps({ ...compleet, proof_points: ["a", "b", "c"] }).length === 0);
+  // Het punt over bewijspunten verviel in K8: dat veld leest niemand meer.
+  ok("bewijspunten zijn geen open punt meer (K8)", !findGaps(compleet).some((g) => g.field === "proof_points"));
 
   // Alleen bij een lokaal merk. Vier van de negen profielen hadden op
   // 11 augustus 2026 `service_scope = null`, en dan mag deze regel niet slaan.
@@ -12456,7 +11465,7 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
 
   ok(
     "elk punt zegt wát het verbetert",
-    findGaps({ aliases: [], proof_points: [], service_scope: null, service_regions: [], business_model: null })
+    findGaps({ aliases: [], service_scope: null, service_regions: [], business_model: null })
       .every((g) => g.effect.length > 40),
   );
 
@@ -12468,20 +11477,19 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
   // veldenlijst staat.
   const alles = findGaps({
     aliases: [],
-    proof_points: [],
     service_scope: "lokaal",
     service_regions: [],
     business_model: null,
   });
-  ok("alle vier de punten komen eruit", alles.length === 4);
+  ok("alle drie de punten komen eruit", alles.length === 3);
   ok(
     "het bereik staat bovenaan, want die fout kost een nieuwe meetronde",
     alles[0].field === "service_regions",
     alles.map((g) => g.field).join(" > "),
   );
   ok(
-    "en de bewijspunten onderaan, die raken pas de tekst",
-    alles[alles.length - 1].field === "proof_points",
+    "en het bedrijfsmodel onderaan, dat is zonder nieuwe meting te corrigeren",
+    alles[alles.length - 1].field === "business_model",
   );
   ok(
     "de volgorde loopt aflopend op gewicht",
@@ -12500,12 +11508,11 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
   const metNvt = findGaps(
     {
       aliases: [],
-      proof_points: [],
       service_scope: "lokaal",
       service_regions: [],
       business_model: null,
     },
-    ["aliases", "proof_points"],
+    ["aliases"],
   );
   ok("een n.v.t.-veld staat niet meer in de lijst", metNvt.length === 2);
   ok(
@@ -12527,9 +11534,9 @@ group("findGaps noemt het gevolg, niet het gemis", () => {
   );
   ok(
     "de link draagt de stap én het anker, want de wizard toont één stap tegelijk",
-    gapLink("m1", "proof_points") ===
-      "/merk/m1/merkprofiel/bewerken?stap=bekend#veld-anker-proof_points",
-    String(gapLink("m1", "proof_points")),
+    gapLink("m1", "summary") ===
+      "/merk/m1/merkprofiel/bewerken?stap=bekend#veld-anker-summary",
+    String(gapLink("m1", "summary")),
   );
   ok(
     "een veld dat de klant niet ziet levert geen dode knop op",
@@ -12626,7 +11633,7 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
   const profiel = {
     industry: "fysiotherapie",
     summary: "Een praktijk in Amersfoort.",
-    usp: "De enige met bekkenfysiotherapie",
+    differentiator: "De enige met bekkenfysiotherapie",
     contact_name: "Sanne de Wit",
   } as never;
   const m = sessionMeter(profiel, {
@@ -12636,7 +11643,7 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
     // door een mens getypt maar door niemand bevestigd. Zou hij als bevestigd
     // tellen, dan ziet een merk waar nog nooit iemand mee gesproken is eruit
     // als een merk dat je al hebt doorgenomen.
-    usp: { source: "consultant" },
+    differentiator: { source: "consultant" },
   });
   ok("wat in het gesprek is gezet telt als bevestigd", m.bevestigd === 1);
   ok("modeluitvoer en een aanname tellen als gevonden", m.gevonden === 2);
@@ -12651,15 +11658,15 @@ group("de meter van de sessie: drie getallen, geen percentage", () => {
 
   // Niet van toepassing is behandeld, en dat is de hele reden dat die stand
   // bestaat: anders haalt de meter nooit 100% en wordt hij genegeerd.
-  const nvt = sessionMeter(leegProfiel, { author_bio: { notApplicable: true } });
+  const nvt = sessionMeter(leegProfiel, { seasonality: { notApplicable: true } });
   ok("een n.v.t.-veld telt als bevestigd", nvt.bevestigd === 1);
   ok("en niet meer als open", nvt.open === leeg.open - 1);
   ok(
     "notApplicableFields noemt precies die velden",
     notApplicableFields({
-      author_bio: { notApplicable: true },
+      seasonality: { notApplicable: true },
       industry: { source: "gesprek" },
-    }).join() === "author_bio",
+    }).join() === "seasonality",
   );
 });
 
@@ -12747,8 +11754,8 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
     !sessie.includes('id="open"') && !sessie.includes("FactRequests"),
   );
   ok(
-    "de auteursvelden staan ingeklapt onder één gezamenlijke uitleg",
-    sessie.includes("Auteur, voor later") && sessie.includes("SESSION_AUTHOR_FIELDS"),
+    "de auteursvelden staan niet meer in de sessie (K8, besluit V10)",
+    !sessie.includes("Auteur, voor later") && !sessie.includes("author_"),
   );
   ok(
     "het afrondblok noemt de openstaande verplichte velden",
@@ -13135,9 +12142,11 @@ group("het formulier praat de taal van de branche", () => {
   ok("automotive bestaat", CATEGORIES.includes("automotive"));
 
   const echteCategorieen = CATEGORIES.filter((c) => c !== "algemeen");
-  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 18);
+  // Achttien tot 25 september 2026; twee per branche vielen weg met de stemvelden (besluit B14),
+  // en vijf met de velden zonder lezer (K8: missie, usp, wettelijke regels, functie van de auteur, bewijspunten).
+  const teWeinig = echteCategorieen.filter((c) => exampleCount(c) < 11);
   ok(
-    `elke branche heeft minstens achttien eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
+    `elke branche heeft minstens elf eigen voorbeelden${teWeinig.length ? " (te weinig: " + teWeinig.join(", ") + ")" : ""}`,
     teWeinig.length === 0,
   );
   ok("en algemeen heeft er nul, want dat is de terugval", exampleCount("algemeen") === 0);
@@ -13232,8 +12241,8 @@ group("het formulier praat de taal van de branche", () => {
   // volledig, net als bij `name`), twaalf sinds stap B8: `max_inventory_pages`
   // is een getal, en een getalveld heeft aan het label genoeg.
   ok(
-    "twaalf velden hebben bewust geen voorbeeld",
-    zonderVoorbeeld.size === 12,
+    "elf velden hebben bewust geen voorbeeld (de auteursnaam verviel in K8)",
+    zonderVoorbeeld.size === 11,
     `${zonderVoorbeeld.size}`,
   );
   ok(
@@ -14657,7 +13666,7 @@ group("het meetinstrument is versioneerd", () => {
   // ⚠️ Dit product wordt verkocht op herhaling. Werkt OpenAI het model bij, dan
   // verschuift de meetlat en niet de reputatie, en zonder deze sleutel zou het
   // scherm dat verschil netjes als vooruitgang tekenen.
-  ok("de versie noemt het model", instrumentVersion().includes("gpt-5.6"));
+  ok("de versie noemt het model", instrumentVersion().includes(MODELS.quality));
   ok("en de promptversie", instrumentVersion().includes(PROMPT_VERSION));
   // ⚠️ De versie hoort mee te bewegen met de oordeelsregel. Bij de tweede run op
   // Gasservice Brabant was het ophogen vergeten, en dan staan twee runs met een
@@ -15703,9 +14712,9 @@ group("de assistent: de sleutelwoorden zijn tellen en geen gok", () => {
 // ze uit elkaar, dan faalt elke aanroep van dit scherm op een 400 zonder dat er
 // iets aan dit scherm veranderd is.
 group("de assistent: de modelkeuze volgt dezelfde regel als de pijplijn", () => {
-  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-5.6-sol");
+  ok("het vlaggenschip is de standaard", STANDAARD_MODEL === "gpt-6-sol");
   ok("de standaardkeuzes bestaan", isGeldigModel(STANDAARD_MODEL) && isGeldigeStand(STANDAARD_STAND));
-  ok("een verzonnen model wordt geweigerd", !isGeldigModel("gpt-6-astra"));
+  ok("een model buiten de lijst wordt geweigerd", !isGeldigModel("gpt-6-astra"));
   ok("een verzonnen stand wordt geweigerd", !isGeldigeStand("heel-hoog"));
   ok("elk model heeft een tarief", MODELLEN.every((m) => hasKnownRate(m.id)), MODELLEN.map((m) => m.id).join(", "));
   ok("elk model zegt waar het voor is", MODELLEN.every((m) => m.waarvoor.length > 20));
@@ -18732,23 +17741,6 @@ group("de werklijst kent de briefingfase (bevinding 1)", () => {
   }
 });
 
-// ⚠️ De fout: de knop "Laat ORBIT ENGINE deze pagina schrijven" (nu "Start het
-// onderzoek voor deze pagina") plant alleen de briefing in, geen letter tekst.
-// De pollroute rekende `ready` als "elke status behalve draft", dus een pagina
-// in de briefingfase telde binnen vier seconden al als klaar en de knop zei
-// "Klaar, lees hem in je bibliotheek" tegen een lege pagina. Deze test leest de
-// broncode omdat de route `server-only` is en dus niet importeerbaar.
-group("de pollroute telt de briefingfase niet als klaar (analyses/1-september-2026)", () => {
-  const bron = leesBestand("app/api/analyses/[id]/content/route.ts");
-  ok("het bestand is gevonden", bron.length > 0);
-  ok(
-    "ready sluit zowel draft als briefing uit",
-    /ready:\s*Boolean\(piece\s*&&\s*piece\.status\s*!==\s*"draft"\s*&&\s*piece\.status\s*!==\s*"briefing"\)/.test(
-      bron,
-    ),
-  );
-});
-
 group("beide helften van 'Stel nieuwe clusters voor' zijn afgeschermd (punt 8)", () => {
   // ⚠️ De `POST` was op slot, de `GET` ernaast niet: die controleerde alleen
   // eigendom, dus een klantaccount kreeg gewoon de vooruitblik te zien. Zelfde
@@ -18884,7 +17876,6 @@ group("A3: het vangnet van de opslagroute dekt alle lijstvelden", () => {
     "competitors",
     "aliases",
     "service_regions",
-    "proof_points",
   ]) {
     ok(`"${veld}" staat in LIST_FIELDS`, new RegExp(`"${veld}"`).test(lijst));
   }
@@ -19215,1673 +18206,19 @@ group("van prospect naar klant is de enige brug naar de klantomgeving", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-group("Een pagina in secties knippen en repareren (A6)", () => {
-  const pagina = [
-    "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
-    "",
-    "## Welke klachten",
-    "",
-    "Runnersknie en shin splints.",
-    "",
-    "## Afspraak maken",
-    "",
-    "Bel of mail.",
-  ].join("\n");
-
-  const secties = splitSections(pagina);
-  ok("de aanhef telt als eigen sectie", secties[0].heading === "" && secties.length === 3);
-  ok("de kop staat er zonder hekjes in", secties[1].heading === "Welke klachten");
-  ok("de kopregel zit niet in de body", !secties[1].body.includes("##"));
-
-  // Heen en terug mag de tekst niet veranderen: anders zou elke reparatie de
-  // pagina stilletjes herschrijven, ook waar niets aan de hand was.
-  ok("heen en terug levert dezelfde tekst", joinSections(splitSections(pagina)) === pagina.trim());
-
-  ok("koppen vergelijken negeert hoofdletters en leestekens",
-    normalizeHeading("## Afspraak, maken!") === normalizeHeading("afspraak maken"));
-
-  // ── De kern van A6: één sectie vervangen, de rest blijft letterlijk staan ──
-  const gepatcht = applySectionPatch(pagina, [
-    { heading: "Afspraak maken", markdown: "Bel of mail; je kunt binnen 24 uur terecht." },
-  ]);
-  ok("de genoemde sectie is vervangen", gepatcht.bodyMarkdown.includes("binnen 24 uur"));
-  ok("de andere sectie is onaangeroerd", gepatcht.bodyMarkdown.includes("Runnersknie en shin splints."));
-  ok("de aanhef blijft staan", gepatcht.bodyMarkdown.startsWith("Fysi-Unique behandelt"));
-  ok("en wordt als vervangen gemeld", gepatcht.vervangen.length === 1);
-
-  // Een kop die nog niet bestaat wordt toegevoegd, niet weggegooid: dat is
-  // precies het geval waarin de dekkingspoort een ontbrekende sectie vond.
-  const aangevuld = applySectionPatch(pagina, [
-    { heading: "Wat kost het", markdown: "Een intake kost 45 euro." },
-  ]);
-  ok("een ontbrekende sectie wordt toegevoegd", aangevuld.bodyMarkdown.includes("## Wat kost het"));
-  ok("en als toegevoegd gemeld", aangevuld.toegevoegd.length === 1);
-
-  // Een lege patch mag nooit een sectie leegmaken.
-  const leeg = applySectionPatch(pagina, [{ heading: "Welke klachten", markdown: "   " }]);
-  ok("een lege patch verandert niets", leeg.bodyMarkdown.includes("Runnersknie en shin splints."));
-
-  // De aanhef repareren gaat met een lege kop.
-  const aanhef = applySectionPatch(pagina, [{ heading: "", markdown: "Ja, je kunt zonder verwijzing terecht." }]);
-  ok("de aanhef is te repareren", aanhef.bodyMarkdown.startsWith("Ja, je kunt zonder verwijzing"));
-  ok("zonder de rest te raken", aanhef.bodyMarkdown.includes("## Welke klachten"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De dekkingspoort op het contentcontract (A3)", () => {
-  const contract: ContentContract = {
-    openingAnswer: "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
-    sections: [
-      {
-        id: "s1",
-        heading: "Welke klachten",
-        subQuestion: "Welke hardloopblessures behandelt Fysi-Unique?",
-        mustCover: [],
-        factRefs: ["F2"],
-        explainerTerms: ["runnersknie"],
-        // ⚠️ Stond op 100 en de sectie hieronder telt er 40. Sinds
-        // optimalisatie 15 rekent de poort de richtlengte per sectie na (de
-        // helft ervan is de ondergrens), dus een fixture met een richtlengte
-        // die vier keer zo hoog is als de tekst, toetst iets anders dan hij
-        // bedoelde. Deze twee lengtes horen bij deze twee secties.
-        targetWords: 60,
-        rol: "uitleg" as const,
-        needsBrandFact: false,
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "niet_van_toepassing" as const,
-        whatToChange: "",
-      },
-      {
-        id: "s2",
-        heading: "Wat kost het",
-        subQuestion: "Wat kost een behandeling bij Fysi-Unique?",
-        mustCover: [],
-        factRefs: [],
-        explainerTerms: [],
-        targetWords: 50,
-        rol: "uitleg" as const,
-        needsBrandFact: false,
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "niet_van_toepassing" as const,
-        whatToChange: "",
-      },
-    ],
-    faqQuestions: ["Heb ik een verwijzing nodig?"],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  };
-
-  const compleet = [
-    "Fysi-Unique behandelt hardloopblessures in Amersfoort.",
-    "",
-    "## Welke klachten",
-    "",
-    "Fysi-Unique behandelt hardloopblessures zoals runnersknie en shin splints, en kijkt bij elke " +
-      "blessure eerst naar de looptechniek voordat de behandeling begint. Runnersknie is pijn aan " +
-      "de buitenkant van de knie door overbelasting bij het hardlopen.",
-    "",
-    "## Wat kost het",
-    "",
-    "Een behandeling bij Fysi-Unique kost 45 euro per sessie, en een intake duurt drie kwartier " +
-      "zodat er tijd is om de klacht goed in kaart te brengen.",
-  ].join("\n");
-
-  const goed = checkContractCoverage({
-    contract,
-    bodyMarkdown: compleet,
-    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, dat hoeft niet." }],
-    claims: [{ factRef: "F2" }],
-  });
-  ok("een pagina die het contract volgt haalt 100", goed.score === 100, `score ${goed.score}`);
-  ok("en levert geen enkele bevinding op", goed.issues.length === 0, goed.issues.join(" | "));
-
-  // ── De reden dat deze poort bestaat: een ontbrekende sectie ───────────────
-  const zonderPrijs = compleet.split("## Wat kost het")[0].trim();
-  const mist = checkContractCoverage({
-    contract,
-    bodyMarkdown: zonderPrijs,
-    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, dat hoeft niet." }],
-    claims: [{ factRef: "F2" }],
-  });
-  ok("een ontbrekende sectie drukt de score", (mist.score ?? 100) < 100);
-
-  // ── Optimalisatie 15: de richtlengte van de sectie zelf telt ─────────────
-  //
-  // De ondergrens stond op 25 woorden, wat het contract ook afsprak. Een sectie
-  // met een richtlengte van 200 woorden die er 30 haalt, ging daar dus gewoon
-  // doorheen terwijl de inhoudsopgave hem als dragende sectie plande.
-  const ruimGepland: ContentContract = {
-    ...contract,
-    sections: contract.sections.map((sec) => ({ ...sec, targetWords: 200 })),
-  };
-  const teDun = checkContractCoverage({
-    contract: ruimGepland,
-    bodyMarkdown: compleet,
-    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee, dat hoeft niet." }],
-    claims: [{ factRef: "F2" }],
-  });
-  ok(
-    "een sectie van 40 woorden op een afspraak van 200 is te dun",
-    teDun.issues.some((i) => i.includes("te dun")),
-    teDun.issues.join(" | "),
-  );
-  ok(
-    "en de bevinding noemt allebei de getallen",
-    teDun.issues.some((i) => i.includes("100 woorden") && i.includes("200 afsprak")),
-    teDun.issues.join(" | "),
-  );
-  ok("en wordt met kop en al benoemd",
-    mist.issues.some((i) => i.includes("Wat kost het")),
-    mist.issues.join(" | "));
-
-  // Een sectie die er staat maar de vraag niet beantwoordt: het geval waarin de
-  // oude pijplijn een pagina goedkeurde die inhoudelijk niets zei.
-  const leegPraat = compleet.replace(
-    "Een behandeling bij Fysi-Unique kost 45 euro per sessie, en een intake duurt drie kwartier " +
-      "zodat er tijd is om de klacht goed in kaart te brengen.",
-    "Wij vinden het belangrijk dat iedereen zich welkom voelt bij ons in de praktijk vandaag.",
-  );
-  const dun = checkContractCoverage({
-    contract,
-    bodyMarkdown: leegPraat,
-    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee." }],
-    claims: [{ factRef: "F2" }],
-  });
-  ok("een sectie die de deelvraag niet beantwoordt telt niet mee",
-    dun.secties.find((s) => s.id === "s2")?.beantwoordt === false);
-
-  // Een verplicht feit dat nergens gebruikt is.
-  const zonderFeit = checkContractCoverage({
-    contract,
-    bodyMarkdown: compleet,
-    faq: [{ q: "Heb ik een verwijzing nodig?", a: "Nee." }],
-    claims: [],
-  });
-  ok("een ongebruikt verplicht feit wordt gemeld",
-    zonderFeit.issues.some((i) => i.includes("F2")), zonderFeit.issues.join(" | "));
-
-  // Een ontbrekende FAQ-vraag.
-  const zonderFaq = checkContractCoverage({
-    contract,
-    bodyMarkdown: compleet,
-    faq: [],
-    claims: [{ factRef: "F2" }],
-  });
-  ok("een ontbrekende FAQ-vraag wordt gemeld", zonderFaq.ontbrekendeFaq.length === 1);
-
-  // ⚠️ Zonder contract géén oordeel, en zeker geen 0 (conventie 3).
-  const geen = checkContractCoverage({
-    contract: null,
-    bodyMarkdown: compleet,
-    faq: [],
-    claims: [],
-  });
-  ok("zonder contract is de dekking onbekend, niet nul", geen.score === null);
-  ok("en levert hij geen bevindingen op", geen.issues.length === 0);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Het contract opschonen en als opdracht formuleren (A2)", () => {
-  const rommelig: ContentContract = {
-    openingAnswer: "Ja, dat kan.",
-    sections: [
-      {
-        id: "",
-        heading: "Wat kost het",
-        subQuestion: "Wat kost een behandeling?",
-        mustCover: ["", "de prijs"],
-        factRefs: ["", "F1"],
-        explainerTerms: [""],
-        targetWords: 0,
-        rol: "uitleg" as const,
-        needsBrandFact: false,
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "niet_van_toepassing" as const,
-        whatToChange: "",
-      },
-      // Een sectie zonder kop of zonder deelvraag kan de poort niet toetsen en
-      // de schrijver niet uitvoeren: die hoort te vervallen.
-      { id: "s2", heading: "  ", subQuestion: "iets", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 100, rol: "uitleg" as const, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
-      { id: "s3", heading: "Kop", subQuestion: "  ", mustCover: [], factRefs: [], explainerTerms: [], targetWords: 9999, rol: "uitleg" as const, needsBrandFact: false, importance: "ondersteunend" as const, successCriterion: "", presentOnExisting: "niet_van_toepassing" as const, whatToChange: "" },
-    ],
-    faqQuestions: ["", "Heb ik een verwijzing nodig?"],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  };
-  const schoon = normaliseerContract(rommelig);
-  ok("secties zonder kop of deelvraag vervallen", schoon.sections.length === 1);
-  ok("een lege id wordt aangevuld", schoon.sections[0].id === "s1");
-  ok("een onzinnige lengte wordt begrensd", schoon.sections[0].targetWords >= 40);
-  ok("lege punten worden opgeruimd", schoon.sections[0].mustCover.length === 1);
-  ok("lege FAQ-vragen ook", schoon.faqQuestions.length === 1);
-
-  const opdracht = formatContract(schoon);
-  ok("de opdracht noemt de opening", opdracht.includes("Ja, dat kan."));
-  ok("en de kop van de sectie", opdracht.includes("Wat kost het"));
-  ok("en zegt dat het nagerekend wordt", opdracht.includes("rekenen"));
-  ok("zonder contract is de opdracht leeg", formatContract(null) === "");
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De bedrading van de nieuwe contentpijplijn", () => {
-  // ── De planstap gaat vóór het schrijven (A1/A2) ──────────────────────────
-  const planner = leesBestand("lib/jobs/content-jobs.ts");
-  ok("de schrijfknop start de planstap", planner.includes('type: "content_plan"'));
-  ok("en niet meer rechtstreeks het schrijven", !planner.includes('type: "content_draft"'));
-
-  const handlers = leesBestand("lib/jobs/handlers.ts");
-  ok("de plantaak plant daarna het schrijven in", handlers.includes('type: "content_draft"'));
-  ok("en geeft het contract mee in de payload", handlers.includes("voorbereid"));
-
-  // ── Contenttaken draaien parallel (A10) ──────────────────────────────────
-  const types = leesBestand("lib/jobs/types.ts");
-  ok("contenttaken mogen naast elkaar draaien", types.includes("PARALLEL_CONTENT_TYPES"));
-  const worker = leesBestand("lib/jobs/worker.ts");
-  ok("de werker kent die groep", worker.includes("PARALLEL_CONTENT_TYPES"));
-  // ⚠️ De VOLLE reservering, niet de krappe van de reputatietaken: één
-  // afgebroken schrijfaanroep kost het duurste model twee keer.
-  ok(
-    "met de volle reservering per groep",
-    worker.includes("parallelContent.length") && worker.includes("HEAVY_JOB_RESERVE_MS > TIME_BUDGET_MS"),
-  );
-
-  // ── De reparatie is gericht, niet een volledige herschrijving (A6) ───────
-  const content = leesBestand("lib/pipeline/content.ts");
-  ok("de reparatie vraagt om een patch", content.includes("schema: ContentPatch"));
-  ok("en zet die met code terug op zijn plek", content.includes("applySectionPatch"));
-  ok("er is een harde grens op het aantal rondes", content.includes("REPAIR_MAX"));
-  // De oude vorm mag niet terugkomen: die liet het dure model de hele pagina
-  // opnieuw schrijven, met alle bevindingen op één hoop.
-  ok("de volledige herschrijving is weg", !content.includes("buildReviseInput"));
-
-  // ── Het panel beoordeelt, niet één generalist (A5) ───────────────────────
-  const panel = leesBestand("lib/pipeline/content-panel.ts");
-  ok(
-    "er zijn vier beoordelaars",
-    panel.includes("content_factuality") &&
-      panel.includes("content_citability") &&
-      panel.includes("content_craft"),
-  );
-  ok("ze draaien tegelijk", panel.includes("Promise.all"));
-  ok("op de goedkope tier", panel.includes("MODELS.quality") && !panel.includes("MODELS.content"));
-  ok("met redeneertijd", panel.includes('work: "judging"'));
-
-  // ── Algemene uitleg komt alleen met nagerekende bron op de pagina (A7) ───
-  const uitleg = leesBestand("lib/pipeline/explainer-verify.ts");
-  ok("de bron wordt echt opgehaald", uitleg.includes("crawlPages"));
-  ok("en het citaat teruggezocht", uitleg.includes("quoteInText"));
-  ok(
-    "alleen geverifieerde uitleg gaat de pagina op",
-    uitleg.includes("goed = explainers.filter((e) => e.verified)") ||
-      uitleg.includes("filter((e) => e.verified)"),
-  );
-  ok("en de schrijver krijgt alleen die", content.includes("explainers.filter") || content.includes("e.verified"));
-
-  // ── De dekkingspoort hangt aan de eindstand (A3) ─────────────────────────
-  ok("de dekking bepaalt mee of er gerepareerd wordt", content.includes("COVERAGE_THRESHOLD"));
-  // Sinds migratie 0091 schrijft `quality-run.ts` de kolommen weg: één keuring
-  // voor de eerste versie én de reparatierondes, zodat ze niet uit elkaar lopen.
-  ok("en wordt bewaard bij de pagina", leesBestand("lib/pipeline/quality-run.ts").includes("coverage_score"));
-
-  // ── De bronanalyse wordt hergebruikt (A9) ────────────────────────────────
-  const bron = leesBestand("lib/pipeline/source-analysis.ts");
-  ok("de bronanalyse wordt gecacht", bron.includes("source_analysis_cache"));
-  // ⚠️ De doelvragen horen in de sleutel: anders krijgen twee pagina's met
-  // dezelfde bronnen dezelfde analyse, en dat is precies de clusterbrede
-  // vervlakking die S9 en S10 kwamen repareren.
-  ok("met de doelvragen in de sleutel", bron.includes("vragen:"));
-});
-
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Antwoorden van de klant komen bij de juiste pagina (verbetering 1)", () => {
-  const analyse = "a-1";
-  const pagina = "p-1";
-
-  ok(
-    "een merkbreed antwoord telt altijd",
-    answerBelongsHere({ scope: "merk", analysis_id: null }, analyse, [pagina]),
-  );
-  ok(
-    "en ook zonder pagina in beeld",
-    answerBelongsHere({ scope: "merk", analysis_id: null }, analyse, []),
-  );
-  ok(
-    "een analyse-antwoord telt binnen die analyse",
-    answerBelongsHere({ scope: "analyse", analysis_id: analyse }, analyse, [pagina]),
-  );
-  ok(
-    "maar niet bij een andere analyse",
-    !answerBelongsHere({ scope: "analyse", analysis_id: "a-2" }, analyse, [pagina]),
-  );
-
-  // ⚠️ De kern van verbetering 1. Op 1 september 2026 had 9 van de 16
-  // briefingvragen reikwijdte "pagina", en van de 8 gegeven antwoorden
-  // bereikten er 4 de feitenkaart. De vier die verdwenen waren precies de
-  // antwoorden over Tilburg, Eindhoven en de vraag of het bedrijf zelf
-  // installeert.
-  ok(
-    "een paginagebonden antwoord telt bij zijn eigen pagina",
-    answerBelongsHere(
-      { scope: "pagina", analysis_id: analyse, content_piece_ids: [pagina] },
-      analyse,
-      [pagina],
-    ),
-  );
-  ok(
-    "en niet bij een andere pagina",
-    !answerBelongsHere(
-      { scope: "pagina", analysis_id: analyse, content_piece_ids: ["p-2"] },
-      analyse,
-      [pagina],
-    ),
-  );
-  ok(
-    "zonder pagina in beeld telt hij niet mee",
-    !answerBelongsHere(
-      { scope: "pagina", analysis_id: analyse, content_piece_ids: [pagina] },
-      analyse,
-      [],
-    ),
-  );
-  ok(
-    "een onbekende reikwijdte telt niet mee",
-    !answerBelongsHere({ scope: "iets-nieuws", analysis_id: analyse }, analyse, [pagina]),
-  );
-
-  // De bedrading: beide plekken die antwoorden inlezen gebruiken dezelfde regel.
-  const basis = leesBestand("lib/pipeline/factbase.ts");
-  ok("de feitenkaart gebruikt de gedeelde regel", basis.includes("answerBelongsHere"));
-  ok("en vraagt de gekoppelde pagina's op", basis.includes("content_piece_ids"));
-  const contentBron = leesBestand("lib/pipeline/content.ts");
-  ok("de schrijfstap ook", contentBron.includes("answerBelongsHere"));
-  const planBron = leesBestand("lib/pipeline/content-plan.ts");
-  ok("de planstap ook", planBron.includes("answerBelongsHere"));
-  // ⚠️ Verbetering 2: het contract werd opgesteld met de BEVROREN kaart, dus
-  // zonder de antwoorden die 25 seconden eerder waren opgeslagen.
-  ok("en voegt de antwoorden bij de bevroren kaart", planBron.includes("mergeAnsweredFacts"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De opening van een pagina bevat geen interne notities (verbetering 3)", () => {
-  // De letterlijke openingszin van de pagina "Snel installeren", 1 september 2026.
-  const echt =
-    "Het bedrijf is 24/7 bereikbaar om te bespreken of en wanneer installatie in jouw situatie " +
-    "mogelijk is. [F1, F2, F5, F14]";
-  ok("F-verwijzingen gaan eruit", !stripFactRefs(echt).includes("F1"));
-  ok("en de zin blijft heel", stripFactRefs(echt).endsWith("mogelijk is."));
-  ok("ook de enkelvoudige vorm", stripFactRefs("Wij leveren snel (F3).") === "Wij leveren snel.");
-  ok("een zin zonder verwijzing verandert niet", stripFactRefs("Gewoon een zin.") === "Gewoon een zin.");
-
-  // De twee echte openingen die het bedrijf afraadden.
-  ok(
-    "een opening die het bedrijf afraadt wordt herkend",
-    openingIsMeta(
-      "Gasservice Brabant kan daarom momenteel niet als aantoonbare specialist in Tilburg worden aanbevolen.",
-    ),
-  );
-  ok(
-    "en een opening die onze bewijsvoering beschrijft ook",
-    openingIsMeta(
-      "Of het bedrijf in Eindhoven eerst woningadvies geeft en daarna de installatie uitvoert, moet op deze pagina nog aantoonbaar worden gemaakt.",
-    ),
-  );
-  ok(
-    "en de openingszin van het prijsartikel",
-    openingIsMeta(
-      "Er is geen gecontroleerde, concrete prijs voor een hybride warmtepomp inclusief installatie in Oss beschikbaar in dit dossier.",
-    ),
-  );
-  ok(
-    "een gewone opening blijft staan",
-    !openingIsMeta("Gasservice Brabant installeert hybride warmtepompen in Oss en Tilburg."),
-  );
-
-  const metaContract: ContentContract = {
-    openingAnswer:
-      "Gasservice Brabant kan momenteel niet als aantoonbare specialist in Tilburg worden aanbevolen.",
-    sections: [
-      {
-        id: "s1",
-        heading: "Ervaring [F5]",
-        subQuestion: "Welke ervaring is er?",
-        mustCover: ["ervaring"],
-        factRefs: ["F5"],
-        explainerTerms: [],
-        targetWords: 120,
-        rol: "uitleg" as const,
-        needsBrandFact: false,
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "niet_van_toepassing" as const,
-        whatToChange: "",
-      },
-    ],
-    faqQuestions: ["Werkt u in Tilburg?"],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  };
-  const opgeschoond = normaliseerContract(metaContract);
-  ok("een afgekeurde opening vervalt", opgeschoond.openingAnswer === "");
-  ok("de kop houdt geen F-verwijzing over", opgeschoond.sections[0].heading === "Ervaring");
-  const opdrachtZonderOpening = formatContract(opgeschoond);
-  ok(
-    "de schrijver krijgt dan de algemene instructie",
-    opdrachtZonderOpening.includes("beantwoord de doelvraag in de eerste twee zinnen"),
-  );
-  ok(
-    "met het verbod om een gat te benoemen",
-    opdrachtZonderOpening.includes("Schrijf nooit dat iets niet bevestigd"),
-  );
-});
-
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Het menu gaat uit de opgeslagen sitetekst (verbetering 4)", () => {
-  const menu = "<nav><ul><li>Cv-ketel</li><li>Onderhoud</li><li>Warmtepomp</li></ul></nav>";
-  const inhoud =
-    "<p>De kosten van een hybride warmtepomp kunnen oplopen tot maximaal 6000 euro. " +
-    "Deze kosten hangen af van het vermogen en van het soort hybride warmtepomp. " +
-    "Het vermogen hangt af van de grootte van je woning en het bouwjaar van de woning.</p>";
-  const voet = "<footer>Alle rechten voorbehouden. Bel ons op 073.</footer>";
-
-  const geschoond = stripChrome(`${menu}${inhoud}${voet}`);
-  ok("het menu gaat eruit", !geschoond.includes("Cv-ketel"));
-  ok("de voettekst ook", !geschoond.includes("Alle rechten"));
-  ok("en de inhoud blijft", geschoond.includes("maximaal 6000 euro"));
-
-  // Een koptekst met menu erin gaat eruit, een koptekst met de H1 blijft.
-  const metMenu = stripChrome(`<header><nav>Menu hier</nav></header>${inhoud}`);
-  ok("een koptekst met menu gaat eruit", !metMenu.includes("Menu hier"));
-  const metTitel = stripChrome(`<header><h1>Wat kost een warmtepomp?</h1></header>${inhoud}`);
-  ok("een koptekst met de titel blijft", metTitel.includes("Wat kost een warmtepomp?"));
-
-  // De hoofdinhoud wint als hij er is.
-  const metMain = stripChrome(`<div>zijbalk met van alles erin</div><main>${inhoud}</main>`);
-  ok("de hoofdinhoud wint", metMain.includes("maximaal 6000 euro") && !metMain.includes("zijbalk"));
-
-  // ⚠️ Het vangnet. Een pagina die álles in een header zet mag niet leeg raken:
-  // minder tekst is erger dan ruis (conventie 3).
-  const allesInHeader = `<header><nav>Menu</nav>${inhoud}</header>`;
-  ok("een te gretige knip wordt teruggedraaid", stripChrome(allesInHeader).includes("maximaal 6000 euro"));
-  ok("lege invoer blijft leeg", stripChrome("") === "");
-
-  // ⚠️ Zonder script- en stijlblokken meetellen zou het vangnet altijd afgaan:
-  // een pagina van 257 kB met 4 kB tekst meet dan als 200.000 tekens. Dat
-  // gebeurde bij de kennisbankpagina met het bedrag dat we misten.
-  const metScript = `<script>${"x=1;".repeat(4000)}</script>${menu}${inhoud}`;
-  ok("JavaScript telt niet mee als tekst", !stripChrome(metScript).includes("Cv-ketel"));
-
-  const crawler = leesBestand("lib/crawler.ts");
-  ok("de crawler schoont vóór het knippen", crawler.includes("stripChrome"));
-  ok("en bewaart meer dan het menu", crawler.includes("const PAGE_MAX_CHARS = 4000"));
-  const uitleg = leesBestand("lib/pipeline/explainer-verify.ts");
-  ok("de citaatcontrole leest de volledige bron", uitleg.includes("fullText: true"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De reparatie krijgt de zwaarste punten eerst (verbetering 5)", () => {
-  // Precies de soorten bevindingen die de ronde van 1 september 2026 opleverde.
-  const bevindingen = [
-    'Een lezer houdt deze vraag over na het lezen: "Wat kost het?". Behandel hem.',
-    'De sectie "Prijs" is te dun (minder dan 25 woorden). Werk hem uit.',
-    'In de sectie "Ervaring" staat een bewering zonder bevestigd feit: "Wij plaatsten er 500."',
-    "GEO: de pagina noemt het bedrijf expliciet nog niet.",
-    'De sectie "Onderhoud" ontbreekt. Voeg hem toe; hij moet deze vraag beantwoorden: "..."',
-  ];
-  const geordend = prioriteerBevindingen(bevindingen, 10);
-  ok("de onbewezen bewering staat vooraan", geordend[0].includes("zonder bevestigd feit"));
-  ok("de ontbrekende sectie komt vóór de dunne", geordend.indexOf(bevindingen[4]) < geordend.indexOf(bevindingen[1]));
-  ok("de restvraag van de lezer staat achteraan", geordend[geordend.length - 1] === bevindingen[0]);
-  ok("er raakt niets kwijt binnen de grens", geordend.length === bevindingen.length);
-
-  // ⚠️ De kern: 119 bevindingen in één reparatieprompt maakt van een gerichte
-  // sectiereparatie een volledige herschrijving. Gemeten kostte die $0,2525 per
-  // ronde met méér uitvoertokens dan het schrijven zelf.
-  const veel = Array.from({ length: 119 }, (_, i) => `In de sectie "S${i}": punt ${i}.`);
-  ok("een lange lijst wordt afgekapt", prioriteerBevindingen(veel).length === MAX_BEVINDINGEN_PER_RONDE);
-  ok("de grens staat op tien", MAX_BEVINDINGEN_PER_RONDE === 10);
-  ok("lege regels tellen niet mee", prioriteerBevindingen(["", "  ", "iets"]).length === 1);
-
-  const content = leesBestand("lib/pipeline/content.ts");
-  // Sinds migratie 0091 zijn de bevindingen getypeerd en ordent `prioriteerIssues`
-  // op ernst maal zekerheid in plaats van op woordpatronen. `prioriteerBevindingen`
-  // blijft bestaan voor bevindingen die nog als losse tekst binnenkomen.
-  ok("de reparatieprompt krijgt de geordende lijst", content.includes("prioriteerIssues(teRepareren"));
-  ok("een slechtere versie wordt niet opgeslagen", content.includes("...(nietSlechter ? nieuweVersie : {})"));
-  // Verbetering 10.
-  ok("het aantal woorden wordt bijgewerkt", content.includes("word_count: countWords(final.bodyMarkdown)"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-// Herstelplan na audit T1.1/T1.3: de reparatielus stopt als een ronde niet
-// beter wordt, en bewaart de beste versie in plaats van de laatste. Uitbesteed
-// aan `beslisReparatieRonde` (lib/pipeline/content-repair-decision.ts) zodat
-// dit met de ECHTE cijfers van twee verschillende contentrondes na te rekenen
-// is, in plaats van met een tekstzoekopdracht op de broncode.
-group("De reparatielus stopt zodra een ronde niet beter wordt (T1.1/T1.3)", () => {
-  // Verbetering 5 (1 september 2026): "Snel installeren" 67 → 74 → 68 → 48.
-  // De klant kreeg toen de LAATSTE versie (48) terwijl ronde 1 (74) beter was.
-  const r1 = beslisReparatieRonde({
-    vorigeKwaliteit: 67,
-    nieuweKwaliteit: 74,
-    ronde: 1,
-    repairMax: 3,
-    scoresTeLaag: true,
-    openstaandeBevindingen: 5,
-  });
-  ok("ronde 1 (74, beter dan 67) wordt bewaard", r1.bewaarNieuweVersie);
-  ok("en er volgt nog een ronde", r1.nogEenRonde);
-
-  const r2 = beslisReparatieRonde({
-    vorigeKwaliteit: 74,
-    nieuweKwaliteit: 68,
-    ronde: 2,
-    repairMax: 3,
-    scoresTeLaag: true,
-    openstaandeBevindingen: 3,
-  });
-  ok("ronde 2 (68, slechter dan 74) wordt NIET bewaard", !r2.bewaarNieuweVersie);
-  ok("en de lus stopt, ronde 3 komt er niet meer", !r2.nogEenRonde);
-
-  // Herstelplan na audit T1.1 (2 september 2026): pagina db76cb57,
-  // "Kennismakingsafspraak bij de tandarts". Concept 68, ronde 1 scoorde 66:
-  // twee punten slechter. De audit dacht dat de lus hier ten onrechte stopte;
-  // nagerekend met de echte cijfers doet hij precies wat verbetering 5 vraagt.
-  const kennismaking = beslisReparatieRonde({
-    vorigeKwaliteit: 68,
-    nieuweKwaliteit: 66,
-    ronde: 1,
-    repairMax: 3,
-    scoresTeLaag: true,
-    openstaandeBevindingen: 11,
-  });
-  ok("de mindere ronde 1 (66) wordt niet bewaard", !kennismaking.bewaarNieuweVersie);
-  ok("het concept (68) blijft dus staan", true);
-  ok(
-    "en de lus stopt na ronde 1, ook al mochten er nog twee",
-    !kennismaking.nogEenRonde,
-  );
-
-  // Dezelfde audit, andere pagina (3517f87e, "Tandartsangst startpagina"):
-  // 78 (concept) → 68 → 78 → 52 op productie. Die uitkomst kan niet meer met
-  // deze regel: ronde 1 (68) is al slechter dan het concept (78), dus stopt de
-  // huidige code na ronde 1 met het concept bewaard. Zie de toelichting boven
-  // `beslisReparatieRonde` voor waarom dat op 2 september anders liep (een
-  // productiedeploy die de reparatie van dezelfde ochtend nog niet had).
-  const tandartsangst = beslisReparatieRonde({
-    vorigeKwaliteit: 78,
-    nieuweKwaliteit: 68,
-    ronde: 1,
-    repairMax: 3,
-    scoresTeLaag: true,
-    openstaandeBevindingen: 71,
-  });
-  ok("ronde 1 (68) wordt niet bewaard, het concept (78) blijft staan", !tandartsangst.bewaarNieuweVersie);
-  ok("de huidige code stopt hier na ronde 1", !tandartsangst.nogEenRonde);
-
-  // Zonder meetpunt (een pagina van vóór dit veld bestond) telt een ronde
-  // altijd als verbetering: conventie 3, onbekend is geen "niet beter".
-  const zonderMeetpunt = beslisReparatieRonde({
-    vorigeKwaliteit: null,
-    nieuweKwaliteit: 40,
-    ronde: 1,
-    repairMax: 3,
-    scoresTeLaag: true,
-    openstaandeBevindingen: 4,
-  });
-  ok("zonder meetpunt wordt de ronde bewaard", zonderMeetpunt.bewaarNieuweVersie);
-  ok("en mag de lus doorgaan", zonderMeetpunt.nogEenRonde);
-
-  // Aan REPAIR_MAX komt de lus nooit voorbij, ook niet als elke ronde beter werd.
-  const laatsteRonde = beslisReparatieRonde({
-    vorigeKwaliteit: 70,
-    nieuweKwaliteit: 90,
-    ronde: 3,
-    repairMax: 3,
-    scoresTeLaag: false,
-    openstaandeBevindingen: 0,
-  });
-  ok("op REPAIR_MAX stopt de lus altijd", !laatsteRonde.nogEenRonde);
-
-  const content = leesBestand("lib/pipeline/content.ts");
-  ok("content.ts gebruikt de pure beslisfunctie", content.includes("beslisReparatieRonde("));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Het contract past in de doellengte (verbetering 6)", () => {
-  const sectie = (i: number, woorden: number) => ({
-    id: `s${i}`,
-    heading: `Kop ${i}`,
-    subQuestion: `Vraag ${i}?`,
-    mustCover: ["iets"],
-    factRefs: [],
-    explainerTerms: [],
-    targetWords: woorden,
-    rol: "uitleg" as const,
-    needsBrandFact: false,
-    importance: "ondersteunend" as const,
-    successCriterion: "",
-    presentOnExisting: "niet_van_toepassing" as const,
-    whatToChange: "",
-  });
-
-  // De Tilburg-pagina: 25 secties van 40 woorden bij een maximum van 700.
-  const teGroot: ContentContract = {
-    openingAnswer: "Gasservice Brabant plaatst hybride warmtepompen in Tilburg.",
-    sections: Array.from({ length: 25 }, (_, i) => sectie(i + 1, 40)),
-    faqQuestions: Array.from({ length: 16 }, (_, i) => `Vraag ${i + 1}?`),
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  };
-  const gesnoeid = normaliseerContract(teGroot, { maxWoorden: 700 });
-  const som = gesnoeid.sections.reduce((t, s) => t + s.targetWords, 0);
-  ok("de secties passen binnen de doellengte", som <= 700);
-  ok("en er blijft ruimte voor de opening", som <= 700 - 40);
-  ok("er blijven er genoeg over", gesnoeid.sections.length >= 3);
-  ok("de eerste sectie blijft altijd staan", gesnoeid.sections[0].heading === "Kop 1");
-  ok("de FAQ wordt begrensd op acht", gesnoeid.faqQuestions.length === 8);
-
-  // Een contract dat past, verandert niet.
-  const past: ContentContract = {
-    openingAnswer: "Ja, dat kan.",
-    sections: [sectie(1, 120), sectie(2, 120), sectie(3, 120)],
-    faqQuestions: ["Een?"],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  };
-  ok("een passend contract blijft heel", normaliseerContract(past, { maxWoorden: 700 }).sections.length === 3);
-
-  // ⚠️ Nooit onder de drie secties, ook niet bij een krappe doellengte: een
-  // pagina met één sectie is geen pagina.
-  const krap = normaliseerContract(
-    { ...past, sections: [sectie(1, 400), sectie(2, 400), sectie(3, 400), sectie(4, 400)] },
-    { maxWoorden: 500 },
-  );
-  ok("minstens drie secties blijven staan", krap.sections.length === 3);
-  ok("zonder grens wordt er niet gesnoeid", normaliseerContract(teGroot).sections.length === 25);
-
-  const bouwer = leesBestand("lib/pipeline/content-contract.ts");
-  ok("de bouwer geeft de doellengte mee", bouwer.includes("maxWoorden: input.targetWords.max"));
-
-  // ⚠️ Blok D, §3.4 (docs/tasks/zoekdata-in-de-keten.md): de rem is niet
-  // onderhandelbaar. Deze twee teksten moeten samen in het bestand staan,
-  // anders leest de zoekopdrachtenblok als "hier zijn wat zoektermen" in
-  // plaats van een sturingsregel.
-  ok("de zoekopdrachten gaan het contract in", bouwer.includes("zoekopdrachtenBlok(input.existingQueries)"));
-  ok(
-    "met de rem: sturen welke vraag, nooit hoe de zin klinkt",
-    bouwer.includes("NOOIT letterlijk over") && bouwer.includes("welke deelvraag het zwaarst weegt"),
-  );
-});
-
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Een pagina die de lezer wegstuurt, wordt afgekeurd (verbetering 7)", () => {
-  // Letterlijke zinnen van de pagina "Snel installeren", 1 september 2026.
-  const echt = [
-    "Een concrete wachttijd is niet beschikbaar.",
-    "Vraag wanneer advies mogelijk is.",
-    "Laat andere woonplaatsen en de beschikbaarheid per moment vooraf controleren.",
-    "Vraag vóór akkoord om bedragen per onderdeel.",
-    "Bespreek vooraf welke werkzaamheden nodig zijn.",
-    "Controleer vóór akkoord het actuele bedrag, de meldcode en de voorwaarden bij RVO.",
-  ].join(" ");
-  ok("alle zes de vormen worden herkend", ontwijkendeZinnen(echt).length === 6);
-  ok(
-    "een gewone zin niet",
-    ontwijkendeZinnen("Gasservice Brabant installeert hybride warmtepompen in Oss en Tilburg.").length === 0,
-  );
-
-  // ⚠️ Een oproep tot actie aan het eind van een landingspagina hoort erbij.
-  // Daarom telt het AANDEEL en niet het bestaan.
-  const gezond =
-    "Gasservice Brabant installeert hybride warmtepompen in Oss. " +
-    "Een hybride warmtepomp werkt samen met de cv-ketel en verlaagt het gasverbruik. " +
-    "De installatie kost bij Gasservice Brabant tot 6000 euro, afhankelijk van het vermogen. " +
-    "Het vermogen volgt uit de oppervlakte van de woning en het bouwjaar. " +
-    "De subsidie ligt gemiddeld tussen 500 en 2500 euro. " +
-    "Een monteur van Gasservice Brabant komt de woning vooraf beoordelen. " +
-    "De montage duurt bij een gemiddelde woning een dag. " +
-    "Gasservice Brabant is 24 uur per dag bereikbaar bij een storing. " +
-    "Vraag een offerte aan bij Gasservice Brabant.";
-  const gezondePoort = checkContentGate({
-    bodyMarkdown: gezond,
-    faq: [],
-    brandName: "Gasservice Brabant",
-    targetQuestions: ["Wie installeert een hybride warmtepomp in Oss?"],
-    distinctiveAnswers: [],
-  });
-  ok("één oproep tot actie is geen ontwijking", gezondePoort.checks.geenOntwijking === true);
-
-  const ziekePoort = checkContentGate({
-    bodyMarkdown:
-      "Gasservice Brabant installeert hybride warmtepompen in Oost-Brabant. " + echt,
-    faq: [],
-    brandName: "Gasservice Brabant",
-    targetQuestions: ["Wie installeert een hybride warmtepomp in Oost-Brabant?"],
-    distinctiveAnswers: [],
-  });
-  ok("een pagina vol doorverwijzingen wordt afgekeurd", ziekePoort.checks.geenOntwijking === false);
-  ok(
-    "en de bevinding noemt hoeveel zinnen het zijn",
-    ziekePoort.issues.some((i) => i.includes("sturen de lezer weg")),
-  );
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De pagina praat niet over zijn eigen website (verbetering 8)", () => {
-  // De echte zin van de pagina "Snel installeren", 1 september 2026.
-  ok(
-    "de rapportagevorm wordt herkend",
-    isRapportageVorm(
-      "De website van Gasservice Brabant noemt ervaren vakmannen, meer dan 90 jaar ervaring, " +
-        "erkenning als installateur en een BRL6000-25-certificaat.",
-    ),
-  );
-  ok(
-    "ook zonder merknaam ertussen",
-    isRapportageVorm("De site vermeldt dat het bedrijf 24 uur per dag bereikbaar is."),
-  );
-  ok(
-    "een gewone bewering niet",
-    !isRapportageVorm("Gasservice Brabant is 24 uur per dag bereikbaar en werkt vanuit Den Bosch."),
-  );
-  // ⚠️ Verwijzen naar de site van iemand anders mag wel: dat is een bron.
-  ok(
-    "een verwijzing naar een externe bron blijft toegestaan",
-    !isRapportageVorm("Op rvo.nl staat welke bedragen voor de ISDE gelden."),
-  );
-
-  const poort = checkContentGate({
-    bodyMarkdown:
-      "Gasservice Brabant installeert hybride warmtepompen in Oss. De website van Gasservice " +
-      "Brabant noemt ervaren vakmannen en meer dan 90 jaar ervaring.",
-    faq: [],
-    brandName: "Gasservice Brabant",
-    targetQuestions: ["Wie installeert een hybride warmtepomp in Oss?"],
-    distinctiveAnswers: [],
-  });
-  ok("de poort keurt hem af", poort.checks.geenRapportageOverZichzelf === false);
-  ok(
-    "en zegt wat er moet gebeuren",
-    poort.issues.some((i) => i.includes("Deze pagina IS die website")),
-  );
-
-  // Het modelhalf van deze verbetering: de instructie bij het onderzoek.
-  const synthese = leesBestand("lib/pipeline/synthesis.ts");
-  ok("het onderzoek vraagt om de bewering zelf", synthese.includes("Schrijf de BEWERING zelf op"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De dekkingspoort leest verwijzingen zoals de citaatcontrole (verbetering 9)", () => {
-  const contract: ContentContract = {
-    openingAnswer: "Gasservice Brabant installeert hybride warmtepompen in Oss.",
-    sections: [
-      {
-        id: "s1",
-        heading: "Werkgebied",
-        subQuestion: "Waar installeert Gasservice Brabant hybride warmtepompen?",
-        mustCover: ["werkgebied"],
-        // Drie feiten, waarvan het model er één samengestelde verwijzing van maakt.
-        factRefs: ["F1", "F5", "F18"],
-        explainerTerms: [],
-        targetWords: 120,
-        rol: "uitleg" as const,
-        needsBrandFact: false,
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "niet_van_toepassing" as const,
-        whatToChange: "",
-      },
-    ],
-    faqQuestions: [],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  };
-  const body =
-    "Gasservice Brabant installeert hybride warmtepompen in Oss.\n\n## Werkgebied\n\n" +
-    "Gasservice Brabant installeert hybride warmtepompen in Oss en werkt vanuit Den Bosch in " +
-    "de regio Oost-Brabant. Waar Gasservice Brabant hybride warmtepompen installeert staat hier.";
-
-  const uitslag = checkContractCoverage({
-    contract,
-    bodyMarkdown: body,
-    faq: [],
-    // ⚠️ Precies de vorm die op 1 september 2026 op de pagina stond.
-    claims: [{ factRef: "F1, F5, F18" }],
-  });
-  ok(
-    "een samengestelde verwijzing dekt alle genoemde feiten",
-    uitslag.secties[0].ongebruikteFeiten.length === 0,
-  );
-
-  const losse = checkContractCoverage({
-    contract,
-    bodyMarkdown: body,
-    faq: [],
-    claims: [{ factRef: "F1" }],
-  });
-  ok("en een enkele verwijzing dekt alleen zichzelf", losse.secties[0].ongebruikteFeiten.length === 2);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Een vakterm telt pas als hij echt is uitgelegd (verbetering 12)", () => {
-  const maakContract = (termen: string[]): ContentContract => ({
-    openingAnswer: "",
-    sections: [
-      {
-        id: "s1",
-        heading: "De buitenunit",
-        subQuestion: "Waar komt de buitenunit te staan?",
-        mustCover: ["plek"],
-        factRefs: [],
-        explainerTerms: termen,
-        targetWords: 120,
-        rol: "uitleg" as const,
-        needsBrandFact: false,
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "niet_van_toepassing" as const,
-        whatToChange: "",
-      },
-      {
-        id: "s2",
-        heading: "De installatie",
-        subQuestion: "Hoe verloopt de installatie?",
-        mustCover: ["stappen"],
-        factRefs: [],
-        explainerTerms: [],
-        targetWords: 120,
-        rol: "uitleg" as const,
-        needsBrandFact: false,
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "niet_van_toepassing" as const,
-        whatToChange: "",
-      },
-    ],
-    faqQuestions: [],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  });
-
-  // De term wordt in de TWEEDE sectie uitgelegd. Dat telde vroeger niet mee voor
-  // de eerste, en daarom plakte het model in elke sectie een definitiezin.
-  const elders =
-    "## De buitenunit\n\nDe buitenunit komt in de tuin of aan de gevel te staan, op afstand van " +
-    "de buren en met ruimte voor onderhoud eromheen.\n\n" +
-    "## De installatie\n\nEen buitenunit is het deel van de warmtepomp dat buiten staat en warmte " +
-    "uit de lucht haalt. De monteur plaatst hem en sluit hem aan op de binnenunit.";
-  const metUitleg = checkContractCoverage({
-    contract: maakContract(["buitenunit"]),
-    bodyMarkdown: elders,
-    faq: [],
-    claims: [],
-  });
-  ok(
-    "uitleg elders op de pagina telt mee",
-    metUitleg.secties[0].ontbrekendeUitleg.length === 0,
-  );
-
-  // Alleen noemen is niet uitleggen.
-  const alleenGenoemd =
-    "## De buitenunit\n\nDe buitenunit komt in de tuin te staan. Vraag naar de buitenunit bij de " +
-    "offerte, want de buitenunit bepaalt mede de prijs.\n\n## De installatie\n\nDe monteur komt langs.";
-  const zonderUitleg = checkContractCoverage({
-    contract: maakContract(["buitenunit"]),
-    bodyMarkdown: alleenGenoemd,
-    faq: [],
-    claims: [],
-  });
-  ok(
-    "een term drie keer noemen is geen uitleg",
-    zonderUitleg.secties[0].ontbrekendeUitleg.includes("buitenunit"),
-  );
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De aanspreekvorm gaat mee naar de schrijver (verbetering 11)", () => {
-  ok("je-vorm wordt een regel", describePronoun("je").includes("'je' en 'jouw'"));
-  ok("u-vorm ook", describePronoun("u").includes("'u' en 'uw'"));
-  ok("wij-vorm noemt de merknaam-regel", describePronoun("wij").includes("bij NAAM"));
-  ok("niets ingevuld levert geen regel op", describePronoun(null) === "");
-  ok("een onbekende waarde ook niet", describePronoun("hen") === "");
-
-  const content = leesBestand("lib/pipeline/content.ts");
-  // ⚠️ Bijgesteld op 3 september 2026 (V2). De prompt roept `describePronoun`
-  // niet meer rechtstreeks met het profielveld aan, want dan blijft hij leeg
-  // zodra de klant niets invulde, en dat was precies de bug. Hij gaat nu langs
-  // `kiesAanspreekvorm()`, die altijd een vorm oplevert.
-  ok("de schrijfprompt gebruikt hem", content.includes("describePronoun(\n      kiesAanspreekvorm({"));
-  ok(
-    "en de vorm wordt altijd gekozen, ook zonder profielveld",
-    content.includes("voorkeur: profile?.pronoun_preference"),
-  );
-  const velden = leesBestand("lib/pipeline/brand-fields.ts");
-  ok(
-    "en het merkprofiel belooft niet meer dat het veld ongebruikt blijft",
-    !velden.includes("Wordt op dit moment niet in de teksten toegepast"),
-  );
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De onderbouwingsgraad per pagina (vragen-voor-het-schrijven §4)", () => {
-  const sectie = (
-    id: string,
-    needsBrandFact: boolean,
-    factRefs: string[] = [],
-    heading = `Kop ${id}`,
-  ): ContractSection => ({
-    id,
-    heading,
-    subQuestion: `Wat over ${id}?`,
-    mustCover: [],
-    factRefs,
-    explainerTerms: [],
-    targetWords: 100,
-    rol: "uitleg" as const,
-    needsBrandFact,
-    importance: "ondersteunend" as const,
-    successCriterion: "",
-    presentOnExisting: "niet_van_toepassing",
-    whatToChange: "",
-  });
-
-  const contract = (secties: ContractSection[]): ContentContract => ({
-    openingAnswer: "Ja.",
-    sections: secties,
-    faqQuestions: [],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  });
-
-  const feit = (ref: string) => ({
-    ref,
-    text: `Feit ${ref}`,
-    source: "site",
-    citable: true,
-    confidence: "hoog" as const,
-  });
-
-  const kaart = [feit("F1"), feit("F2")];
-
-  // Het geval van de Tilburg-pagina, verkleind: vier secties, twee gaan over het
-  // bedrijf, en één daarvan heeft een feit.
-  const gemengd = contract([
-    sectie("s1", false),
-    sectie("s2", true, ["F1"]),
-    sectie("s3", true, []),
-    sectie("s4", false),
-  ]);
-  const gemeten = berekenInputCoverage(gemengd, kaart as never);
-  ok("alleen merkgebonden secties tellen mee", gemeten.merksecties === 2);
-  ok("en de graad is het deel dat gedekt is", gemeten.graad === 50, `${gemeten.graad}`);
-  ok("de ongedekte sectie komt eruit, want daar komt de vraag uit", gemeten.ongedekt.length === 1);
-  ok("en het is de juiste", gemeten.ongedekt[0]?.id === "s3");
-
-  // ⚠️ Conventie 3: geen merkgebonden sectie is NIET nul procent. Een pagina die
-  // volledig uit algemene uitleg bestaat is een goede pagina waarvoor de klant
-  // niets hoeft aan te leveren; een 0 zou de inputpoort ten onrechte dichtzetten.
-  const algemeen = berekenInputCoverage(contract([sectie("s1", false), sectie("s2", false)]), kaart as never);
-  ok("een pagina zonder merkgebonden sectie krijgt geen cijfer", algemeen.graad === null);
-  ok("en heeft dus ook geen gaten", algemeen.ongedekt.length === 0);
-
-  // Een samengestelde verwijzing ("F1, F2") is de vorm die vóór R8.3 als
-  // onbewezen telde. Zou hij hier ook falen, dan krijgt de klant een vraag
-  // waarvan het antwoord al op de kaart staat.
-  const samengesteld = berekenInputCoverage(contract([sectie("s1", true, ["F1, F2"])]), kaart as never);
-  ok("een samengestelde verwijzing telt als gedekt", samengesteld.graad === 100);
-
-  // Een F-nummer dat niet bestaat mag niet meetellen: het model mag zichzelf
-  // niet vrijpleiten uit de vraag die het gat moest dichten (conventie 1).
-  const verzonnen = berekenInputCoverage(contract([sectie("s1", true, ["F99"])]), kaart as never);
-  ok("een verzonnen F-nummer dekt niets", verzonnen.graad === 0);
-
-  // Een contract van vóór migratie 0087 heeft het veld niet. Dat telt als "niet
-  // merkgebonden", zodat een oude pagina niet ineens door de poort wordt
-  // tegengehouden op een veld dat destijds niet bestond.
-  const oud = berekenInputCoverage(
-    { ...contract([{ ...sectie("s1", true) }]), sections: [{ ...sectie("s1", true), needsBrandFact: undefined } as never] },
-    kaart as never,
-  );
-  ok("een contract van vóór dit veld levert geen gat op", oud.graad === null);
-
-  ok("zonder contract is er niets te meten", berekenInputCoverage(null, kaart as never).graad === null);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Overslaan haalt de sectie eruit (vragen-voor-het-schrijven §6)", () => {
-  const sectie = (id: string): ContractSection => ({
-    id,
-    heading: `Kop ${id}`,
-    subQuestion: "?",
-    mustCover: [],
-    factRefs: [],
-    explainerTerms: [],
-    targetWords: 100,
-    rol: "uitleg" as const,
-    needsBrandFact: true,
-    importance: "ondersteunend" as const,
-    successCriterion: "",
-    presentOnExisting: "niet_van_toepassing" as const,
-    whatToChange: "",
-  });
-  const vijf: ContentContract = {
-    openingAnswer: "Ja.",
-    sections: ["s1", "s2", "s3", "s4", "s5"].map(sectie),
-    faqQuestions: [],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  };
-
-  const na = zetContractVast(vijf, ["s2", "s4"]);
-  ok("de overgeslagen secties vervallen", na?.sections.length === 3);
-  ok("en het zijn de juiste die blijven", na?.sections.map((s) => s.id).join(",") === "s1,s3,s5");
-  ok("zonder overgeslagen vraag verandert er niets", zetContractVast(vijf, []) === vijf);
-
-  // De ondergrens. Slaat de klant alles over, dan is dat werk voor de
-  // INPUTPOORT (die houdt de pagina tegen vóór het geld), niet voor deze
-  // functie. Een pagina van één sectie is geen pagina.
-  ok("onder drie secties blijft het contract staan", zetContractVast(vijf, ["s1", "s2", "s3"]) === vijf);
-
-  ok("geen contract blijft geen contract", zetContractVast(null, ["s1"]) === null);
-
-  // De verwijzingen: het sectie-id alleen wijst nergens heen, want elke pagina
-  // nummert vanaf s1.
-  ok("een verwijzing bevat de pagina", sectieVerwijzing("abc", "s3") === "abc:s3");
-  ok("en is per pagina te lezen", sectiesVanPagina(["abc:s3", "def:s1"], "abc").join(",") === "s3");
-  ok("een andere pagina krijgt niets", sectiesVanPagina(["abc:s3"], "def").length === 0);
-  ok("en een lege lijst ook niet", sectiesVanPagina(null, "abc").length === 0);
-
-  ok("de opdrachtcode wordt gelezen", leesSectieVerwijzing("P2-s5")?.paginaIndex === 1);
-  ok("met het sectie-id erbij", leesSectieVerwijzing("P2-s5")?.sectionId === "s5");
-  ok("onzin levert niets op", leesSectieVerwijzing("sectie twee") === null);
-  ok("en leeg ook niet", leesSectieVerwijzing(null) === null);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
 console.log("\nV7: voor wie is deze pagina? (contentkwaliteit-copywriterronde.md)");
-
-group("de lezersopdracht kiest zijn bron in de goede volgorde", () => {
-  // De doelomschrijving van de aanbeveling gaat voor: die is voor DEZE pagina
-  // bedacht. Dit is de echte tekst van de hoofdpagina over daklekkage,
-  // 3 september 2026.
-  const vanKlant = bepaalLezersopdracht({
-    targetIntent:
-      "Mensen in Apeldoorn die vandaag hulp zoeken bij water door het dak en vooraf " +
-      "duidelijkheid over de kosten willen",
-    doelvragen: ["Mijn dak lekt in Apeldoorn; hoe vind ik een dakdekker die vandaag nog kan komen?"],
-  });
-  ok("een echte doelomschrijving wordt gebruikt", vanKlant.bron === "klant", vanKlant.bron);
-  ok("en hij noemt een persoon", vanKlant.noemtPersoon === true);
-
-  // Is die leeg, dan de zwaarste gemeten vraag. Minder scherp, maar wel echt.
-  const vanMeting = bepaalLezersopdracht({
-    targetIntent: "",
-    doelvragen: ["Kan ik in De Meern zonder lange wachttijd terecht voor een pijnlijke knie?"],
-  });
-  ok("zonder doelomschrijving valt hij terug op de meting", vanMeting.bron === "meting");
-  ok("en dan staat de vraag er letterlijk in", vanMeting.zin?.includes("De Meern") === true);
-  ok("ook die opdracht noemt een persoon", vanMeting.noemtPersoon === true);
-
-  // ⚠️ Dit is het geval dat op 3 september acht van de twaalf pagina's trof:
-  // geen doelomschrijving én geen gemeten vraag.
-  const geen = bepaalLezersopdracht({ targetIntent: "", doelvragen: [] });
-  ok("zonder allebei is er geen lezer", geen.bron === "geen");
-  ok("en dus geen opdracht", geen.zin === null);
-
-  // Een model dat een verplicht veld moet vullen en niets weet, schrijft
-  // "onbekend". Dat mag niet als lezer doorgaan.
-  ok("\"onbekend\" telt niet als lezer", bepaalLezersopdracht({ targetIntent: "onbekend" }).bron === "geen");
-  ok("een leeg streepje ook niet", bepaalLezersopdracht({ targetIntent: "-" }).bron === "geen");
-
-  // Een onderwerp is geen opdracht.
-  ok(
-    "een label van twee woorden is geen lezersopdracht",
-    bepaalLezersopdracht({ targetIntent: "Daklekkage Apeldoorn" }).bron === "geen",
-  );
-  ok("de grens staat op vier woorden", MIN_WOORDEN === 4);
-});
-
-group("de lezersopdracht ziet het verschil tussen een onderwerp en een persoon", () => {
-  ok("\"iemand die\" is een persoon", noemtPersoon("Iemand die water door zijn plafond ziet komen"));
-  ok("\"mensen die\" ook", noemtPersoon("Mensen die vandaag hulp zoeken"));
-
-  // De echte doelomschrijving van de bekkenbodempagina van 3 september. Vier
-  // woorden lang genoeg, maar het is een onderwerp met een plaatsnaam.
-  const onderwerp = bepaalLezersopdracht({
-    targetIntent: "Bekkenfysiotherapie in Utrecht bij urineverlies, met of zonder verwijzing",
-  });
-  ok("een onderwerp komt er wel door", onderwerp.bron === "klant");
-  ok("maar telt niet als persoon", onderwerp.noemtPersoon === false);
-  ok(
-    "en dan vraagt de prompt om er eerst een persoon van te maken",
-    lezersblok(onderwerp).includes("nog geen persoon"),
-  );
-
-  // Het blok zelf: de opdracht staat erin en de instructie om bij de lezer te
-  // beginnen, want dat is regel 1 van de copywriter.
-  const blok = lezersblok(bepaalLezersopdracht({ targetIntent: "Iemand die zijn oude dak wil isoleren zonder de pannen te vervangen" }));
-  ok("het blok noemt de lezer", blok.includes("DE LEZER VAN DEZE PAGINA"));
-  ok("en zegt: begin bij zijn situatie", blok.includes("niet bij het bedrijf"));
-  ok("en zegt wat er weg mag", blok.includes("laat je weg"));
-  ok("zonder lezer is er geen blok", lezersblok(bepaalLezersopdracht({})) === "");
-});
 
 console.log("\nV13: volgt de beoordelaar ook de VOLGORDE van het menselijke oordeel?");
 
-group("de rangcorrelatie meet de volgorde en niet de hoogte", () => {
-  const paar = (model: number, mens: number, i: number) => ({ pieceId: `p${i}`, model, mens });
-
-  // Zelfde volgorde, heel andere schaal: dat is precies het geval waarvoor deze
-  // maat bestaat. De app scoort 0 tot 100, een mens 1 tot 5.
-  const zelfdeVolgorde = [60, 65, 70, 75, 80, 85].map((m, i) => paar(m, i + 1, i));
-  ok("gelijke volgorde levert 1,00 op", rangcorrelatie(zelfdeVolgorde) === 1);
-
-  const omgekeerd = [60, 65, 70, 75, 80, 85].map((m, i) => paar(m, 6 - i, i));
-  ok("omgekeerde volgorde levert -1,00 op", rangcorrelatie(omgekeerd) === -1);
-
-  // ⚠️ Onder vijf paren zegt een rangcorrelatie te weinig om op te sturen.
-  ok("met vier paren wordt er niets gemeten", rangcorrelatie(zelfdeVolgorde.slice(0, 4)) === null);
-  ok("de ondergrens staat op vijf", RANG_MINIMUM === 5);
-
-  // Alle cijfers gelijk: dan is er geen volgorde om te vergelijken.
-  ok(
-    "zonder spreiding is er geen oordeel",
-    rangcorrelatie([70, 70, 70, 70, 70].map((m, i) => paar(m, 3, i))) === null,
-  );
-});
-
-group("de ijking zegt of het cijfer klopt én of de volgorde klopt", () => {
-  // ⚠️ Dit is de echte stand van 3 september 2026, na het invoeren van de twaalf
-  // menselijke oordelen: het niveau klopt (0,14 punt verschil) en de volgorde
-  // niet. Precies de combinatie die de reparatie naar de verkeerde pagina
-  // stuurt, en die vier weken onzichtbaar bleef omdat het getal nergens stond.
-  const echt = [
-    { pieceId: "a", model: 61.2, mens: 3.0 },
-    { pieceId: "b", model: 61.7, mens: 2.8 },
-    { pieceId: "c", model: 72.0, mens: 3.2 },
-    { pieceId: "d", model: 67.5, mens: 3.2 },
-    { pieceId: "e", model: 64.0, mens: 3.6 },
-    { pieceId: "f", model: 65.9, mens: 3.4 },
-    { pieceId: "g", model: 68.9, mens: 3.4 },
-    { pieceId: "h", model: 71.1, mens: 2.8 },
-    { pieceId: "i", model: 62.0, mens: 3.0 },
-    { pieceId: "j", model: 68.7, mens: 3.6 },
-    { pieceId: "k", model: 72.8, mens: 3.4 },
-    { pieceId: "l", model: 69.3, mens: 3.4 },
-  ];
-  const ijk = berekenIjking(echt);
-  ok("alle twaalf paren tellen mee", ijk.paren === 12);
-  ok(
-    "het niveau ligt dicht bij het menselijke oordeel",
-    Math.abs(ijk.niveauverschil ?? 9) < 0.5,
-    String(ijk.niveauverschil),
-  );
-  ok("de melding zegt dat het niveau dichtbij is", ijk.melding.includes("dichtbij"));
-  ok(
-    "maar de volgorde haalt de norm niet",
-    (ijk.rangcorrelatie ?? 1) < RANGCORRELATIE_NORM,
-    String(ijk.rangcorrelatie),
-  );
-  ok("en de melding waarschuwt daarvoor", ijk.melding.includes("verkeerde pagina"));
-  ok("er zijn er nog acht nodig voor een volledige ijking", ijk.nogNodig === 8);
-
-  // De goede uitkomst: allebei in orde.
-  const goed = [61, 64, 67, 70, 73, 76].map((m, i) => ({ pieceId: `x${i}`, model: m, mens: 3 + i * 0.15 }));
-  const gezond = berekenIjking(goed);
-  ok("bij dezelfde volgorde zegt de melding dat het goed zit", gezond.melding.includes("dezelfde pagina's onderaan"));
-
-  // Zonder menselijke oordelen weten we niets, en dat zegt hij ook.
-  const leeg = berekenIjking([]);
-  ok("zonder oordelen is er geen ijking", leeg.rangcorrelatie === null && leeg.niveauverschil === null);
-  ok("en de melding zegt dat we niets weten", leeg.melding.includes("nog geen enkele pagina"));
-});
-
 console.log("\nV6 en V12: adviseren, en hetzelfde rijtje feiten op elke pagina");
-
-group("de pagina geeft geen huiswerk en stuurt niemand weg", () => {
-  // ⚠️ De hoofdpagina over daklekkage had 23 gebiedende zinnen op 1536 woorden,
-  // 1,50 per honderd. Dat is de uitschieter waar de grens op geijkt is.
-  const huiswerk =
-    Array.from({ length: 12 }, (_, i) => `Vraag vooraf naar onderdeel ${i} van de offerte.`).join(" ") +
-    " " +
-    Array.from({ length: 60 }, (_, i) => `Een dak bestaat uit meerdere lagen en onderdelen nummer ${i}.`).join(" ");
-  const zwaar = checkAdviestoon(huiswerk);
-  ok("een pagina vol gebiedende zinnen wordt gezien", zwaar.gebiedend >= 12, String(zwaar.gebiedend));
-  ok("en levert een bevinding op", zwaar.issues.some((i) => i.includes("huiswerk")));
-  ok("die zegt dat dit de site van de aanbieder zelf is", zwaar.issues[0].includes("aanbieder zelf"));
-
-  // ⚠️ De grenzen zijn geijkt zodat ze de uitschieters vinden en niet alles.
-  // Een pagina met een paar gebiedende zinnen hoort er niet tegenaan te lopen.
-  const normaal =
-    "Vraag bij twijfel je huisarts om advies. " +
-    Array.from({ length: 80 }, (_, i) => `Wij behandelen klachten aan knie en enkel, geval ${i}.`).join(" ");
-  ok("een enkele gebiedende zin mag gewoon", checkAdviestoon(normaal).issues.length === 0);
-  ok("de grenzen staan waar de uitschieters beginnen", GEBIEDEND_PER_HONDERD_MAX === 0.6 && SLAP_PER_HONDERD_MAX === 0.8);
-
-  // ⚠️ De twee echte zinnen van 3 september die de bezoeker wegsturen.
-  const checklist = checkZelfondermijning(
-    "Zo vergelijk je dakdekkers eerlijk. Controleer acht punten. Gebruik in Zutphen en Deventer " +
-      "dezelfde checklist.",
-  );
-  ok("de vergelijkingschecklist wordt gevonden", checklist.zinnen.length >= 1, JSON.stringify(checklist.zinnen));
-  ok("en dat is blokkerend materiaal", checklist.issues[0].includes("vergelijkingssite"));
-
-  const register = checkZelfondermijning(
-    "Die algemene inschrijving is niet automatisch hetzelfde als registratie in een deelregister " +
-      "bekkenfysiotherapie, dus vraag bij het plannen naar de controleerbare registratie van je " +
-      "behandelaar.",
-  );
-  ok("de oproep om de eigen therapeut na te trekken ook", register.zinnen.length >= 1);
-
-  // Gewone zinnen uit dezelfde pagina's slaan niet aan.
-  ok(
-    "geen vals alarm op een gewone zin",
-    checkZelfondermijning("Wij zijn VCA-gecertificeerd en volledig verzekerd.").zinnen.length === 0,
-  );
-});
-
-group("niet elke pagina hetzelfde rijtje feiten", () => {
-  // ⚠️ De echte verhouding van 3 september: bij MJB stonden gratis inspectie,
-  // binnen 24 uur en het fotorapport op alle zes de pagina's.
-  const feiten = [
-    "Onze gratis dakinspectie omvat een fotorapport en is vrijblijvend",
-    "Binnen 24 uur ter plaatse bij een lekkage",
-    "Wij hebben 25 jaar ervaring",
-    "Wij hebben meer dan 500 klanten geholpen",
-    "Wij zijn VCA-gecertificeerd",
-  ];
-  const overal =
-    "Onze gratis dakinspectie omvat een fotorapport en is vrijblijvend. Binnen 24 uur ter plaatse " +
-    "bij een lekkage. Wij hebben 25 jaar ervaring en meer dan 500 klanten geholpen. Wij zijn " +
-    "VCA-gecertificeerd.";
-  const herhaald = checkHerhaling({
-    feiten,
-    tekst: overal,
-    anderePaginas: [overal, overal, overal, overal, overal],
-  });
-  ok("de feiten die overal staan worden gevonden", herhaald.overal.length >= 4, JSON.stringify(herhaald.overal));
-  ok("en dat levert een bevinding op", herhaald.issues.length === 1);
-  ok("die zegt dat elke pagina dezelfde stem krijgt", herhaald.issues[0].includes("dezelfde stem"));
-
-  // Een pagina die zijn eigen feiten kiest, slaat niet aan.
-  const eigen = "Wij zijn VCA-gecertificeerd en werken met vier eigen dakdekkers.";
-  ok(
-    "een eigen selectie is geen bevinding",
-    checkHerhaling({ feiten, tekst: eigen, anderePaginas: [overal, overal, overal] }).issues.length === 0,
-  );
-
-  // ⚠️ Met minder dan twee andere pagina's valt er niets te vergelijken.
-  ok(
-    "bij één andere pagina wordt er niets gemeten",
-    checkHerhaling({ feiten, tekst: overal, anderePaginas: [overal] }).issues.length === 0,
-  );
-});
 
 console.log("\nV8, V1 en V10: de opening, de merkstem en de koppen");
 
-group("de opening begint bij de lezer, de alinea noemt het merk", () => {
-  // ⚠️ De echte openingen van 3 september. Elf van de twaalf begonnen zo.
-  const bijMerk = checkOpening(
-    "In Apeldoorn kun je MJB Dakservice bellen of WhatsAppen voor hulp bij daklekkage. Vraag " +
-      "vóór de start om een schriftelijke prijsopgave.",
-    "MJB Dakservice",
-  );
-  ok("een opening die bij het merk begint, wordt gezien", bijMerk.begintBijMerk === true);
-  ok("en de bevinding citeert de zin", bijMerk.issues.some((i) => i.includes("In Apeldoorn")));
-
-  const metJa = checkOpening(
-    "Ja. MJB Dakservice kan bij een daklekkage in Zutphen binnen 24 uur ter plaatse zijn.",
-    "MJB Dakservice",
-  );
-  ok("het 'Ja' erboven wordt apart gezien", metJa.begintMetJa === true);
-  ok("en levert een eigen bevinding op", metJa.issues.some((i) => i.includes("geen vraag boven")));
-
-  // Zoals het wél moet: eerste zin over de lezer, merknaam in dezelfde alinea.
-  const goed = checkOpening(
-    "Lekt uw dak en staat er water op zolder? Dan wilt u vooral weten hoe snel er iemand komt " +
-      "en wat het gaat kosten. MJB Dakservice staat binnen 24 uur op uw dak.",
-    "MJB Dakservice",
-  );
-  ok("een opening die bij de lezer begint is schoon", goed.issues.length === 0, JSON.stringify(goed.issues));
-  ok("de merknaam staat wel in de alinea", goed.merkInAlinea === true);
-
-  // ⚠️ De andere kant: V8 mag de citeerbaarheid niet slopen. Een opening zónder
-  // merknaam in de hele alinea is óók fout.
-  const zonderMerk = checkOpening(
-    "Lekt uw dak? Dan wilt u weten hoe snel er iemand komt. Bel ons vandaag nog.",
-    "MJB Dakservice",
-  );
-  ok("een alinea zonder merknaam levert een bevinding op", zonderMerk.issues.length === 1);
-  ok("en die zegt waarom dat erg is", zonderMerk.issues[0].includes("AI-assistent citeert"));
-
-  ok(
-    "de eerste zin wordt goed geknipt",
-    eersteZin("Lekt uw dak? Dan wilt u weten hoe snel.") === "Lekt uw dak?",
-  );
-});
-
-group("het bedrijf spreekt weer zelf op zijn eigen pagina", () => {
-  // ⚠️ Dit is de gemeten verhouding van 3 september: nul wij-zinnen en één
-  // merkvermelding per 83 woorden.
-  const derdePersoon = Array.from(
-    { length: 8 },
-    (_, i) => `MJB Dakservice vermeldt dat het onderdeel ${i} binnen 24 uur ter plaatse kan zijn.`,
-  ).join(" ");
-  const stil = checkMerkstem(derdePersoon, "MJB Dakservice");
-  ok("nul wij-zinnen wordt gezien", stil.wijZinnen === 0);
-  ok("met de merkdichtheid erbij", stil.perHonderd > MERK_PER_HONDERD_MAX, String(stil.perHonderd));
-  ok("en dat levert een bevinding op", stil.issues.length === 1);
-  ok("die zegt dat het als een beschrijving óver het bedrijf leest", stil.issues[0].includes("óver het bedrijf"));
-
-  // Zoals het wél moet: de merknaam in de citeerbare zin, de rest in wij-vorm.
-  const metStem =
-    "MJB Dakservice staat binnen 24 uur op uw dak. Wij komen met onze eigen ploeg van vier " +
-    "dakdekkers, dus u weet wie er komt. Wij zoeken eerst uit waar het water vandaan komt en " +
-    "vertellen u daarna wat het kost. Doorwerken over houtrot heen doen wij niet.";
-  ok("met wij-zinnen erbij is er geen bevinding", checkMerkstem(metStem, "MJB Dakservice").issues.length === 0);
-
-  // Veel merknaam mag, zolang het bedrijf ook zelf praat.
-  ok(
-    "de twee eisen gelden samen en niet los",
-    checkMerkstem("MJB Dakservice helpt. Wij komen langs. MJB Dakservice belt u.", "MJB Dakservice")
-      .issues.length === 0,
-  );
-});
-
-group("een verhaal in plaats van een vragenlijst", () => {
-  // ⚠️ Vier van de twaalf pagina's van 3 september hadden alleen vraagkoppen.
-  const alleenVragen =
-    "## Wat houdt het consult in?\n\ntekst\n\n## Past het bij mij?\n\ntekst\n\n" +
-    "## Wanneer naar de huisarts?\n\ntekst\n\n## Wat kost het?\n\ntekst\n";
-  const vragenlijst = checkVraagkoppen(alleenVragen, false);
-  ok("vier van de vier koppen is een vraag", vragenlijst.vragen === 4 && vragenlijst.koppen === 4);
-  ok("en dat is boven de grens", vragenlijst.aandeel > VRAAGKOPPEN_MAX);
-  ok("de bevinding noemt de verhouding", vragenlijst.issues[0]?.includes("4 van de 4"));
-
-  const verhaal =
-    "## Zo herkent u een schoorsteenlekkage\n\ntekst\n\n## Wij zoeken eerst de oorzaak\n\n" +
-    "tekst\n\n## Wat het kost\n\ntekst\n\n## Kan het ook morgen?\n\ntekst\n";
-  ok("de helft mag wel", checkVraagkoppen(verhaal, false).issues.length === 0);
-
-  // ⚠️ Bij een FAQ zijn vragen juist het punt.
-  ok("een FAQ mag alleen vragen hebben", checkVraagkoppen(alleenVragen, true).issues.length === 0);
-
-  // Een korte pagina met drie koppen is geen vragenlijst maar een korte pagina.
-  ok(
-    "onder de vier koppen slaat hij niet aan",
-    checkVraagkoppen("## Wat?\n\na\n\n## Hoe?\n\nb\n", false).issues.length === 0,
-  );
-});
-
 console.log("\nV9 en V4: van feit naar betekenis, in de woorden van de ondernemer");
-
-group("bewijspunten: is een feit omgezet naar een argument?", () => {
-  // De drie voorbeelden die de externe copywriter zelf gaf.
-  const tekst =
-    "Wij komen met onze eigen ploeg. U weet dus wie er op uw dak komt. Vinden wij extra werk, " +
-    "dan hoort u dat eerst: geen onverwachte werkzaamheden zonder dat u akkoord geeft. Na de " +
-    "inspectie ziet u zelf wat we aantreffen en wat er eerst moet gebeuren.";
-  const goed = checkBewijspunten({
-    punten: [
-      { factRef: "F1", betekenis: "u weet wie er op uw dak komt" },
-      { factRef: "F2", betekenis: "geen onverwachte werkzaamheden zonder dat u akkoord geeft" },
-      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
-    ],
-    tekst,
-    factRefs: ["F1", "F2", "F3", "F4"],
-  });
-  ok("drie omgezette feiten is genoeg", goed.issues.length === 0, JSON.stringify(goed.issues));
-  ok("en dat zijn er drie", goed.aantal === MIN_BEWIJSPUNTEN);
-
-  // Te weinig: dan is er geen keuze gemaakt.
-  const teWeinig = checkBewijspunten({
-    punten: [{ factRef: "F1", betekenis: "u weet wie er op uw dak komt" }],
-    tekst,
-    factRefs: ["F1"],
-  });
-  ok("één bewijspunt is te weinig", teWeinig.issues.length === 1);
-  ok("en de bevinding zegt hoeveel er zijn", teWeinig.issues[0].includes("1 van de"));
-
-  // Een verzonnen F-nummer is geen bewijs.
-  const verzonnen = checkBewijspunten({
-    punten: [
-      { factRef: "F9", betekenis: "u weet wie er op uw dak komt" },
-      { factRef: "F2", betekenis: "geen onverwachte werkzaamheden zonder dat u akkoord geeft" },
-      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
-    ],
-    tekst,
-    factRefs: ["F1", "F2", "F3"],
-  });
-  ok("een onbekend F-nummer wordt gevonden", verzonnen.onbekend.length === 1);
-  ok("en genoemd in de bevinding", verzonnen.issues.some((i) => i.includes("F9")));
-
-  // ⚠️ De kern van V9: een mooie zin aanleveren en hem niet opschrijven.
-  const nietGeschreven = checkBewijspunten({
-    punten: [
-      { factRef: "F1", betekenis: "u weet wie er op uw dak komt" },
-      { factRef: "F2", betekenis: "wij bellen u binnen een kwartier terug na uw melding" },
-      { factRef: "F3", betekenis: "u ziet zelf wat we aantreffen" },
-    ],
-    tekst,
-    factRefs: ["F1", "F2", "F3"],
-  });
-  ok("een niet-opgeschreven bewijspunt wordt gevonden", nietGeschreven.nietGeschreven.length === 1);
-  ok(
-    "en de bevinding citeert hem",
-    nietGeschreven.issues.some((i) => i.includes("binnen een kwartier")),
-  );
-
-  ok("een herformulering telt wel mee", betekenisStaatInTekst("u weet wie er op uw dak komt", tekst));
-  ok(
-    "een heel andere zin niet",
-    !betekenisStaatInTekst("wij hebben tweehonderd vestigingen in Duitsland", tekst),
-  );
-
-  // ⚠️ Conventie 3: een pagina van vóór migratie 0093 verandert niet van oordeel.
-  const oud = checkBewijspunten({ punten: undefined, tekst, factRefs: ["F1"] });
-  ok("zonder het veld verandert er niets", oud.issues.length === 0);
-});
-
-group("de eigen woorden van de ondernemer moeten de parafrase overleven", () => {
-  // ⚠️ De vier antwoorden hieronder zijn letterlijk wat de twee klanten op
-  // 3 september gaven. Alle vier bevatten een reden, en van alle vier is die
-  // reden op de pagina gesneuveld.
-  const antwoorden = [
-    "Wat doen jullie als jullie tijdens dakisolatie houtrot vinden: Dan leggen we het werk stil " +
-      "en maken we foto's. Doorwerken over houtrot heen doen we niet, ook niet als de klant erom " +
-      "vraagt, want dan kunnen we onze garantie op het werk niet waarmaken.",
-    "Wat moet iemand meenemen naar de eerste afspraak: Een identiteitsbewijs en de pas van de " +
-      "zorgverzekering. Voor hardlopers: neem de schoenen mee waar je het meest op loopt, want " +
-      "daar zien we vaak aan waar de belasting zit.",
-    "Binnen 24 uur ter plaatse bij een lekkage",
-    "Contracten met alle zorgverzekeraars",
-  ];
-
-  const citaten = vindCiteerbareAntwoorden(antwoorden);
-  ok("de twee antwoorden met een reden worden gevonden", citaten.length === 2, String(citaten.length));
-  ok("het langste staat vooraan", citaten[0].tekst.includes("houtrot"), citaten[0].tekst.slice(0, 40));
-  ok("een kort feit telt niet mee", !citaten.some((c) => c.tekst.includes("Contracten")));
-
-  // De echte parafrase van 3 september: de procedure bleef, de reden verdween.
-  const parafrase =
-    "Wordt tijdens isolatiewerk schade gevonden, dan legt MJB Dakservice het werk stil, maakt " +
-    "foto's en meldt eerst de herstelkosten. Het werk gaat pas verder na akkoord.";
-  const weg = checkKlantcitaten({ citaten, tekst: parafrase });
-  ok("de weggeparafraseerde reden wordt gezien", weg.issues.length === 1, JSON.stringify(weg));
-  ok("en de bevinding toont het antwoord van de ondernemer", weg.issues[0].includes("houtrot"));
-
-  // Zoals het wél moet: de reden staat er.
-  const goed =
-    "Vinden wij houtrot, dan leggen wij het werk stil en bellen wij u. Doorwerken over houtrot " +
-    "heen doen wij niet, ook niet als u erom vraagt, want dan kunnen wij onze garantie op ons " +
-    "werk niet waarmaken.";
-  ok("met de reden erin is er geen bevinding", checkKlantcitaten({ citaten, tekst: goed }).issues.length === 0);
-  ok(
-    "en de overlap is hoog",
-    overlapMetTekst(citaten[0].tekst, goed) > 0.6,
-    String(overlapMetTekst(citaten[0].tekst, goed)),
-  );
-
-  // Zonder citeerbare antwoorden geen eis: niet elke klant praat zo.
-  ok("zonder citaten geen bevinding", checkKlantcitaten({ citaten: [], tekst: parafrase }).issues.length === 0);
-
-  const blok = citatenblok(citaten);
-  ok("het promptblok noemt de reden als het punt", blok.includes("mét die reden"));
-  ok("en waarschuwt voor de procedurezin", blok.includes("procedurezin"));
-  ok("zonder citaten is er geen blok", citatenblok([]) === "");
-});
 
 console.log("\nV5: een instructie van de klant is een verbod, geen feit");
 
-group("instructiezinnen worden uit een klantantwoord gehaald", () => {
-  // ⚠️ Dit is het letterlijke antwoord dat vier FCU-pagina's meekregen op
-  // 3 september 2026. Twee van die vier zetten er toch een adres bij.
-  const echt =
-    "Welk telefoonnummer en adres moeten er op deze pagina staan: Het telefoonnummer is " +
-    "030-2270437. Zet er geen adres bij, want we hebben twee vestigingen, bij Utrecht Centraal " +
-    "en in Leidsche Rijn, en welke van de twee het wordt hangt af van waar iemand woont. " +
-    "Verwijs voor de adressen naar de contactpagina.";
-
-  const gevonden = vindKlantinstructies([echt]);
-  ok("twee instructies gevonden", gevonden.length === 2, JSON.stringify(gevonden.map((g) => g.soort)));
-  ok("het verbod op het adres", gevonden.some((g) => g.soort === "verbod" && g.zin.includes("geen adres")));
-  ok("en de opdracht om te verwijzen", gevonden.some((g) => g.soort === "opdracht" && g.zin.includes("contactpagina")));
-  ok("en dat is een adresverbod", verbiedtAdres(gevonden) === true);
-
-  // Het telefoonnummer blijft een gewoon feit en wordt geen verbod.
-  ok(
-    "het telefoonnummer wordt niet als instructie gelezen",
-    !gevonden.some((g) => g.zin.includes("030-2270437")),
-  );
-
-  // Een gewoon antwoord is geen instructie, ook niet als er "geen" in staat.
-  const gewoon = vindKlantinstructies([
-    "Duurt een noodreparatie gemiddeld 2 tot 6 uur: Meestal korter. Een gemiddelde noemen we " +
-      "liever niet, want het hangt echt af van wat we aantreffen.",
-  ]);
-  ok("een gewoon antwoord blijft een feit", gewoon.length === 0, JSON.stringify(gewoon));
-
-  const blok = instructieblok(gevonden);
-  ok("het promptblok noemt de opdrachten", blok.includes("geen adres"));
-  ok("en zegt dat de ondernemer het zelf vroeg", blok.includes("ondernemer"));
-  ok("zonder instructies is er geen blok", instructieblok([]) === "");
-});
-
-group("een adres op een pagina die er geen mocht hebben, blokkeert", () => {
-  // De drie adressen die op 3 september ten onrechte op een pagina stonden.
-  const straat = checkAdresinstructie(
-    "De twee Utrechtse vestigingsadressen zijn Pablo Picassostraat 216 en Moreelsehoek 2.",
-    true,
-  );
-  ok("een straat met huisnummer wordt gevonden", straat.adressen.length >= 1, JSON.stringify(straat.adressen));
-  ok("de bevinding citeert het adres", straat.issues[0]?.includes("Picassostraat") === true);
-  ok("en zegt waar het wel hoort", straat.issues[0]?.includes("contactpagina") === true);
-
-  const postcode = checkAdresinstructie("MJB Dakservice, Hommel 37, 7317BL Apeldoorn.", true);
-  ok("een adres zonder straatachtervoegsel wordt via de postcode gevonden", postcode.adressen.length >= 1);
-
-  // ⚠️ Zonder instructie geen controle: de meeste klanten willen hun adres
-  // juist op de pagina, en dan is dit geen fout maar het punt van de pagina.
-  ok(
-    "zonder verbod slaat de controle nooit aan",
-    checkAdresinstructie("Pablo Picassostraat 216", false).issues.length === 0,
-  );
-
-  // Geen vals alarm op gewone getallen uit de twaalf pagina's.
-  const schoon = [
-    "Een dakdekker in Apeldoorn rekent gemiddeld 45 tot 65 euro per uur.",
-    "Bel 0578 234 502 of gebruik WhatsApp.",
-    "Bij EPDM wordt een levensduur van 40 tot 50 jaar genoemd.",
-    "PIR of Resol isolatie naar Rc 6,0.",
-    "Binnen vijf behandelingen heeft 86% de doelen behaald.",
-  ];
-  for (const zin of schoon) {
-    ok(`geen vals alarm: "${zin.slice(0, 40)}..."`, checkAdresinstructie(zin, true).issues.length === 0, zin);
-  }
-});
-
 console.log("\nV3: ons werkproces lekt niet meer de klantpagina in");
-
-group("de verbrede bronpraatcontrole vindt de echte zinnen van 3 september", () => {
-  // ⚠️ Alle zeven hieronder stonden LETTERLIJK op de twaalf benchmarkpagina's,
-  // en de oude lijst van elf zoektermen vond er nul van. Vijf families, elk met
-  // zijn eigen manier om het mis te laten gaan.
-  const echt = [
-    // Familie: een redactie-instructie aan onszelf, in de tweede persoon.
-    "Controleer vóór publicatie en vóór je afspraak ook de actuele inschrijving van de " +
-      "behandelaar in het Register bekkenfysiotherapie.",
-    // Familie: een zin over onze eigen tekst.
-    "De locaties worden op deze pagina niet inhoudelijk van elkaar onderscheiden.",
-    // Familie: een bezwaarsjabloon dat niet omgezet is.
-    "Dit beantwoordt het bezwaar: \u201cIk hoor pas achteraf wat het kost.\u201d",
-    // Familie: onze verificatiestatus als mededeling aan de klant. Vier van
-    // deze soort stonden op één spoedpagina.
-    "Hulp buiten deze tijden is niet bevestigd.",
-    "Een bevestigde totaalprijs of vanafprijs inclusief btw is niet beschikbaar.",
-    "Een vaste reparatieduur en uitvoering in één bezoek zijn niet bevestigd.",
-    // Familie: zelfrelativering over ons eigen bewijs, als slotzin.
-    "Deze bedrijfsgegevens vervangen nooit de inspectie van uw specifieke dak.",
-  ];
-  for (const zin of echt) {
-    ok(
-      `gevonden: "${zin.slice(0, 46)}..."`,
-      checkSourceTalk(zin).sentences.length === 1,
-      zin,
-    );
-  }
-
-  // ⚠️ Even belangrijk als wat hij vindt: waar hij NIET op aanslaat. Deze zinnen
-  // komen uit dezelfde twaalf pagina's en zijn gewone, goede zinnen.
-  const schoon = [
-    "MJB Dakservice kan bij een lekkage binnen 24 uur ter plaatse zijn.",
-    "Vang water op en verplaats meubels en andere spullen.",
-    "Water kan onder dakbedekking of langs een dakdoorvoer en loodslab lopen voordat het binnen " +
-      "zichtbaar wordt.",
-    "Een eerste consult is volgens de praktijk binnen 24 uur mogelijk.",
-    "Bekkenfysiotherapie is gespecialiseerde fysiotherapie voor het bekken en de bekkenbodem.",
-    "De prijs hangt onder meer af van de oorzaak, het daktype en de omvang van de schade.",
-    "Bel 0578 234 502 of stuur via WhatsApp de locatie en zichtbare schade door.",
-  ];
-  for (const zin of schoon) {
-    ok(`geen vals alarm: "${zin.slice(0, 40)}..."`, checkSourceTalk(zin).sentences.length === 0, zin);
-  }
-
-  // De bevinding moet de zin letterlijk noemen, anders kan de reparatie hem
-  // niet vinden en weet de klant niet wat er weg moet.
-  const bevinding = checkSourceTalk("Hulp buiten deze tijden is niet bevestigd.").issues[0] ?? "";
-  ok("de bevinding citeert de zin", bevinding.includes("niet bevestigd"));
-  ok("en zegt wat er in de plaats moet", bevinding.includes("wat er WEL geldt"));
-
-  // Koppen tellen niet mee: "## Wat is niet bevestigd" is geen bewering.
-  ok(
-    "een kop telt niet mee",
-    checkSourceTalk("## Deze pagina beschrijft het aanbod").sentences.length === 0,
-  );
-});
 
 console.log("\nV2: één aanspreekvorm per pagina (contentkwaliteit-copywriterronde.md)");
 
@@ -20918,236 +18255,6 @@ group("de aanspreekvorm wordt altijd gekozen, en de bron is na te rekenen", () =
 
   const geteld = telAanspreekvormen("Jij belt ons, en dan helpen wij u met uw dak. Jouw dak.");
   ok("beide vormen zijn te tellen", geteld.je === 2 && geteld.u === 2, JSON.stringify(geteld));
-});
-
-group("een pagina die twee aanspreekvormen mengt, wordt geblokkeerd", () => {
-  // ⚠️ Dit is de echte opening van de contactpagina van Fysio Centrum Utrecht,
-  // 3 september 2026. Eerste zin "je", tweede alinea "u", en daarna twintig keer
-  // "u". Geen enkele controle zag dit tot vandaag.
-  const echt =
-    "Ja. Bij Fysio Centrum Utrecht kun je rechtstreeks contact opnemen of online een afspraak " +
-    "aanvragen voor een hardloopblessure.\n\n" +
-    "## Hoe neem ik snel contact op?\n\n" +
-    "Wilt u meteen boeken, vraag dan online een afspraak aan. Voor een korte vraag gebruikt u " +
-    "het contactformulier.";
-  const gemengd = checkAanspreekvorm(echt, "u");
-  ok("de menging wordt gezien", gemengd.gemengd === true);
-  ok("met beide tellingen erbij", gemengd.je >= 1 && gemengd.u >= 2, JSON.stringify(gemengd));
-  ok("de bevinding noemt de aantallen", gemengd.issues[0]?.includes("keer") === true);
-  ok(
-    "en wijst de zin aan die er niet hoort",
-    gemengd.zinnen.some((z) => z.includes("kun je rechtstreeks")),
-    JSON.stringify(gemengd.zinnen),
-  );
-
-  // Consequente pagina's slaan niet aan, welke vorm ze ook kiezen.
-  const alleenU = checkAanspreekvorm("U belt ons. Wij komen bij u langs en bekijken uw dak.", "u");
-  ok("een consequente u-pagina is schoon", alleenU.gemengd === false);
-  const alleenJe = checkAanspreekvorm("Je belt ons. Wij komen bij jou langs en bekijken je dak.", "je");
-  ok("een consequente je-pagina ook", alleenJe.gemengd === false);
-  ok("en dan is er geen bevinding", alleenJe.issues.length === 0);
-
-  // De vorm "wij" gaat over hoe we het BEDRIJF noemen; die klant tutoyeert.
-  const wij = checkAanspreekvorm("Je belt ons en wij komen langs.", "wij");
-  ok("bij 'wij' wordt de lezer getutoyeerd", wij.gemengd === false, JSON.stringify(wij));
-});
-
-group("De inputpoort: kan deze pagina goed worden? (vragen-voor-het-schrijven §4)", () => {
-  const poort = (graad: number | null, ongedekt = 2, koppen: string[] = ["de prijs", "het werkgebied"]) =>
-    inputpoort({ graad, ongedekteSecties: ongedekt, ongedekteKoppen: koppen });
-
-  ok("boven de bovengrens wordt er geschreven", poort(GOED_GENOEG).stand === "schrijven");
-  ok("en dat mag", poort(85).mag === true);
-  ok("tussen de grenzen komt er een waarschuwing", poort(55).stand === "waarschuwing");
-  ok("maar schrijven mag nog steeds", poort(55).mag === true);
-  ok("onder de ondergrens wordt de pagina tegengehouden", poort(TE_WEINIG - 1).stand === "tegenhouden");
-  ok("en dan mag het niet", poort(10).mag === false);
-
-  // ⚠️ Conventie 3: null is geen nul. Een pagina zonder merkgebonden sectie
-  // vraagt niets van de klant en hoort gewoon geschreven te worden.
-  ok("zonder merkgebonden sectie gaat de poort open", poort(null).mag === true);
-  ok("en zegt hij dat er niets gevraagd wordt", poort(null).melding.includes("vraagt niets van jou"));
-
-  // De derde uitweg. Zonder deze zin is de poort een muur, en muren leveren
-  // afgehaakte klanten op in plaats van betere content (`release-panel.tsx`).
-  const tegengehouden = poort(10);
-  ok("de melding noemt alle drie de uitwegen", tegengehouden.melding.includes("beantwoorden"));
-  ok("waaronder de algemene pagina", tegengehouden.melding.includes("algemene uitleg"));
-  ok("en hem laten vallen", tegengehouden.melding.includes("laten vallen"));
-  ok("en hij noemt wat er mist", tegengehouden.melding.includes("de prijs en het werkgebied"));
-
-  const gekozen = inputpoort({ graad: 10, ongedekteSecties: 5, writeMode: "algemeen" });
-  ok("wie kiest voor een algemene pagina komt er altijd door", gekozen.mag === true);
-  ok("en krijgt niet nog eens dezelfde vraag", gekozen.stand === "schrijven");
-
-  // ── V7: een pagina zonder lezer wordt niet geschreven ─────────────────────
-  //
-  // Ook niet bij een volle onderbouwing, want dat is een andere vraag. Van de
-  // twaalf pagina's van 3 september haalden er elf de graad en misten er acht
-  // een lezer.
-  const zonderLezer = inputpoort({ graad: 100, ongedekteSecties: 0, heeftLezer: false });
-  ok("zonder lezer gaat de poort dicht", zonderLezer.mag === false);
-  ok("ook bij een volledig onderbouwde pagina", zonderLezer.stand === "tegenhouden");
-  ok("de melding zegt waaróm", zonderLezer.melding.includes("voor wie deze pagina is"));
-  ok("en noemt de uitweg: beschrijf de lezer", zonderLezer.melding.includes("in één zin"));
-  ok("of koppel er een gemeten vraag aan", zonderLezer.melding.includes("gemeten vraag"));
-  ok("of laat hem vallen", zonderLezer.melding.includes("laten vallen"));
-  // Het scherm moet dit oordeel kunnen onderscheiden van elke andere
-  // "tegenhouden": alleen dan weet het dat de knop "schrijf hem algemeen"
-  // hier een doodlopend eind is (briefing-form.tsx).
-  ok("het oordeel zegt zelf dat dit de lezer-blokkade is", zonderLezer.zonderLezer === true);
-
-  // De keuze voor een algemene pagina beantwoordt een ANDERE vraag: mag het
-  // zonder eigen cijfers. Ook een algemene uitleg heeft een lezer nodig.
-  const algemeenZonderLezer = inputpoort({ graad: 80, ongedekteSecties: 0, writeMode: "algemeen", heeftLezer: false });
-  ok("een algemene pagina zonder lezer wordt ook tegengehouden", algemeenZonderLezer.mag === false);
-  ok("en dat blijft de lezer-blokkade, niet een gewone tegenhouden", algemeenZonderLezer.zonderLezer === true);
-
-  // Elke andere "tegenhouden" of "waarschuwing" is GEEN lezer-blokkade: daar
-  // helpt "schrijf hem algemeen" wél, en dat moet het scherm ook zo tonen.
-  ok("een gewone waarschuwing is geen lezer-blokkade", poort(55).zonderLezer === false);
-  ok("een gewone tegenhouden is geen lezer-blokkade", poort(10).zonderLezer === false);
-  ok("schrijven zonder lezerprobleem is geen lezer-blokkade", poort(GOED_GENOEG).zonderLezer === false);
-  ok(
-    "een pagina zonder merkgebonden sectie is geen lezer-blokkade",
-    poort(null).zonderLezer === false,
-  );
-
-  // ⚠️ Conventie 3: wie het veld niet meegeeft, krijgt exact het oude oordeel.
-  ok("weglaten verandert niets", inputpoort({ graad: 85, ongedekteSecties: 0 }).mag === true);
-
-  // De grenzen zijn een startwaarde en worden per pagina bewaard, zodat ze op
-  // data bijgesteld kunnen worden in plaats van op gevoel.
-  const migratie = leesBestand("supabase/migrations/0087_inputpoort.sql");
-  ok("het cijfer heeft een kolom", migratie.includes("input_coverage"));
-  ok("de keuze van de klant ook", migratie.includes("write_mode"));
-  ok("en de secties achter een vraag", migratie.includes("section_refs"));
-  ok("additief, nooit droppen (conventie 4)", !/\bdrop\b/i.test(migratie));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Het vraagbudget gaat van de batch naar de pagina (§5)", () => {
-  const vraag = (
-    sleutel: string,
-    paginas: string[],
-    extra: Partial<BriefingQuestion> = {},
-  ): BriefingQuestion => ({
-    claimKey: sleutel,
-    question: `Vraag over ${sleutel}?`,
-    reason: "r",
-    kind: "verificatie",
-    answerType: "tekst_kort",
-    options: [],
-    suggestedAnswer: null,
-    required: false,
-    scope: "analyse",
-    contentPieceIds: paginas,
-    priority: 1,
-    ...extra,
-  });
-
-  // ⚠️ DE OMKERING. Vroeger won bereik altijd: een vraag die vier pagina's een
-  // beetje helpt stond boven de vraag die één pagina van dun naar goed tilt.
-  // Nu telt hoeveel de ZWAKSTE pagina die de vraag dient erop vooruitgaat.
-  const breed = vraag("bereik heeft vier sterke pagina", ["a", "b", "c", "d"]);
-  const diep = vraag("prijs tilt de zwakke pagina", ["z"]);
-  const graden = new Map<string, number | null>([
-    ["a", 90],
-    ["b", 90],
-    ["c", 90],
-    ["d", 90],
-    ["z", 20],
-  ]);
-
-  const zonder = selectBriefingQuestions({
-    candidates: [breed, diep],
-    alreadyKnown: new Set(),
-  });
-  ok("zonder cijfers wint bereik, zoals vroeger", zonder[0]?.claimKey === breed.claimKey);
-
-  const met = selectBriefingQuestions({
-    candidates: [vraag(breed.claimKey, ["a", "b", "c", "d"]), vraag(diep.claimKey, ["z"])],
-    alreadyKnown: new Set(),
-    graadPerPagina: graden,
-  });
-  ok(
-    "met cijfers wint de vraag die de zwakste pagina redt",
-    met[0]?.claimKey === diep.claimKey,
-    met.map((v) => v.claimKey).join(" | "),
-  );
-
-  // Onbekend is 0,5 en niet 0: een vraag voor een pagina zonder contract mag
-  // niet stilzwijgend onderaan belanden en dus vervallen (conventie 3).
-  const onbekend = selectBriefingQuestions({
-    candidates: [vraag("pagina zonder contract", ["onbekend"]), vraag("sterke pagina helpen", ["a"])],
-    alreadyKnown: new Set(),
-    graadPerPagina: graden,
-  });
-  ok(
-    "een pagina zonder cijfer verliest niet automatisch",
-    onbekend[0]?.claimKey === "pagina zonder contract",
-  );
-
-  // De secties van beide vragen gaan mee bij het samenvoegen: slaat de klant de
-  // ene vraag over, dan hoort élke sectie die erop wachtte te vervallen.
-  const samen = selectBriefingQuestions({
-    candidates: [
-      vraag("zelfde onderwerp", ["a"], { sectionRefs: ["a:s1"] }),
-      vraag("zelfde onderwerp", ["b"], { sectionRefs: ["b:s4"] }),
-    ],
-    alreadyKnown: new Set(),
-  });
-  ok("twee samengevoegde vragen houden allebei hun sectie", samen.length === 1);
-  ok(
-    "en die staan allebei op de overgebleven vraag",
-    (samen[0]?.sectionRefs ?? []).sort().join(",") === "a:s1,b:s4",
-    (samen[0]?.sectionRefs ?? []).join(","),
-  );
-
-  ok("het plafond staat op twaalf", MAX_QUESTIONS === 12);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De bedrading van de inputpoort", () => {
-  // Conventie 1: een promptinstructie is een intentie, code is een garantie.
-  // Deze controles bewaken dat de nieuwe regels ook echt aangesloten zijn.
-  const contract = leesBestand("lib/pipeline/content-contract.ts");
-  // ⚠️ Op het BLOK dat naar het model gaat, niet op het hele bestand: de kop
-  // van dat bestand citeert de oude regel met opzet, om vast te leggen wat er
-  // veranderd is en waarom.
-  ok(
-    "de feitenlijst verbiedt geen sectie meer",
-    !contract.includes("plan er geen sectie omheen"),
-  );
-  ok(
-    "maar plant de pagina die de vraag echt beantwoordt",
-    contract.includes("Plan de pagina die de doelvraag ECHT beantwoordt"),
-  );
-  ok("en vraagt per sectie of hij over het bedrijf gaat", contract.includes("needsBrandFact: true"));
-
-  const jobs = leesBestand("lib/jobs/content-jobs.ts");
-  ok("de briefing start eerst de plantaken", jobs.includes('type: "content_plan"'));
-  ok("met de vlag dat ze vóór de briefing draaien", jobs.includes("voorBriefing"));
-
-  const handlers = leesBestand("lib/jobs/handlers.ts");
-  ok(
-    "en de laatste plantaak start de briefing",
-    handlers.includes("scheduleBriefingIfLastPlan"),
-  );
-  ok(
-    "een plantaak vóór de briefing schrijft nog niet",
-    handlers.includes("if (payload.voorBriefing) {"),
-  );
-
-  const route = leesBestand("app/api/analyses/[id]/briefing/route.ts");
-  ok("de schrijfroute vraagt de poort om toestemming", route.includes("beoordeelPagina"));
-  ok("en weigert met dezelfde code als de eindpoort", route.includes("INPUTPOORT_STATUS"));
-  ok("de klant kan een pagina algemeen laten schrijven", route.includes('"algemeen"'));
-  ok("of hem laten vallen", route.includes('"laten_vallen"'));
-
-  const plan = leesBestand("lib/pipeline/content-plan.ts");
-  ok("het contract wordt vastgezet vóór het schrijven", plan.includes("zetVastEnMeet"));
-  ok("en het cijfer gaat mee naar de pagina", plan.includes("input_coverage"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -21432,243 +18539,6 @@ group("De bestaande pagina als bron (O3, existing-page-fetch.ts)", () => {
   // ⚠️ 6000 tekens en niet 1500: 667 van de 738 gecrawlde pagina's op productie
   // staan op de crawlgrens, en 9 van de 10 daadwerkelijk verbeterde pagina's ook.
   ok("de ophaalgrens ligt op 6000 tekens", EXISTING_PAGE_MAX_CHARS === 6000);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De vergelijking met de bestaande pagina staat op alineaniveau (2 september 2026)", () => {
-  // ⚠️ Deze twee teksten delen alleen hun kleine woorden, net als de pagina van
-  // de klant en de tekst die hem vervangt. Woord-voor-woord levert dan gehakt
-  // op: doorgestreepte en nieuwe woorden om beurten, uit twee teksten die niets
-  // met elkaar te maken hebben. Gemeten op de eerste echte vergelijking.
-  const oud = "Home Over ons Ons werk Contact Onze merken en de service op maat";
-  const nieuw = "Voor Dongen en Oosterhout is de prijs van een warmtepomp op maat";
-
-  const perWoord = diffContent(oud, nieuw);
-  ok("zonder opgave vergelijkt hij per woord", perWoord.granularity === "woord");
-  ok(
-    "en dat versnippert twee losse teksten",
-    perWoord.ops.filter((o) => o.type !== "gelijk").length > 4,
-  );
-
-  const perAlinea = diffContent(oud, nieuw, undefined, "alinea");
-  ok("op alineaniveau blijft het bij twee blokken", perAlinea.granularity === "alinea");
-  ok(
-    "één blok eruit en één blok erin",
-    perAlinea.ops.filter((o) => o.type === "verwijderd").length === 1 &&
-      perAlinea.ops.filter((o) => o.type === "toegevoegd").length === 1,
-  );
-
-  // De route die met de bestaande pagina vergelijkt, moet die stand ook echt
-  // vragen. Anders staat de keuze wel in de module en niet in het product.
-  const route = leesBestand("app/api/analyses/[id]/content/[pieceId]/diff/route.ts");
-  ok('de diff-route vraagt "alinea" bij de huidige pagina', route.includes('"alinea"'));
-  // En het scherm moet die blokken onder elkaar zetten, anders plakken rood en
-  // groen aan elkaar en is juist de overgang onleesbaar.
-  const weergave = leesBestand("components/version-diff.tsx");
-  ok("het scherm zet alineablokken onder elkaar", weergave.includes('granularity === "alinea" ? "flex flex-col'));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Het contract als verbeterplan (O4/O5)", () => {
-  const sectie = (over: Partial<ContractSection>): ContractSection => ({
-    id: "s1",
-    heading: "Wat kost een behandeling",
-    subQuestion: "Wat kost een behandeling bij Fysi-Unique?",
-    mustCover: [],
-    factRefs: [],
-    explainerTerms: [],
-    targetWords: 100,
-    rol: "uitleg" as const,
-    needsBrandFact: false,
-    importance: "ondersteunend" as const,
-    successCriterion: "",
-    presentOnExisting: "ontbreekt",
-    whatToChange: "",
-    ...over,
-  });
-  const contract = (secties: ContractSection[]): ContentContract => ({
-    openingAnswer: "Ja.",
-    sections: secties,
-    faqQuestions: [],
-    pageObjective: "",
-    targetAudience: "",
-    avoid: [],
-    reasoning: "",
-  });
-
-  // ── Zonder bestaande pagina geen oordeel (conventie 3) ───────────────────
-  const nieuw = normaliseerContract(
-    contract([sectie({ presentOnExisting: "aanwezig", whatToChange: "staat er al" })]),
-    { existingText: null },
-  );
-  ok(
-    "een nieuwe pagina krijgt geen oordeel over wat er al staat",
-    nieuw.sections[0].presentOnExisting === "niet_van_toepassing",
-  );
-  ok("en geen verbeterzin", nieuw.sections[0].whatToChange === "");
-  ok("dus ook geen verbeterlijst", describeImprovements(nieuw).length === 0);
-
-  // ── "Staat er al" moet in de tekst terug te vinden zijn (conventie 1) ────
-  const bestaandeTekst = "Wij behandelen hardloopblessures met een persoonlijk behandelplan.";
-  const overdreven = normaliseerContract(
-    contract([sectie({ presentOnExisting: "aanwezig" })]),
-    { existingText: bestaandeTekst },
-  );
-  ok(
-    "een sectie die volgens het model al op de pagina staat maar er nergens in voorkomt, ontbreekt",
-    overdreven.sections[0].presentOnExisting === "ontbreekt",
-  );
-  ok("en krijgt alsnog een zin voor de klant", overdreven.sections[0].whatToChange.length > 0);
-
-  const terecht = normaliseerContract(
-    contract([
-      sectie({
-        heading: "Persoonlijk behandelplan",
-        subQuestion: "Wat houdt het behandelplan in?",
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "aanwezig",
-        whatToChange: "",
-      }),
-    ]),
-    { existingText: bestaandeTekst },
-  );
-  ok(
-    "een sectie die er echt op staat blijft aanwezig",
-    terecht.sections[0].presentOnExisting === "aanwezig",
-  );
-
-  // ── De lijst die de klant leest ──────────────────────────────────────────
-  const plan = normaliseerContract(
-    contract([
-      sectie({ id: "s1", presentOnExisting: "ontbreekt", whatToChange: "Zet de prijs erbij." }),
-      sectie({
-        id: "s2",
-        heading: "Persoonlijk behandelplan",
-        subQuestion: "Wat houdt het plan in?",
-        importance: "ondersteunend" as const,
-        successCriterion: "",
-        presentOnExisting: "aanwezig",
-      }),
-      sectie({ id: "s3", heading: "Hoe lang duurt het", subQuestion: "Hoe lang duurt het herstel?", presentOnExisting: "deels" }),
-    ]),
-    { existingText: bestaandeTekst },
-  );
-  const lijst = describeImprovements(plan);
-  ok("de lijst bevat alle drie de onderdelen", lijst.length === 3);
-  // ⚠️ Wat er al goed op staat hoort er ook in: dat is de geruststelling die
-  // iemand nodig heeft voordat hij zijn eigen pagina overschrijft.
-  ok("inclusief wat blijft zoals het is", lijst.some((i) => i.stand === "aanwezig"));
-  ok("elke regel die niet af is heeft een zin", lijst.every((i) => i.stand === "aanwezig" || i.wat.length > 0));
-
-  const telling = describeImprovementCount(lijst);
-  ok("de telling noemt de noemer", telling.includes("3 onderdelen"));
-  ok("en wat er nieuw is", telling.includes("nieuw"));
-  ok("zonder lijst geen telling", describeImprovementCount([]) === "");
-
-  // ── De opdracht aan de schrijver ─────────────────────────────────────────
-  const opdracht = formatContract(plan);
-  ok("de schrijver ziet wat er al op de pagina staat", opdracht.includes("staat AL op de bestaande pagina"));
-  ok("en wat er ontbreekt", opdracht.includes("ONTBREEKT op de bestaande pagina"));
-  // `docs/schrijfstijl.md` §10 geldt ook voor prompts.
-  ok("zonder gedachtestreepje in de opdracht", !opdracht.includes("\u2014"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("Schrijven over onze eigen bronnen wordt gemeld (2 september 2026)", () => {
-  // ⚠️ De eerste zin hieronder staat LETTERLIJK zo op productie, in de eerste
-  // pagina die met een bestaande tekst geschreven is (Wouter Warmtepomp,
-  // hybride warmtepomp). Hij gaat over ons werkproces en zou op de site van de
-  // klant belanden.
-  const echt = checkSourceTalk(
-    "Voor Dongen en Oosterhout is op basis van de beschikbare informatie geen betrouwbaar " +
-      "totaalbedrag vast te stellen: de bestaande pagina noemt wel systemen en enkele " +
-      "installatieonderdelen, maar geen prijzen.",
-  );
-  ok("de zin uit productie wordt gevonden", echt.sentences.length === 1);
-  ok("en de melding citeert hem letterlijk", echt.issues[0].includes("bestaande pagina noemt"));
-
-  // ⚠️ Het onderscheid dat deze controle bruikbaar maakt: een zin over de
-  // SITUATIE van de lezer is gewoon goed. "De bestaande cv-ketel" mag nooit
-  // sneuvelen, anders is de controle na één ronde onbruikbaar.
-  const schoon = checkSourceTalk(
-    "De bestaande cv-ketel blijft hangen en verwarmt mee op koude dagen. " +
-      "In de huidige situatie is je woning daarmee vaak al geschikt.",
-  );
-  ok("een zin over de woning van de lezer blijft staan", schoon.sentences.length === 0);
-  ok("en levert geen melding op", schoon.issues.length === 0);
-
-  ok("koppen tellen niet mee", checkSourceTalk("## De bestaande pagina").sentences.length === 0);
-  ok("lege tekst levert niets op", checkSourceTalk("").sentences.length === 0);
-
-  const meerdere = checkSourceTalk(
-    "Wat kost het? De feitenkaart noemt hier geen bedrag.\n\nDe huidige pagina vermeldt alleen systemen.",
-  );
-  ok("meerdere zinnen worden allemaal gemeld", meerdere.sentences.length === 2);
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De duplicatiecheck kijkt ook naar de echte site (O6)", () => {
-  const eigen = mostSimilar("de kat zat op de mat en keek naar buiten door het raam", [
-    { title: "Andere pagina", body: "de kat zat op de mat en keek naar buiten door het raam", origin: "eigen_content" as const },
-  ]);
-  ok("een eigen pagina wordt als eigen content herkend", eigen?.origin === "eigen_content");
-  ok("en de melding gaat over samenvoegen", describeDuplicate(eigen!).includes("samen te voegen"));
-
-  const site = mostSimilar("de kat zat op de mat en keek naar buiten door het raam", [
-    {
-      title: "Bestaande pagina",
-      body: "de kat zat op de mat en keek naar buiten door het raam",
-      origin: "site" as const,
-      url: "https://klant.nl/kat",
-    },
-  ]);
-  ok("een sitepagina wordt als site herkend", site?.origin === "site");
-  const melding = describeDuplicate(site!);
-  ok("en de melding zegt: werk die pagina bij", melding.includes("Werk die pagina bij"));
-  ok("met het adres erin", melding.includes("https://klant.nl/kat"));
-});
-
-// ════════════════════════════════════════════════════════════════════════════
-group("De bedrading van de paginakeuze (O1 tot en met O6)", () => {
-  // ── Het vangnet draait in de rapportstap, vóór opslag ────────────────────
-  const report = leesBestand("lib/pipeline/report.ts");
-  ok("de handeling wordt nagerekend", report.includes("reconcileExistingPageActions"));
-  ok(
-    "en dat gebeurt vóór het wegschrijven",
-    report.indexOf("reconcileExistingPageActions") < report.indexOf("recommendations_json: recommendations"),
-  );
-  // ⚠️ Eén beslisser, niet twee. Twee modules die dezelfde vraag beantwoorden
-  // kunnen het oneens worden; dat is precies wat er op 2 september dreigde toen
-  // twee takken parallel hetzelfde vangnet bouwden.
-  ok("en er is maar één module die dat doet", !bestaatBestand("lib/pipeline/page-match.ts"));
-
-  // ── De koppeling is niet meer een exacte stringvergelijking ──────────────
-  const content = leesBestand("lib/pipeline/content.ts");
-  ok("de bestaande pagina wordt op pad gezocht", content.includes("matchExistingPage"));
-  ok(
-    "en niet meer op de letterlijke tekst",
-    !content.includes('.eq("url", recommendation.existingUrl)'),
-  );
-
-  // ── De verse tekst gaat vóór het crawl-excerpt ───────────────────────────
-  ok("de schrijver kiest de verse tekst als die er is", content.includes("chooseExistingText"));
-  const plan = leesBestand("lib/pipeline/content-plan.ts");
-  ok("de planstap haalt de pagina zelf op", plan.includes("fetchExistingPage"));
-  ok("uit de ophaalmodule", plan.includes("existing-page-fetch"));
-  ok("en bewaart hem bij de pagina", plan.includes("existing_page_text"));
-
-  // ── De duplicatiecheck ziet de site ──────────────────────────────────────
-  ok("de gelijkenis wordt ook tegen profile_pages gemeten", content.includes('.from("profile_pages")'));
-  // ⚠️ De pagina die we vervangen hoort er niet in: een verbetering lijkt per
-  // definitie op zijn eigen origineel, en dat is de bedoeling.
-  ok("behalve de pagina die verbeterd wordt", content.includes("excludeUrl"));
-
-  // ── Het scherm laat zien wat er verandert ────────────────────────────────
-  const scherm = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-detail.tsx");
-  ok("de contentpagina toont het verbeterplan", scherm.includes("ImprovementList"));
-  const gids = leesBestand("components/publish-guide.tsx");
-  ok("en de publicatiegids verwijst ernaar", gids.includes("Wat er aan je pagina verandert"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -22098,8 +18968,9 @@ group("publicFactRequest houdt raw_json buiten de browser (T8.9)", () => {
 
   const veilig = publicFactRequest(rij);
   ok("raw_json is weg", !("raw_json" in veilig));
-  ok("section_id is weg", !("section_id" in veilig));
-  ok("section_refs is weg", !("section_refs" in veilig));
+  // `section_id` en `section_refs` haalde deze functie tot K8 ook weg. Ze zijn
+  // altijd leeg en staan op "niet meer gebruiken" (kennismodel-inventaris.md);
+  // de functie noemt ze niet meer.
   ok("het antwoord blijft staan", veilig.answer === "1998");
   ok("de vraag blijft staan", veilig.question === "In welk jaar opgericht?");
   ok("de status blijft staan", veilig.status === "beantwoord");
@@ -22156,757 +19027,6 @@ group("inloggen en een uitnodiging verzilveren zijn begrensd (T8.11)", () => {
     "en dat gebeurt vóórdat de token gecontroleerd wordt",
     invite.indexOf("hitRateLimit(") < invite.indexOf("await acceptInvite("),
   );
-});
-
-
-// ════════════════════════════════════════════════════════════════════════════
-// HET KWALITEITSRAAMWERK (migratie 0091, docs/tasks/contentkwaliteit-framework.md)
-// ════════════════════════════════════════════════════════════════════════════
-
-group("Elke kwaliteitsdimensie heeft een bron die hem kan vullen", () => {
-  // Een dimensie zonder bron is een cijfer dat iemand verzint. Deze controle
-  // hoort bij het bouwen af te gaan en niet op productie.
-  for (const dimensie of QUALITY_DIMENSIONS) {
-    ok(`${dimensie} heeft een bron`, Boolean(QUALITY_DIMENSION_SOURCES[dimensie]?.bron?.trim()));
-    ok(`${dimensie} heeft een label in klanttaal`, Boolean(DIMENSION_LABELS[dimensie]?.trim()));
-  }
-  ok("er zijn twaalf dimensies", QUALITY_DIMENSIONS.length === 12);
-});
-
-group("Elk contenttype heeft een profiel dat de universele dimensies meeweegt", () => {
-  for (const type of ["article", "faq", "landing", "comparison"] as const) {
-    const profiel = QUALITY_PROFILES[type];
-    ok(`${type} heeft een profiel`, profiel?.type === type);
-    // Een profiel dat `feitelijkheid` vergeet, kan een onware pagina goedkeuren.
-    const mist = profielMistUniverseleDimensie(profiel);
-    ok(`${type} weegt alle universele dimensies mee`, mist.length === 0, mist.join(", "));
-    ok(`${type} heeft een ondergrens`, profiel.minimumTotaal > 0);
-    ok(`${type} eist volledige dekking van zijn kern`, profiel.minimumKritiekeDekking === 100);
-  }
-  // De gemeten verschillen op productie (2 september 2026): een FAQ haalde 0,7
-  // procent bronherleidbaarheid en een landingspagina 77,1. Eén lat over allebei
-  // is per definitie fout voor één van de twee.
-  ok("een FAQ heeft geen bewijsvereiste", QUALITY_PROFILES.faq.minimumBewijsdekking === null);
-  ok("een landingspagina wel", (QUALITY_PROFILES.landing.minimumBewijsdekking ?? 0) >= 70);
-  ok(
-    "en die is strenger dan bij een artikel",
-    (QUALITY_PROFILES.landing.minimumBewijsdekking ?? 0) >
-      (QUALITY_PROFILES.article.minimumBewijsdekking ?? 0),
-  );
-  ok("overtuiging telt alleen bij een landingspagina", (QUALITY_PROFILES.landing.gewichten.overtuiging ?? 0) > 0);
-  ok("en niet bij een FAQ", (QUALITY_PROFILES.faq.gewichten.overtuiging ?? 0) === 0);
-  ok("een onbekend type valt terug op het artikelprofiel", profielVoorType("onzin").type === "article");
-  ok("en null ook", profielVoorType(null).type === "article");
-});
-
-group("De type-eigen regels tellen, ze oordelen niet", () => {
-  const meting = {
-    secties: 5,
-    faqParen: 6,
-    langsteFaqAntwoord: 40,
-    heeftVervolgstap: true,
-    gebruikteFeiten: 6,
-    woorden: 600,
-  };
-  ok("een gezonde landingspagina overtreedt niets", checkTypeRegels(QUALITY_PROFILES.landing, meting).length === 0);
-  ok(
-    "zonder vervolgstap valt de landingsregel",
-    checkTypeRegels(QUALITY_PROFILES.landing, { ...meting, heeftVervolgstap: false }).some(
-      (r) => r.id === "landing_geen_vervolgstap",
-    ),
-  );
-  // De vier pagina's van 1 september 2026 hadden samen vijf concrete getallen
-  // over 3400 woorden. Die zouden hier alle vier op vallen.
-  ok(
-    "te weinig concrete gegevens valt op",
-    checkTypeRegels(QUALITY_PROFILES.landing, { ...meting, gebruikteFeiten: 1, woorden: 900 }).some(
-      (r) => r.id === "landing_te_algemeen",
-    ),
-  );
-  ok(
-    "maar een korte pagina wordt er niet op afgerekend",
-    checkTypeRegels(QUALITY_PROFILES.landing, { ...meting, gebruikteFeiten: 0, woorden: 100 }).length === 0,
-  );
-  ok(
-    "een FAQ met te weinig paren valt op",
-    checkTypeRegels(QUALITY_PROFILES.faq, { ...meting, faqParen: 2 }).some(
-      (r) => r.id === "faq_te_weinig_vragen",
-    ),
-  );
-  ok(
-    "een FAQ zonder paren nog niet: die is nog niet geschreven",
-    checkTypeRegels(QUALITY_PROFILES.faq, { ...meting, faqParen: 0 }).length === 0,
-  );
-  ok(
-    "een te lang FAQ-antwoord valt op",
-    checkTypeRegels(QUALITY_PROFILES.faq, { ...meting, langsteFaqAntwoord: 200 }).some(
-      (r) => r.id === "faq_antwoord_te_lang",
-    ),
-  );
-  ok(
-    "een dun artikel valt op",
-    checkTypeRegels(QUALITY_PROFILES.article, { ...meting, secties: 2 }).some(
-      (r) => r.id === "artikel_te_dun",
-    ),
-  );
-  ok("alle universele regels blokkeren", UNIVERSELE_REGELS.every((r) => r.blokkeert));
-  ok("en het zijn er zes", UNIVERSELE_REGELS.length === 6);
-});
-
-group("Score, zekerheid en blokkade blijven drie getallen (punt 15)", () => {
-  const profiel = QUALITY_PROFILES.landing;
-  const goed = {
-    feitelijkheid: 90,
-    bewijs: 85,
-    relevantie: 88,
-    specificiteit: 80,
-    volledigheid: 85,
-    structuur: 90,
-    leesbaarheid: 85,
-    toon: 80,
-    overtuiging: 82,
-    originaliteit: 75,
-    expertise: 75,
-  };
-  const alles = { geslaagd: 4, gevraagd: 4 };
-
-  const pass = beoordeelKwaliteit({ profiel, dimensies: goed, issues: [], beoordelaars: alles });
-  eq("een goede pagina komt door", pass.verdict, "pass");
-  ok("met een hoge zekerheid", pass.confidence === 100);
-  ok("en een cijfer", (pass.score ?? 0) > profiel.minimumTotaal);
-
-  // ⚠️ Het geval uit de opdracht: 91 punten, één kritieke claim zonder bewijs,
-  // niet publiceren. Zonder drie losse getallen is dat niet uit te drukken.
-  const blokkade: QualityIssue = {
-    dimension: "bewijs",
-    severity: "blokkerend",
-    section: "Wat kost het",
-    finding: "Deze sectie draagt de pagina en we kunnen hem niet onderbouwen.",
-    evidence: null,
-    expected: null,
-    recommendation: "Beantwoord de vraag hierover.",
-    blocking: true,
-    confidence: 1,
-    phase: "kennis",
-    bron: "bewijsdekking",
-  };
-  const geblokkeerd = beoordeelKwaliteit({
-    profiel,
-    dimensies: goed,
-    issues: [blokkade],
-    beoordelaars: alles,
-  });
-  eq("een blokkade wint van een hoog cijfer", geblokkeerd.verdict, "block");
-  ok("het cijfer blijft gewoon staan", geblokkeerd.score === pass.score);
-  ok("en de reden noemt de blokkade", geblokkeerd.redenen[0] === blokkade.finding);
-
-  // Twee gevallen beoordelaars: de helft van het oordeel is een gok, en dan zegt
-  // de app dat in plaats van te doen alsof de pagina gekeurd is (scenario 11).
-  const onzeker = beoordeelKwaliteit({
-    profiel,
-    dimensies: { ...goed, expertise: null, toon: null, overtuiging: null, originaliteit: null },
-    issues: [],
-    beoordelaars: { geslaagd: 2, gevraagd: 4 },
-  });
-  ok("een gevallen beoordelaar verlaagt de zekerheid", onzeker.confidence < 60);
-  ok("maar niet de score", (onzeker.score ?? 0) >= (pass.score ?? 0) - 5);
-  ok(
-    "en de app zegt dat ze niet alles kon beoordelen",
-    onzeker.redenen.some((r) => r.includes("deel van deze pagina")),
-  );
-
-  // Een dimensie zonder cijfer verlaagt het gemiddelde niet (conventie 3).
-  const zonderBewijs = weegDimensies(profiel, { ...goed, bewijs: null });
-  ok("een ontbrekend cijfer telt niet als nul", (zonderBewijs.score ?? 0) > 80);
-  ok("maar hij telt wel in het gemeten gewicht", zonderBewijs.gewichtGemeten < zonderBewijs.gewichtTotaal);
-
-  // Een dimensie onder haar eigen ondergrens is een reparatie, geen blokkade.
-  const zwak = beoordeelKwaliteit({
-    profiel,
-    dimensies: { ...goed, feitelijkheid: 50 },
-    issues: [],
-    beoordelaars: alles,
-  });
-  eq("een dimensie onder de ondergrens levert repair op", zwak.verdict, "repair");
-  ok("en noemt welke", zwak.onderDeMaat.includes("feitelijkheid"));
-});
-
-group("De versiekeuze zet blokkades vóór de score (punt 20)", () => {
-  const v = (ronde: number, score: number, blokkades = 0, confidence = 100) => ({
-    ronde,
-    score,
-    verdict: (blokkades > 0 ? "block" : "pass") as "pass" | "repair" | "block",
-    blokkades,
-    confidence,
-  });
-
-  // Precies het voorbeeld uit de opdracht: 74, 81, 79 en versie 2 blijft de beste.
-  const beste = kiesBesteVersie([v(0, 74), v(1, 81), v(2, 79)]);
-  ok("de hoogste score wint bij gelijke blokkades", beste?.ronde === 1);
-
-  // En het geval dat de opdracht daarnaast noemt: een iets lagere score zonder
-  // blokkade is beter dan een hogere score met een feitelijkheidsblokkade.
-  const zonderBlokkade = kiesBesteVersie([v(0, 88, 1), v(1, 84, 0)]);
-  ok("minder blokkades wint van een hogere score", zonderBlokkade?.ronde === 1);
-
-  ok("bij gelijke stand wint de oudste versie", kiesBesteVersie([v(0, 80), v(1, 80)])?.ronde === 0);
-  ok("een lege lijst geeft niets", kiesBesteVersie([]) === null);
-
-  // ⚠️ Bewaren is een ANDERE vraag dan kiezen: een gelijk gebleven score is geen
-  // verlies, anders gooien we elke reparatie weg die een punt oplost zonder het
-  // cijfer te bewegen.
-  ok("een gelijke score mag bewaard worden", nietSlechterDan(v(1, 80), v(0, 80)));
-  ok("een lagere score niet", !nietSlechterDan(v(1, 76), v(0, 80)));
-  ok("een blokkade minder wint van een lagere score", nietSlechterDan(v(1, 76, 0), v(0, 90, 1)));
-  ok("een blokkade erbij verliest van een hogere score", !nietSlechterDan(v(1, 95, 1), v(0, 80, 0)));
-  ok("zonder eerdere versie mag alles", nietSlechterDan(v(0, 40), null));
-});
-
-group("De gewogen bewijsdekking weegt de kern zwaarder (punt 5)", () => {
-  const sectie = (
-    id: string,
-    importance: "kern" | "ondersteunend" | "optioneel",
-    factRefs: string[],
-  ) => ({
-    id,
-    heading: `Kop ${id}`,
-    subQuestion: `Vraag ${id}?`,
-    mustCover: [],
-    factRefs,
-    explainerTerms: [],
-    targetWords: 100,
-    rol: "uitleg" as const,
-    needsBrandFact: true,
-    importance,
-    successCriterion: "",
-    presentOnExisting: "niet_van_toepassing" as const,
-    whatToChange: "",
-  });
-  const contract = (secties: ReturnType<typeof sectie>[]) => ({
-    openingAnswer: "",
-    pageObjective: "",
-    targetAudience: "",
-    sections: secties,
-    faqQuestions: [],
-    avoid: [],
-    reasoning: "",
-  });
-  const feiten = [
-    { ref: "F1", text: "iets", source: "site", allowed: true, citable: true },
-    { ref: "F2", text: "iets anders", source: "site", allowed: true, citable: true },
-  ];
-
-  // ⚠️ Het geval uit de opdracht: negen randsecties gedekt, de ene kernsectie
-  // niet. Ongewogen is dat 90 procent en dus ruim door de poort van 70.
-  const negenPlusEen = contract([
-    ...Array.from({ length: 9 }, (_, i) => sectie(`s${i + 1}`, "ondersteunend", ["F1"])),
-    sectie("s10", "kern", []),
-  ]);
-  const scheef = berekenGewogenDekking(negenPlusEen, feiten);
-  ok("de ongewogen graad is 90", scheef.graad === 90);
-  ok("de kritieke dekking is 0", scheef.kritiek === 0);
-  // ⚠️ Geen nul maar een PLAFOND: de pagina komt in de waarschuwingsstand en
-  // niet tegen een muur. De rest van de pagina is er nog steeds, en de drie
-  // uitwegen hebben alleen zin als de poort te passeren is.
-  ok("de poort zet een plafond onder 70", (poortGraad(scheef) ?? 100) < 70);
-  ok("maar niet op nul", (poortGraad(scheef) ?? 0) > 0);
-  ok("en noemt de kernsectie", scheef.ongedekteKern.length === 1);
-  ok("de ongedekte lijst begint bij de zwaarste", scheef.ongedekt[0]?.id === "s10");
-
-  // Andersom: de kern staat, de rand niet. Dan telt de gewogen dekking.
-  const kernStaat = contract([
-    sectie("s1", "kern", ["F1"]),
-    sectie("s2", "ondersteunend", []),
-    sectie("s3", "optioneel", []),
-  ]);
-  const gezond = berekenGewogenDekking(kernStaat, feiten);
-  ok("de kritieke dekking is volledig", gezond.kritiek === 100);
-  ok("de poort weegt dan de gewogen dekking", poortGraad(gezond) === gezond.gewogen);
-  ok("en die is hoger dan de ongewogen", (gezond.gewogen ?? 0) > (gezond.graad ?? 0));
-
-  // Geen merkgebonden sectie: null, niet nul (conventie 3).
-  const leeg = berekenGewogenDekking(contract([]), feiten);
-  ok("zonder merksectie is de dekking onbekend", leeg.graad === null && leeg.gewogen === null);
-  ok("en de bewijsdimensie ook", bewijsDimensie(leeg) === null);
-
-  // Een contract van vóór deze migratie: geen `importance`, dus alles
-  // ondersteunend, dus gewogen == ongewogen en geen enkele blokkade.
-  const oud = {
-    ...contract([]),
-    sections: [
-      { ...sectie("s1", "ondersteunend", ["F1"]), importance: undefined as never },
-      { ...sectie("s2", "ondersteunend", []), importance: undefined as never },
-    ],
-  };
-  const terugval = berekenGewogenDekking(oud, feiten);
-  ok("een oud contract verandert niet van oordeel", terugval.graad === terugval.gewogen);
-  ok("en levert geen blokkade op", terugval.kritiek === null);
-});
-
-group("Over algemene vakkennis stelt de app geen vraag (punt 7)", () => {
-  const claim = (over: Partial<AuditedClaim>): AuditedClaim => ({
-    claim: "iets",
-    neededFor: "een vraag",
-    supported: false,
-    sourceRef: null,
-    supportQuote: null,
-    importance: "kern",
-    claimClass: "bedrijfsspecifiek",
-    questionIfMissing: "Klopt dit?",
-    reason: "omdat",
-    kind: "verificatie",
-    answerType: "ja_nee",
-    options: [],
-    suggestedAnswer: null,
-    scope: "analyse",
-    sectionId: null,
-    ...over,
-  });
-
-  eq("een bedrijfsclaim vraagt om bewijs", claimSoortVan(claim({})), "bedrijfsspecifiek");
-  eq("algemene vakkennis niet", claimSoortVan(claim({ claimClass: "algemeen" })), "algemeen");
-  // ⚠️ De terugval is hier de STRENGE kant, anders dan bij het sectiebelang: een
-  // claim waarvan we het soort niet kennen, is een claim waarvan we niet weten
-  // of hij verzonnen is.
-  eq(
-    "een claim zonder label geldt als bedrijfsspecifiek",
-    claimSoortVan(claim({ claimClass: undefined as never })),
-    "bedrijfsspecifiek",
-  );
-
-  const dekking = berekenClaimDekking(
-    [
-      claim({ claim: "wij leveren binnen 24 uur", importance: "kern" }),
-      claim({ claim: "wij hebben 3 vestigingen", importance: "ondersteunend" }),
-      claim({ claim: "een warmtepomp werkt op elektriciteit", claimClass: "algemeen" }),
-    ],
-    (c) => c.claim.includes("vestigingen"),
-  );
-  ok("algemene claims tellen niet mee in de dekking", dekking.bedrijfsspecifiek === 2);
-  ok("de dekking is de helft", dekking.dekking === 50);
-  ok("en de kritieke onbewezen claim staat er los bij", dekking.kritiekOnbewezen.length === 1);
-  ok(
-    "zonder bedrijfsclaims is de dekking onbekend en geen nul",
-    berekenClaimDekking([claim({ claimClass: "algemeen" })], () => false).dekking === null,
-  );
-});
-
-group("Een kernbewering zonder bewijs blokkeert, ook als het F-nummer schoof (R1)", () => {
-  const claim = (over: Partial<AuditedClaim>): AuditedClaim => ({
-    claim: "Bij Fysi-Unique kun je binnen 24 uur terecht.",
-    neededFor: "Hoe snel kan ik terecht?",
-    supported: true,
-    sourceRef: "F2",
-    supportQuote: "binnen 24 uur terecht",
-    importance: "kern",
-    claimClass: "bedrijfsspecifiek",
-    questionIfMissing: null,
-    reason: "omdat",
-    kind: "verificatie",
-    answerType: "ja_nee",
-    options: [],
-    suggestedAnswer: null,
-    scope: "analyse",
-    sectionId: null,
-    ...over,
-  });
-  const feit = (ref: string, text: string, over: Partial<FactItem> = {}): FactItem => ({
-    ref,
-    text,
-    source: "klant",
-    allowed: true,
-    citable: true,
-    ...over,
-  });
-
-  // De kaart zoals hij was tijdens de briefing: het feit stond op F2.
-  const tijdensBriefing = [feit("F1", "Iets anders"), feit("F2", "Je kunt binnen 24 uur terecht.")];
-  ok("op de oorspronkelijke kaart is de bewering onderbouwd", claimIsOnderbouwd(claim({}), tijdensBriefing));
-
-  // ⚠️ De klant beantwoordt een vraag. Dat antwoord komt vooraan te staan
-  // (SOURCE_ORDER), dus élk volgend nummer schuift op: het feit dat de bewering
-  // dekt heet nu F3 in plaats van F2. De bewering is niet veranderd en het
-  // bewijs is er nog steeds.
-  const naAntwoord = [
-    feit("F1", "Nieuw klantantwoord over iets anders"),
-    feit("F2", "Iets anders"),
-    feit("F3", "Je kunt binnen 24 uur terecht."),
-  ];
-  ok(
-    "de positiegebonden controle verliest het spoor",
-    !isSupported("F2", naAntwoord, "binnen 24 uur terecht"),
-  );
-  ok(
-    "maar de bewering geldt nog steeds als onderbouwd",
-    claimIsOnderbouwd(claim({}), naAntwoord),
-    "anders blokkeert de app een pagina om een nummer dat verschoven is",
-  );
-
-  // Is het bewijs er echt niet, dan blijft het onbewezen.
-  ok(
-    "zonder bewijs blijft hij onbewezen",
-    !claimIsOnderbouwd(claim({}), [feit("F1", "Iets heel anders")]),
-  );
-  // Een verbod onderbouwt niets: de klant heeft dit juist ontkend.
-  ok(
-    "een ontkend feit onderbouwt niets",
-    !claimIsOnderbouwd(claim({}), [feit("F1", "Je kunt binnen 24 uur terecht.", { allowed: false })]),
-  );
-  // Een citaat van drie tekens komt in elke tekst voor en wijst dus niets aan.
-  ok(
-    "een te kort citaat telt niet",
-    !claimIsOnderbouwd(claim({ sourceRef: null, supportQuote: "de" }), naAntwoord),
-  );
-
-  // ── De blokkade zelf ─────────────────────────────────────────────────────
-  const dekking = berekenClaimDekking(
-    [
-      claim({ claim: "kern zonder bewijs", importance: "kern", supportQuote: "bestaat niet" }),
-      claim({ claim: "kern met bewijs" }),
-      claim({ claim: "ondersteunend zonder bewijs", importance: "ondersteunend", supportQuote: "bestaat niet" }),
-      claim({ claim: "algemene kennis", claimClass: "algemeen", supportQuote: "bestaat niet" }),
-    ],
-    (c) => claimIsOnderbouwd(c, naAntwoord),
-  );
-  ok("alleen de kernbewering zonder bewijs blokkeert", dekking.kritiekOnbewezen.length === 1);
-  eq("en dat is de juiste", dekking.kritiekOnbewezen[0].claim, "kern zonder bewijs");
-  // ⚠️ Algemene vakkennis telt nergens in mee: daar hoeft de ondernemer niets
-  // voor aan te leveren, dus een ontbrekend citaat is daar geen probleem.
-  ok("algemene kennis telt niet mee in de dekking", dekking.bedrijfsspecifiek === 3);
-
-  // De bewijsdimensie zakt mee zodra de beweringen niet onderbouwd zijn.
-  const sectiesGoed = {
-    graad: 100,
-    gewogen: 100,
-    kritiek: 100,
-    aantallen: { kern: { totaal: 1, gedekt: 1 }, ondersteunend: { totaal: 0, gedekt: 0 }, optioneel: { totaal: 0, gedekt: 0 } },
-    ongedekteKern: [],
-    ongedekt: [],
-  };
-  ok("zonder claimdekking blijft de bewijsdimensie op honderd", bewijsDimensie(sectiesGoed) === 100);
-  ok(
-    "met een slechte claimdekking zakt hij, ook al staan alle secties",
-    (bewijsDimensie(sectiesGoed, dekking) ?? 100) < 100,
-    "een sectie kan een feit hebben terwijl de dragende bewering er niet aan hangt",
-  );
-});
-
-group("Een bevinding is een diagnose, geen zin", () => {
-  const issue = (over: Partial<QualityIssue>): QualityIssue => ({
-    dimension: "feitelijkheid",
-    severity: "midden",
-    section: null,
-    finding: "Er staat iets mis.",
-    evidence: null,
-    expected: null,
-    recommendation: "Los het op.",
-    blocking: false,
-    confidence: 0.7,
-    phase: "schrijven",
-    bron: "redactie",
-    ...over,
-  });
-
-  eq(
-    "een bevinding met sectie leest als voorheen",
-    issueTekst(issue({ section: "Prijs" })),
-    'In de sectie "Prijs": Er staat iets mis. Los het op.',
-  );
-  eq(
-    "een bevinding zonder sectie noemt geen onbekende sectie",
-    issueTekst(issue({})),
-    "Er staat iets mis. Los het op.",
-  );
-  ok("dubbele regels verdwijnen", issueTeksten([issue({}), issue({})]).length === 1);
-
-  // De reparatie krijgt de zwaarste eerst: blokkades bovenaan, en een
-  // deterministische bevinding weegt zwaarder dan hetzelfde modeloordeel.
-  const geordend = prioriteerIssues(
-    [
-      issue({ finding: "laag", severity: "laag" }),
-      issue({ finding: "model", severity: "hoog", confidence: 0.7 }),
-      issue({ finding: "blok", severity: "blokkerend", blocking: true, confidence: 1 }),
-      issue({ finding: "code", severity: "hoog", confidence: 1 }),
-    ],
-    10,
-  );
-  eq("de blokkade staat vooraan", geordend[0].finding, "blok");
-  eq("dan de zekere bevinding", geordend[1].finding, "code");
-  eq("dan het modeloordeel", geordend[2].finding, "model");
-  eq("en het detail achteraan", geordend[3].finding, "laag");
-  ok("de grens kapt af", prioriteerIssues([issue({}), issue({}), issue({})], 2).length === 2);
-  ok("de blokkades zijn apart op te vragen", blokkerendeIssues([issue({ blocking: true }), issue({})]).length === 1);
-
-  // Groeperen per sectie: dat is wat de reparatieopdracht bruikbaar maakt.
-  const perSectie = issuesPerSectie([
-    issue({ section: "Prijs" }),
-    issue({ section: "Prijs" }),
-    issue({ section: null }),
-  ]);
-  ok("twee bevindingen in één sectie komen samen", perSectie.get("Prijs")?.length === 2);
-  ok("en de paginabrede staat apart", perSectie.get("")?.length === 1);
-
-  // Een pagina van vóór dit werk levert losse zinnen; die moeten blijven werken.
-  const uitTekst = issueUitTekst("Er staat een fout in.");
-  ok("een losse zin wordt een bevinding", uitTekst.finding === "Er staat een fout in.");
-  ok("met halve zekerheid, want we weten het niet", uitTekst.confidence === 0.5);
-  ok("en die blokkeert nooit", !uitTekst.blocking);
-
-  // Opgeslagen JSON terugleze, met de rommel eruit.
-  const gelezen = issuesUitJson([
-    { finding: "goed", severity: "hoog", blocking: true, phase: "kennis" },
-    { finding: "" },
-    "onzin",
-    null,
-  ]);
-  ok("alleen bruikbare bevindingen komen terug", gelezen.length === 1);
-  ok("met hun ernst", gelezen[0].severity === "hoog" && gelezen[0].blocking);
-  ok("en hun ketenfase", gelezen[0].phase === "kennis");
-});
-
-group("De root cause wijst naar de stap waar het ontstond (punt 14)", () => {
-  const issue = (over: Partial<QualityIssue>): QualityIssue => ({
-    dimension: "specificiteit",
-    severity: "hoog",
-    section: null,
-    finding: "De pagina is generiek.",
-    evidence: null,
-    expected: null,
-    recommendation: "",
-    blocking: false,
-    confidence: 1,
-    phase: "schrijven",
-    bron: "vakmanschap",
-    ...over,
-  });
-
-  // ⚠️ Dezelfde bevinding, twee oorzaken. Lag er bewijs, dan is een lege sectie
-  // een schrijfprobleem; lag er niets, dan helpt herschrijven niet.
-  eq(
-    "een generieke pagina zonder feiten is een kennisprobleem",
-    faseVanIssue(issue({}), { bewijsAanwezig: false, contractAanwezig: true }),
-    "kennis",
-  );
-  eq(
-    "een onbewezen bewering terwijl er feiten lagen is een schrijfprobleem",
-    faseVanIssue(issue({ bron: "feitelijkheid", dimension: "feitelijkheid" }), {
-      bewijsAanwezig: true,
-      contractAanwezig: true,
-    }),
-    "schrijven",
-  );
-  eq(
-    "een onvolledige pagina zonder contract is een contractprobleem",
-    faseVanIssue(issue({ bron: "contractdekking", dimension: "volledigheid" }), {
-      bewijsAanwezig: true,
-      contractAanwezig: false,
-    }),
-    "contract",
-  );
-
-  const oorzaken = analyseerRootCause([
-    issue({ phase: "kennis", blocking: true }),
-    issue({ phase: "kennis" }),
-    issue({ phase: "schrijven" }),
-  ]);
-  eq("de zwaarste oorzaak staat vooraan", oorzaken[0].fase, "kennis");
-  ok("met het aantal erbij", oorzaken[0].aantal === 2 && oorzaken[0].blokkerend === 1);
-
-  // ⚠️ Bij een gelijk aantal blokkades wint de fase die een herschrijving NIET
-  // kan oplossen, ook als daar minder bevindingen uit komen. Gemeten in de
-  // ketentest: één kennisblokkade plus één schrijfblokkade met drie gewone
-  // schrijfbevindingen ernaast kwam anders uit op "schrijfprobleem", en dan
-  // betaalt de app drie reparatierondes voor een pagina die geblokkeerd blijft
-  // tot de ondernemer zijn vraag beantwoordt.
-  const gemengd = analyseerRootCause([
-    issue({ phase: "kennis", blocking: true }),
-    issue({ phase: "schrijven", blocking: true }),
-    issue({ phase: "schrijven" }),
-    issue({ phase: "schrijven" }),
-    issue({ phase: "schrijven" }),
-  ]);
-  eq("een kennisblokkade wint van schrijfruis", gemengd[0].fase, "kennis");
-  ok("en dan heeft herschrijven geen zin", !reparatieHeeftZin(gemengd));
-  ok("de zin noemt de handeling", beschrijfRootCause(oorzaken).includes("vraag aan de klant"));
-  ok("zonder bevindingen is er niets mis", beschrijfRootCause([]).includes("geen kwaliteitsproblemen"));
-
-  // ⚠️ De duurste regel van het hele raamwerk. Gemeten op productie kostten de
-  // rondes van 1 september 0,78 dollar van de 1,08 per pagina en ging de
-  // kwaliteit van 78 naar 52, terwijl alle drie de pagina's een
-  // bronherleidbaarheid onder de 40 procent hadden: een kennisprobleem.
-  ok("bij een kennisprobleem heeft herschrijven geen zin", !reparatieHeeftZin(oorzaken));
-  ok(
-    "bij een schrijfprobleem wel",
-    reparatieHeeftZin(analyseerRootCause([issue({ phase: "schrijven" })])),
-  );
-  ok("zonder bevindingen ook niet", !reparatieHeeftZin([]));
-});
-
-group("De reparatieopdracht zegt wat, waarom en waarmee (punt 17)", () => {
-  const sectie = {
-    id: "s1",
-    heading: "Wat kost het",
-    subQuestion: "Wat kost een hybride warmtepomp?",
-    mustCover: [],
-    factRefs: ["F1"],
-    explainerTerms: [],
-    targetWords: 120,
-    rol: "uitleg" as const,
-    needsBrandFact: true,
-    importance: "kern" as const,
-    successCriterion: "Er staat een bedrag of een bandbreedte.",
-    presentOnExisting: "niet_van_toepassing" as const,
-    whatToChange: "",
-  };
-  const contract = {
-    openingAnswer: "",
-    pageObjective: "",
-    targetAudience: "",
-    sections: [sectie],
-    faqQuestions: [],
-    avoid: [],
-    reasoning: "",
-  };
-  const facts = [
-    { ref: "F1", text: "Een hybride warmtepomp kost vanaf 4500 euro.", source: "klant", allowed: true, citable: true },
-    { ref: "", text: "Wij doen geen nachtservice.", source: "klant", allowed: false, citable: true },
-  ];
-  const issue: QualityIssue = {
-    dimension: "bewijs",
-    severity: "hoog",
-    section: "Wat kost het",
-    finding: "Deze sectie noemt geen bedrag.",
-    evidence: null,
-    expected: null,
-    recommendation: "Noem het bedrag uit F1.",
-    blocking: false,
-    confidence: 1,
-    phase: "schrijven",
-    bron: "bewijsdekking",
-  };
-
-  const opdracht = bouwReparatieOpdracht({
-    issues: [issue],
-    contract,
-    facts,
-    verboden: facts.filter((f) => !f.allowed).map((f) => f.text),
-  });
-  ok("de sectie staat erin", opdracht.includes('SECTIE "Wat kost het"'));
-  ok("het probleem staat erin", opdracht.includes("noemt geen bedrag"));
-  ok("het succescriterium staat erin", opdracht.includes("Er staat een bedrag of een bandbreedte"));
-  ok("het toegestane bewijs staat erin, met F-nummer", opdracht.includes("F1: Een hybride warmtepomp kost"));
-  ok("wat de klant verboden heeft staat erin", opdracht.includes("nachtservice"));
-  ok("en het verbod op omheen praten", opdracht.includes("vraag de lezer niet om contact op te nemen"));
-
-  // Een sectie zonder bewijs krijgt geen opdracht om iets te verzinnen.
-  const zonder = bouwReparatieOpdracht({
-    issues: [{ ...issue, section: "Onbekende sectie" }],
-    contract,
-    facts: [],
-  });
-  ok("zonder bewijs staat dat er letterlijk", zonder.includes("TOEGESTAAN BEWIJS: geen"));
-
-  ok(
-    "zonder bevindingen blijft de pagina met rust",
-    bouwReparatieOpdracht({ issues: [], contract, facts }).includes("laat de pagina dan ongewijzigd"),
-  );
-
-  // De blokkades staan bovenaan: dat is wat publicatie tegenhoudt.
-  const kop = bouwBlokkadeKop([{ ...issue, blocking: true, severity: "blokkerend" }]);
-  ok("de blokkadekop noemt de blokkade", kop.includes("HOUDT PUBLICATIE TEGEN"));
-  ok("en is leeg zonder blokkades", bouwBlokkadeKop([issue]) === "");
-
-  // Losse zinnen uit een oude taak blijven werken; getypeerde bevindingen winnen.
-  ok("getypeerde bevindingen winnen", issuesUitTekstOfType([issue], ["oude zin"])[0].section === "Wat kost het");
-  ok("en zonder die vorm vallen we terug op de zinnen", issuesUitTekstOfType([], ["oude zin"])[0].finding === "oude zin");
-});
-
-group("Het contract begrenst zijn eigen kernsecties (conventie 1)", () => {
-  const s = (id: string, importance: "kern" | "ondersteunend" | "optioneel") => ({ id, importance });
-  // Een model dat alles 'kern' noemt zet elke pagina dicht waarvan één sectie
-  // een feit mist. Vandaar een derde als bovengrens.
-  const zes = [s("1", "kern"), s("2", "kern"), s("3", "kern"), s("4", "kern"), s("5", "kern"), s("6", "kern")];
-  const begrensd = begrensKernsecties(zes);
-  ok("hoogstens een derde blijft kern", begrensd.filter((x) => x.importance === "kern").length === 2);
-  ok("en dat zijn de eerste", begrensd[0].importance === "kern" && begrensd[2].importance === "ondersteunend");
-  ok(
-    "er blijft altijd minstens één kern over",
-    begrensKernsecties([s("1", "kern"), s("2", "kern")]).filter((x) => x.importance === "kern").length === 1,
-  );
-  ok(
-    "een contract dat de grens al haalt blijft ongemoeid",
-    begrensKernsecties([s("1", "kern"), s("2", "ondersteunend"), s("3", "optioneel")]).filter(
-      (x) => x.importance === "kern",
-    ).length === 1,
-  );
-});
-
-group("De inputpoort weegt de kern zwaarder dan het percentage", () => {
-  // Boven de 70 en tóch een waarschuwing, want de kern staat niet.
-  const kern = inputpoort({
-    graad: 85,
-    ongedekteSecties: 1,
-    ongedekteKoppen: ["Wat kost het"],
-    kritiekeSectiesZonderBewijs: 1,
-  });
-  eq("een ongedekte kernsectie waarschuwt", kern.stand, "waarschuwing");
-  ok("de pagina mag wel geschreven worden", kern.mag);
-  ok("de melding noemt de sectie", kern.melding.includes("Wat kost het"));
-  ok("en zegt wat het kost", kern.melding.includes("klaar voor publicatie"));
-
-  // Zonder kernprobleem verandert er niets aan het bestaande gedrag.
-  const normaal = inputpoort({ graad: 85, ongedekteSecties: 1, ongedekteKoppen: ["Iets"] });
-  eq("zonder kernprobleem blijft het gedrag zoals het was", normaal.stand, "schrijven");
-});
-
-group("Wat de klant leest en wat de adviseur leest, zijn twee dingen (punt 24)", () => {
-  const profiel = QUALITY_PROFILES.landing;
-  const alles = { geslaagd: 4, gevraagd: 4 };
-  const goed = beoordeelKwaliteit({
-    profiel,
-    dimensies: { feitelijkheid: 90, bewijs: 88, relevantie: 90, specificiteit: 85, volledigheid: 88, structuur: 90, leesbaarheid: 88, toon: 85, overtuiging: 85, originaliteit: 80, expertise: 80 },
-    issues: [],
-    beoordelaars: alles,
-  });
-  const klant = klantOordeel(goed, 96);
-  ok("de klant leest of hij kan publiceren", klant.includes("klaar voor publicatie"));
-  ok("met de dekking erbij", klant.includes("96%"));
-  ok("en zonder één dimensiescore", !klant.includes("specificiteit"));
-
-  const adviseur = adviseurOordeel(goed, {
-    bewijsdekking: 88,
-    kritiekeDekking: 100,
-    ronde: 2,
-    besteRonde: 1,
-  });
-  ok("de adviseur ziet de zekerheid", adviseur.some((r) => r.startsWith("Zekerheid")));
-  ok("en welke versie behouden is", adviseur.some((r) => r.includes("ronde 1 was beter")));
-  ok("en het aantal blokkades", adviseur.some((r) => r.startsWith("Blokkerend")));
-
-  const geblokkeerd = beoordeelKwaliteit({
-    profiel,
-    dimensies: { feitelijkheid: 90 },
-    issues: [
-      {
-        dimension: "feitelijkheid",
-        severity: "blokkerend",
-        section: null,
-        finding: "Er staat een ander bedrijf bij naam in de tekst.",
-        evidence: null,
-        expected: null,
-        recommendation: "Haal de naam weg.",
-        blocking: true,
-        confidence: 1,
-        phase: "schrijven",
-        bron: "feitelijkheid",
-      },
-    ],
-    beoordelaars: alles,
-  });
-  const melding = klantOordeel(geblokkeerd, null);
-  ok("een geblokkeerde pagina zegt wat er mis is", melding.includes("ander bedrijf"));
-  // ⚠️ Geen muur: de melding noemt de uitweg in dezelfde zin als de blokkade.
-  ok("en noemt de uitweg", melding.includes("Pas de tekst zelf aan"));
 });
 
 // ── De vloeiende lijn in de grafieken ───────────────────────────────────────
@@ -23034,91 +19154,6 @@ group("de vloeiende lijn in de grafieken", () => {
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nExpertronde 4 september 2026: blok A, de tegenstrijdigheden");
-// (docs/tasks/optimalisaties-expertronde-4-september-2026.md, optimalisatie
-// 1 tot en met 4 en 18). Broncodecontroles, want deze prompts staan in modules
-// met `server-only` en zijn niet uit een test te importeren.
-// ════════════════════════════════════════════════════════════════════════════
-
-group("optimalisatie 1 en 2: de beoordelaar werkt de schrijfopdracht niet meer tegen", () => {
-  const kaal = (bron: string) =>
-    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  const panel = kaal(leesBestand("lib/pipeline/content-panel.ts"));
-
-  ok(
-    "de wij-vorm mag niet meer als tekortkoming gelden",
-    panel.includes("DE WIJ-VORM IS GOED"),
-  );
-  ok(
-    "en het oude criterium 'de bedrijfsnaam in plaats van wij' is weg",
-    !panel.includes("in plaats van 'wij'"),
-  );
-  ok(
-    "het antwoord wordt in de eerste ALINEA gezocht, niet in de eerste twee zinnen",
-    panel.includes("EERSTE ALINEA") && !panel.includes("eerste twee zinnen"),
-  );
-  ok(
-    "de bedrijfsnaam gaat mee als gegeven, niet als eis aan de tekst",
-    panel.includes("`Bedrijfsnaam: ${input.brandName}`") &&
-      !panel.includes("die expliciet genoemd moet worden"),
-  );
-});
-
-group("optimalisatie 3: de ijkpunten zijn regels en geen cijfers van één mens", () => {
-  const kaal = (bron: string) =>
-    bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  const panel = kaal(leesBestand("lib/pipeline/content-panel.ts"));
-
-  ok("er staat geen menselijk eindcijfer meer in de prompt", !panel.includes("2,6 van 5"));
-  ok(
-    "en geen verwijzing naar de ronde waaruit die cijfers kwamen",
-    !panel.includes("twaalf pagina's van 3 september"),
-  );
-  ok("de ijkpunten staan er nog wel", panel.includes("IJKPUNTEN"));
-  ok(
-    "en de kernvraag van de copywriter staat er als regel",
-    panel.includes("waarom hij juist DIT bedrijf zou kiezen"),
-  );
-});
-
-group("optimalisatie 4: de reparatieronde kent de grenzen die blokkeren", () => {
-  const bron = leesBestand("lib/pipeline/content.ts");
-  const begin = bron.indexOf("function buildRepairInput");
-  const eind = bron.indexOf("DE HUIDIGE PAGINA, PER SECTIE", begin);
-  const opdracht = bron.slice(begin, eind > begin ? eind : undefined);
-
-  ok("de reparatie kent de gekozen aanspreekvorm", opdracht.includes("kiesAanspreekvorm("));
-  ok("en de verboden woorden", opdracht.includes("taboo_phrases"));
-  ok("en wat de ondernemer zelf gevraagd heeft", opdracht.includes("instructieblok("));
-  ok("en de regel dat dit geen consumentengids is", opdracht.includes("adviestoonblok("));
-  ok("en voor wie de pagina geschreven is", opdracht.includes("lezersblok("));
-  ok("en welke zinnen moeten blijven staan", opdracht.includes("bewijspuntenBehoudblok("));
-  ok("en de eigen woorden van de ondernemer", opdracht.includes("citatenblok("));
-
-  // Wat er bewust NIET bij komt: dit blijft een reparatie en geen tweede
-  // schrijfronde.
-  ok("maar niet de doellengte", !opdracht.includes("Doellengte"));
-  ok("en niet de stijlvoorbeelden", !opdracht.includes("styleSamples"));
-
-  // Het blok zelf, puur getest.
-  ok("zonder bewijspunten valt het blok weg", bewijspuntenBehoudblok(undefined) === "");
-  ok("een lege lijst levert ook niets op", bewijspuntenBehoudblok([]) === "");
-  const behoud = bewijspuntenBehoudblok([
-    { factRef: "F3", betekenis: "u weet wie er op uw dak komt" },
-    { factRef: "F7", betekenis: " " },
-  ]);
-  ok("de betekeniszin staat erin", behoud.includes("u weet wie er op uw dak komt"));
-  ok("met het F-nummer erbij", behoud.includes("(F3)"));
-  ok("en een leeg punt telt niet mee", !behoud.includes("F7"));
-});
-
-group("optimalisatie 18: er is nog maar één redactieprompt", () => {
-  const bron = leesBestand("lib/pipeline/content.ts");
-  ok("de ongebruikte kopie in content.ts is weg", !bron.includes("const CRITIQUE_SYSTEM"));
-  ok(
-    "en de beoordelaar die wel draait staat in content-panel.ts",
-    leesBestand("lib/pipeline/content-panel.ts").includes("const REDACTIE_SYSTEM"),
-  );
-});
 
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nExpertronde 4 september 2026: blok B, de schrijfopdracht");
@@ -23138,399 +19173,8 @@ const heleOpdracht = {
   blijftHangen: "dit bedrijf begrijpt mijn situatie en komt vandaag",
 };
 
-group("optimalisatie 5: een halve schrijfopdracht telt niet", () => {
-  ok("een complete opdracht komt erdoor", bruikbareOpdracht(heleOpdracht) !== null);
-  ok("niets is geen opdracht", bruikbareOpdracht(null) === null);
-
-  // Conventie 3: liever geen opdracht dan een halve.
-  ok(
-    "zonder kernantwoord vervalt de hele opdracht",
-    bruikbareOpdracht({ ...heleOpdracht, kernantwoord: "  " }) === null,
-  );
-  ok(
-    "zonder reden om dit bedrijf te kiezen ook",
-    bruikbareOpdracht({ ...heleOpdracht, keuzeredenen: [] }) === null,
-  );
-  ok(
-    `onder ${MIN_KERNFEITEN} kernfeiten is er geen keuze gemaakt`,
-    bruikbareOpdracht({ ...heleOpdracht, kernfeiten: ["F2", "F3"] }) === null,
-  );
-
-  // Dezelfde meetlat als V7: een onderwerp is geen lezer.
-  ok(
-    "een onderwerp in plaats van een lezer vervalt",
-    bruikbareOpdracht({ ...heleOpdracht, lezer: "Daklekkage Apeldoorn" }) === null,
-  );
-  ok(
-    "en 'onbekend' ook",
-    bruikbareOpdracht({ ...heleOpdracht, lezer: "onbekend" }) === null,
-  );
-
-  // Lijsten die leeg mogen zijn, want een lege lijst is een geldig antwoord.
-  ok(
-    "zonder eigen woorden van de ondernemer blijft de opdracht geldig",
-    bruikbareOpdracht({ ...heleOpdracht, eigenWoorden: "", moetErIn: [], nietDoen: [] }) !== null,
-  );
-
-  const blok = opdrachtblok(bruikbareOpdracht(heleOpdracht));
-  ok("het promptblok noemt de lezer", blok.includes("Iemand met water door zijn plafond"));
-  ok("de kernfeiten", blok.includes("F2, F3, F7"));
-  ok("en de vraag waar dit hele blok voor gebouwd is", blok.includes("WAAROM DEZE LEZER JUIST DIT BEDRIJF"));
-  ok("zonder opdracht is het blok leeg", opdrachtblok(null) === "");
-});
-
-group("de schrijfopdracht overleeft het formaat dat het model echt teruggeeft", () => {
-  // ⚠️ Dit is de uitvoer van productie, 4 september 2026, letterlijk overgenomen
-  // uit `ai_calls`. De prompt vraagt om F-nummers en het model geeft het hele
-  // feit terug. De code vergeleek die string letterlijk met de nummers van de
-  // kaart, dus viel alles af en verviel de hele opdracht: zes van de zes
-  // pagina's van de eerste echte ronde schreven zonder opdracht.
-  const echteUitvoer = {
-    ...heleOpdracht,
-    kernfeiten: [
-      "F7: Bij zelf betalen kost de intake ongeveer 70 euro en een vervolgbehandeling ongeveer 60 euro.",
-      "F3: De praktijk heeft contracten met alle zorgverzekeraars.",
-      "F10: Of een behandeling wordt vergoed, hangt af van de polis.",
-    ],
-    keuzeredenen: [
-      { factRef: "F9 en F5", reden: "deze lezer wil vooraf weten waar hij aan toe is" },
-    ],
-  };
-
-  const kaart = ["F3", "F5", "F7", "F9", "F10"];
-  const hersteld = bruikbareOpdracht(echteUitvoer, kaart);
-  ok("de opdracht overleeft het nu", hersteld !== null);
-  ok(
-    "en de kernfeiten zijn teruggebracht tot hun nummer",
-    hersteld?.kernfeiten.join(",") === "F7,F3,F10",
-    JSON.stringify(hersteld?.kernfeiten),
-  );
-  ok(
-    "een samengestelde verwijzing valt terug op het eerste feit dat bestaat",
-    hersteld?.keuzeredenen[0]?.factRef === "F9",
-  );
-
-  // Het vangnet zelf blijft staan: een nummer dat niet op de kaart staat, telt
-  // niet mee, en onder de drie kernfeiten vervalt de opdracht alsnog.
-  ok(
-    "een verzonnen nummer telt niet mee",
-    bruikbareOpdracht({ ...echteUitvoer, kernfeiten: ["F7", "F800", "F900"] }, kaart) === null,
-  );
-  ok(
-    "en een reden op een verzonnen nummer vervalt",
-    bruikbareOpdracht(
-      { ...echteUitvoer, keuzeredenen: [{ factRef: "F900", reden: "iets" }] },
-      kaart,
-    ) === null,
-  );
-
-  // Zonder kaart wordt alleen het formaat opgeschoond. Dat is het pad waarlangs
-  // een opgeslagen opdracht wordt teruggelezen: de kaart van toen is er niet
-  // meer, en dan is filteren op geldigheid niet mogelijk en ook niet nodig.
-  const teruggelezen = bruikbareOpdracht(echteUitvoer);
-  ok("zonder kaart blijft de opdracht bruikbaar", teruggelezen !== null);
-  ok("en is het formaat nog steeds opgeschoond", teruggelezen?.kernfeiten[0] === "F7");
-
-  // Dubbele nummers over twee regels leveren geen dubbel kernfeit op.
-  const dubbel = bruikbareOpdracht(
-    { ...echteUitvoer, kernfeiten: ["F7: iets", "F7 nogmaals", "F3", "F10"] },
-    kaart,
-  );
-  ok("hetzelfde feit twee keer telt één keer", dubbel?.kernfeiten.join(",") === "F7,F3,F10");
-});
-
-group("optimalisatie 5 en 6: het vangnet rekent na of de opdracht is uitgevoerd", () => {
-  const opdracht = bruikbareOpdracht(heleOpdracht)!;
-  const goedeTekst =
-    "Staat er water door uw plafond, dan zijn wij er binnen 24 uur en hoort u het bedrag " +
-    "voordat wij beginnen. Deze lezer heeft haast en wij komen binnen 24 uur ter plaatse.\n\n" +
-    "## Wat het kost\nWij rekenen vooraf voor.";
-
-  const goed = checkSchrijfopdracht({
-    opdracht,
-    bodyMarkdown: goedeTekst,
-    eersteAlinea: goedeTekst.split("\n\n")[0],
-    claims: [{ factRef: "F2" }, { factRef: "F3" }],
-    proofPoints: [{ factRef: "F7" }],
-  });
-  ok("een uitgevoerde opdracht levert geen bevinding op", goed.issues.length === 0, JSON.stringify(goed.issues));
-  ok("het kernantwoord staat in de opening", goed.kernantwoordInOpening === true);
-  ok("en de keuzereden staat vroeg", goed.keuzeredenVroeg === true);
-
-  // Het kernantwoord ontbreekt in de opening.
-  const zonderAntwoord = checkSchrijfopdracht({
-    opdracht,
-    bodyMarkdown: "Een daklekkage kan erg vervelend zijn. Deze lezer heeft haast en wij komen binnen 24 uur.",
-    eersteAlinea: "Een daklekkage kan erg vervelend zijn.",
-    claims: [{ factRef: "F2" }, { factRef: "F3" }, { factRef: "F7" }],
-    proofPoints: [],
-  });
-  ok("een opening zonder het kernantwoord wordt gevonden", zonderAntwoord.kernantwoordInOpening === false);
-  ok("en genoemd in de bevinding", zonderAntwoord.issues.some((i) => i.includes("eerste alinea")));
-
-  // De reden om dit bedrijf te kiezen staat er niet, of pas onderaan.
-  const laat = checkSchrijfopdracht({
-    opdracht,
-    bodyMarkdown:
-      "Wij zijn er binnen 24 uur en u hoort het bedrag voordat wij beginnen. " +
-      "x".repeat(4000) +
-      " Deze lezer heeft haast en wij komen binnen 24 uur ter plaatse.",
-    eersteAlinea: "Wij zijn er binnen 24 uur en u hoort het bedrag voordat wij beginnen.",
-    claims: [{ factRef: "F2" }, { factRef: "F3" }, { factRef: "F7" }],
-    proofPoints: [],
-  });
-  ok("een reden die pas onderaan staat telt niet", laat.keuzeredenVroeg === false);
-  ok(
-    "en de bevinding zegt waar hij hoort",
-    laat.issues.some((i) => i.includes("eerste twintig procent")),
-  );
-
-  // De gekozen feiten worden genegeerd.
-  const genegeerd = checkSchrijfopdracht({
-    opdracht,
-    bodyMarkdown: goedeTekst,
-    eersteAlinea: goedeTekst.split("\n\n")[0],
-    claims: [{ factRef: "F1" }],
-    proofPoints: [],
-  });
-  ok("drie genegeerde kernfeiten is een bevinding", genegeerd.ongebruikteFeiten.length === 3);
-  ok("en de bevinding noemt ze", genegeerd.issues.some((i) => i.includes("F2, F3, F7")));
-
-  // Eén van de drie missen mag: dat is een keuze van de schrijver.
-  const bijna = checkSchrijfopdracht({
-    opdracht,
-    bodyMarkdown: goedeTekst,
-    eersteAlinea: goedeTekst.split("\n\n")[0],
-    claims: [{ factRef: "F2" }, { factRef: "F3" }],
-    proofPoints: [],
-  });
-  ok("één ongebruikt feit levert geen bevinding op", bijna.issues.length === 0, JSON.stringify(bijna.issues));
-
-  // Conventie 3: een pagina van vóór migratie 0094 verandert niet van oordeel.
-  const oud = checkSchrijfopdracht({
-    opdracht: null,
-    bodyMarkdown: goedeTekst,
-    eersteAlinea: goedeTekst,
-    claims: [],
-    proofPoints: undefined,
-  });
-  ok("zonder opdracht geen bevindingen", oud.issues.length === 0);
-  ok("en geen oordeel", oud.kernantwoordInOpening === null && oud.keuzeredenVroeg === null);
-
-  // Het vroege deel is een aandeel met een bodem, zodat een korte pagina niet
-  // op twee zinnen wordt afgerekend.
-  ok("op een korte pagina telt minstens 400 tekens als vroeg", vroegeDeel("a".repeat(300)).length === 300);
-  ok("op een lange pagina is het een vijfde", vroegeDeel("a".repeat(5000)).length === 1000);
-});
-
-group("optimalisatie 11: bij een gelijkspel beslist het vergelijkende oordeel", () => {
-  const basis = {
-    vorigeKwaliteit: 74,
-    ronde: 1,
-    repairMax: 3,
-    scoresTeLaag: true,
-    openstaandeBevindingen: 2,
-  };
-
-  // Zonder oordeel blijft alles precies zoals het was.
-  ok(
-    "twee punten hoger zonder oordeel: bewaren en doorgaan, net als voorheen",
-    beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76 }).bewaarNieuweVersie &&
-      beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76 }).nogEenRonde,
-  );
-
-  // Binnen de ruis wint het oordeel, in allebei de richtingen.
-  const ruisNieuw = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76, vergelijking: "nieuw" });
-  ok("het oordeel kiest de nieuwe versie", ruisNieuw.bewaarNieuweVersie && ruisNieuw.nogEenRonde);
-
-  const ruisHuidig = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 76, vergelijking: "huidig" });
-  ok(
-    "twee punten hoger telt niet als het oordeel de oude tekst beter vindt",
-    !ruisHuidig.bewaarNieuweVersie,
-  );
-  ok("en dan volgt er geen ronde meer op dezelfde bevindingen", !ruisHuidig.nogEenRonde);
-
-  // ⚠️ De omgekeerde kant, en die is het punt van deze optimalisatie: een
-  // reparatie die twee punten LAGER scoort werd altijd weggegooid.
-  const lagerMaarBeter = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 72, vergelijking: "nieuw" });
-  ok("twee punten lager mag blijven als het oordeel hem beter vindt", lagerMaarBeter.bewaarNieuweVersie);
-
-  // Buiten de marge beslist de score, wat het oordeel ook zegt.
-  const ruimHoger = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 84, vergelijking: "huidig" });
-  ok("tien punten hoger is geen ruis meer, dus de score wint", ruimHoger.bewaarNieuweVersie);
-  const ruimLager = beslisReparatieRonde({ ...basis, nieuweKwaliteit: 60, vergelijking: "nieuw" });
-  ok("en veertien punten lager blijft een verslechtering", !ruimLager.bewaarNieuweVersie);
-
-  ok("drie punten is nog ruis", binnenRuis(74, 77) && binnenRuis(77, 74));
-  ok("vier punten niet meer", !binnenRuis(74, 78));
-  ok("en zonder meetpunt is er geen gelijkspel", !binnenRuis(null, 74) && !binnenRuis(74, null));
-
-  // Blokkades gaan altijd vóór het oordeel: die zijn geteld, niet beoordeeld.
-  const versie = (score: number, blokkades: number) => ({
-    ronde: 2,
-    score,
-    verdict: "repair" as const,
-    blokkades,
-    confidence: 90,
-  });
-  ok(
-    "een versie met een blokkade erbij verliest, ook als het oordeel hem beter vindt",
-    !nietSlechterDan(versie(76, 1), versie(74, 0), "nieuw"),
-  );
-  ok(
-    "en een blokkade minder wint, ook als het oordeel de oude tekst kiest",
-    nietSlechterDan(versie(70, 0), versie(80, 1), "huidig"),
-  );
-  ok(
-    "binnen de ruis en met gelijke blokkades beslist het oordeel",
-    !nietSlechterDan(versie(76, 0), versie(74, 0), "huidig"),
-  );
-});
-
-group("optimalisatie 7: een bewijspunt zegt ook waarom het voor deze lezer telt", () => {
-  const bron = leesBestand("lib/pipeline/bewijspunten.ts");
-  ok("de prompt vraagt om de derde stap", bron.includes("waarom telt dit voor JUIST DEZE lezer"));
-  ok(
-    "en het veld staat in het schema van de pagina",
-    leesBestand("lib/schemas/content-piece.ts").includes("relevantie: z.string()"),
-  );
-});
-
-group("optimalisatie 12: de vakmanschapsbeoordelaar meet aan de opdracht", () => {
-  const panel = leesBestand("lib/pipeline/content-panel.ts");
-  ok("de opdracht gaat mee naar de beoordelaar", panel.includes("DE OPDRACHT DIE DEZE PAGINA MEEKREEG"));
-  ok(
-    "en hij weet dat hij daaraan moet meten",
-    panel.includes("Beoordeel de tekst hieraan"),
-  );
-});
-
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nExpertronde 4 september 2026: blok C, verhaal, FAQ en lezer");
-// (optimalisatie 8, 9, 10, 13 en 16)
-// ════════════════════════════════════════════════════════════════════════════
-
-group("optimalisatie 8: hoogstens één oproep tot actie, en die staat achteraan", () => {
-  const s = (id: string, rol: string) => ({ id, rol });
-
-  const verplaatst = zetActieAchteraan([
-    s("s1", "probleem"),
-    s("s2", "actie"),
-    s("s3", "bewijs"),
-  ]);
-  ok("de actiesectie schuift naar achteren", verplaatst.at(-1)?.id === "s2");
-  ok("en de rest houdt zijn volgorde", verplaatst[0].id === "s1" && verplaatst[1].id === "s3");
-
-  const twee = zetActieAchteraan([s("s1", "actie"), s("s2", "uitleg"), s("s3", "actie")]);
-  ok("van twee oproepen blijft er één over", twee.filter((x) => x.rol === "actie").length === 1);
-  ok("en dat is de eerste, achteraan gezet", twee.at(-1)?.id === "s1");
-  ok("de tweede wordt gewone uitleg", twee.find((x) => x.id === "s3")?.rol === "uitleg");
-
-  const zonder = zetActieAchteraan([s("s1", "probleem"), s("s2", "bewijs")]);
-  ok("zonder actiesectie verandert er niets", zonder.map((x) => x.id).join() === "s1,s2");
-
-  ok("een sectie is minstens tachtig woorden waard", MIN_WOORDEN_PER_SECTIE === 80);
-});
-
-group("optimalisatie 9: de FAQ mag de tekst erboven niet herhalen", () => {
-  const body =
-    "## Wat kost een spoedreparatie\n" +
-    "Een eenvoudige spoedreparatie begint bij 250 euro, inclusief voorrijkosten, arbeid en " +
-    "materiaal. Extra werk voeren wij alleen uit nadat u akkoord heeft gegeven.\n";
-
-  const herhaalt = checkFaqBlokken({
-    faq: [
-      {
-        q: "Wat kost een spoedreparatie?",
-        a: "Een eenvoudige spoedreparatie begint bij 250 euro, inclusief voorrijkosten, arbeid en materiaal.",
-      },
-      {
-        q: "Voert u extra werk zomaar uit?",
-        a: "Extra werk voeren wij alleen uit nadat u akkoord heeft gegeven.",
-      },
-    ],
-    bodyMarkdown: body,
-    isFaqPagina: false,
-  });
-  ok("twee herhalende blokken worden gevonden", herhaalt.herhalingen.length === 2);
-  ok("en dat levert een bevinding op", herhaalt.issues.length === 1);
-  ok("met de eerste vraag erin", herhaalt.issues[0].includes("Wat kost een spoedreparatie?"));
-
-  const aanvullend = checkFaqBlokken({
-    faq: [
-      {
-        q: "Werken jullie ook in het weekend?",
-        a: "Ook op zaterdag en zondag staat er een ploeg klaar voor noodgevallen op het dak.",
-      },
-      {
-        q: "Wat kost een spoedreparatie?",
-        a: "Een eenvoudige spoedreparatie begint bij 250 euro, inclusief voorrijkosten, arbeid en materiaal.",
-      },
-    ],
-    bodyMarkdown: body,
-    isFaqPagina: false,
-  });
-  ok("één herhaling van twee is geen bevinding", aanvullend.issues.length === 0);
-  ok("maar hij wordt wel geteld", aanvullend.herhalingen.length === 1);
-
-  // Bij een FAQ-pagina zijn de vragen juist het product.
-  const faqPagina = checkFaqBlokken({
-    faq: [{ q: "Wat kost het?", a: "Een eenvoudige spoedreparatie begint bij 250 euro." }],
-    bodyMarkdown: body,
-    isFaqPagina: true,
-  });
-  ok("op een FAQ-pagina geldt deze regel niet", faqPagina.issues.length === 0);
-
-  ok("een letterlijke kopie overlapt volledig", overlapMetBody("de spoedreparatie kost 250 euro", body) >= FAQ_OVERLAP_MAX);
-  ok(
-    "en een echt nieuw antwoord niet",
-    overlapMetBody("Wij plaatsen zonnepanelen op elk type dakbedekking", body) < FAQ_OVERLAP_MAX,
-  );
-});
-
-group("optimalisatie 10: een doelgroep is nog geen lezer", () => {
-  const opdracht = (zin: string) => bepaalLezersopdracht({ targetIntent: zin });
-
-  const heel = opdracht(
-    "Een huiseigenaar die merkt dat zijn huis moeilijk warm blijft en wil weten of isoleren kan",
-  );
-  ok("persoon en situatie: compleet", heel.noemtPersoon && heel.noemtSituatie);
-
-  const doelgroep = opdracht("Mensen die dakisolatie zoeken in Apeldoorn");
-  ok("een doelgroep noemt wel een persoon", doelgroep.noemtPersoon);
-  ok("maar geen situatie", !doelgroep.noemtSituatie);
-  ok(
-    "en de prompt vraagt om die situatie erbij",
-    lezersblok(doelgroep).includes("nog geen situatie"),
-  );
-
-  ok("de vraag uit de meting telt als situatie", opdracht("").bron === "geen");
-  const uitMeting = bepaalLezersopdracht({ doelvragen: ["wie repareert mijn dak vandaag"] });
-  ok("een gemeten vraag levert persoon en situatie", uitMeting.noemtPersoon && uitMeting.noemtSituatie);
-
-  ok("losse woorden zijn geen situatie", !noemtSituatie("dakisolatie Apeldoorn"));
-  ok("en 'twijfelt over' wel", noemtSituatie("iemand die twijfelt over de kosten"));
-});
-
-group("optimalisatie 16: de bevinding wijst de sectie aan waar het huiswerk zit", () => {
-  const secties = [
-    { heading: "Wat wij doen", body: "Wij komen binnen 24 uur langs en melden wat wij aantreffen." },
-    {
-      heading: "Waar u op moet letten",
-      body:
-        "Vraag altijd om een schriftelijke offerte. Controleer of het bedrijf verzekerd is. " +
-        "Laat de afspraken vastleggen. Bespreek de planning vooraf.",
-    },
-  ];
-  const tekst = secties.map((s) => `## ${s.heading}\n${s.body}`).join("\n\n");
-  const uitkomst = checkAdviestoon({ tekst, secties });
-  ok("de zwaarste sectie wordt aangewezen", uitkomst.zwaarsteSectie === "Waar u op moet letten");
-
-  // Zonder secties blijft alles werken zoals voorheen (conventie 3).
-  const zonder = checkAdviestoon(tekst);
-  ok("zonder secties geen aanwijzing", zonder.zwaarsteSectie === null);
-  ok("en dezelfde telling", zonder.gebiedend === uitkomst.gebiedend);
-});
 
 // ── Eén feitenvraag, één model (16 september 2026) ──────────────────────────
 console.log("\nDe feitenvraag, op elk scherm hetzelfde");
@@ -23600,21 +19244,6 @@ group("de kopjes en de volgorde staan op één plek", () => {
   ok("een lege lijst geeft geen groepen", groepeerOpSoort([]).length === 0);
 });
 
-group("beide schermen tekenen hetzelfde veld", () => {
-  const briefing = leesBestand("app/(app)/analyses/[id]/briefing/briefing-form.tsx");
-  const vragenlijst = leesBestand("app/(app)/merk/[id]/_components/fact-requests.tsx");
-  ok("de briefing gebruikt het gedeelde veld", briefing.includes("Antwoordveld"));
-  ok("de vragenlijst ook", vragenlijst.includes("Antwoordveld"));
-  // Op de declaratie en niet op het woord: de toelichting in dat bestand noemt
-  // de oude naam met opzet, zodat terug te vinden is waar hij heen ging.
-  ok("de briefing heeft geen eigen kopjestabel meer", !briefing.includes("const KIND_HEADING"));
-  ok("en geen eigen volgorde", !briefing.includes("const KIND_ORDER"));
-  // De gok van ORBIT ENGINE stond alleen op de briefing, terwijl bevestigen
-  // goedkoper is dan formuleren.
-  ok("de vragenlijst toont nu ook de gok", vragenlijst.includes("suggested_answer"));
-  ok("en markeert wat een kernstuk draagt", vragenlijst.includes("VERPLICHT_UITLEG"));
-});
-
 group("het ruwe AI-antwoord bereikt de browser niet", () => {
   // Herstelplan na audit T8.9. Twee paden waren gerepareerd, dit derde niet:
   // `loadOpenQuestions` deed `select("*")` en die rij ging als prop naar een
@@ -23633,7 +19262,6 @@ group("het ruwe AI-antwoord bereikt de browser niet", () => {
     answer_type: "getal",
   }) as unknown as Record<string, unknown>;
   ok("raw_json gaat eruit", !("raw_json" in schoon));
-  ok("section_id ook", !("section_id" in schoon));
   // En wat het scherm nodig heeft, blijft staan: anders zou de schoonmaak de
   // vraagvorm slopen die hierboven net getest is.
   ok("de vraagsoort blijft", schoon.kind === "bewijs");
@@ -23656,11 +19284,11 @@ group("de bibliotheek per cluster is een doorverwijzing geworden", () => {
   ok("naar de merkbrede, met dit cluster als filter", cluster.includes("strategie/bibliotheek?cluster="));
   ok("en toont zelf geen lijst meer", !cluster.includes("LibraryList"));
 
-  // De detailpagina eronder is een ander scherm en moet blijven: daar staat de
-  // tekst zelf, en elke rij in de merkbrede bibliotheek linkt ernaartoe.
+  // Het oude detailscherm onder het cluster is weg (contentketen-opnieuw.md WP1):
+  // een pagina heeft één scherm, onder de merkbrede bibliotheek.
   ok(
-    "de detailpagina bestaat nog",
-    bestaatBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx"),
+    "de oude detailpagina onder het cluster is weg",
+    !bestaatBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/page.tsx"),
   );
   // De oude lijstweergave hoort weg te zijn: code die nergens meer vandaan
   // wordt aangeroepen, gaat stil uit de pas lopen met de weergave die wél
@@ -23704,7 +19332,6 @@ group("elke dure route heeft dezelfde rem", () => {
     "app/api/analyses/route.ts",
     "app/api/profiles/route.ts",
     "app/api/analyses/[id]/measure/route.ts",
-    "app/api/analyses/[id]/generate/route.ts",
     "app/api/profiles/[id]/topics/route.ts",
     "app/api/profiles/[id]/reputation/route.ts",
   ];
@@ -23744,11 +19371,15 @@ group("een klant loopt niet tegen een knop die hem afwijst", () => {
 
   const knop = leesBestand("app/(app)/merk/[id]/strategie/clusters/nieuwe-cluster-knop.tsx");
   ok("de knop zelf linkt alleen voor staff naar /analyses/new", knop.includes('if (staff) {'));
+  // Sinds de UX-audit van 23 september 2026 (P1.3) de melding van de
+  // kostenpoort zelf, en niet meer de tekst van het lege scherm ("je eerste
+  // onderwerpen"), die niet klopt voor een klant die al clusters heeft.
   ok(
     "en toont een klant de uitleg in plaats van te navigeren",
-    knop.includes("KLANT_ZONDER_CLUSTERS"),
+    knop.includes("COST_DENIED.analyse_starten"),
   );
-  ok("die uitleg staat op één plek en wordt hier hergebruikt", knop.includes("cluster-start"));
+  ok("die uitleg staat op één plek en wordt hier hergebruikt", knop.includes("lib/cost-rules"));
+  ok("en de klantknop zegt dat het een aanvraag is", knop.includes("Nieuw cluster aanvragen"));
 });
 
 group("een merk zonder cluster overdragen wordt gemeld", () => {
@@ -23941,6 +19572,42 @@ group("elke staat zegt wie er aan zet is", () => {
   );
 });
 
+// ── Groen of rood op het koppelscherm (28 september 2026) ─────────────────
+console.log("\nSearch Console: werkt de koppeling?");
+
+const kst = (over: Partial<Parameters<typeof koppelStatus>[0]> = {}) =>
+  koppelStatus({
+    property: "https://www.voorbeeld.nl/",
+    verifiedAt: "2026-09-27T02:00:00Z",
+    lastError: null,
+    sleutelIngesteld: true,
+    ...over,
+  });
+
+group("alleen een koppeling die leest is groen", () => {
+  ok("alles in orde is groen", kst().goed && kst().staat === "werkt");
+  ok("geen property is rood", !kst({ property: null }).goed);
+  ok("een lege property is rood", kst({ property: "   " }).staat === "niet_gekoppeld");
+  ok("zonder sleutel is rood", kst({ sleutelIngesteld: false }).staat === "geen_sleutel");
+  ok("nooit gelukt is rood", kst({ verifiedAt: null }).staat === "niet_gelukt");
+  // De nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout:
+  // een koppeling die gisteren brak mag dus niet groen blijven.
+  ok("een fout na een eerdere verificatie is rood", kst({ lastError: "403 van Google" }).staat === "fout");
+  ok("geen property weegt het zwaarst", kst({ property: null, lastError: "x", sleutelIngesteld: false }).staat === "niet_gekoppeld");
+});
+
+group("elke kleur heeft een tekst erbij", () => {
+  const alle = [
+    kst(),
+    kst({ property: null }),
+    kst({ sleutelIngesteld: false }),
+    kst({ lastError: "x" }),
+    kst({ verifiedAt: null }),
+  ];
+  ok("vijf verschillende labels", new Set(alle.map((a) => a.label)).size === 5);
+  ok("precies één is groen", alle.filter((a) => a.goed).length === 1);
+});
+
 // ── De drie kopieervormen (16 september 2026) ───────────────────────────────
 console.log("\nKopiëren naar het CMS van de klant");
 
@@ -24012,6 +19679,41 @@ group("punt 25: nieuwe versie beschikbaar", () => {
   ok("eigen versie nog onbekend: geen melding", !isNewerVersionAvailable("", "def456"));
   ok("serverversie nog onbekend: geen melding", !isNewerVersionAvailable("abc123", ""));
   ok("allebei onbekend: geen melding", !isNewerVersionAvailable("", ""));});
+
+group("G1: de gebeurtenissenlaag, het register van abonnees", () => {
+  const kennis: Abonnee = { naam: "test_kennis", soorten: ["kennis_gewijzigd"], verwerk: async () => {} };
+  const andere: Abonnee = { naam: "test_ander", soorten: ["kennis_gewijzigd"], verwerk: async () => {} };
+  const lijst = [kennis, andere];
+
+  ok(
+    "beide abonnees op 'kennis gewijzigd'",
+    abonneesVoor("kennis_gewijzigd", lijst).map((a) => a.naam).join(",") === "test_kennis,test_ander",
+  );
+  ok("een lege lijst levert geen abonnees op", abonneesVoor("kennis_gewijzigd", []).length === 0);
+  ok(
+    "dit bestand zelf registreert niemand (server-only abonnees registreren zichzelf via een importbijwerking elders, zie lib/gebeurtenissen/abonnees/)",
+    abonneesVoor("kennis_gewijzigd").length === 0,
+  );
+  registreer(kennis);
+  ok("registreer() voegt toe", abonneesVoor("kennis_gewijzigd").some((a) => a.naam === "test_kennis"));
+  registreer(kennis);
+  eq(
+    "registreer() is idempotent op de naam",
+    String(abonneesVoor("kennis_gewijzigd").filter((a) => a.naam === "test_kennis").length),
+    "1",
+  );
+
+  // Dedupe-sleutel: per gebeurtenis én per abonnee (lib/jobs/dedupe.ts).
+  eq("dedupe-sleutel bevat abonnee en gebeurtenis", dedupe.gebeurtenisVerwerken("g1", "test_kennis"), "gebeurtenis:test_kennis:g1");
+  ok(
+    "twee abonnees op dezelfde gebeurtenis krijgen verschillende sleutels",
+    dedupe.gebeurtenisVerwerken("g1", "a") !== dedupe.gebeurtenisVerwerken("g1", "b"),
+  );
+  ok(
+    "dezelfde abonnee op een andere gebeurtenis krijgt een andere sleutel",
+    dedupe.gebeurtenisVerwerken("g1", "a") !== dedupe.gebeurtenisVerwerken("g2", "a"),
+  );
+});
 
 // ════════════════════════════════════════════════════════════════════════════
 void (async () => {
@@ -24650,209 +20352,3237 @@ group("teMelden: hooguit drie meldingen, maar alles wordt weggezet", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// De contentpagina groepeert zijn bevindingen naar wat de app al geprobeerd
-// heeft (22 september 2026). Zie `lib/pipeline/quality-groups.ts` voor waarom.
-group("Bevindingen: wat is geprobeerd, en wat kwam nooit aan de beurt", () => {
-  function bevinding(over: Partial<QualityIssue> & { finding: string }): QualityIssue {
-    return {
-      dimension: "feitelijkheid",
-      severity: "midden",
-      section: null,
-      evidence: null,
-      expected: null,
-      recommendation: "Doe er iets aan.",
-      blocking: false,
-      confidence: 1,
-      phase: "schrijven",
-      bron: "redactie",
-      ...over,
-    } as QualityIssue;
-  }
+// Clusters ontdekken (docs/tasks/clusters-ontdekken.md). De hoofdgevallen zijn
+// de cijfers uit de proefronde van 23 september 2026 op udenhout.nl.
 
-  // De zwaarste soort uit de echte data van 22 september 2026: een bewering
-  // zonder bron, blokkerend, zekerheid 1.
-  const zonderBron = bevinding({
-    finding: 'Deze zin zegt iets over je bedrijf zonder bron: "Wij doen dit al 20 jaar."',
-    severity: "blokkerend",
-    blocking: true,
-    bron: "bronherleidbaarheid",
-  });
-  const toon = bevinding({ finding: "De toon is te formeel.", severity: "laag", confidence: 0.7 });
-  const restvraag = bevinding({
-    finding: "Een lezer houdt deze vraag over: wat kost het?",
-    severity: "laag",
-    confidence: 0.7,
-  });
+function term(t: Partial<OntdekTerm> & { keyword: string }): OntdekTerm {
+  return {
+    volume: null,
+    bronnen: ["suggestie"],
+    eigenPositie: null,
+    eigenUrl: null,
+    vertoningen: null,
+    klikken: null,
+    concurrent: null,
+    ...t,
+  };
+}
 
-  // ── De sleutel ────────────────────────────────────────────────────────────
-  eq(
-    "dezelfde bevinding in dezelfde sectie levert dezelfde sleutel",
-    issueSleutel(bevinding({ finding: "Te   dun.", section: "Prijs" })),
-    issueSleutel(bevinding({ finding: "te dun.", section: " prijs " })),
+group("Clusters ontdekken: portalen vallen af als concurrent, dealers blijven", () => {
+  const gekozen = kiesConcurrenten(
+    [
+      { domein: "udenhout.nl", omvang: 2423, overlap: 2426 },
+      { domein: "autoscout24.nl", omvang: 104988, overlap: 1704 },
+      { domein: "viabovag.nl", omvang: 59165, overlap: 1143 },
+      { domein: "broekhuis.nl", omvang: 28910, overlap: 1066 },
+      { domein: "vanmossel.nl", omvang: 18112, overlap: 1056 },
+      { domein: "www.pouw.nl", omvang: 6319, overlap: 934 },
+      { domein: "facebook.com", omvang: 3735952, overlap: 1500 },
+      { domein: "onbekend.nl", omvang: null, overlap: 2000 },
+      { domein: "piepklein.nl", omvang: 100, overlap: 900 },
+    ],
+    "https://www.udenhout.nl/",
+    2423,
   );
-  ok(
-    "dezelfde bevinding in een andere sectie is een ander probleem",
-    issueSleutel(bevinding({ finding: "Te dun.", section: "Prijs" })) !==
-      issueSleutel(bevinding({ finding: "Te dun.", section: "Ervaring" })),
-  );
-
-  // ── Wat de reparatie meekreeg ─────────────────────────────────────────────
-  // ⚠️ Dit is het punt van de hele module: met 25 bevindingen gaan er tien mee
-  // en blijven er vijftien onaangeraakt. Zou het scherm dat verschil niet
-  // tonen, dan leest de klant vijftien punten als "de app kreeg dit niet
-  // opgelost" terwijl de app ze nooit gezien heeft.
-  const vijfentwintig = Array.from({ length: 25 }, (_, i) =>
-    bevinding({ finding: `Punt ${i}.`, section: `S${i}` }),
-  );
-  const ronde0: Keuringsronde = { ronde: 0, issues: vijfentwintig, herkeuring: false };
-  eq2("de reparatie krijgt er tien", aangebodenAanReparatie(ronde0).length, 10);
-
-  const groepen = groepeerBevindingen(vijfentwintig, [ronde0]);
-  eq2("tien zijn er geprobeerd", groepen.geprobeerd.length, 10);
-  eq2("vijftien kwamen nooit aan de beurt", groepen.nietGeprobeerd.length, 15);
-  eq2("en samen zijn dat alle bevindingen", groepen.geprobeerd.length + groepen.nietGeprobeerd.length, 25);
-
-  // ── Blokkades staan apart, ongeacht herkomst ──────────────────────────────
-  const metBlokkade = groepeerBevindingen([zonderBron, toon, restvraag], [
-    { ronde: 0, issues: [zonderBron, toon, restvraag], herkeuring: false },
-  ]);
-  eq2("de blokkade staat in zijn eigen groep", metBlokkade.blokkades.length, 1);
-  ok("en niet ook nog tussen de geprobeerde", metBlokkade.geprobeerd.every((b) => !b.issue.blocking));
-
-  // ── Een bevinding die pas later ontstond ──────────────────────────────────
-  // Gemeten op pagina f3a175b5: van de 78 bevindingen in de laatste ronde
-  // kwamen er 46 in geen enkele eerdere ronde voor.
-  const nieuw = bevinding({ finding: "Deze kop belooft iets wat de alinea niet waarmaakt." });
-  const later = groepeerBevindingen([toon, nieuw], [{ ronde: 0, issues: [toon], herkeuring: false }]);
-  eq2("de oude is geprobeerd", later.geprobeerd.length, 1);
-  eq2("de nieuwe telt als niet geprobeerd", later.nietGeprobeerd.length, 1);
-  eq(
-    "en die nieuwe is de juiste",
-    later.nietGeprobeerd[0]?.issue.finding ?? "",
-    "Deze kop belooft iets wat de alinea niet waarmaakt.",
-  );
-
-  // ── Een herkeuring is geen reparatiepoging ────────────────────────────────
-  // Migratie 0092: dezelfde tekst opnieuw beoordeeld, er is niets herschreven.
-  const alleenHerkeuring = groepeerBevindingen([toon], [
-    { ronde: 1, issues: [toon], herkeuring: true },
-  ]);
-  eq2("een herkeuring telt niet als ronde", alleenHerkeuring.reparatierondes, 0);
-  eq(
-    "en dan beweert het scherm niets over pogingen",
-    alleenHerkeuring.nietGeprobeerd[0]?.herkomst ?? "",
-    "onbekend",
-  );
-  eq("dus staat er geen zin boven", beschrijfPogingen(alleenHerkeuring), "");
-
-  // ── Zonder eerdere rondes ─────────────────────────────────────────────────
-  // Conventie 3: onbekend is een betere waarde dan een verkeerde. Een pagina
-  // van vóór migratie 0091 heeft geen rondes, en dan hoort er niets te staan
-  // over wat er geprobeerd zou zijn.
-  const zonderRondes = groepeerBevindingen([toon, restvraag], []);
-  eq2("alles komt in één lijst", zonderRondes.nietGeprobeerd.length, 2);
-  eq2("er is niets geprobeerd om te tonen", zonderRondes.geprobeerd.length, 0);
-  eq("en de herkomst is eerlijk onbekend", zonderRondes.nietGeprobeerd[0]?.herkomst ?? "", "onbekend");
-
-  // ── Ontdubbelen ───────────────────────────────────────────────────────────
-  // Twee beoordelaars kunnen dezelfde bevinding aanleveren; de klant leest hem
-  // één keer.
-  const dubbel = groepeerBevindingen([toon, bevinding({ finding: "De toon is te formeel." })], []);
-  eq2("dezelfde bevinding verschijnt één keer", dubbel.nietGeprobeerd.length, 1);
-
-  // ── De zin erboven ────────────────────────────────────────────────────────
-  const tweeRondes = groepeerBevindingen(vijfentwintig, [
-    ronde0,
-    { ronde: 1, issues: vijfentwintig, herkeuring: false },
-  ]);
-  eq2("twee rondes tellen als twee", tweeRondes.reparatierondes, 2);
-  ok(
-    "de zin zegt hoe vaak er bijgewerkt is",
-    beschrijfPogingen(tweeRondes).startsWith("ORBIT ENGINE heeft deze pagina zelf 2 keer bijgewerkt"),
-  );
-  ok(
-    "bij één ronde staat er geen cijfer maar een woord",
-    beschrijfPogingen(groepeerBevindingen(vijfentwintig, [ronde0])).includes("één keer"),
-  );
-
-  // ── Markdown in een bevinding ─────────────────────────────────────────────
-  // Gemeten op productie: 135 van de 1227 opgeslagen bevindingen (11%) bevatten
-  // een `**`, want de beoordelaars schrijven hun zinnen met nadruk erin. In een
-  // lijst die als platte tekst rendert, leest dat als sterretjes.
-  eq(
-    "vette nadruk verdwijnt, de tekst blijft",
-    leesbareBevinding("**Bovenste introductie:** Beantwoord alle drie de doelvragen."),
-    "Bovenste introductie: Beantwoord alle drie de doelvragen.",
-  );
-  eq("cursief verdwijnt ook", leesbareBevinding("Dit is *echt* te dun."), "Dit is echt te dun.");
-  eq(
-    "onderstrepingen tellen als nadruk",
-    leesbareBevinding("__Prijs:__ noem een bedrag."),
-    "Prijs: noem een bedrag.",
-  );
-  // ⚠️ Een los sterretje is geen opmaak. Zou dit component de volledige
-  // `stripMarkdown()` gebruiken, dan sneuvelde hier de maatvoering zelf.
-  eq(
-    "een los sterretje blijft staan",
-    leesbareBevinding("De maat 20*30 cm staat er niet bij."),
-    "De maat 20*30 cm staat er niet bij.",
-  );
-  eq("een zin zonder opmaak verandert niet", leesbareBevinding("Gewoon een zin."), "Gewoon een zin.");
-  eq("lege invoer geeft lege uitvoer", leesbareBevinding(""), "");
+  eq("drie dealers, op overlap", gekozen.map((g) => g.domein).join(","), "broekhuis.nl,vanmossel.nl,pouw.nl");
+  eq2("zonder eigen omvang geen keuze", kiesConcurrenten([{ domein: "pouw.nl", omvang: 6319, overlap: 1 }], "udenhout.nl", null).length, 0);
 });
+
+group("Clusters ontdekken: varianten zijn één zoekvraag, niet zes", () => {
+  eq("woordvolgorde telt niet", variantSleutel("Private lease occasion"), variantSleutel("occasion private-lease"));
+  const samen = voegVariantenSamen([
+    term({ keyword: "private lease occasion", volume: 22200 }),
+    term({ keyword: "occasion private lease", volume: 22200, bronnen: ["concurrent"], concurrent: { domein: "dewaalautogroep.nl", positie: 5 } }),
+    term({ keyword: "private lease occasion", volume: null, bronnen: ["gsc"], vertoningen: 300, eigenPositie: 14 }),
+    term({ keyword: "apk", volume: 22200 }),
+  ]);
+  eq2("twee termen over", samen.length, 2);
+  const lease = samen.find((t) => t.keyword.includes("lease"))!;
+  eq2("volume niet opgeteld", lease.volume, 22200);
+  eq2("vertoningen wel", lease.vertoningen, 300);
+  eq2("beste eigen positie blijft", lease.eigenPositie, 14);
+  eq("bronnen samengevoegd", [...lease.bronnen].sort().join(","), "concurrent,gsc,suggestie");
+  eq2("concurrent blijft", lease.concurrent?.positie ?? null, 5);
+});
+
+group("Clusters ontdekken: voorfilter en verzonnen termen", () => {
+  const uit = voorfilter(
+    [
+      term({ keyword: "van den udenhout occasions", volume: 900 }),
+      term({ keyword: "laadpaal thuis kosten", volume: 2900 }),
+      term({ keyword: "apk", volume: 5 }),
+      term({ keyword: "apk keuring rosmalen", volume: null, vertoningen: 40, bronnen: ["gsc"] }),
+      term({ keyword: "een heel lange zin die echt geen zoekterm meer is maar een vraag", volume: 5000 }),
+    ],
+    ["Van den Udenhout", "udenhout"],
+  );
+  eq("merkterm, te weinig volume en te lang eruit", uit.map((t) => t.keyword).join("|"), "apk keuring rosmalen|laadpaal thuis kosten");
+  // Eén bron kan de rest niet verdringen: 20 brede concurrenttermen met een
+  // enorm volume tegen 5 kleine eigen termen, bij 10 plekken. Zonder vast deel
+  // per bron waren dat 10 concurrenttermen (udenhout.nl, 23 september 2026:
+  // 220 van de 400).
+  const breed = Array.from({ length: 20 }, (_, i) =>
+    term({ keyword: `merk${i} auto`, volume: 100000 - i, bronnen: ["concurrent"], concurrent: { domein: "x.nl", positie: 3 } }),
+  );
+  const klein = Array.from({ length: 5 }, (_, i) =>
+    term({ keyword: `occasion ${i} kopen`, volume: 50, bronnen: ["eigen"], eigenPositie: 9 }),
+  );
+  const verdeeld = voorfilter([...breed, ...klein], [], 10);
+  eq2("de eigen termen krijgen hun deel", verdeeld.filter((t) => t.bronnen.includes("eigen")).length, 2);
+  eq2("en de lijst blijft op tien", verdeeld.length, 10);
+
+  const invoer = [term({ keyword: "occasion kopen", volume: 1900 }), term({ keyword: "auto kopen occasion", volume: 1000 })];
+  const gekozen = alleenBestaandeTermen(["kopen occasion", "occasion kopen", "verzonnen term"], invoer);
+  eq("model mag bundelen, niet verzinnen of dubbel tellen", gekozen.map((t) => t.keyword).join("|"), "occasion kopen");
+});
+
+group("Clusters ontdekken: soort, score en zinnen", () => {
+  const snel = kandidaatFeiten([
+    term({ keyword: "audi occasions", volume: 9900, eigenPositie: 10, eigenUrl: "https://www.udenhout.nl/occasions" }),
+    term({ keyword: "audi occasion kopen", volume: 480, eigenPositie: 15 }),
+  ]);
+  eq2("volumes van verschillende vragen tellen op", snel.totaalVolume, 10380);
+  eq("plek 10 is snelle winst", kandidaatSoort(snel), "snelle_winst");
+  const gat = kandidaatFeiten([term({ keyword: "occasion private lease", volume: 22200, concurrent: { domein: "dewaalautogroep.nl", positie: 5 } })]);
+  eq("concurrent in top 20, jij nergens", kandidaatSoort(gat), "concurrent_voor");
+  eq("niemand, geen positie", kandidaatSoort(kandidaatFeiten([term({ keyword: "laadpaal thuis", volume: 12100 })])), "nieuw_terrein");
+  eq("al bovenaan is geen snelle winst", kandidaatSoort(kandidaatFeiten([term({ keyword: "apk den bosch", volume: 300, eigenPositie: 2 })])), "nieuw_terrein");
+  eq2("onbekend volume blijft onbekend", kandidaatFeiten([term({ keyword: "x" })]).totaalVolume, null);
+
+  const s = kandidaatScore(snel, "sterk", false);
+  // vraag log10(10380) × 8 = 32, positie plek 10 = 25 - 6/16 × 20 = 17,5 → 18, pasvorm 20.
+  eq2("score snelle winst", s.score, 32 + 18 + 0 + 20);
+  eq2("overlap trekt 30 af", kandidaatScore(snel, "sterk", true).score, s.score - 30);
+  eq2("nooit onder nul", kandidaatScore(kandidaatFeiten([]), "redelijk", true).score, 0);
+
+  const zinnen = kaartFeiten(snel, "snelle_winst");
+  ok("volume met gevolg", zinnen[0]?.includes("10.380") && zinnen[0]?.includes("AI-assistent"), zinnen[0]);
+  ok("positie met gevolg", zinnen[1]?.includes("plek 10") && zinnen[1]?.includes("eerste pagina"), zinnen[1]);
+  ok("geen nul-volume-zin", !kaartFeiten(kandidaatFeiten([term({ keyword: "x" })]), "nieuw_terrein").some((z) => z.includes(" 0 keer")));
+  ok("geen gedachtestreepjes", !zinnen.join(" ").match(/[\u2013\u2014]/));
+});
+
+group("Clusters ontdekken: lijkt op een bestaand cluster", () => {
+  const regio = ["Den Bosch", "Eindhoven", "Noord-Brabant"];
+  eq("zelfde vraag, andere stad", lijktOp("APK in Eindhoven", ["APK Den Bosch", "Goedkope prive lease"], regio) ?? "", "APK Den Bosch");
+  eq("ander onderwerp", lijktOp("Laadpaal thuis laten installeren", ["APK Den Bosch", "Occasion kopen in Noord-Brabant"], regio) ?? "geen", "geen");
+});
+
+group("Clusters ontdekken: dubbel binnen één ronde op zoektermen, niet op titelwoorden", () => {
+  // De eerste echte ronde (Van den Udenhout, 23 september 2026): het model gaf
+  // 9 kandidaten, de titelvergelijking liet er 3 over. Dezelfde titels en
+  // termen als toen.
+  const k = (titel: string, woorden: string[]) => ({ titel, termen: woorden.map((w) => term({ keyword: w })) });
+  const ronde = [
+    k("Volkswagen onderhoud en service in de regio", ["volkswagen garage eindhoven", "vw garage", "volkswagen den bosch"]),
+    k("Audi onderhoud en service in de regio", ["audi garage eindhoven", "audi garage", "audi dealer den bosch"]),
+    k("SEAT onderhoud en service in de regio", ["seat dealer eindhoven", "seat den bosch", "seat dealer"]),
+    k("Škoda onderhoud en service in de regio", ["skoda dealer eindhoven", "skoda dealer den bosch", "skoda oss"]),
+    k("CUPRA onderhoud en service in de regio", ["cupra dealer eindhoven", "cupra dealer breda", "cupra eindhoven"]),
+    k("Een gebruikte auto leasen", ["occasion lease", "occasions leasen", "lease tweedehands auto"]),
+    k("Een auto tijdelijk leasen met shortlease", ["shortlease auto", "auto leasen", "auto lease"]),
+    k("Een auto huren voor particulier gebruik", ["particulier auto huren", "auto huren vakantie", "autoverhuur"]),
+    k("Zakelijk een auto huren", ["auto huren", "autoverhuur", "auto huren eindhoven"]),
+  ];
+  const gezien: { titel: string; termen: OntdekTerm[] }[] = [];
+  for (const r of ronde) if (!dubbelInRonde(r.termen, gezien)) gezien.push(r);
+  eq2("alle negen blijven", gezien.length, 9);
+  eq(
+    "zelfde bewijs is wel dubbel",
+    dubbelInRonde([term({ keyword: "vw garage" }), term({ keyword: "garage volkswagen eindhoven" })], [ronde[0]]) ?? "geen",
+    "Volkswagen onderhoud en service in de regio",
+  );
+});
+
+group("Clusters ontdekken: een ronde gaat over één thema (migratie 0111)", () => {
+  eq("thema opgeschoond", schoonThema("  private   lease ") ?? "", "private lease");
+  ok("te kort is geen thema", schoonThema("ab") === null);
+  ok("geen tekst is geen thema", schoonThema(42) === null);
+  ok("een lap tekst is geen thema", schoonThema("x".repeat(81)) === null);
+
+  const lease = themaStammen("Private lease");
+  ok("leasen hoort erbij", binnenThema("occasions leasen", lease));
+  ok("shortlease hoort erbij", binnenThema("shortlease auto", lease));
+  ok("apk niet", !binnenThema("apk eindhoven", lease));
+  ok("laadpalen vindt laadpaal", binnenThema("laadpaal thuis kosten", themaStammen("Laadpalen")));
+  ok("occasions vindt occasion", binnenThema("occasion kopen", themaStammen("Occasions")));
+  ok("zonder thema raakt alles", binnenThema("wat dan ook", themaStammen(null)));
+
+  // Binnen elke bron gaat het thema voor, ook boven een groter volume.
+  const uit = voorfilter(
+    [
+      term({ keyword: "volkswagen golf", volume: 90000, bronnen: ["eigen"], eigenPositie: 12 }),
+      term({ keyword: "private lease occasion", volume: 900, bronnen: ["eigen"], eigenPositie: 15 }),
+    ],
+    [],
+    1,
+    lease,
+  );
+  eq("thema eerst", uit.map((t) => t.keyword).join("|"), "private lease occasion");
+
+  const knopen = [
+    { id: "w", parent_id: null, kind: "categorie", name: "Van den Udenhout" },
+    { id: "l", parent_id: "w", kind: "categorie", name: "Lease" },
+    { id: "l1", parent_id: "l", kind: "dienst", name: "Private lease" },
+    { id: "v", parent_id: "w", kind: "categorie", name: "Vestigingen" },
+    { id: "v1", parent_id: "v", kind: "vestiging", name: "Eindhoven" },
+    { id: "s", parent_id: "w", kind: "categorie", name: "Service en onderhoud" },
+    { id: "s1", parent_id: "s", kind: "dienst", name: "APK" },
+  ];
+  eq("categorieën met aanbod, geen wortel of vestigingen", themaSuggesties(knopen).join("|"), "Lease|Service en onderhoud");
+  eq("zonder categorieën de diensten", themaSuggesties([{ id: "a", parent_id: null, kind: "dienst", name: "Dakgoot reinigen" }]).join("|"), "Dakgoot reinigen");
+
+  const route = leesBestand("app/api/profiles/[id]/discovery/route.ts");
+  ok("de route start geen ronde zonder thema", route.includes("schoonThema(") && route.includes("theme: thema"));
+});
+
+group("Clusters ontdekken: de klant voegt zelf toe, afwijzen blijft van de consultant (23 september 2026 (4))", () => {
+  const route = leesBestand("app/api/profiles/[id]/discovery/route.ts");
+  const afwijzen = route.slice(route.indexOf('if (body.actie === "afwijzen")'), route.indexOf('if (body.actie !== "toevoegen")'));
+  ok("afwijzen vraagt de consultant", afwijzen.includes("if (!staff)"));
+  const toevoegen = route.slice(route.indexOf('if (body.actie !== "toevoegen")'));
+  ok("toevoegen vraagt geen consultant", !toevoegen.includes("if (!staff)"));
+  ok("de tussenstap aanvragen is weg", !route.includes('"aanvragen"'));
+  const kaart = leesBestand("app/(app)/merk/[id]/ontdekken/kandidaat-kaart.tsx");
+  ok("de kaart toont geen 'Dit wil ik' meer", !kaart.includes("Dit wil ik"));
+  // Toevoegen kost niets; de meting wel, en die start de klant niet zelf.
+  eq("een meting starten blijft van de consultant", String(actionNeedsStaff("analyse_starten")), "true");
+});
+
 // ════════════════════════════════════════════════════════════════════════════
-// Een servercomponent geeft nooit een FUNCTIE door aan een clientcomponent
-// (22 september 2026). Zie `bibliotheek/[pieceId]/herschrijf-context.tsx`.
-group("Geen functie-props vanuit een servercomponent", () => {
-  // ── DE FOUT DIE DIT VANGT ─────────────────────────────────────────────────
-  //
-  // Het herontwerp van de contentpagina gaf het herschrijfvak door als functie:
-  // `herschrijven={({ opdracht, bezig }) => <ReviseBox ... />}`. React kan over
-  // de grens tussen server en client alleen doorgeven wat hij kan
-  // serialiseren, en een functie kan dat niet.
-  //
-  // ⚠️ Geen van de vier bestaande controles ving dit. `tsc` keurt het type
-  // goed, `test:unit` en `test:chain` renderen geen JSX, en `build` rendert
-  // deze route niet vooruit omdat hij dynamisch is. De fout verscheen dus pas
-  // bij de eerste echte bezoeker, als "Deze pagina kon niet geladen worden"
-  // met alleen een digest erbij, want Next verbergt de melding in productie.
-  //
-  // Vandaar deze controle op de broncode: het is de enige plek in de keten waar
-  // deze regel vóór een deploy te toetsen valt.
-  const HAAKJES = /\b([A-Za-z_]\w*)=\{\s*(?:async\s*)?\([^)]*\)\s*=>/g;
-  const KAAL = /\b([A-Za-z_]\w*)=\{\s*(?:async\s*)?[A-Za-z_]\w*\s*=>/g;
+// UX-audit van 23 september 2026 (docs/logbook.md, 23 september 2026 (12)).
+// Elke groep hieronder hoort bij één genummerd punt uit die audit.
+// ════════════════════════════════════════════════════════════════════════════
 
-  const overtredingen: string[] = [];
-  for (const pad of tsxOnder("app")) {
+group("UX-audit P0.1: onder 1024 pixels is er toch een menu", () => {
+  const chrome = leesBestand("components/workspace-chrome.tsx");
+  ok("de desktopbalk draagt de menuknop", chrome.includes("<NavLade"));
+  const lade = leesBestand("components/nav-lade.tsx");
+  ok("de knop verdwijnt zodra de zijbalk er zelf staat", lade.includes("lg:hidden"));
+  ok("de lade toont dezelfde zijbalk, geen tweede menu", lade.includes("<Sidebar"));
+});
+
+group("UX-audit P0.2: een vaste actiebalk ligt boven de onderbalk", () => {
+  const balk = leesBestand("app/(app)/analyses/[id]/_editors/confirm-bar.tsx");
+  ok("de bevestigbalk gebruikt de gedeelde vorm", balk.includes("vaste-actiebalk"));
+  ok("en zet zelf geen bottom-0 meer", !balk.includes("bottom-0"));
+  const css = leesBestand("app/globals.css");
+  ok("met onderbalk schuift hij omhoog", css.includes("body:has(.onderbalk) .vaste-actiebalk"));
+});
+
+group("UX-audit P1.2, P1.4, P1.10: één woord per begrip", () => {
+  ok("Analytics noemt de meetvragen AI-vragen", !leesBestand("app/(app)/merk/[id]/analytics/page.tsx").includes(">Prompts<"));
+  ok("de vragentabel heeft geen kolom Prompt", !leesBestand("components/analytics-prompt-table.tsx").includes('header: "Prompt"'));
+  ok("het startscherm zegt AI-vragen", leesBestand("app/(app)/merk/[id]/page.tsx").includes("AI-vragen"));
+  const publiceren = [
+    "components/pagina/publish-box.tsx",
+    "app/(app)/merk/[id]/strategie/plan/plan-view.tsx",
+    "lib/pagina-stand.ts",
+  ].map(leesBestand).join("\n");
+  ok("niemand belooft meer dat de app de pagina live zet", !publiceren.includes('"Zet deze pagina live"') && !publiceren.includes('handeling: "Zet live"'));
+  ok("en markeren als geplaatst heet overal live melden", !publiceren.includes('title="Markeer als geplaatst"'));
+  ok("Mijn account opent op Mijn account", leesBestand("app/(app)/instellingen/page.tsx").includes('title="Mijn account"'));
+  ok("Alle merken opent op Alle merken", leesBestand("app/(app)/beheer/page.tsx").includes('title="Alle merken"'));
+  const ui = [...tsxOnder("app"), ...tsxOnder("components")].map(leesBestand).join("\n");
+  ok("geen customer success manager meer in de schermen", !/customer success manager/i.test(ui));
+});
+
+group("UX-audit P1.1, P1.3, P1.5, P2.9, P2.11: startscherm, eerlijke knoppen, clusterstroom", () => {
+  const topics = leesBestand("app/(app)/merk/[id]/_components/topics-panel.tsx");
+  ok("een klant krijgt geen knop Cluster starten", topics.includes("!staff && (") && topics.includes("Je consultant start het voor je"));
+  ok("geen accentknop per voorstel", !topics.includes("btn-actie"));
+  const kaart = leesBestand("app/(app)/merk/[id]/ontdekken/kandidaat-kaart.tsx");
+  ok("toevoegen heet wat het doet", kaart.includes("Bewaar als voorstel") && !kaart.includes("Toevoegen aan Mijn clusters"));
+  ok("geen accentknop per kandidaat", !kaart.includes("btn-actie"));
+  const nieuw = leesBestand("app/(app)/merk/nieuw/page.tsx");
+  ok("wie geen merk mag laten onderzoeken krijgt de uitleg, geen formulier", nieuw.includes("COST_DENIED.merk_onderzoeken"));
+  const merken = leesBestand("app/(app)/merk/page.tsx");
+  ok("een merk in de lijst opent het overzicht", merken.includes('`/merk/${p.id}`'));
+  const clusterKaart = leesBestand("app/(app)/merk/[id]/strategie/clusters/cluster-kaart.tsx");
+  ok("de clusterkaart linkt naar zijn pagina's", clusterKaart.includes("strategie/bibliotheek?cluster="));
+  const wacht = leesBestand("app/(app)/merk/[id]/_components/wachtrij-lijst.tsx");
+  ok("open werk is geen groene chip", !wacht.includes("chip chip-success"));
+  ok("de maandbalk heet Deze maand", leesBestand("app/(app)/merk/[id]/_components/ronde-balk.tsx").includes(">Deze maand<"));
+});
+
+group("UX-audit P1.7: Zichtbaarheid in AI opent met het AI-cijfer", () => {
+  const a = leesBestand("app/(app)/merk/[id]/analytics/page.tsx");
+  ok("het cijfer staat boven de Google-opbrengst", a.indexOf("merkScore === null ?") < a.indexOf("opbrengstLeeg ? ("));
+  ok("een blokkade staat boven de filters", a.indexOf("blokkades.length > 0 &&") < a.indexOf("<AnalyticsFilters"));
+  const f = leesBestand("components/analytics-filters.tsx");
+  ok("verdiepende filters staan achter Meer filters", f.includes("Meer filters") && f.indexOf('label="Cluster"') < f.indexOf('label="Label"'));
+  ok("geen vakjargon Funnel", !f.includes('label="Funnel"'));
+});
+
+group("UX-audit P1.8, P1.9: merkdossier zonder crawlgereedschap, support per bestemming", () => {
+  const dossier = leesBestand("app/(app)/merk/[id]/merkprofiel/bewerken/page.tsx");
+  ok("het uitleesgereedschap staat alleen voor de consultant", /\{staf && \([\s\S]*<InventoryBox/.test(dossier));
+  const wizard = leesBestand("app/(app)/merk/[id]/_components/brand-wizard.tsx");
+  ok("onderaan geen losse Bewaren-knop meer", !wizard.includes('"Bewaren"'));
+
+  // Elke klantbestemming in de zijbalk heeft uitleg op Support. Zonder deze
+  // controle zakte het hoofdstuk Clusters (23 september 2026) ongemerkt weg,
+  // omdat de uitleg nog onder Strategie hing.
+  const support = leesBestand("app/(app)/support/page.tsx");
+  for (const item of brandNav("x", false)) {
+    const sleutel = /^[A-Za-z]+$/.test(item.label) ? `${item.label}: (` : `"${item.label}": (`;
+    ok(`Support legt "${item.label}" uit`, support.includes(sleutel));
+  }
+  ok("Support belooft geen clusterdossier meer", !support.includes("eigen dossier met vier hoofdstukken"));
+});
+
+group("UX-audit P2.5 tot P2.12: onderbalk, zijbalk, lege staten, reputatie, 404", () => {
+  const onder = leesBestand("components/bottom-nav.tsx");
+  ok("de onderbalk heeft Clusters", onder.includes('label: "Clusters"'));
+  ok("en geen eigen woord Zichtbaar", !onder.includes('label: "Zichtbaar"'));
+  const zijbalk = leesBestand("components/sidebar.tsx");
+  ok("alleen jij staat bij de kop, niet bij elke regel", !zijbalk.includes("item.staffOnly &&") && zijbalk.includes("kop.afgeschermd &&"));
+  ok("een hoofdstuk met één bestemming is één regel", zijbalk.includes("kop.items.length === 1"));
+  const clusters = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
+  ok("lege staten gebruiken het gedeelde onderdeel", !clusters.includes('mono-label">Geen clusters met dit filter') && !clusters.includes('mono-label">Nog geen voorstellen'));
+  const rep = leesBestand("app/(app)/merk/[id]/analytics/reputatie/page.tsx");
+  ok("het bedrag van een reputatieanalyse alleen voor wie hem start", rep.includes("magStarten\n              ? \"Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.\""));
+  ok("een lopende analyse ververst vanzelf", rep.includes("<VanzelfVerversen"));
+  ok("een 404 binnen de app houdt het menu", bestaatBestand("app/(app)/not-found.tsx"));
+});
+
+group("UX-audit P1.3, nagekomen: een maand vrijgeven zegt vooraf wie dat doet", () => {
+  const knop = leesBestand("app/(app)/merk/[id]/strategie/plan/release-month-button.tsx");
+  ok("zonder recht de melding van de kostenpoort, geen knop", knop.includes("if (!staff)") && knop.includes("COST_DENIED.plan_goedkeuren"));
+  const bord = leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx");
+  ok("ook op het bord alleen een knop voor wie het mag", bord.includes("Vrijgeven via je consultant"));
+});
+
+group("Elke AI-aanroep bewaart wat erin ging (migratie 0112, 23 september 2026)", () => {
+  eq("geen invoer, geen opname", String(bouwInvoerOpname(null)), "null");
+  const a = bouwInvoerOpname({ system: "Je bent een schrijver.", user: "Schrijf over daklekkage.", schemaName: "content", work: "writing", reasoningEffort: "medium", temperature: null, webSearch: false });
+  eq("de systeemopdracht staat er letterlijk in", String(a?.inputJson.system), "Je bent een schrijver.");
+  eq("de gebruikersopdracht staat er letterlijk in", String(a?.inputJson.user), "Schrijf over daklekkage.");
+  eq("lengte gebruikersopdracht", String(a?.inputJson.tekensGebruiker), "24");
+  eq("hash is 16 tekens", String(a?.promptHash?.length), "16");
+  // De hash hangt alleen aan de systeemopdracht: een andere klant is geen andere prompt.
+  const b = bouwInvoerOpname({ system: "Je bent een schrijver.", user: "Schrijf over dakisolatie." });
+  eq("zelfde systeemopdracht, zelfde hash", String(a?.promptHash === b?.promptHash), "true");
+  eq("andere systeemopdracht, andere hash", String(promptHash("Je bent een beoordelaar.") === a?.promptHash), "false");
+  // Onbekend is geen lege tekst (conventie 3).
+  const c = bouwInvoerOpname({ request: { pad: "keywords" } });
+  eq("zonder systeemopdracht geen hash", String(c?.promptHash), "null");
+  eq("onbekende gebruikersopdracht blijft null", String(c?.inputJson.user), "null");
+
+  // De opname gebeurt op de plek waar élke OpenAI-aanroep langskomt, zodat geen stap hem kan vergeten.
+  const structured = leesBestand("lib/openai/structured.ts");
+  // Drie sinds 24 september 2026: ook een mislukte JSON-aanroep wordt vastgelegd (punt 18).
+  eq("beide aanroepvormen en de mislukte parse geven de invoer door", String((structured.match(/invoerVan\(opts, verstuurd/g) ?? []).length), "3");
+  const ledger = leesBestand("lib/openai/ledger.ts");
+  ok("het logboek schrijft input_json en prompt_hash", ledger.includes("input_json:") && ledger.includes("prompt_hash:"));
+  for (const bestand of ["lib/engines/gemini.ts", "lib/pipeline/measure-llm-response.ts", "lib/pipeline/measure-ai-overview.ts", "lib/discovery/labs.ts"]) {
+    ok(`${bestand} geeft invoer mee`, /input: /.test(leesBestand(bestand)) || leesBestand(bestand).includes("record(response"));
+  }
+});
+
+group("De spoorexport van één merk (kwaliteitsdoorlichting, 23 september 2026)", () => {
+  const leeg = spoorPaginering(new URLSearchParams(""));
+  eq("standaard aantal", String(leeg.aantal), String(SPOOR_STANDAARD));
+  eq("standaard met opdrachten", String(leeg.metInvoer), "true");
+  eq("geen startpunt", String(leeg.na), "null");
+  eq("te veel wordt begrensd", String(spoorPaginering(new URLSearchParams("aantal=5000")).aantal), String(SPOOR_MAX));
+  eq("onzin wordt de standaard", String(spoorPaginering(new URLSearchParams("aantal=abc")).aantal), String(SPOOR_STANDAARD));
+  eq("invoer=0 laat de opdrachten weg", String(spoorPaginering(new URLSearchParams("invoer=0")).metInvoer), "false");
+  // Microseconden blijven staan, anders komt de laatste rij van de vorige bladzijde terug.
+  eq("tijd ongewijzigd", String(spoorPaginering(new URLSearchParams("na=2026-09-23T21:30:01.123456+00:00")).na), "2026-09-23T21:30:01.123456+00:00");
+  eq("onleesbare tijd wordt genegeerd", String(spoorPaginering(new URLSearchParams("na=gisteren")).na), "null");
+  ok("een uuid komt erdoor", isUuid("e1fe7b94-ead1-4020-a8ed-216905c042c8"));
+  ok("een filter niet", !isUuid("x,analysis_id.not.is.null"));
+  const route = leesBestand("app/api/beheer/spoor/[profileId]/route.ts");
+  ok("alleen voor beheerders", route.includes("isStaff(user.id)") && route.includes("status: 404"));
+  ok("alleen lezen", !/\.(insert|update|upsert|delete)\(/.test(route));
+});
+
+group("Het gespreksscherm slaat de waarde van de laatste klik op (23 september 2026)", () => {
+  // Gevonden in de kwaliteitsdoorlichting: bij een lijst of keuzeknop las het
+  // opslaan de waarde van vóór de klik, dus het laatste lijstpunt en elke keuze
+  // gingen verloren terwijl het scherm "opgeslagen" toonde.
+  const scherm = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  const zet = scherm.slice(scherm.indexOf("function zet("), scherm.indexOf("async function bewaarVeld("));
+  ok("zet() werkt de ref meteen bij", zet.includes("waardenRef.current = { ...waardenRef.current, [key]: value }"));
+  const bewaar = scherm.slice(scherm.indexOf("async function bewaarVeld("), scherm.indexOf("A4: opslaan bij het sluiten"));
+  ok("bewaarVeld leest uit de ref", bewaar.includes("const waarde = waardenRef.current[key]"));
+  ok("bewaarVeld leest niet de oude state", !bewaar.includes("waarden[key]"));
+});
+
+group("Voorgestelde onderwerpen: volgorde uit de positie, en nooit nul na een mislukte opslag (23 september 2026)", () => {
+  eq("eerste onderwerp hoogst", String(topicPrioriteit(0, 8)), "8");
+  eq("tweede lager", String(topicPrioriteit(1, 8)), "7");
+  eq("nooit onder nul", String(topicPrioriteit(12, 8)), "0");
+  eq("altijd een heel getal", String(Number.isInteger(topicPrioriteit(1.5, 8))), "true");
+  const bron = leesBestand("lib/pipeline/propose-topics.ts");
+  ok("het getal van het model telt niet meer", !bron.includes("MAX_TOPICS - (Number.isFinite(t.priority)"));
+  ok("de positie wel", bron.includes("priority: topicPrioriteit(i, MAX_TOPICS)"));
+  const opslaan = bron.slice(bron.indexOf('.from("profile_topics").insert('));
+  ok("bij een mislukte opslag gaan de concepten terug", opslaan.includes("insert(weggehaald)"));
+  ok("en de taak mislukt zichtbaar", opslaan.includes("throw new Error(`Topicvoorstellen opslaan mislukt"));
+});
+
+group("Een definitief mislukte Gemini- of Google-meting laat de analyse niet hangen (24 september 2026, uitgebreid M3)", () => {
+  const bron = leesBestand("lib/jobs/handlers.ts");
+  const tak = bron.slice(bron.indexOf("REPUTATION_STEPS.includes(job.type"), bron.indexOf("export async function runJob("));
+  ok("alle drie de meetsoorten plannen de aggregatie na opgeven", tak.includes('"measure_ai_overview", "measure_llm_response"'));
+  // Sinds M3 route op de PAYLOAD (`impact`), niet op het taaktype: een
+  // definitief mislukte AI Overview-meting van een impactgolf hoort naar
+  // scheduleImpactIfLastRun te gaan, niet naar de gewone aggregatie.
+  ok("route op payload.impact, niet op het taaktype", tak.includes('"impact" in payload && payload.impact'));
+  ok("impact-tak roept scheduleImpactIfLastRun", tak.includes("scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id)"));
+  ok("anders scheduleAggregateIfLastPrompt, voor alle drie de soorten", tak.includes("scheduleAggregateIfLastPrompt(admin, job.analysis_id, payload.weekNo, job.id)"));
+});
+
+group("M3: AI Overview telt mee bij de effectmeting (van-pijplijn-naar-kennissysteem.md)", () => {
+  const bron = leesBestand("lib/jobs/handlers.ts");
+  const impactTeller = bron.slice(bron.indexOf("async function scheduleImpactIfLastRun"), bron.indexOf("const MAX_AANVULRONDES"));
+  ok("scheduleImpactIfLastRun telt beide taaktypes", impactTeller.includes('.in("type", ["measure_prompt", "measure_ai_overview"])'));
+  const handler = bron.slice(bron.indexOf("measure_ai_overview: async"), bron.indexOf("measure_llm_response: async"));
+  ok("de handler geeft impact door aan measureAiOverviewById", handler.includes("payload.impact"));
+  ok("en volgt bij een impactgolf scheduleImpactIfLastRun in plaats van de aggregatie", handler.includes("scheduleImpactIfLastRun(admin, job.analysis_id, payload.impact, job.id)"));
+});
+
+group("Het bewijs onder een gap wijst naar echte metingen (24 september 2026)", () => {
+  // Gevonden in de kwaliteitsdoorlichting: het model ziet alleen V1, V2, …, gaf
+  // die (of niets) terug, en de naamcontrole vond daardoor bij geen enkele gap
+  // een toegestane naam. 49 juiste zinnen over concurrenten verdwenen.
+  const r1 = "11111111-1111-4111-8111-111111111111";
+  const r2 = "22222222-2222-4222-8222-222222222222";
+  const dossier = [
+    { code: "V1", runId: r1, cluster: "Installateur vinden Geldrop" },
+    { code: "V2", runId: r2, cluster: "Offertes vergelijken" },
+  ];
+  eq("code wordt meet-id", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["V1"] }, dossier).join(), r1);
+  eq("kleine letter en tekst eromheen", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["v2, gewicht 0,50"] }, dossier).join(), r2);
+  eq("echte meet-id blijft staan", resolveGapEvidence({ cluster: "x", evidenceRunIds: [r2] }, dossier).join(), r2);
+  eq("verzonnen code valt weg", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["V23"] }, dossier).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("leeg: code uit de clusternaam", resolveGapEvidence({ cluster: "V2 \u2014 Offertes", evidenceRunIds: [] }, dossier).join(), r2);
+  eq("leeg: dezelfde clusternaam", resolveGapEvidence({ cluster: "installateur vinden geldrop", evidenceRunIds: [] }, dossier).join(), r1);
+  eq("niets te vinden blijft leeg", resolveGapEvidence({ cluster: "Onbekend", evidenceRunIds: [] }, dossier).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("geen dubbelingen", resolveGapEvidence({ cluster: "x", evidenceRunIds: ["V1", r1, "V1"] }, dossier).length === 1 ? "één" : "meer", "één");
+  eq("code voor de clusternaam gaat weg", schoonGapCluster("V1 \u2014 Proefles bij faalangst"), "Proefles bij faalangst");
+  eq("ook met dubbele punt", schoonGapCluster("V12: Kosten"), "Kosten");
+  eq("gewone naam blijft", schoonGapCluster("Vijver aanleggen in Best"), "Vijver aanleggen in Best");
+  eq("alleen een code blijft staan", schoonGapCluster("V3"), "V3");
+  const bron = leesBestand("lib/pipeline/report.ts");
+  const controle = bron.slice(bron.indexOf("async function validateReportClaims("), bron.indexOf("export async function generateReport("));
+  ok("de naamcontrole vertaalt eerst de codes", controle.includes("evidenceRunIds: resolveGapEvidence(gap, dossier)"));
+});
+
+group("Het rapport zegt niet 'nergens genoemd' als Google het merk wel noemde (24 september 2026)", () => {
+  const labels = [
+    { id: "openai", label: "ChatGPT" },
+    { id: "google_ai_overview", label: "Google AI Overview" },
+  ];
+  // De echte cijfers van de rijschool: ChatGPT 0, Google 23.
+  const rijschool = {
+    openai: { score: 0, judged_runs: 30 },
+    google_ai_overview: { score: 23, judged_runs: 25 },
+  };
+  eq("Google telt mee", bronnenDieWelNoemden(rijschool, "openai", labels).join(), "Google AI Overview");
+  eq("ChatGPT zelf telt niet", bronnenDieWelNoemden({ openai: { score: 40, judged_runs: 30 } }, "openai", labels).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("zonder metingen telt niet", bronnenDieWelNoemden({ google_ai_overview: { score: 20, judged_runs: 0 } }, "openai", labels).length === 0 ? "leeg" : "gevuld", "leeg");
+  eq("onleesbaar telt niet", bronnenDieWelNoemden("rommel", "openai", labels).length === 0 ? "leeg" : "gevuld", "leeg");
+  ok("de schrijfregel noemt de bron", bronnenRegel(["Google AI Overview"]).includes("In Google AI Overview werd het merk WEL genoemd"));
+  ok("en geen cijfer van die bron", !/\d/.test(bronnenRegel(["Google AI Overview"])));
+  eq("zonder andere bron geen regel", bronnenRegel([]), "");
+  const echt =
+    "Dit is de eerste meting. Pompert werd niet genoemd bij de 30 onderzochte vragen. De zichtbaarheid is daarmee ongeveer 0 op 100.";
+  const aangevuld = vulBronnenAan(echt, ["Google AI Overview"]);
+  ok("de echte zin wordt aangevuld", aangevuld.aangevuld);
+  ok("met Google erbij", aangevuld.summary.endsWith("in Google AI Overview werd het merk wel genoemd."));
+  ok("de oorspronkelijke tekst blijft staan", aangevuld.summary.startsWith(echt));
+  ok("een zin met ChatGPT erin is al juist", !vulBronnenAan("In ChatGPT werd Pompert niet genoemd.", ["Google AI Overview"]).aangevuld);
+  ok("een gewone score-zin blijft", !vulBronnenAan("Het merk komt uit op ongeveer 15 op 100.", ["Google AI Overview"]).aangevuld);
+  ok("zonder andere bron niets", !vulBronnenAan(echt, []).aangevuld);
+  const bron = leesBestand("lib/pipeline/report.ts");
+  ok("het rapport gebruikt het vangnet", bron.includes("vulBronnenAan("));
+  ok("en geeft de regel mee", bron.includes("bronnenRegel("));
+});
+
+group("Rapport na de herhaling op echte data: drie restfouten (24 september 2026)", () => {
+  const echt =
+    "In ChatGPT is Pompert niet genoemd. Ook bij de gewogen score is Pompert niet genoemd. Dit zegt alleen iets over ChatGPT: in Google AI Overview werd Pompert wél genoemd.";
+  ok("het model noemde Google al: geen tweede zin", !vulBronnenAan(echt, ["Google AI Overview"]).aangevuld);
+  const vsb = stripUnsupportedClaims("In dat antwoord stonden Broers en Verwarming Service Brabant.", {
+    knownNames: ["Verwarming Service Brabant", "Verwarming Service Brabant (VSB)", "Broers"],
+    allowedNames: ["Broers", "Verwarming Service Brabant (VSB)"],
+    where: "test",
+  });
+  eq("de korte naam telt als de lange met haakjes", vsb.stripped.length === 0 ? "blijft" : "weg", "blijft");
+  const ander = stripUnsupportedClaims("In dat antwoord stond Kemkens.", {
+    knownNames: ["Kemkens"],
+    allowedNames: ["Kemkens Eindhoven (KE)"],
+    where: "test",
+  });
+  eq("maar een andere naam blijft verboden", ander.stripped.length === 1 ? "weg" : "blijft", "weg");
+  const bron = leesBestand("lib/pipeline/evidence.ts");
+  ok("een eigen product telt niet als concurrentnaam", bron.includes('if (e.entity_role === "eigen_product") continue;'));
+});
+
+group("Een klaar cluster is aan te klikken (24 september 2026)", () => {
+  const kaart = leesBestand("app/(app)/merk/[id]/strategie/clusters/cluster-kaart.tsx");
+  const kop = kaart.slice(kaart.indexOf("const kopLink ="), kaart.indexOf("const analyticsLink ="));
+  ok("de kop linkt ook bij gereed", kop.includes('analyse.status === "gereed"'));
+  ok("de links onder de kaart ook", kaart.includes('(analyse.status === "gemeten" || analyse.status === "gereed") && ('));
+});
+
+group("Het contentplan zegt de klant vooraf dat de consultant het opstelt (24 september 2026)", () => {
+  const box = leesBestand("app/(app)/merk/[id]/strategie/plan/create-plan-box.tsx");
+  ok("de klant krijgt de melding in plaats van de knop", box.includes("{mag && !staff && (") && box.includes("COST_DENIED.content_schrijven"));
+  ok("de knop alleen voor de consultant", box.includes("{mag && staff && ("));
+  ok("geen belofte dat de klant het zelf doet", !box.includes("stel je het plan zelf op"));
+});
+
+group("De potentie van een geplande pagina volgt de regel van het rapport (24 september 2026)", () => {
+  // De echte stand bij de installateur: ChatGPT noemde hem 1 van de 3 keer,
+  // Google 0 van de 3. Het rapport: gemist. Het plan gaf potentie 0.
+  const m = (runId: string, engine: string, mentioned: boolean) => ({ runId, promptId: "geldrop", engine, mentioned });
+  const geldrop = [m("a", "openai", true), m("b", "openai", false), m("c", "openai", false), m("d", "google_ai_overview", false), m("e", "google_ai_overview", false), m("f", "google_ai_overview", false)];
+  eq("één keer genoemd is niet genoeg", String(genoemdPerVraag(geldrop).get("geldrop")), "false");
+  const beide = [m("a", "openai", true), m("d", "google_ai_overview", true)];
+  eq("genoemd in beide bronnen telt als genoemd", String(genoemdPerVraag(beide).get("geldrop")), "true");
+  const gelijk = [m("a", "openai", true), m("d", "google_ai_overview", false)];
+  eq("een gelijke stand tussen bronnen telt als gemist, net als in het rapport", String(genoemdPerVraag(gelijk).get("geldrop")), "false");
+  const bron = leesBestand("lib/potential-data.ts");
+  ok("de potentie gebruikt die regel", bron.includes("genoemdPerVraag("));
+  ok("en niet meer 'genoemd wint'", !bron.includes("(mentioned && !huidig)"));
+});
+
+group("Antwoorden op paginavragen worden geen sitefeit (24 september 2026)", () => {
+  // Sinds K8 gaat geen enkel antwoord nog naar `proof_points`: de reikwijdte van
+  // de vraag gaat mee in de kennislaag (K5), en die bewaakt dit nu.
+  const facts = leesBestand("lib/facts.ts");
+  ok("answerFact schrijft niet meer in profiles", !/from\(\s*"profiles"\s*\)/.test(facts));
+  ok("en legt het antwoord vast in de kennislaag", facts.includes("legAntwoordVast("));
+});
+
+group("De consultant en de accountleden zien de clusters van een merk (24 september 2026)", () => {
+  const work = leesBestand("lib/work.ts").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const q = work.slice(work.indexOf("export async function loadBrandWork("), work.indexOf("const analyses = (data ?? []) as Analysis[];"));
+  ok("de clusterlijst filtert op het merk", q.includes('.eq("profile_id", profileId)'));
+  ok("en niet meer op wie hem aanmaakte", !q.includes('.eq("user_id"'));
+  const pagina = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
+  ok("de prullenbak ook niet", !pagina.includes('.eq("user_id", user.id)'));
+  ok("en de lijst gebruikt de client met de sessie", pagina.includes("const supabase = await createClient();") && pagina.includes("loadDashboard(supabase,"));
+});
+
+
+group("Meetvragen over de groeiplaatsen (verbeterronde, punt 5)", () => {
+  const groei = ["Mierlo", "Heeze-Leende", "Nuenen"];
+  eq("werkgebied plus groeiplaatsen, zonder dubbelen", toegestanePlaatsen(["Geldrop", "Eindhoven"], ["Nuenen", "eindhoven"]).join(","), "Geldrop,Eindhoven,Nuenen");
+  eq("zonder groeiplaatsen alleen het werkgebied", toegestanePlaatsen(["Geldrop"], null).join(","), "Geldrop");
+  ok("een groeiplaats telt", containsPlace("Welke installateur in Mierlo vervangt een cv-ketel?", groei));
+  ok("met koppelteken ook", containsPlace("Wie doet onderhoud in Heeze-Leende?", groei));
+  ok("de provincie telt hier niet", !containsPlace("Welke installateur in Brabant?", groei));
+  ok("in de buurt ook niet", !containsPlace("Welke installateur bij mij in de buurt?", groei));
+  // De echte uitkomst van de doorlichting: 10 vragen over Geldrop en Eindhoven.
+  const oud = Array.from({ length: 10 }, (_, i) => `Welke installateur in ${i % 2 ? "Geldrop" : "Eindhoven"} doet ${i}?`);
+  const b = groeiBalans(oud, groei, 10);
+  eq("drie van de tien moeten over een groeiplaats", `${b.aantal}/${b.nodig}/${b.tekort}`, "0/3/3");
+  eq("zonder groeiplaatsen is er geen eis", String(groeiBalans(oud, [], 10).nodig), "0");
+  eq("de laatste drie wijken, hoogste eerst", wijkbaarVoorGroei(oud, groei, 3).join(","), "9,8,7");
+  const gemengd = [...oud.slice(0, 9), "Wie in Nuenen plaatst een warmtepomp?"];
+  eq("een groeivraag wijkt nooit", wijkbaarVoorGroei(gemengd, groei, 2).join(","), "8,7");
+  const prompts = leesBestand("lib/pipeline/prompts.ts");
+  ok("de generator telt de groeivragen na", prompts.includes("groeiBalans(collected.map((p) => p.text), groei, collected.length)"));
+  ok("en de lokale regel noemt de groeiplaatsen als toegestaan", prompts.includes("toegestanePlaatsen(brand.serviceRegions, groei)"));
+  ok("de opdracht vraagt een aantal, geen deel", growthRegionsRule({ growth_regions: groei }, { nodig: 3, van: 10 }).includes("MINSTENS 3 van de 10 vragen"));
+});
+
+
+group("Het rapport weegt de groeidoelen zwaar (verbeterronde, punt 24 en 27)", () => {
+  // De echte gespreksvelden van de drie bedrijven uit de doorlichting.
+  const rijschool = groeiKernwoorden({
+    priority_offerings: ["Rijles bij faalangst, autisme en ADHD", "Rijles in de automaat"],
+    growth_regions: ["Veldhoven", "Best", "Son en Breugel"],
+  });
+  ok("faalangst is een kernwoord", rijschool.woorden.includes("faalangst"));
+  ok("ADHD als afkorting ook", rijschool.woorden.includes("adhd"));
+  ok("rijles niet, dat staat in elke aanbeveling", !rijschool.woorden.includes("rijles"));
+  ok("een pagina over autisme raakt het groeidoel", raaktGroeidoel("Rijles met autisme in Eindhoven", rijschool));
+  ok("een pagina voor Son en Breugel ook", raaktGroeidoel("Rijschool in Son en Breugel", rijschool));
+  ok("Best niet in 'beste'", !raaktGroeidoel("De beste rijschool in Helmond", rijschool));
+  ok("Helmond is geen groeiplaats", !raaktGroeidoel("Rijschool in Helmond", rijschool));
+  const installateur = groeiKernwoorden({
+    priority_offerings: ["Hybride warmtepompen", "Cv-ketelvervanging met onderhoudscontract"],
+    growth_regions: ["Mierlo"],
+  });
+  ok("warmtepompen wordt warmtepomp", installateur.woorden.includes("warmtepomp"));
+  ok("en raakt het enkelvoud", raaktGroeidoel("Wat kost een hybride warmtepomp?", installateur));
+
+  const rec = (title: string, weight: number, priority: number) => ({
+    title, type: "landing" as const, targetIntent: "", why: "", priority,
+    action: "nieuw" as const, existingUrl: null, relatedUrl: null,
+    targets: [{ promptId: title, runId: null, text: title, cluster: null, weight }],
+  });
+  // De hovenier kreeg Best en Nuenen op prioriteit 10, achteraan.
+  const hovenier = groeiKernwoorden({ priority_offerings: ["Zwemvijvers"], growth_regions: ["Best", "Nuenen"] });
+  const uit = rangschikAanbevelingen(
+    [rec("Tuinaanleg in Eindhoven", 0.6, 1), rec("Hovenier in Nuenen", 0.4, 10), rec("Kunstgras leggen", 0.9, 2)],
+    hovenier,
+    groeiKernwoorden({ priority_offerings: ["Kunstgras als losse opdracht"], growth_regions: [] }).woorden,
+    raaktGroeidoel,
+  );
+  eq("de groeiplaats gaat voor (0,4 keer 2 tegen 0,6)", uit.aanbevelingen.map((r) => r.title).join(" | "), "Hovenier in Nuenen | Tuinaanleg in Eindhoven");
+  eq("opnieuw genummerd, 1 is het belangrijkst", uit.aanbevelingen.map((r) => r.priority).join(","), "1,2");
+  eq("kunstgras wil de klant niet", uit.geschrapt.map((r) => r.title).join(","), "Kunstgras leggen");
+  ok("de factor is twee", GROEI_FACTOR === 2);
+  const gelijk = rangschikAanbevelingen([rec("B", 0.5, 2), rec("A", 0.5, 1)], { plaatsen: [], woorden: [] }, [], raaktGroeidoel);
+  eq("bij gelijk gewicht beslist het getal van het model", gelijk.aanbevelingen.map((r) => r.title).join(","), "A,B");
+
+  const stuur = reportSteering({
+    priority_offerings: ["Hybride warmtepompen"], deprioritised_offerings: [], growth_regions: ["Mierlo"],
+    target_segments: [], forbidden_topics: [], offline_proof: ["Meer dan 1.800 onderhoudscontracten"],
+  });
+  ok("de rapportinvoer noemt Mierlo", stuur.includes("Mierlo"));
+  ok("en het bewijs uit het gesprek, als niet opnieuw te vragen", stuur.includes("1.800") && stuur.includes("NIET opnieuw"));
+  ok("een leeg profiel levert niets op", reportSteering({ priority_offerings: [], deprioritised_offerings: [], growth_regions: [], target_segments: [], forbidden_topics: [], offline_proof: [] }) === "");
+  const report = leesBestand("lib/pipeline/report.ts");
+  ok("het rapport slaat de gerangschikte volgorde op", report.includes("eenVerbeteringPerAdres(gerangschikt, canonicalKey)") && report.includes("recommendations_json: perAdres as never"));
+  ok("en de instructie zegt welke kant priority op gaat", report.includes("1 is de belangrijkste aanbeveling"));
+});
+
+
+group("Vragen die het gesprek al beantwoordde of die er al staan (verbeterronde, punt 35 en 36)", () => {
+  // De echte gespreksvelden en vragen van de installateur.
+  const gesprek = {
+    offline_proof: [
+      "Twaalf monteurs in dienst",
+      "Storingsdienst voor contractklanten: binnen 24 uur bij een storing, ook in het weekend",
+      "Meer dan 1.800 onderhoudscontracten",
+    ],
+    service_regions: ["Geldrop", "Eindhoven"],
+    growth_regions: ["Mierlo", "Heeze-Leende", "Nuenen"],
+  };
+  eq("de monteursvraag", String(gesprekBeantwoordt("Hoeveel eigen monteurs werken er momenteel bij het bedrijf?", gesprek)), "Twaalf monteurs in dienst");
+  eq("de plaatsvraag", String(gesprekBeantwoordt("In welke plaatsen buiten Geldrop en Eindhoven neemt u opdrachten aan?", gesprek)), "Werkt nu in Geldrop, Eindhoven, wil groeien in Mierlo, Heeze-Leende, Nuenen.");
+  eq("de contractvraag zonder meer", String(gesprekBeantwoordt("Biedt u onderhoudscontracten aan?", gesprek)), "Meer dan 1.800 onderhoudscontracten");
+  // Streng: een vraag die meer vraagt dan het gesprek zegt, blijft open.
+  eq("contracten voor welke toestellen zegt het gesprek niet", String(gesprekBeantwoordt("Biedt u onderhoudscontracten aan voor cv-ketels, warmtepompen of airco's?", gesprek)), "null");
+  eq("een ander feit over monteurs ook niet", String(gesprekBeantwoordt("Hoeveel monteurs hebben een F-gassencertificaat?", gesprek)), "null");
+  eq("buiten kantoortijden staat er niet", String(gesprekBeantwoordt("Kunnen klanten buiten kantoortijden een storing melden, en voor welke storingen rijdt u dan uit?", gesprek)), "null");
+  eq("een plaatsvraag met een afstand erbij blijft open", String(gesprekBeantwoordt("In welke plaatsen nemen jullie opdrachten aan, en tot hoeveel kilometer vanaf Eindhoven?", gesprek)), "null");
+  eq("zonder werkgebied geen antwoord", String(gesprekBeantwoordt("In welke plaatsen werkt u?", { offline_proof: [], service_regions: [], growth_regions: [] })), "null");
+
+  ok("dezelfde vraag, korter gesteld", zelfdeVraag("Wat is doorgaans de wachttijd voor een eerste gesprek?", "Wat is de gebruikelijke wachttijd voor een eerste gesprek en voor de start van tuinaanleg?"));
+  ok("dezelfde vraag, ander slot", zelfdeVraag("Welke merken en modellen hybride warmtepompen leveren of installeren jullie?", "Welke merken of modellen hybride warmtepompen kunnen jullie leveren of met elkaar vergelijken?"));
+  ok("prijs en levensduur zijn twee vragen", !zelfdeVraag("Wat kost een hybride warmtepomp?", "Hoe lang gaat een hybride warmtepomp mee?"));
+  ok("ook met een plaats erbij", !zelfdeVraag("Wat kost een hybride warmtepomp in Mierlo?", "Hoe lang duurt de installatie van een hybride warmtepomp in Mierlo?"));
+  ok("onderhoud en merken zijn twee vragen", !zelfdeVraag("Welk onderhoud voeren jullie uit aan hybride warmtepompen?", "Welke merken hybride warmtepompen leveren jullie?"));
+
+  // Sinds A3 (besluit V3) stellen het rapport en het merkonderzoek geen vragen meer.
+  ok("het rapport stelt geen vragen meer (A3)", !/from\(\s*"fact_requests"\s*\)\s*\.\s*(insert|upsert)/.test(leesBestand("lib/pipeline/report.ts")));
+  ok("het merkonderzoek ook niet", !/from\(\s*"fact_requests"\s*\)\s*\.\s*(insert|upsert)/.test(leesBestand("lib/pipeline/synthesis.ts")));
+  ok("en opslaan van het gesprek sluit open vragen", leesBestand("app/api/profiles/[id]/route.ts").includes("sluitVragenUitGesprek(admin, id)"));
+  ok("alleen vragen die niet aan een pagina hangen", leesBestand("lib/vraag-sluiten.ts").includes("if ((rij.content_piece_ids ?? []).length > 0) continue;"));
+});
+
+
+group("De crawl leest de site zoals de eigenaar hem bedoelt (verbeterronde, punt 4, 10 en 28)", () => {
+  // Punt 10: de echte adressen van de rijschool.
+  const r = "https://www.autorijschoolpompert.nl";
+  for (const pad of [
+    "/tag/rijlessen/", "/category/uncategorized/", "/author/wetalkseo/",
+    "/autorijschool-pompert/autorijschool_pompert_eindhoven_10/",
+    "/ons-team-en-wagenpark/whatsapp-image-2022-06-21-at-4-42-28-pm/",
+    "/ons-team-en-wagenpark/95588177_255747952474662_8504102822831612049_n/",
+    "/rijsimulator/img_20220711_162136/", "/pech-onderweg-moet/pexels-photo-1/",
+    "/hoe-werkt-een-tussentijdse-toets-bij-rijexamens/attachment/8722/",
+    "/wp-content/uploads/2022/07/rijopleiding-in-stappen.jpeg", "/feed/",
+  ]) ok(`weg: ${pad}`, isArchiefOfBijlage(r + pad));
+  for (const pad of ["/", "/rijschool-best/", "/prijzen-lespakketten/", "/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/", "/diensten/tuinaanleg/", "/foto-galerij/"]) {
+    ok(`blijft: ${pad}`, !isArchiefOfBijlage(r + pad));
+  }
+  ok("de tagsitemap van Yoast gaat niet open", isArchiefSitemap("https://hansverstraatenhoveniers.nl/post_tag-sitemap.xml"));
+  ok("de paginasitemap wel", !isArchiefSitemap("https://hansverstraatenhoveniers.nl/page-sitemap.xml"));
+  // Een bijlage met een gewone naam valt pas na het ophalen op (echte body-klassen van de rijschool).
+  ok("bijlage na ophalen herkend", isBijlageHtml(`<html><body class="attachment attachment-template-default single single-attachment postid-534 attachmentid-534 attachment-jpeg min-h-full">`));
+  ok("een gewone pagina niet", !isBijlageHtml(`<html><body class="page-template-default page page-id-2789 min-h-full">`));
+
+  // Punt 4: een trage server vraagt minder tegelijk.
+  eq("acht met een time-out wordt vier", String(volgendeBatchgrootte(8, 1)), "4");
+  eq("niet onder de twee", String(volgendeBatchgrootte(2, 3)), "2");
+  eq("zonder time-out gelijk", String(volgendeBatchgrootte(8, 0)), "8");
+  const traag = assessInventory(
+    [{ url: "https://h.nl/", title: "Home", text: "x".repeat(900) }, ...Array.from({ length: 9 }, (_, i) => ({ url: `https://h.nl/p${i}/`, title: "P", text: i < 5 ? "x".repeat(900) : null }))],
+    { totalFound: 70, traagNietGelezen: 4 },
+  );
+  ok("een trage site krijgt een eerlijke melding", (traag.advice ?? "").includes("reageerde traag"));
+  ok("en geen JavaScript-diagnose", !(traag.advice ?? "").includes("JavaScript"));
+
+  // Punt 28: het menu van de homepage, en de menupagina's vooraan.
+  const html = `<header><nav><a href="/">Home</a><a href="/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/">Faalangst</a><a href="/wp-content/uploads/a.jpg">x</a></nav></header><main><a href="/blog/iets/">blog</a></main>`;
+  const wpMenu = `<div><ul><li id="menu-item-2099" class="menu-item menu-item-type-post_type"><a href="https://www.autorijschoolpompert.nl/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/">Rijles met faalangst</a></li></ul></div><p><a href="/blog/x/">blog</a></p>`;
+  eq("ook de menu-items van WordPress buiten een nav", menuLinks(wpMenu, r, "www.autorijschoolpompert.nl").map((u) => u.replace(r, "")).join(","), "/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/");
+  eq("alleen de menulinks, zonder bestanden", menuLinks(html, r, "www.autorijschoolpompert.nl").map((u) => u.replace(r, "")).join(","), "/,/faalangst-autisme-spectrum-stoornissen-en-ad-h-d/");
+  const gekozen = [r + "/", r + "/blog-a/", r + "/blog-b/", r + "/blog-c/"];
+  eq(
+    "homepage eerst, dan het menu, binnen het maximum",
+    metMenuVoorrang(gekozen, [r + "/faalangst/", r], 3).map((u) => u.replace(r, "")).join(","),
+    "/,/faalangst/,/blog-a/",
+  );
+  ok("de ontdekkingsstap zet het menu vooraan", leesBestand("lib/pipeline/discover.ts").includes("metMenuVoorrang(selectie.urls, menu, maxPages)"));
+  ok("en plant bij een trage site een aanvulronde", leesBestand("lib/jobs/handlers.ts").includes("ontdekt.traagNietGelezen > 0"));
+});
+
+
+group("Een verbetering houdt de functie van de pagina (verbeterronde, punt 45)", () => {
+  eq("homepage", paginaSoort("https://hansverstraatenhoveniers.nl"), "homepage");
+  eq("de prijzenpagina van de rijschool", paginaSoort("https://www.autorijschoolpompert.nl/prijzen-lespakketten/"), "prijzen");
+  eq("contact met volgnummer", paginaSoort("https://hansverstraatenhoveniers.nl/contact-2/"), "contact");
+  eq("een plaatspagina is een onderwerp", paginaSoort("https://hansverstraatenhoveniers.nl/hovenier-in-best/"), "onderwerp");
+  ok("de homepage is niet te vervangen", isFunctiepagina("https://hansverstraatenhoveniers.nl/"));
+  ok("een prijzenpagina wel te verbeteren", !isFunctiepagina("https://www.autorijschoolpompert.nl/prijzen-lespakketten/"));
+  const blok = functieblok("https://www.autorijschoolpompert.nl/prijzen-lespakketten/", "Autorijles pakketten & prijzen");
+  ok("het blok zegt dat alle prijzen blijven", blok.includes("Alle prijzen en pakketten") && blok.includes("Autorijles pakketten & prijzen"));
+  eq("zonder bestaande pagina geen blok", functieblok(null, null), "");
+
+  // De echte aanbeveling van de hovenier: de homepage verbeteren.
+  const { recommendations, overrides } = reconcileExistingPageActions(
+    [{ title: "Maak de bestaande hoofdpagina concreter over complete tuinen en bestrating", targetIntent: "Een huiseigenaar in Helmond", why: "", action: "verbeteren" as "verbeteren" | "nieuw", existingUrl: "https://hansverstraatenhoveniers.nl" as string | null, relatedUrl: null as string | null }],
+    [{ url: "https://hansverstraatenhoveniers.nl", title: "Hovenier Eindhoven", text: "Tuinaanleg, bestrating, tuinontwerp" }],
+  );
+  eq("wordt een nieuwe pagina", recommendations[0].action, "nieuw");
+  eq("met de homepage als verwante pagina", String(recommendations[0].relatedUrl), "https://hansverstraatenhoveniers.nl");
+  eq("en de reden staat erbij", overrides[0]?.reason ?? "", "functiepagina");
+});
+
+
+group("Het plan is uitvoerbaar (verbeterronde, punt 31, 32 en 33)", () => {
+  // Punt 31: vier verbeteringen van /warmtepomp in dezelfde week bij de installateur.
+  const maanden: OpenMaand[] = [1, 2, 3, 4, 5].map((n) => ({
+    id: `m${n}`, monthNumber: n, status: n === 1 ? "ter_goedkeuring" : "concept", huidigAantal: 0, huidigBuffers: 0, magNogVullen: true,
+  }));
+  const adres = "wkinstallatie.nl/warmtepomp";
+  const uit = bepaalVulling({
+    openMaanden: maanden,
+    voorraadIds: ["keuzehulp", "controle", "prijs", "nieuwe-pagina"],
+    pagesPerMonth: 5,
+    adresVan: new Map([["keuzehulp", adres], ["controle", adres], ["prijs", adres]]),
+  });
+  const maandVan = (id: string) => uit.opdrachten.find((o) => o.backlogIds.includes(id) || o.bufferIds.includes(id))?.monthNumber ?? 0;
+  eq("de eerste verbetering in maand 1, samen met de nieuwe pagina", `${maandVan("keuzehulp")},${maandVan("nieuwe-pagina")}`, "1,1");
+  eq("de tweede pas drie maanden later", String(maandVan("controle")), "4");
+  eq("de derde past niet meer in vijf maanden", String(uit.restendeVoorraadIds.includes("prijs")), "true");
+  ok("de tussenruimte is drie maanden", VERBETER_TUSSENRUIMTE_MAANDEN === 3);
+  const alBezet = bepaalVulling({
+    openMaanden: maanden.slice(1), voorraadIds: ["controle"], pagesPerMonth: 5,
+    adresVan: new Map([["controle", adres]]), bezet: new Map([[adres, [1]]]),
+  });
+  eq("een verbetering in een vrijgegeven maand telt ook mee", String(alBezet.opdrachten.find((o) => o.backlogIds.includes("controle"))?.monthNumber), "4");
+
+  // En in het rapport: de tweede verbetering van dezelfde pagina wordt een nieuwe pagina.
+  const rec = (title: string, url: string | null, action: "nieuw" | "verbeteren") => ({
+    title, type: "landing" as const, targetIntent: "", why: "", priority: 1, action, existingUrl: url, relatedUrl: null, targets: [],
+  });
+  const r = eenVerbeteringPerAdres(
+    [rec("Keuzehulp", "https://www.wkinstallatie.nl/warmtepomp", "verbeteren"), rec("Prijs", "https://wkinstallatie.nl/warmtepomp/", "verbeteren"), rec("Mierlo", null, "nieuw")],
+    canonicalKey,
+  );
+  eq("de eerste blijft een verbetering", r.aanbevelingen.map((a) => a.action).join(","), "verbeteren,nieuw,nieuw");
+  eq("de tweede wijst naar de pagina als verwante pagina", String(r.aanbevelingen[1].relatedUrl), "https://wkinstallatie.nl/warmtepomp/");
+
+  // Punt 33: nooit een streefdatum in het verleden.
+  eq("op tijd", streefzin("2026-10-20", "2026-09-24"), "Beantwoord ze graag vóór 8 oktober om op schema te blijven.");
+  ok("te laat: zo snel mogelijk, zonder datum in het verleden", streefzin("2026-09-25", "2026-09-24").startsWith("Beantwoord ze zo snel mogelijk") && !streefzin("2026-09-25", "2026-09-24").includes("13 september"));
+  eq("zonder datum niets", streefzin(null, "2026-09-24"), "");
+  ok("beide vrijgeefdialogen gebruiken het", leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx").includes("streefzin(eerste, new Date().toISOString())") && leesBestand("app/(app)/merk/[id]/strategie/plan/release-month-button.tsx").includes("streefzin(eersteDatum"));
+});
+
+
+group("De kennistest en de naamlijst meten het merk eerlijk (verbeterronde, punt 3 en 6)", () => {
+  // Punt 3: de echte voorstellen van de drie merken.
+  const rijschool = ["Autorijschool Pompert", "Rijschool Pompert", "Pompert"];
+  ok("Pompert Autorijschool is het merk zelf", isEigenSchrijfwijze("Pompert Autorijschool", rijschool));
+  ok("Autorijschool Pompert / Pompert ook", isEigenSchrijfwijze("Autorijschool Pompert / Pompert", rijschool));
+  ok("een andere Pompert blijft op de lijst", !isEigenSchrijfwijze("Pompert Bouw", rijschool));
+  ok("Rijschool Peter Pompert beslist de consultant", !isEigenSchrijfwijze("Rijschool Peter Pompert", rijschool));
+  const installateur = ["Wesley Keeris Installatietechniek", "WK Installatie", "Wesley Keeris"];
+  ok("Wesley Keeris Installatiebedrijf B.V is het merk", isEigenSchrijfwijze("Wesley Keeris Installatiebedrijf B.V", installateur));
+  ok("Wesley Keeris Beheer B.V ook", isEigenSchrijfwijze("Wesley Keeris Beheer B.V", installateur));
+  ok("Hoveniersbedrijf Hans Verstraaten B.V ook", isEigenSchrijfwijze("Hoveniersbedrijf Hans Verstraaten B.V", ["Hans Verstraaten Hoveniers", "Hans Verstraaten"]));
+  eq(
+    "de verwarringslijst houdt alleen de andere partij over",
+    haalVerwarringen("- **Pompert Autorijschool**\n- **Pompert Bouw** in Tilburg", rijschool).join(","),
+    "Pompert Bouw",
+  );
+  ok("de meting filtert ook een al gevulde lijst", leesBestand("lib/pipeline/measure.ts").includes("!isEigenSchrijfwijze(n, [base"));
+
+  // Punt 6: de echte antwoorden van de kennistest.
+  const nee = [
+    "Autorijschool Pompert lijkt een lokale rijschool in Eindhoven. Ik kan niet betrouwbaar bevestigen wie de eigenaar is.",
+    "Ik heb geen betrouwbare, actuele gegevens over Autorijschool Pompert in Eindhoven en wil daarom geen details verzinnen.",
+    "Hans Verstraaten Hoveniers lijkt de naam van een hoveniersbedrijf in Eindhoven te zijn. Ik kan niet met zekerheid bevestigen wie de eigenaar is.",
+    "Wesley Keeris Installatietechniek is een installatiebedrijf in Geldrop. Op basis van de bedrijfsnaam lijkt het zich bezig te houden met installatiewerk.",
+    "Ik heb geen betrouwbare, actuele informatie over **Wesley Keeris Installatietechniek** paraat. De naam suggereert een installatiebedrijf.",
+  ];
+  for (const a of nee) ok(`geen herkenning: ${a.slice(0, 45)}`, !kentMerk(a, "Autorijschool Pompert", ["Hans Verstraaten Hoveniers", "Wesley Keeris Installatietechniek"]));
+  ok(
+    "echte kennis blijft herkenning",
+    kentMerk("Voor zover bekend is Hans Verstraaten Hoveniers een hoveniersbedrijf in Eindhoven. Het houdt zich bezig met tuinontwerp, tuinaanleg en tuinonderhoud.", "Hans Verstraaten Hoveniers"),
+  );
+  ok(
+    "ook met een voorbehoud over details (Fysi-Unique)",
+    kentMerk("Fysi-Unique in Amersfoort is een fysiotherapiepraktijk. Ik kan zonder actuele website-informatie niet met zekerheid zeggen welke specialisaties zij aanbieden.", "Fysi-Unique"),
+  );
+});
+
+
+group("Kleine punten uit de doorlichting (verbeterronde blok F, punt 12, 18, 23 en 38)", () => {
+  // Punt 23: dezelfde concurrent met en zonder afkorting.
+  ok("met afkorting tussen haakjes is hetzelfde bedrijf", isSameEntity("Verwarming Service Brabant (VSB)", "Verwarming Service Brabant"));
+  ok("een ander bedrijf blijft anders", !isSameEntity("VSB Hybride", "Verwarming Service Brabant"));
+  // Punt 18: een mislukte JSON-aanroep komt in het logboek.
+  const structured = leesBestand("lib/openai/structured.ts");
+  ok("mislukte parse wordt vastgelegd", structured.includes("isParseFout(err)") && structured.includes("mislukt: true"));
+  // Punt 12: de klant krijgt vooraf te horen wie de meting start.
+  const concept = leesBestand("app/(app)/analyses/[id]/concept/page.tsx");
+  ok("het conceptscherm kijkt of de meting gestart mag worden", concept.includes("mayTriggerCost(user.id, \"meting_starten\")") && concept.includes("COST_DENIED.meting_starten"));
+});
+
+
+group("Kleine punten uit de doorlichting, deel 2 (verbeterronde blok F, punt 8, 9, 11, 14 en 17)", () => {
+  // Punt 8: dezelfde vraag met een andere plaats.
+  const plaatsen = ["Geldrop", "Eindhoven", "Mierlo"];
+  eq(
+    "Geldrop en Eindhoven geven dezelfde sleutel",
+    String(vraagZonderPlaats("Welke installateur in Geldrop vervangt een cv-ketel?", plaatsen) === vraagZonderPlaats("Welke installateur in Eindhoven vervangt een cv-ketel?", plaatsen)),
+    "true",
+  );
+  ok("een andere vraag niet", vraagZonderPlaats("Wat kost een warmtepomp in Geldrop?", plaatsen) !== vraagZonderPlaats("Welke installateur in Geldrop vervangt een cv-ketel?", plaatsen));
+  ok("ook met 'in de buurt' en de provincie", vraagZonderPlaats("Welke installateur bij mij in de buurt vervangt een cv-ketel?", plaatsen) === vraagZonderPlaats("Welke installateur in Brabant vervangt een cv-ketel?", plaatsen));
+  const prompts = leesBestand("lib/pipeline/prompts.ts");
+  ok("de generator gebruikt de sleutel", prompts.includes("vraagZonderPlaats(tekst, regios)"));
+  ok("en de bezwaren uit het gesprek", prompts.includes("DE TWIJFELS DIE KOPERS IN DEZE MARKT HEBBEN"));
+
+  // Punt 9: de echte citaten van de installateur en de rijschool.
+  ok("een advies is geen dienst", isAdviesCitaat("Het ventilatiesysteem moet regelmatig worden schoongemaakt."));
+  ok("een aanbod wel", !isAdviesCitaat("Wij zorgen voor een professionele vervanging van uw oude ketel"));
+  ok("ook met 'kun je'", !isAdviesCitaat("dan kun je er misschien aan denken om een theoriecursus te nemen, waarin je begeleid wordt"));
+  ok("een los woord uit een menu ook", !isAdviesCitaat("Tuinaanleg"));
+
+  // Punt 11: gevuld is niet gecontroleerd.
+  const sessie = leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx");
+  ok("een blok blijft open met nog te controleren velden", sessie.includes("!isHumanSet(states[k as string]?.source)") && sessie.includes("nog te controleren"));
+
+  // Punt 14: de technische controle is klaar als hij een resultaat heeft, en
+  // de schatting telt de stappen die nog moeten komen.
+  const stappen = bouwStappen({
+    pendingByType: { profile_offering: 1 },
+    facetSummaries: {},
+    counts: { topics: 0, auditChecks: 12, researchDone: true },
+  });
+  eq("technische controle met resultaat staat niet op wacht", stappen.find((st) => st.job === "technical_audit")?.state ?? "", "klaar");
+  const wachtend = stappen.filter((st) => st.state === "wacht").map((st) => st.job);
+  ok("er wachten nog stappen na het aanbod", wachtend.length >= 3);
+  // `etaMetWachtendeStappen()` staat in een server-module; hier de bedrading.
+  ok("de statusroute telt de wachtende stappen mee", leesBestand("app/api/profiles/[id]/status/route.ts").includes("etaMetWachtendeStappen("));
+
+  // Punt 17: Gemini-taken gespreid, achter wat er al klaarstaat.
+  const nu = new Date("2026-09-24T12:00:00Z");
+  const t = spreidTijden(nu, null, 3, GEMINI_AFSTAND_MS);
+  eq("vanaf nu, vier seconden ertussen", t.map((d) => d.toISOString().slice(11, 19)).join(","), "12:00:00,12:00:04,12:00:08");
+  const achter = spreidTijden(nu, new Date("2026-09-24T12:02:00Z"), 2, GEMINI_AFSTAND_MS);
+  eq("een tweede cluster sluit aan", achter.map((d) => d.toISOString().slice(11, 19)).join(","), "12:02:04,12:02:08");
+});
+
+
+group("Het euroteken en letters met een accent komen goed van de site (punt 63)", () => {
+  eq("de installateur", htmlToText("<p>Ons bedrijf beschikt over een offici&euml;le CO-certificering</p>"), "Ons bedrijf beschikt over een officiële CO-certificering");
+  eq("de rijschool", htmlToText("Meer info over de intake &euro; 50"), "Meer info over de intake € 50");
+  eq("hoofdletters en andere accenten", htmlToText("&Eacute;&eacute;n caf&eacute; &agrave; la carte, gar&ccedil;on"), "Één café à la carte, garçon");
+  eq("een onbekende naam blijft staan", htmlToText("A &foo; B"), "A &foo; B");
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP2 van docs/tasks/contentpijplijn-publicatiewaardig.md: het feitenregister.
+group("Het vangnet op L1: een getal moet in de feittekst staan (WP2)", () => {
+  eq("Nederlandse notatie", getallenIn("€ 2.200 tot € 3.200, beoordeling 4,9").join(","), "2200,3200,4.9");
+  ok("telwoorden tellen mee", getallenIn("Twaalf monteurs in dienst").includes(12));
+  const band = veiligeWaarde("Tuinaanleg met bestrating kost meestal € 12.000 tot € 35.000.", { min: 12000, max: 35000, eenheid: "EUR" });
+  eq("een bandbreedte die er staat blijft", `${band?.min}-${band?.max}-${band?.eenheid}`, "12000-35000-eur");
+  eq("een verzonnen getal maakt de waarde leeg", String(veiligeWaarde("Tuinaanleg kost meestal € 12.000.", { min: 15000, max: 15000, eenheid: "EUR" })), "null");
+  eq("twaalf monteurs voluit geschreven", String(veiligeWaarde("Twaalf monteurs in dienst", { min: 12, max: 12, eenheid: "monteurs" })?.min), "12");
+  eq("zonder getal en zonder tekst is onbekend", String(veiligeWaarde("Iets", { min: null, max: null, tekst: "" })), "null");
+});
+
+group("Kandidaat-conflicten op soort, geldigheid en waarde (WP2)", () => {
+  const feit = (id: string, text: string, extra: Partial<RegisterFeit>): RegisterFeit => ({
+    id, text, kind: "site", factKey: id, soort: "prijs", waarde: null, geldtVoor: null, stand: "site", bewijskracht: "gewoon", ...extra,
+  });
+  // De rijschool (§1.2, O4): na het uitlezen stonden er twee intakeprijzen
+  // zonder het onderscheid kantoor of auto. Code ziet een kandidaat; L2 beslist.
+  const kantoor = feit("a", "Intake € 50", { geldtVoor: "intake", waarde: { min: 50, max: 50, eenheid: "eur" } });
+  const auto = feit("b", "Intake € 80", { geldtVoor: "intake", waarde: { min: 80, max: 80, eenheid: "eur" } });
+  const kandidaten = vindKandidaten([kantoor, auto]);
+  eq("de twee intakeprijzen van de rijschool zijn een kandidaat", String(kandidaten.length), "1");
+  eq("geen kandidaat als L1 de geldigheid wel onderscheidt", String(vindKandidaten([{ ...kantoor, geldtVoor: "intake op kantoor" }, { ...auto, geldtVoor: "intake in de auto" }]).length), "0");
+  eq("dezelfde prijs is geen kandidaat", String(vindKandidaten([kantoor, { ...auto, waarde: { min: 50, max: 50, eenheid: "EUR" } }]).length), "0");
+  eq("een andere eenheid is niet te vergelijken", String(vindKandidaten([kantoor, { ...auto, waarde: { min: 12, max: 15, eenheid: "eur per maand" } }]).length), "0");
+  eq("overig doet niet mee", String(vindKandidaten([{ ...kantoor, soort: "overig" }, { ...auto, soort: "overig" }]).length), "0");
+  eq("een vervangen feit doet niet mee", String(vindKandidaten([kantoor, { ...auto, stand: "vervangen" }]).length), "0");
+  const gebiedA = feit("c", "werkgebied a", { soort: "werkgebied", waarde: { tekst: "Eindhoven, Helmond, Best" } });
+  const gebiedB = feit("d", "werkgebied b", { soort: "werkgebied", waarde: { tekst: "Eindhoven, Helmond, Best, Eersel" } });
+  eq("een ander werkgebied in woorden is een kandidaat", String(vindKandidaten([gebiedA, gebiedB]).length), "1");
+  const dienstA = feit("e", "d a", { soort: "dienst", waarde: { tekst: "tuinaanleg" } });
+  const dienstB = feit("f", "d b", { soort: "dienst", waarde: { tekst: "tuinontwerp" } });
+  eq("twee diensten in woorden niet: dat zijn twee kanten van hetzelfde bedrijf", String(vindKandidaten([dienstA, dienstB]).length), "0");
+
+  const klant = { ...auto, kind: "klant" };
+  eq("een antwoord van de klant wint van de site", automatischeWinnaar(kantoor, klant)?.id ?? "", "b");
+  eq("twee sitefeiten beslist de adviseur", String(automatischeWinnaar(kantoor, auto)), "null");
+});
+
+group("De conflictpoort: alleen als het betwiste feit op deze pagina nodig is (WP2)", () => {
+  const prijs = { soort: "prijs" as const, feitIds: ["p1", "p2"] };
+  const leeg = new Set<string>();
+  ok("een betwiste prijs die de pagina niet nodig heeft houdt niets tegen", !houdtPaginaTegen(prijs, { prioriteitsFeitIds: leeg }));
+  ok("als prioriteitsfeit wel", houdtPaginaTegen(prijs, { prioriteitsFeitIds: new Set(["p1"]) }));
+  ok("of als een onderwerp niet zonder kan", houdtPaginaTegen(prijs, { prioriteitsFeitIds: leeg, benodigdeFeitIds: new Set(["p2"]) }));
+  const gebied = { soort: "werkgebied" as const, feitIds: ["w1", "w2"] };
+  ok("een werkgebied alleen op een pagina over die plaats", !houdtPaginaTegen(gebied, { prioriteitsFeitIds: new Set(["w1"]) }) && houdtPaginaTegen(gebied, { prioriteitsFeitIds: new Set(["w1"]), overPlaats: true }));
+  const termijn = { soort: "termijn" as const, feitIds: ["t1", "t2"] };
+  ok("een termijn alleen als prioriteitsfeit", !houdtPaginaTegen(termijn, { prioriteitsFeitIds: leeg, benodigdeFeitIds: new Set(["t1"]) }) && houdtPaginaTegen(termijn, { prioriteitsFeitIds: new Set(["t1"]) }));
+  const product = { soort: "product" as const, feitIds: ["x1", "x2"] };
+  ok("productinformatie alleen op een productpagina", !houdtPaginaTegen(product, { prioriteitsFeitIds: new Set(["x1"]) }) && houdtPaginaTegen(product, { prioriteitsFeitIds: new Set(["x1"]), isProductpagina: true }));
+  eq("de poort geeft de tegenhoudende conflicten", conflictpoort([prijs, gebied], { prioriteitsFeitIds: new Set(["p1", "w1"]) }).map((c) => c.soort).join(","), "prijs");
+  eq("een prijsconflict is blokkerend", ernstVan("prijs"), "blokkerend");
+  eq("een werkwijze hooguit een waarschuwing", ernstVan("werkwijze"), "waarschuwing");
+});
+
+group("De achtergrondmodus en de werksoort redactioneel (WP3, §4.3)", () => {
+  ok("zonder metingen direct", !moetAchtergrond("content_strategy", []));
+  ok("tot 120 seconden direct", !moetAchtergrond("content_strategy", [98_800, ACHTERGROND_GRENS_MS]));
+  ok("één aanroep boven 120 seconden: achtergrond", moetAchtergrond("content_strategy", [40_000, 121_000]));
+  ok("een onbekende duur telt niet mee", !moetAchtergrond("content_edit", [null, undefined]));
+  eq("ophalen na 30, 60, 120 en hoogstens 240 seconden", [0, 1, 2, 5].map(ophaalVertragingSeconden).join(","), "30,60,120,240");
+  const t = resolveTuning("gpt-6-sol", "redactioneel");
+  eq("redactioneel draait op denktijd hoog", String(t.reasoningEffort), "high");
+  eq("zonder temperatuur", String(t.temperature), "undefined");
+  ok("elke aanroep legt zijn duur vast", leesBestand("lib/openai/ledger.ts").includes("duration_ms:"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// WP1 van docs/tasks/contentpijplijn-publicatiewaardig.md: de invoer opschonen.
+// De zinnen hieronder staan letterlijk in de merkdossiers van 25 september 2026.
+group("Waardeproposities zonder herkomsttaal en zonder dubbelingen (WP1)", () => {
+  const hovenier = [
+    "Meer dan 35 jaar ervaring, volgens de website",
+    "Diverse tuinwerkzaamheden onder één dak, van ontwerp en aanleg tot onderhoud",
+    "Persoonlijk kennismakingsgesprek om wensen en mogelijkheden te bespreken",
+    "Maatwerk voor ieder budget, volgens de website",
+    "De klant wordt naar eigen zeggen van A tot Z ontzorgd",
+    "De website biedt een gratis, vrijblijvende offerte aan",
+    "Een breed dienstenpakket voor tuinontwerp, aanleg, onderhoud en aanvullende tuinvoorzieningen",
+    "Een persoonlijk kennismakingsgesprek om wensen en mogelijkheden te bespreken",
+    "De website stelt dat het bedrijf tuinen op maat voor ieder budget realiseert",
+    "De klant wordt volgens de website van A tot Z ontzorgd",
+    "Gratis en vrijblijvende offerte; de website zegt te streven naar verzending binnen 4 uur",
+  ];
+  const installateur = [
+    "Breed aanbod aan installatiewerk, loodgieterswerk en woningrenovaties bij één lokaal bedrijf.",
+    "Het bedrijf zegt werkzaamheden aan badkamers, toiletten, keukens en kleine interne verbouwingen van A tot Z te regelen met professionele onderaannemers.",
+    "Persoonlijk afgestemde productkeuze: bij CV-ketelvervanging wordt volgens de site gekeken naar woning, energieverbruik en wensen.",
+    "Nadruk op service, vakmanschap, nauwkeurigheid en een vrijblijvende bezichtiging of offerte.",
+    "Vermeldt officiële CO-certificering volgens de Gasketelwet op de pagina over CV-ketelvervanging.",
+    "Bij CV-ketelvervanging wordt volgens de site gekeken naar de woning, het energieverbruik en de wensen van de klant.",
+    "De communicatie benadrukt service, vakmanschap, nauwkeurigheid en de mogelijkheid van een vrijblijvende bezichtiging of offerte.",
+    "De pagina over CV-ketelvervanging vermeldt een officiële CO-certificering volgens de Gasketelwet.",
+  ];
+  const rijschool = [
+    "Persoonlijke begeleiding door één vaste rijinstructeur",
+    "Rijopleiding afgestemd op de wensen, sterke punten en ontwikkelbehoeften van de leerling",
+    "Een rustige, ongedwongen aanpak met aandacht voor zelfvertrouwen en veilig zelfstandig rijden",
+    "Ervaring met begeleiding van leerlingen met faalangst, ADHD of vergelijkbare extra begeleidingsbehoeften",
+    "Een intake om het benodigde aantal lessen beter in te schatten en een pakket op maat samen te stellen",
+    "Keuze uit rijlessen in een auto, automaatlessen en simulatorlessen",
+    "Een rustige en ongedwongen aanpak met aandacht voor zelfvertrouwen en veilig zelfstandig rijden",
+    "Ervaring met begeleiding van leerlingen met faalangst, ASS of AD(H)D",
+    "Keuze uit autorijlessen, automaatlessen en simulatorlessen",
+  ];
+
+  eq("35 jaar zonder 'volgens de website'", schoonWaardepropositie(hovenier[0]) ?? "", "Meer dan 35 jaar ervaring");
+  eq("'naar eigen zeggen' eruit", schoonWaardepropositie(hovenier[4]) ?? "", "De klant wordt van A tot Z ontzorgd");
+  eq("'De website biedt X aan' wordt X", schoonWaardepropositie(hovenier[5]) ?? "", "Een gratis, vrijblijvende offerte");
+  eq("het deel met herkomst na de puntkomma vervalt", schoonWaardepropositie(hovenier[10]) ?? "", "Gratis en vrijblijvende offerte");
+  eq("een bijzin die niet netjes om te zetten is vervalt", String(schoonWaardepropositie(hovenier[8])), "null");
+  eq("'Het bedrijf zegt ... te regelen' vervalt", String(schoonWaardepropositie(installateur[1])), "null");
+  eq("'volgens de Gasketelwet' is geen herkomst en blijft", schoonWaardepropositie(installateur[4]) ?? "", "Officiële CO-certificering volgens de Gasketelwet");
+  eq("'De pagina over ... vermeldt' wordt de kern", schoonWaardepropositie(installateur[7]) ?? "", "Officiële CO-certificering volgens de Gasketelwet");
+  eq("'De communicatie benadrukt' vervalt", String(schoonWaardepropositie(installateur[6])), "null");
+
+  const herkomst = /volgens de (website|site)|naar eigen zeggen|de website|het bedrijf zegt|de communicatie/i;
+  for (const [naam, lijst, verwacht] of [
+    ["hovenier", hovenier, 7],
+    ["installateur", installateur, 4],
+    ["rijschool", rijschool, 6],
+  ] as const) {
+    const schoon = schoneWaardeproposities(lijst);
+    ok(`${naam}: geen herkomsttaal meer`, !schoon.some((z) => herkomst.test(z)), schoon.join(" | "));
+    eq(`${naam}: van ${lijst.length} naar ${verwacht} regels`, String(schoon.length), String(verwacht));
+  }
+  ok("de lesvormen van de rijschool zijn één propositie", zelfdePropositie(rijschool[5], rijschool[8]));
+  ok("de twee dienstenomschrijvingen van de hovenier niet", !zelfdePropositie(hovenier[1], hovenier[6]));
+  eq("een lege lijst blijft leeg", String(schoneWaardeproposities(null).length), "0");
+});
+
+group("De feitenkaart zonder 'De website vermeldt' (WP1)", () => {
+  // Letterlijk uit `brand_facts` van de drie proefklanten, 25 september 2026.
+  const gevallen: [string, string][] = [
+    ["De website vermeldt: “35+ Jaar ervaring”.", "35+ Jaar ervaring"],
+    ["De website biedt een gratis offerte aan.", "Een gratis offerte"],
+    ["De site noemt een vrijblijvende intake van 60 minuten.", "Een vrijblijvende intake van 60 minuten."],
+    ["Bedrijfsgegevens volgens de aangeleverde website-informatie: Speelheuvelweg 6A, 5652 CH Eindhoven; KvK 17120470.", "Speelheuvelweg 6A, 5652 CH Eindhoven; KvK 17120470."],
+    ["De website vermeldt: ‘Ons bedrijf beschikt over een officiële CO-certificering volgens de Gasketelwet.’", "Ons bedrijf beschikt over een officiële CO-certificering volgens de Gasketelwet."],
+    ["De website vermeldt in de aangeleverde prijstekst: prijzen gelden per 1 november 2025; prijswijzigingen voorbehouden.", "Prijzen gelden per 1 november 2025; prijswijzigingen voorbehouden."],
+    ["Twaalf monteurs in dienst", "Twaalf monteurs in dienst"],
+  ];
+  for (const [feit, verwacht] of gevallen) {
+    const uit = zonderVindplaats(feit);
+    eq(`"${feit.slice(0, 40)}..."`, uit, verwacht);
+    ok("wat overblijft is letterlijk een stuk van het feit, dus het citaat klopt", normalizeForQuote(feit).includes(normalizeForQuote(uit)));
+  }
+  const kaart = formatFactCard([
+    { ref: "F27", text: "De website vermeldt: “35+ Jaar ervaring”.", source: "site hansverstraatenhoveniers.nl", allowed: true, citable: true, kind: "site" } as never,
+  ]);
+  ok("de kaart toont het feit zonder vindplaats", kaart.includes("F27  35+ Jaar ervaring") && !kaart.includes("De website vermeldt"));
+  ok("het profielonderzoek vraagt om de bewering zelf", leesBestand("lib/pipeline/profile-research.ts").includes("Schrijf de bewering zelf op, niet dat de site hem doet"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// DE CONTENTKETEN OPNIEUW: de bewaking (docs/tasks/contentketen-opnieuw.md §7.2, §7.3)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// De vorige keten groeide doordat elke sessie er iets oud of nieuws bij bouwde.
+// Deze twee controles houden de nieuwe keten klein: `lib/pagina/` gebruikt
+// alleen algemene infrastructuur, en de kolommen van de oude keten leest of
+// schrijft niemand meer.
+console.log("\nDe contentketen opnieuw: de bewaking");
+
+group("lib/pagina importeert alleen wat op de lijst van §7.3 staat", () => {
+  const toegestaan = [
+    /^@\/lib\/pagina\//,
+    /^@\/lib\/jobs\/(queue|dedupe|types)$/,
+    /^@\/lib\/openai\//,
+    /^@\/lib\/supabase\//,
+    /^@\/lib\/types\/database$/,
+    /^@\/lib\/open-questions$/,
+    /^@\/lib\/schrijfregel-vangnet$/,
+    /^@\/lib\/pipeline\/(redact|existing-page-fetch|waardeproposities|dash-guard|metatitel|content-export|structured-data|meetplan)$/,
+    /^@\/lib\/schema-jsonld$/,
+    /^@\/lib\/plan-(status|writing)$/,
+    /^@\/lib\/kennis\/(voor-pagina|blok-a)$/,
+    /^@\/lib\/afhankelijkheden\/vastleggen$/,
+    /^zod$/,
+    /^server-only$/,
+    /^@supabase\/supabase-js$/,
+    /^node:/,
+  ];
+  const bestanden = bestaatBestand("lib/pagina") ? tsOnder("lib/pagina") : [];
+  const fout: string[] = [];
+  for (const pad of bestanden) {
     const bron = leesBestand(pad);
-    // Een clientcomponent mag dit wel: daar blijft alles aan dezelfde kant.
-    const eersteRegel = bron.split("\n")[0] ?? "";
-    if (eersteRegel.includes("use client")) continue;
+    const statisch = [...bron.matchAll(/^\s*(?:import|export)\s[^;]*?from\s+"([^"]+)"/gm)].map((m) => m[1]);
+    const kaal = [...bron.matchAll(/^\s*import\s+"([^"]+)"/gm)].map((m) => m[1]);
+    const dynamisch = [...bron.matchAll(/\bimport\(\s*"([^"]+)"\s*\)/g)].map((m) => m[1]);
+    for (const spec of [...statisch, ...kaal, ...dynamisch]) {
+      const m = [spec, spec];
+      if (!toegestaan.some((r) => r.test(m[1]))) fout.push(`${pad}: ${m[1]}`);
+    }
+  }
+  ok("geen import buiten de lijst", fout.length === 0, fout.join(", "));
+});
 
-    for (const patroon of [HAAKJES, KAAL]) {
-      patroon.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = patroon.exec(bron)) !== null) {
-        const regel = bron.slice(0, m.index).split("\n").length;
-        overtredingen.push(`${pad}:${regel} (${m[1]})`);
+group("de kolommen van de oude keten leest of schrijft niemand meer (§7.2)", () => {
+  const oud = /(?<![a-z_])(contract_json|dossier_json|strategy_json|edit_log_json|readiness_json|quality_json|quality_verdict|quality_profile|writer_brief_json|proof_points_json|claims_json|critique_raw_json|briefing_snapshot_json|write_mode|geaccepteerde_zinnen|brief_instruction)(?![a-z_])/;
+  const bestanden = [...tsOnder("app"), ...tsxOnder("app"), ...tsOnder("lib"), ...tsOnder("components"), ...tsxOnder("components")].filter(
+    (p) => !p.endsWith("lib/types/database.ts"),
+  );
+  const fout: string[] = [];
+  for (const pad of new Set(bestanden)) {
+    leesBestand(pad)
+      .split("\n")
+      .forEach((regel, i) => {
+        const t = regel.trim();
+        // Commentaar mag de oude namen noemen: dat is uitleg, geen gebruik.
+        if (t.startsWith("*") || t.startsWith("//") || t.startsWith("/*")) return;
+        if (oud.test(regel)) fout.push(`${pad}:${i + 1}`);
+      });
+  }
+  ok("geen gebruik meer", fout.length === 0, fout.join(", "));
+});
+
+// ── WP3: de controle in code (contentketen-opnieuw.md §6.5) ─────────────────
+console.log("\nDe contentketen opnieuw: harde beweringen, reparatie, bedrijfskennis");
+
+group("harde beweringen: wat is er een, en wat niet", () => {
+  const namen = ["Autorijschool Pompert"];
+  const is = (zin: string) => vindHardeBeweringen(zin, namen).length > 0;
+  // Geen harde bewering: gewone uitleg zonder getal of belofte.
+  ok("1. een paar lessen zonder getal is geen bewering", !is("Veel leerlingen hebben na een paar lessen meer vertrouwen."));
+  ok("2. 'na enkele lessen' ook niet", !is("Na enkele lessen merk je vaak dat het rustiger gaat."));
+  ok("3. een telefoonnummer niet", !is("Bel ons op 040 123 4567 voor een afspraak."));
+  ok("4. een mobiel nummer met streepje niet", !is("Bel ons op 06-12345678."));
+  ok("5. een postcode niet", !is("Ons kantoor zit op 5652 CH in Eindhoven."));
+  ok("6. een huisnummer na een straat niet", !is("Kom langs op de Speelheuvelweg 6A."));
+  ok("7. een opsomming in een kop niet", !is("## 3 tips voor je eerste rijles"));
+  ok("8. 'altijd' in algemeen advies niet (gaat niet over het bedrijf)", !is("Controleer altijd je spiegels voor je afslaat."));
+  // Wel een harde bewering.
+  ok("9. een lesduur is er een", is("De eerste les duurt ongeveer 60 minuten."));
+  ok("10. een aantal instructeurs ook", is("We werken met 3 instructeurs."));
+  ok("11. een prijs met euroteken", is("Een losse les kost € 55."));
+  ok("12. een prijs met 'euro' erachter", is("Een losse les kost 55 euro."));
+  ok("13. een termijn", is("Je kunt binnen 2 weken beginnen."));
+  ok("14. een jaartal", is("Wij rijden sinds 1990 met leerlingen door Eindhoven."));
+  ok("15. garantie in een zin over het bedrijf", is("Wij geven garantie dat je slaagt."));
+  ok("16. 'de beste' met de bedrijfsnaam", is("Autorijschool Pompert is de beste rijschool van de regio."));
+  ok("17. een percentage", is("Ruim 80% van onze leerlingen slaagt in één keer."));
+  const bereik = hardeGetallen("Een ketel kost € 2.200 tot € 3.200.");
+  ok("18. een bereik levert twee bedragen op", bereik.length === 2 && bereik.every((g) => g.eenheid === "euro"));
+  eq("19. duizendtallen worden genormaliseerd", bereik[0]?.waarde ?? "", "2200");
+  eq("20. een komma wordt een punt", hardeGetallen("De les duurt 1,5 uur.")[0]?.waarde ?? "", "1.5");
+});
+
+group("harde beweringen: wanneer is er een bron", () => {
+  const namen = ["Wesley Keeris Installatietechniek", "Wesley Keeris"];
+  const bronnen = [
+    "Twaalf monteurs in dienst. Een nieuwe cv-ketel kost € 2.200 tot € 3.200, inclusief installatie.",
+    "Wij hebben meer dan 35+ jaar ervaring.",
+    "De levertijd is 2 tot 4 weken.",
+    "Wij geven geen garantie op het behalen van je examen.",
+    "Officiële CO-certificering volgens de Gasketelwet.",
+    "Sinds 1990 in Eindhoven.",
+  ];
+  const oordeel = (zin: string) => controleerHardeBeweringen(zin, bronnen, namen)[0];
+  ok("21. een bedrag uit de bron is gedekt", oordeel("Een nieuwe ketel kost bij ons € 2.200 tot € 3.200.")?.ongedekt.length === 0);
+  ok("22. een verzonnen bedrag niet", (oordeel("Een nieuwe ketel kost bij ons € 1.900.")?.ongedekt.length ?? 0) > 0);
+  ok("23. '35 jaar' tegenover '35+ jaar' is gedekt", oordeel("Wij hebben 35 jaar ervaring.")?.ongedekt.length === 0);
+  ok("24. een termijn uit de bron is gedekt", oordeel("We leveren in 2 tot 4 weken.")?.ongedekt.length === 0);
+  ok("25. dezelfde waarde met een andere eenheid niet", (oordeel("We geven 2 jaar garantie.")?.ongedekt.length ?? 0) > 0);
+  ok(
+    "26. 'garantie dat je slaagt' wordt niet gedekt door 'geen garantie'",
+    (oordeel("Wij geven garantie dat je slaagt.")?.ongedekt.length ?? 0) > 0,
+  );
+  ok("27. een keurmerk uit de bron is gedekt", oordeel("Wij zijn gecertificeerd voor CO-metingen.")?.ongedekt.length === 0);
+  ok("28. 'nooit' is altijd geel, want het is zelf een ontkenning", (oordeel("Wij laten je nooit in de kou staan.")?.ongedekt.length ?? 0) > 0);
+  ok("29. een jaartal uit de bron is gedekt", oordeel("Wij werken sinds 1990 in de regio.")?.ongedekt.length === 0);
+  ok("30. vakkennis als bron: een subsidiebedrag dat in de uitleg staat", controleerHardeBeweringen(
+    "De ISDE-subsidie voor een hybride warmtepomp is ongeveer € 2.100.",
+    ["De ISDE-subsidie voor een hybride warmtepomp bedraagt ongeveer € 2.100 (bron: rvo.nl)."],
+  )[0]?.ongedekt.length === 0);
+  ok("31. 'de beste' zonder bron is geel", (oordeel("Wesley Keeris is de beste installateur van Geldrop.")?.ongedekt.length ?? 0) > 0);
+  const tekst = "Een nieuwe ketel kost € 2.200 tot € 3.200.\n\nWij geven 10 jaar garantie. Bel 040 123 4567.";
+  eq("32. alleen de zin zonder bron wordt geel", geleZinnen(controleerHardeBeweringen(tekst, bronnen, namen)).join("|"), "Wij geven 10 jaar garantie.");
+  // De zinnen uit de kwaliteitsdoorlichting die de vorige keten fout deed.
+  ok(
+    "33. 'Wij hebben meer dan 35 jaar ervaring, maar dat zegt niets' draagt geen verzonnen getal",
+    oordeel("Wij hebben meer dan 35 jaar ervaring, maar dat zegt op zichzelf niets over het aantal zwemvijvers.")?.ongedekt.length === 0,
+  );
+  ok("34. twaalf monteurs in woorden wordt niet herkend en dus niet geel (regel 2: geen taalontleding)", vindHardeBeweringen("Wij hebben twaalf monteurs.", namen).length === 0);
+});
+
+group("zinnen splitsen uit markdown", () => {
+  const z = splitsZinnen("## Wat kost het?\n\nEen les kost € 55. Een pakket is goedkoper.\n\n- 1.800 leerlingen\n1. Eerste stap");
+  ok("een kop is een zin", z.includes("Wat kost het?"));
+  ok("twee zinnen op één regel worden er twee", z.includes("Een les kost € 55.") && z.includes("Een pakket is goedkoper."));
+  ok("een lijstteken valt weg, een getal met punt blijft heel", z.includes("1.800 leerlingen"));
+  ok("een genummerde lijst verliest zijn nummer", z.includes("Eerste stap"));
+});
+
+group("mechanische reparatie: repareren, nooit blokkeren", () => {
+  const uit = repareerMechanisch(
+    {
+      titel: "Rijles bij faalangst — rustig beginnen",
+      meta_titel: "Rijles bij faalangst in Eindhoven en omgeving voor iedereen met zenuwen | Autorijschool Pompert",
+      meta_beschrijving: "Nerveus voor je rijles? Bij Autorijschool Pompert begin je rustig, en/of in je eigen tempo.",
+      tekst_markdown: "Veel leerlingen zijn nerveus—dat is normaal. Een pakket van 5–8 lessen is gebruikelijk.",
+      faq: [{ vraag: "Hoe lang duurt een les?", antwoord: "Een les duurt 60 minuten — soms 90." }, { vraag: "", antwoord: "leeg" }],
+    },
+    "Autorijschool Pompert",
+  );
+  ok("een gedachtestreepje met spaties wordt een komma", uit.titel === "Rijles bij faalangst, rustig beginnen");
+  ok("een gedachtestreepje tussen woorden ook", uit.tekst_markdown.includes("nerveus, dat is normaal"));
+  ok("een bereik tussen cijfers blijft staan", uit.tekst_markdown.includes("5–8 lessen"));
+  ok("en/of wordt of", !uit.meta_beschrijving.includes("en/of"));
+  ok("de metatitel blijft binnen 60 tekens", uit.meta_titel.length <= 60, `${uit.meta_titel.length}`);
+  ok("de beschrijving binnen 160", uit.meta_beschrijving.length <= 160);
+  ok("een lege FAQ-vraag valt weg", uit.faq.length === 1);
+  ok("ook in de FAQ", !uit.faq[0].antwoord.includes("—"));
+});
+
+group("blok A uit de kennislaag: wat mee gaat naar de schrijver (K6, B20)", () => {
+  const nu = new Date("2026-09-27T12:00:00Z");
+  let n = 0;
+  const k = (bewering: string, extra: Partial<KennisVoorBlokA> = {}): KennisVoorBlokA => ({
+    id: extra.id ?? `k${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering,
+    status: "verklaard",
+    bron: "klant",
+    gebruik: "content",
+    vastgelegd_door: "u1",
+    geldt_voor: [],
+    analysis_id: null,
+    content_piece_id: null,
+    herkomst_tabel: null,
+    herkomst_id: null,
+    ...extra,
+  });
+  const site = { status: "waargenomen", bron: "website", citaat: "letterlijk", bron_url: "https://x.nl", vastgelegd_door: null, vastgelegd_door_taak: "kennis_terugvullen", herkomst_tabel: "profile_offerings" };
+  const kennis: KennisVoorBlokA[] = [
+    k("Cv-ketels: vervangen en plaatsen.", { id: "cat-cv", soort: "categorie", ...site }),
+    k("CV-ketel vervangen: een oude ketel vervangen.", { id: "d-cv", soort: "dienst", geldt_voor: ["cat-cv"], ...site }),
+    k("Een nieuwe cv-ketel kost € 2.200 tot € 3.200.", { soort: "prijs", geldt_voor: ["d-cv"], ...site, bewijskracht: "sterk" }),
+    k("Zonnepanelen: leggen op het dak.", { id: "d-zon", soort: "dienst", ...site }),
+    k("Zonnepanelen vanaf € 4.000.", { soort: "prijs", geldt_voor: ["d-zon"], ...site }),
+    k("Twaalf monteurs in dienst.", { domein: "identiteit", ...site }),
+    k("Waarschijnlijk is snelheid belangrijk.", { domein: "positionering", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door: null, vastgelegd_door_taak: "profile_research" }),
+    k("Een citaat dat ontbreekt.", { ...site, citaat: null }),
+    k("Alleen intern.", { gebruik: "intern" }),
+    k("Afgewezen.", { afgewezen_op: "2026-09-20T00:00:00Z" }),
+    k("Werken jullie in het weekend?\nJa.", { soort: "antwoord", herkomst_tabel: "fact_requests", herkomst_id: "v-merk" }),
+    k("Hoeveel monteurs?\nTwaalf.", { soort: "antwoord", analysis_id: "cl-1", herkomst_tabel: "fact_requests", herkomst_id: "v-cluster" }),
+    k("Vraag van een ander cluster.", { analysis_id: "cl-2" }),
+    k("Rapportvraag die al aan deze pagina hangt.", { analysis_id: "cl-1", herkomst_tabel: "fact_requests", herkomst_id: "v-blokB" }),
+    k("Het verhaal bij een eerdere versie van deze pagina.", { domein: "verhaal", soort: "eigen verhaal", analysis_id: "cl-1", content_piece_id: "v1" }),
+    k("Het verhaal van een andere pagina.", { domein: "verhaal", soort: "eigen verhaal", analysis_id: "cl-1", content_piece_id: "ander" }),
+    k("Een hele pagina van de site als stemvoorbeeld.", { domein: "stem", soort: "stemvoorbeeld", ...site }),
+    k("Bevestigd door de consultant.", { domein: "bewijs", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26T00:00:00Z" }),
+    k("goedkoopste", { domein: "grens", soort: "verboden woord", gebruik: "verboden", geldt_voor: ["d-zon"] }),
+    k("politiek", { domein: "grens", soort: "verboden onderwerp", gebruik: "verboden" }),
+  ];
+  const pagina: PaginaVoorBlokA = {
+    analysisId: "cl-1",
+    paginaIds: ["v1", "v2"],
+    titel: "Cv-ketel vervangen in Geldrop",
+    zoekintentie: "Wat kost een nieuwe cv-ketel?",
+    kansGeldtVoor: ["cat-cv"],
+    vragenInBlokB: ["v-blokB"],
+  };
+  const keuze = kiesVoorBlokA(kennis, pagina, nu);
+  const teksten = keuze.beweringen.map((b) => b.bewering);
+  ok("een vermoeden van een model komt nooit in blok A (§4 regel 4)", !teksten.some((t) => t.includes("Waarschijnlijk")));
+  ok("wat de klant zei wel", teksten.includes("Werken jullie in het weekend?\nJa."));
+  ok("waargenomen zonder citaat niet", !teksten.includes("Een citaat dat ontbreekt."));
+  ok("alleen intern niet, afgewezen niet", !teksten.includes("Alleen intern.") && !teksten.includes("Afgewezen."));
+  ok("de dienst van de kans, met wat eronder hangt (de prijs)", teksten.includes("CV-ketel vervangen: een oude ketel vervangen.") && teksten.includes("Een nieuwe cv-ketel kost € 2.200 tot € 3.200."));
+  ok("de prijs van een andere dienst niet (V16)", !teksten.includes("Zonnepanelen vanaf € 4.000."));
+  ok("een dienst van de aanbodboom die niet bij de kans hoort, ook niet als hij nergens onder hangt (productie, 27 september 2026)", !teksten.includes("Zonnepanelen: leggen op het dak."));
+  ok("maar de categorie van de kans zelf wel", teksten.includes("Cv-ketels: vervangen en plaatsen."));
+  ok("een antwoord uit het rapport van dit cluster wel (B17), van een ander cluster niet", teksten.includes("Hoeveel monteurs?\nTwaalf.") && !teksten.includes("Vraag van een ander cluster."));
+  ok("wat al in blok B staat, niet nog eens", !teksten.includes("Rapportvraag die al aan deze pagina hangt."));
+  ok("het verhaal bij een eerdere versie van de pagina wel (gevonden in K5)", teksten.includes("Het verhaal bij een eerdere versie van deze pagina."));
+  ok("het verhaal van een andere pagina niet (B3)", !teksten.includes("Het verhaal van een andere pagina."));
+  ok("de stem gaat apart mee, niet als bewering", !teksten.some((t) => t.includes("stemvoorbeeld")));
+  eq("bevestigd eerst", teksten[0] ?? "", "Bevestigd door de consultant.");
+  eq("een verbod geldt altijd, ook als het aan een andere dienst hangt", `${keuze.verbodenWoorden.join(",")}|${keuze.verbodenOnderwerpen.join(",")}`, "goedkoopste|politiek");
+  ok("en komt niet als bewering mee", !teksten.includes("goedkoopste"));
+
+  const zonderKans = kiesVoorBlokA(kennis, { ...pagina, kansGeldtVoor: null, titel: "Zonnepanelen op je dak", zoekintentie: null }, nu);
+  ok(
+    "zonder kans: de dienst waarvan de naam in de titel staat",
+    zonderKans.beweringen.some((b) => b.bewering === "Zonnepanelen vanaf € 4.000.") && !zonderKans.beweringen.some((b) => b.bewering.includes("cv-ketel kost")),
+  );
+  const veel = Array.from({ length: 400 }, (_, i) => k(`Feit ${i}.`, { domein: "identiteit" }));
+  eq("hooguit 150 items", String(kiesVoorBlokA(veel, pagina, nu).beweringen.length), String(MAX_KENNIS));
+
+  const a = blokAUitKennis("Wesley Keeris", keuze.beweringen);
+  ok("blok A noemt het bedrijf en de kennis per onderwerp", a.startsWith("Bedrijf: Wesley Keeris") && a.includes("Aanbod, prijzen en werkwijze:\n") && a.includes("- Twaalf monteurs in dienst."));
+  ok("en laat lege onderwerpen weg", !a.includes("Wat eerdere pagina's opleverden"));
+  ok("\"waar het bedrijf voor staat\" uit het merkonderzoek bestaat niet meer (P3)", !a.includes("Waar het bedrijf voor staat"));
+  eq("blok A van de keten is dezelfde tekst", blokA({ bedrijfsnaam: "Wesley Keeris", kennis: keuze.beweringen, verbodenWoorden: [], verbodenOnderwerpen: [] }), a);
+
+  const context = leesBestand("lib/pagina/context.ts");
+  ok("de keten leest blok A niet meer uit brand_facts of value_props", !/from\("brand_facts"\)|value_props|schoneWaardeproposities/.test(context.slice(context.indexOf("export async function laadBedrijf"))));
+  ok("maar via kennisVoor()", context.includes("await kennisVoor(admin,"));
+});
+
+group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
+  let n = 0;
+  const k = (bewering: string, extra: Partial<OverzichtItem> = {}): OverzichtItem => ({
+    id: extra.id ?? `o${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering,
+    status: "verklaard",
+    bron: "gesprek",
+    gebruik: "content",
+    vastgelegd_door: "u1",
+    ...extra,
+  });
+  const gezien = k("Twaalf monteurs.", { domein: "identiteit", status: "waargenomen", bron: "website", citaat: "Twaalf monteurs.", bron_url: "https://x.nl" });
+  const zeker = k("Garantie van vijf jaar.", { status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-27" });
+  const gezegd = k("Een ketel vervangen duurt een dag.");
+  const denk = k("Sterk in spoed.", { domein: "positionering", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door: null, vastgelegd_door_taak: "profile_research" });
+  const weg = k("Wij doen ook zonnepanelen.", { afgewezen_op: "2026-09-27" });
+  const oud = k("Oude tekst.", { vervangen_door: "o99" });
+  const verbod = k("goedkoopste", { domein: "grens", soort: "verboden woord", gebruik: "verboden" });
+  const o = maakOverzicht([gezien, zeker, gezegd, denk, weg, oud, verbod]);
+
+  eq("per domein, in de vaste volgorde", o.weten.map((g) => g.domein).join(","), "identiteit,aanbod,grens");
+  eq("binnen een domein bevestigd eerst", o.weten[1]!.items.map((i) => i.id).join(","), `${zeker.id},${gezegd.id}`);
+  eq("een vermoeden staat apart, als wat we denken", o.denken.flatMap((g) => g.items.map((i) => i.id)).join(","), denk.id);
+  eq("afgewezen apart", o.afgewezen.map((i) => i.id).join(","), weg.id);
+  ok("een vervangen versie staat nergens", ![...o.weten, ...o.denken].some((g) => g.items.some((i) => i.id === oud.id)) && !o.afgewezen.some((i) => i.id === oud.id));
+  eq("de aantallen", JSON.stringify(o.aantallen), JSON.stringify({ weten: 4, denken: 1, afgewezen: 1, bevestigd: 1 }));
+
+  eq("gezien op de site: alle vier de knoppen", handelingenVoor(gezien).join(","), "bevestigen,aanpassen,afwijzen,niet_op_site");
+  eq("al bevestigd: geen bevestigen meer", handelingenVoor(zeker).join(","), "aanpassen,afwijzen,niet_op_site");
+  eq("een vermoeden: bevestigen, aanpassen, afwijzen; het staat al niet op de site", handelingenVoor(denk).join(","), "bevestigen,aanpassen,afwijzen");
+  eq("een verbod: geen \"niet op de site\"", handelingenVoor(verbod).join(","), "bevestigen,aanpassen,afwijzen");
+  eq("afgewezen of vervangen: geen knoppen", String(handelingenVoor(weg).length + handelingenVoor(oud).length), "0");
+
+  eq("aanpassen: een verbod blijft een verbod", nieuwGebruikBijAanpassen(verbod), "verboden");
+  eq("aanpassen: wat van de site gehaald was blijft eraf", nieuwGebruikBijAanpassen(k("x", { gebruik: "intern" })), "intern");
+  eq("aanpassen: een vermoeden in woorden van de klant mag op een pagina", nieuwGebruikBijAanpassen(denk), "content");
+
+  eq("herkomst in één zin", herkomstZin({ bron: "gesprek", vastgelegd_op: "2026-09-26T10:00:00Z" }), "Uit het gesprek, 26 sep 2026.");
+  eq("herkomst zonder datum", herkomstZin({ bron: "website" }), "Uit de website.");
+
+  // Besluit V6: de klant ziet het kennisoverzicht niet. Scherm en route geven
+  // een niet-medewerker een 404, en de handelingen gaan alleen via de route.
+  const scherm = leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx");
+  const route = leesBestand("app/api/profiles/[id]/kennis/[itemId]/route.ts");
+  ok("het scherm is alleen voor medewerkers", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
+  ok("de route ook, met een 404", /if \(!\(await isStaff\(user\.id\)\)\) return NextResponse\.json\(\{ error: "Niet gevonden\." \}, \{ status: 404 \}\)/.test(route));
+  ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
+});
+
+group("tegenstrijdigheden houden kennis bij de schrijver weg (K7, sinds K8 deel 2 alleen botsingen)", () => {
+  const k = (id: string, extra: Record<string, unknown> = {}) => ({ id, ...extra });
+  const kennis = [k("x"), k("y"), k("z", { afgewezen_op: "2026-09-27" }), k("p"), k("q"), k("r"), k("s")];
+  const conflicten = [
+    { status: "open", echt_conflict: true, kennis_ids: ["x", "y"] },
+    { status: "open", echt_conflict: true, kennis_ids: ["x", "z"] },
+    { status: "opgelost", echt_conflict: true, kennis_ids: ["p", "q"] },
+    { status: "open", echt_conflict: false, kennis_ids: ["r", "s"] },
+    { status: "open", echt_conflict: true, kennis_ids: null },
+  ];
+  const b = blokkadesVan(kennis, conflicten);
+  eq("een botsing tussen twee actuele kennisitems houdt beide tegen", `${b.get("x")}/${b.get("y")}`, "conflict/conflict");
+  eq("een opgeloste botsing en een geen-conflict niet", [..."pqrs"].map((i) => b.get(i) ?? "-").join(","), "-,-,-,-");
+  const zonderY = blokkadesVan([k("x"), k("y", { afgewezen_op: "2026-09-27" })], [conflicten[0]!]);
+  eq("wees de consultant er een af, dan houdt de botsing niets meer tegen", String(zonderY.size), "0");
+  ok("de blokkade leest het oude feitenregister niet meer", !/brand_facts/.test(codeZonderCommentaar(leesBestand("lib/kennis/voor-pagina.ts") + leesBestand("lib/kennis/betwist.ts"))));
+
+  const nu = new Date("2026-09-27T12:00:00Z");
+  const item = (id: string, bewering: string): KennisVoorBlokA => ({
+    id, domein: "aanbod", soort: null, bewering, status: "verklaard", bron: "klant", gebruik: "content", vastgelegd_door: "u1",
+    geldt_voor: [], analysis_id: null, content_piece_id: null, herkomst_tabel: null, herkomst_id: null,
+  });
+  const keuze = kiesVoorBlokA([item("g1", "Binnen een dag."), item("g2", "Vijf jaar garantie.")], {
+    analysisId: "c", paginaIds: ["p"], titel: "Lekkage", zoekintentie: null, kansGeldtVoor: null, vragenInBlokB: [], geblokkeerd: new Set(["g1"]),
+  }, nu);
+  eq("blok A laat geblokkeerde kennis weg", keuze.beweringen.map((x) => x.id).join(","), "g2");
+
+  eq("niet van toepassing: alleen velden van het gesprek, alleen aangevinkt", nietVanToepassingVelden({ differentiator: true, value_props: false, onzin: true }).join(","), "differentiator");
+  eq("niet van toepassing: geen object is niets", String(nietVanToepassingVelden(null).length + nietVanToepassingVelden(["differentiator"]).length), "0");
+  eq("niet van toepassing: het veld is leeg voor de kennislaag", JSON.stringify(zonderNietVanToepassing({ differentiator: "x", verhalen: "y" }, ["differentiator"])), JSON.stringify({ differentiator: null, verhalen: "y" }));
+
+  const conflictRoute = leesBestand("app/api/profiles/[id]/fact-conflicts/route.ts");
+  ok("een botsing tussen kennisitems oplossen gaat pas na de controle op medewerker", conflictRoute.indexOf("await magHier(id)") > 0 && conflictRoute.lastIndexOf("await magHier(id)") < conflictRoute.indexOf("await losKennisconflictOp("));
+});
+
+group("opleveren: wat de klant meeneemt naar zijn site", () => {
+  const faq = [
+    { q: "Hoe lang duurt de aanleg?", a: "Meestal twee weken." },
+    { q: "  ", a: "leeg" },
+  ];
+  eq("de FAQ als Markdown, lege vragen eruit", faqMarkdown(faq), "## Veelgestelde vragen\n\n### Hoe lang duurt de aanleg?\n\nMeestal twee weken.");
+  eq("geen FAQ: niets", faqMarkdown([]), "");
+  ok("de download heeft de tekst en de FAQ eronder", volledigeMarkdown("## Tuinaanleg\n\nTekst.", faq).startsWith("## Tuinaanleg\n\nTekst.\n\n## Veelgestelde vragen"));
+  eq("zonder FAQ alleen de tekst", volledigeMarkdown("Tekst.\n", []), "Tekst.");
+  const html = htmlDocument({
+    metaTitel: 'Tuin "laten" aanleggen',
+    metaBeschrijving: "Een tuin <op maat>.",
+    tekst: "## Tuinaanleg\n\nTekst.",
+    faq,
+    schemaJsonLd: '{"@type":"FAQPage","text":"</script><b>"}',
+  });
+  ok("de metatitel wordt de titel, veilig", html.includes("<title>Tuin &quot;laten&quot; aanleggen</title>"));
+  ok("de omschrijving een meta-tag, veilig", html.includes('<meta name="description" content="Een tuin &lt;op maat&gt;.">'));
+  ok("de gestructureerde gegevens in de kop", html.includes('<script type="application/ld+json">') && html.indexOf("ld+json") < html.indexOf("<body>"));
+  ok("een </script> in de gegevens sluit het blok niet af", html.includes("<\\/script><b>") && html.split("</script>").length === 2);
+  ok("de FAQ staat in de body", html.includes("Hoe lang duurt de aanleg?"));
+  ok("zonder meta geen lege tags", !htmlDocument({ metaTitel: null, metaBeschrijving: " ", tekst: "x", faq: [], schemaJsonLd: null }).includes("<title>"));
+  eq("een bestandsnaam uit de titel", bestandsnaam("Tuin aanleggen in Één dag!"), "tuin-aanleggen-in-een-dag");
+  eq("nooit leeg", bestandsnaam("???"), "pagina");
+});
+
+group("C2: het publicatiepakket compleet, interne links", () => {
+  const paginas = [
+    { url: "https://hovenier.nl/diensten/warmtepomp-installatie", title: "Warmtepomp installatie" },
+    { url: "https://hovenier.nl/contact", title: "Contact" },
+    { url: "https://hovenier.nl/blog/onderhoud-warmtepomp", title: null },
+    { url: "https://hovenier.nl/tuinontwerp", title: "Tuinontwerp op maat" },
+  ];
+  const links = siteLinksVoorOnderwerp(paginas, "Warmtepomp", null);
+  eq("een woord uit de dienstnaam in de titel of het adres", links.map((l) => l.url).join(" | "), "https://hovenier.nl/diensten/warmtepomp-installatie | https://hovenier.nl/blog/onderhoud-warmtepomp");
+  ok("zonder titel valt hij terug op het adres", links[1].titel === "https://hovenier.nl/blog/onderhoud-warmtepomp");
+  eq("zonder onderwerp geen voorstel", String(siteLinksVoorOnderwerp(paginas, null, null).length), "0");
+  eq("een te kort woord telt niet mee", String(siteLinksVoorOnderwerp(paginas, "cv", null).length), "0");
+  eq("het eigen adres valt weg", siteLinksVoorOnderwerp(paginas, "Warmtepomp", "https://hovenier.nl/diensten/warmtepomp-installatie").map((l) => l.url).join(""), "https://hovenier.nl/blog/onderhoud-warmtepomp");
+  const veel = Array.from({ length: 10 }, (_, i) => ({ url: `https://hovenier.nl/warmtepomp-${i}`, title: `Warmtepomp ${i}` }));
+  eq("hooguit vijf", String(siteLinksVoorOnderwerp(veel, "Warmtepomp", null).length), "5");
+
+  const kandidaten = [
+    { id: "p1", titel: "Warmtepomp onderhoud", url: "https://hovenier.nl/onderhoud", geldtVoor: ["d-warmtepomp"] },
+    { id: "p2", titel: "Zonnepanelen leggen", url: "https://hovenier.nl/zonnepanelen", geldtVoor: ["d-zon"] },
+    { id: "dit", titel: "Warmtepomp installeren", url: "https://hovenier.nl/installeren", geldtVoor: ["d-warmtepomp"] },
+  ];
+  eq("dezelfde dienst wel, een andere niet, zichzelf niet", zusterPaginas("dit", ["d-warmtepomp"], kandidaten).map((l) => l.url).join(""), "https://hovenier.nl/onderhoud");
+  eq("zonder dienst-id's geen voorstel", String(zusterPaginas("dit", [], kandidaten).length), "0");
+});
+
+group("de schrijfpoort: alleen de vragen en de datum (§6.8)", () => {
+  const vandaag = "2026-10-01";
+  eq("geen brief: nog niet", String(schrijfpoort({ briefKlaar: false, openVragen: 0, publicatiedatum: null, vandaag }).reden), "voorbereiding_loopt");
+  eq("een open vraag: nog niet", String(schrijfpoort({ briefKlaar: true, openVragen: 1, publicatiedatum: null, vandaag }).reden), "vragen_open");
+  eq("onbekend aantal is geen nul", String(schrijfpoort({ briefKlaar: true, openVragen: Number.NaN, publicatiedatum: null, vandaag }).reden), "vragen_open");
+  eq("alles gedaan, datum ver weg: wachten", String(schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: "2026-11-20", vandaag }).reden), "nog_niet_aan_de_beurt");
+  eq("de schrijfdatum is 10 dagen ervoor", schrijfdatum("2026-11-20"), "2026-11-10");
+  ok("alles gedaan, binnen 10 dagen: schrijven", schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: "2026-10-05", vandaag }).mag);
+  ok("zonder datum: schrijven", schrijfpoort({ briefKlaar: true, openVragen: 0, publicatiedatum: null, vandaag }).mag);
+});
+
+group("stemvoorbeelden: de adressen van de ondernemer (B14)", () => {
+  const a = schoneAdressen(["  wesleykeeris.nl/over-ons ", "https://wesleykeeris.nl/over-ons", "geen adres", "", { url: "http://voorbeeld.nl/blog" }, "vierde.nl"]);
+  eq("schema erbij, dubbel en ongeldig eruit", a.join(" "), "https://wesleykeeris.nl/over-ons http://voorbeeld.nl/blog https://vierde.nl/");
+  eq("hooguit drie", String(schoneAdressen(["a.nl", "b.nl", "c.nl", "d.nl"]).length), String(MAX_STEMVOORBEELDEN));
+  eq("geen lijst is leeg", String(schoneAdressen("wesleykeeris.nl").length), "0");
+  const pagina = "Home\nOver ons\nContact\nWij zijn een familiebedrijf uit Zwolle en werken al sinds 1990 aan cv-ketels in de regio.\nTweede alinea.";
+  ok("menu bovenaan valt weg", vanafEersteAlinea(pagina).startsWith("Wij zijn een familiebedrijf"));
+  eq("zonder echte alinea blijft alles", vanafEersteAlinea("Kort\nOok kort"), "Kort\nOok kort");
+});
+
+group("de open vraag: tekst per pagina (B3)", () => {
+  ok("de titel staat in de vraag, want de vraagtekst is uniek per merk", openVraagTekst("Cv-ketel vervangen").includes("Cv-ketel vervangen"));
+  ok("twee pagina's geven twee vragen", openVraagTekst("A") !== openVraagTekst("B"));
+  eq("een lang antwoord mag", String(OPEN_VRAAG_MAX), "3000");
+});
+
+group("de content brief: wat code met de uitvoer doet (§6.1)", () => {
+  const vraag = (v: string, extra: Partial<ContentBrief["vragen"][number]> = {}): ContentBrief["vragen"][number] => ({
+    vraag: v, waarom: "Omdat het de pagina eigener maakt.", soort: "praktijk", antwoord_type: "tekst_lang", opties: null, merkbreed: false, ...extra,
+  });
+  const ruw: ContentBrief = {
+    zoekintentie: "Een rijschool vinden — snel",
+    deelvragen: [],
+    concurrentie: { goed: [], gaten: [] },
+    vakkennis: [
+      { uitleg: "Met bron", bron_url: "https://www.cbr.nl" },
+      { uitleg: "Zonder bron", bron_url: "geen adres" },
+      { uitleg: "Ftp telt niet", bron_url: "ftp://cbr.nl" },
+    ],
+    valkuilen: [],
+    vragen: [
+      vraag("Wat kost een rijles?"),
+      vraag("Welke keuze?", { antwoord_type: "keuze", opties: ["Alleen"] }),
+      vraag("Welke dag?", { antwoord_type: "keuze", opties: ["Maandag", "Dinsdag"] }),
+      vraag("Een vraag", { antwoord_type: "tekst_kort", opties: ["x", "y"] }),
+      vraag("een VRAAG!"),
+      ...Array.from({ length: 10 }, (_, i) => vraag(`Voorbeeld ${i}?`)),
+    ],
+    ook_voor_deze_pagina: ["a", "b", "a", "c"],
+  };
+  const eerdere = [
+    { id: "a", question: "Iets open", status: "open" },
+    { id: "b", question: "Wat kost een rijles", status: "beantwoord" },
+  ];
+  const uit = verwerkBrief(ruw, eerdere);
+  eq("vakkennis alleen met een webadres", String(uit.onderzoek.vakkennis.length), "1");
+  ok("de schrijfregels gaan over de tekst", !uit.onderzoek.zoekintentie.includes("—"));
+  ok("een vraag die het merk al kreeg valt weg", !uit.vragen.some((v) => v.vraag.startsWith("Wat kost")));
+  ok("een gelijke vraag in dezelfde brief ook", uit.vragen.filter((v) => normaliseerVraag(v.vraag) === "een vraag").length === 1);
+  eq("hooguit acht", String(uit.vragen.length), String(MAX_BRIEFVRAGEN));
+  eq("keuze met één optie wordt korte tekst", uit.vragen.find((v) => v.vraag === "Welke keuze?")?.antwoord_type ?? "", "tekst_kort");
+  eq("keuze met twee opties blijft keuze", String(uit.vragen.find((v) => v.vraag === "Welke dag?")?.opties?.length), "2");
+  eq("opties bij een gewone vraag vallen weg", String(uit.vragen.find((v) => v.vraag === "Een vraag")?.opties), "null");
+  eq("alleen open vragen van dit merk worden gekoppeld, één keer", uit.koppel.join(","), "a");
+  eq("praktijk wordt praktisch", kindVoorSoort("praktijk"), "praktisch");
+  eq("twijfel wordt grenzen", kindVoorSoort("twijfel"), "grenzen");
+  eq("feit wordt aanvulling", kindVoorSoort("feit"), "aanvulling");
+});
+
+group("de opdracht voor de brief (§6.1)", () => {
+  ok("de voorbeeldvragen staan er letterlijk in", BRIEF_SYSTEEM.includes("Slecht: \"Wat is faalangst?\"") && BRIEF_SYSTEEM.includes("Beter: \"Kun je een typisch voorbeeld"));
+  ok("acht is een bovengrens, nul mag", BRIEF_SYSTEEM.includes("Nul vragen is een goed antwoord"));
+  ok("geen gedachtestreepje in de opdracht", !/[—–]/.test(BRIEF_SYSTEEM));
+  const invoer = briefInvoer({
+    titel: "Rijles in Zwolle", paginasoort: "dienstpagina", handeling: "nieuw", zoekintentie: null, waarom: null,
+    doelvragen: [{ vraag: "Beste rijschool Zwolle?", antwoord: "x".repeat(5000) }], merknaam: "Rijschool Rem",
+    werkgebied: ["Zwolle"], bedrijf: "Bedrijf: Rijschool Rem", huidigeTekst: null, eerdereVragen: [{ id: "q1", vraag: "Hoe lang?", stand: "open" }],
+  });
+  ok("een winnend antwoord gaat ingekort mee", invoer.length < 3000);
+  ok("eerdere vragen met id en stand", invoer.includes("[q1] (open) Hoe lang?"));
+});
+
+group("de schrijfopdracht: vier blokken, geen budget (§6.4)", () => {
+  const sys = schrijfSysteem({ aanspreekvorm: "u", verbodenOnderwerpen: ["politiek"], verbodenWoorden: ["goedkoop"] });
+  ok("de kern staat erin", sys.includes("Schrijf de beste pagina die iemand met deze vraag zou kunnen lezen."));
+  ok("geen woordenbudget", !/\b\d{3,4}\s*woorden\b/.test(sys));
+  ok("de aanspreekvorm", sys.includes("Spreek de lezer aan met u."));
+  ok("de verboden onderwerpen en woorden", sys.includes("politiek") && sys.includes("goedkoop"));
+  const b: SchrijfBlokken = {
+    titel: "Tuinontwerp", paginasoort: "dienstpagina", handeling: "nieuw", bedrijf: "Bedrijf: Groen",
+    stem: [{ bron: "https://groen.nl", tekst: "Wij zijn nuchter." }], eigenVerhaal: "Aan de keukentafel.",
+    antwoorden: [{ vraag: "Hoe begin je?", antwoord: "Met koffie." }], onderzoek: null, zoekintentie: "Een tuin laten ontwerpen",
+    doelvragen: ["Wat kost een tuinontwerp?"], andereTitels: ["Onderhoud"], huidigeTekst: null,
+  };
+  const invoer = schrijfInvoer(b);
+  ok("het eigen verhaal letterlijk", invoer.includes('"""Aan de keukentafel."""'));
+  ok("de stem met de ene zin", invoer.includes("Neem de toon, de zinsbouw en de woordkeus over, niet de inhoud en niet de zinnen zelf."));
+  ok("zonder onderzoek geen leeg blok C", !invoer.includes("(onderzoek)"));
+  ok("geen bronverwijzingen gevraagd", !/\[F\d|bron:/i.test(invoer));
+  const her = herschrijfInvoer(b, { vorige: "Oud.", punten: [{ waar: "opening", probleem: "vaag", hoe: "concreter" }], verzonnen: [], ongedekt: ["Wij geven 10 jaar garantie."], notitieKlant: null });
+  ok("herschrijven: vorige versie en feedback", her.includes("SCHRIJF EEN BETERE VERSIE") && her.includes("10 jaar garantie") && her.includes("opening: vaag"));
+});
+
+group("de controle: herschrijven, welke versie, welke zinnen geel (§6.6, §6.7)", () => {
+  const goed = { oordeel: "goed" as const, verzonnen: [], punten: [] };
+  ok("goed en niets ongedekt: niet herschrijven", !moetHerschrijven(goed, []));
+  ok("goed maar een ongedekte zin: wel", moetHerschrijven(goed, ["Wij bestaan 30 jaar."]));
+  ok("niet goed: wel", moetHerschrijven({ ...goed, oordeel: "niet_goed" }, []));
+  ok("een verzonnen zin: wel", moetHerschrijven({ ...goed, verzonnen: [{ zin: "x", waarom: "y" }] }, []));
+  ok("mislukte beoordeling: niet", !moetHerschrijven(null, ["Wij bestaan 30 jaar."]));
+  eq("gelijk aantal ongedekt: de nieuwe blijft", kiesVersie(2, 2), "nieuw");
+  eq("meer ongedekt: de vorige blijft", kiesVersie(1, 2), "vorige");
+  const geel = geleZinnenNa("Wij bestaan 30 jaar. Wij zijn de beste.", ["Wij bestaan 30 jaar."], ["Wij zijn de beste.", "Weggeschreven zin."]);
+  eq("ongedekt plus verzonnen die er nog staan", geel.join(" | "), "Wij bestaan 30 jaar. | Wij zijn de beste.");
+  ok("alles bevestigd", allesBevestigd({ gele_zinnen: ["A zin."], bevestigd: ["a zin"] }));
+  ok("niet alles bevestigd", !allesBevestigd({ gele_zinnen: ["A zin.", "B zin."], bevestigd: ["A zin."] }));
+  ok("geen controle telt als niet bevestigd", !allesBevestigd(null));
+});
+
+group("harde beweringen: een bereik met 'en' (proef 26 september 2026)", () => {
+  const g = hardeGetallen("Een hybride kost tussen de 4.500 en 7.500 euro.");
+  eq("twee getallen", String(g.length), "2");
+  eq("allebei in euro", g.map((x) => x.eenheid).join(","), "euro,euro");
+  const oordeel = controleerHardeBeweringen(
+    "Reken als eerste indicatie op € 4.500 tot € 7.500 inclusief btw.",
+    ["Een hybride inclusief installatie ligt meestal tussen de 4.500 en 7.500 euro."],
+  );
+  eq("het bedrag van de ondernemer dekt de zin", String(geleZinnen(oordeel).length), "0");
+});
+
+group("verboden woorden van het merk worden geel (B16)", () => {
+  const tekst = "Onze tuinman komt langs. Een tuinmannetje staat in de border. Wij zijn nooit de goedkoopste. Het adviesbezoek is gratis.";
+  eq("een los woord, ongeacht hoofdletters", zinnenMetVerbodenWoord(tekst, ["Tuinman"]).join(" | "), "Onze tuinman komt langs.");
+  eq("geen deel van een ander woord", String(zinnenMetVerbodenWoord("Hij is goedkoper.", ["goedkoop"]).length), "0");
+  eq("een uitzondering tussen haakjes telt niet mee: de zin wordt geel", zinnenMetVerbodenWoord(tekst, ["gratis (behalve bij de offerte)"]).join(""), "Het adviesbezoek is gratis.");
+  eq("meer woorden in één regel", zinnenMetVerbodenWoord(tekst, ["de goedkoopste"]).join(""), "Wij zijn nooit de goedkoopste.");
+  eq("geen lijst, niets geel", String(zinnenMetVerbodenWoord(tekst, []).length), "0");
+});
+
+group("C1: de controle leest ook de FAQ en de metabeschrijving (besluit B19)", () => {
+  eq("faqRijen filtert wat geen {q, a} is", JSON.stringify(faqRijen([{ q: "Kost het iets?", a: "Vanaf € 45." }, { q: "leeg" }, "iets anders", null])), JSON.stringify([{ q: "Kost het iets?", a: "Vanaf € 45." }]));
+  ok("faqRijen op iets anders dan een lijst geeft niets", faqRijen("geen array").length === 0 && faqRijen(null).length === 0);
+
+  const volledig = volledigeControletekst("De tekst zelf.", "Een omschrijving met € 45.", ["Een antwoord met € 60."]);
+  eq("tekst, metabeschrijving en FAQ-antwoorden na elkaar", volledig, "De tekst zelf.\n\nEen omschrijving met € 45.\n\nEen antwoord met € 60.");
+  eq("een lege metabeschrijving en geen FAQ laten niets extra's staan", volledigeControletekst("Alleen de tekst.", null, []), "Alleen de tekst.");
+
+  // De harde-beweringencontrole is al brontekst-onafhankelijk (elke functie werkt
+  // op een string), dus het bewijs zit in het samenvoegen: een verzonnen bedrag in
+  // een FAQ-antwoord of de metabeschrijving wordt nu ook gevonden.
+  const namen = ["Hovenier Groen"];
+  const inFaq = controleerHardeBeweringen(volledigeControletekst("Wij ontwerpen tuinen op maat.", null, ["Een tuinontwerp kost € 900."]), [], namen);
+  eq("een verzonnen bedrag in een FAQ-antwoord wordt geel", geleZinnen(inFaq).join(""), "Een tuinontwerp kost € 900.");
+  const inMeta = controleerHardeBeweringen(volledigeControletekst("Wij ontwerpen tuinen op maat.", "Tuinontwerp met 10 jaar garantie.", []), [], namen);
+  eq("een verzonnen belofte in de metabeschrijving ook", geleZinnen(inMeta).join(""), "Tuinontwerp met 10 jaar garantie.");
+  const gedekt = controleerHardeBeweringen(
+    volledigeControletekst("Wij ontwerpen tuinen op maat.", "Vanaf € 450 per ontwerp.", ["Een tuinontwerp kost vanaf € 450."]),
+    ["Een tuinontwerp kost vanaf € 450."],
+    namen,
+  );
+  eq("dezelfde prijs uit de bron dekt zowel de metabeschrijving als de FAQ", String(geleZinnen(gedekt).length), "0");
+
+  const invoer = controleInvoer({
+    informatie: "Blok A",
+    tekst: "De tekst.",
+    metaBeschrijving: "Een korte omschrijving.",
+    faq: [{ vraag: "Werken jullie ook in het weekend?", antwoord: "Ja, op zaterdag." }],
+    ongedekt: [],
+  });
+  ok("de eindredacteur krijgt de metabeschrijving mee", invoer.includes("DE METABESCHRIJVING VOOR ZOEKMACHINES") && invoer.includes("Een korte omschrijving."));
+  ok("en de FAQ", invoer.includes("DE VEELGESTELDE VRAGEN") && invoer.includes("Werken jullie ook in het weekend?") && invoer.includes("Ja, op zaterdag."));
+  const zonder = controleInvoer({ informatie: "Blok A", tekst: "De tekst.", ongedekt: [] });
+  ok("zonder metabeschrijving of FAQ blijven die blokken weg", !zonder.includes("DE METABESCHRIJVING") && !zonder.includes("DE VEELGESTELDE VRAGEN"));
+  ok("de opdracht noemt dat de metabeschrijving en de FAQ ook meetellen", CONTROLE_SYSTEEM.includes("de metabeschrijving") && CONTROLE_SYSTEEM.includes("veelgestelde vragen"));
+
+  // "Nog geel" (goedkeuren.ts) checkt of een gele zin er nog staat: dat moet ook
+  // werken voor een zin die alleen in de FAQ of de metabeschrijving staat.
+  const nogAanwezig = geleZinnenNa(
+    volledigeControletekst("De tekst.", "Met 10 jaar garantie.", ["Ja, we werken ook 's avonds."]),
+    [],
+    ["Met 10 jaar garantie.", "Ja, we werken ook 's avonds.", "Weggehaalde zin die nergens meer staat."],
+  );
+  eq("een gele zin uit de metabeschrijving en de FAQ blijft geel tot hij weg is", nogAanwezig.join(" | "), "Met 10 jaar garantie. | Ja, we werken ook 's avonds.");
+});
+
+group("de schrijfopdracht, versie 2 (WP9)", () => {
+  const sys = schrijfSysteem({ aanspreekvorm: null, verbodenOnderwerpen: [], verbodenWoorden: [] });
+  ok("een FAQ alleen met een antwoord dat uit de informatie blijkt", sys.includes("Weet je het antwoord voor dit bedrijf niet, laat de vraag dan weg."));
+  ok("een praktijkvoorbeeld hoort bij deze pagina", sys.includes("De andere pagina's van dit bedrijf vertellen hun eigen voorbeelden."));
+  ok("de brief koppelt geen voorbeeldvraag aan een andere pagina", BRIEF_SYSTEEM.includes("Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina"));
+});
+
+group("de meetlat voor de eerste klant", () => {
+  const machine = "## Kop\n\nWij geven 5 jaar garantie. De intake kost € 50. Een les duurt 75 minuten.";
+  const definitief = "## Kop\n\nWij geven 5 jaar garantie! De intake kost € 40. Een les duurt 75 minuten. Bel ons gerust.";
+  const v = zinnenVerschil(machine, definitief);
+  eq("een leesteken telt niet als wijziging", String(v.gebleven), "3");
+  eq("een ander getal is een gewijzigde zin", v.geschrapt.join(" | "), "De intake kost € 50.");
+  eq("nieuw of in andere woorden", v.toegevoegd.join(" | "), "De intake kost € 40. | Bel ons gerust.");
+  eq("aandeel gebleven", String(Math.round((v.aandeelGebleven ?? 0) * 100)), "75");
+  eq("zonder tekst van het model: onbekend", String(zinnenVerschil("", "Iets.").aandeelGebleven), "null");
+  ok("kenmerken: getallen en lange woorden, geen alledaagse", kenmerkenVan("Meestal twee weken, in januari en september vier. Bijvoorbeeld 50 euro.").join(",") === "50,januari,september");
+  const gebruikt = antwoordGebruik("Een meisje van 18 klapte dicht bij een kruispunt op het bedrijventerrein.", "Een leerling klapte dicht bij een kruispunt; we reden op een bedrijventerrein.");
+  eq("teruggevonden kenmerken", `${gebruikt.teruggevonden}/${gebruikt.kenmerken}`, "2/3");
+  eq("een antwoord zonder kenmerken: onbekend", String(antwoordGebruik("Ja", "Tekst").aandeel), "null");
+  const rapport = meetrapport([{
+    titel: "Proefles", machinetekst: machine, definitief, bewerktDoorKlant: true, goedgekeurd: true,
+    aanpassingen: ["Korter graag."], geel: ["Wij geven 5 jaar garantie.", "De intake kost € 50."], bevestigd: ["Wij geven 5 jaar garantie."],
+    vragen: [{ vraag: "Wat kost de intake?", status: "beantwoord", antwoord: "50 euro" }, { vraag: "Hoe lang?", status: "beantwoord", antwoord: "Anderhalf uur" }],
+  }]);
+  ok("een gele zin die bevestigd is", rapport.includes("bevestigd 1, aangepast of weggehaald 1"));
+  ok("de niet herkende zin staat erbij", rapport.includes('niet herkend: "De intake kost € 50."'));
+  ok("de gevraagde aanpassing staat erbij", rapport.includes('"Korter graag."'));
+  ok("gemeten tegen de tekst van het model", rapport.includes("Wat kost de intake? (beantwoord, 100% terug)") && rapport.includes("Hoe lang? (beantwoord, 0% terug)"));
+  ok("de twee vragen voor een mens", rapport.includes("feiten, of ook stijl en opbouw") && rapport.includes("als het eigen bedrijf"));
+  ok("geen gedachtestreepje in het rapport", !/[—–]/.test(rapport));
+});
+
+group("de schrijfopdracht, versie 3: bedrijfskennis en algemene kennis gescheiden (WP9 ronde 2)", () => {
+  const sys = schrijfSysteem({ aanspreekvorm: null, verbodenOnderwerpen: [], verbodenWoorden: [] });
+  ok("algemene kennis nooit als eigenschap van het bedrijf", sys.includes("nooit als een werkwijze, belofte, advies of eigenschap van dit bedrijf"));
+  ok("één gegeven overal hetzelfde, ook in de meta", sys.includes("ook in de metabeschrijving en de veelgestelde vragen"));
+  ok("een verhaal van het hele bedrijf hooguit kort", sys.includes("vertel het hooguit kort"));
+  const invoer = schrijfInvoer({
+    titel: "Tuinontwerp", paginasoort: "dienstpagina", handeling: "nieuw", bedrijf: "Bedrijf: Groen", stem: [],
+    eigenVerhaal: null, antwoorden: [{ vraag: "Hoe begin je?", antwoord: "Met koffie." }], zoekintentie: null, doelvragen: [], andereTitels: [], huidigeTekst: null,
+    onderzoek: { deelvragen: [], concurrentie: { goed: [], gaten: [] }, vakkennis: [{ uitleg: "Afschot is meestal 1 procent.", bron_url: "https://x.nl" }], valkuilen: [] },
+  });
+  ok("blok A en B heten bedrijfskennis", invoer.includes("WAT WE ZEKER WETEN OVER HET BEDRIJF (bedrijfskennis)") && invoer.includes("WAT DE ONDERNEMER VERTELDE (bedrijfskennis)"));
+  ok("blok C heet algemene kennis en zegt dat het niet over het bedrijf gaat", invoer.includes("(onderzoek, algemene kennis)") && invoer.includes("niet over dit bedrijf") && invoer.includes("Algemene vakkennis:"));
+  ok("de controle telt algemene kennis als bedrijfsclaim als verzonnen", CONTROLE_SYSTEEM.includes("dan is het wel een verzonnen claim"));
+  ok("de brief vraagt hoe dit bedrijf het doet", BRIEF_SYSTEEM.includes("Vraag dan hoe dit bedrijf het doet."));
+  ok("geen gedachtestreepje in de brief", !/[—–]/.test(BRIEF_SYSTEEM));
+});
+
+group("de kennislaag: wat mag er worden vastgelegd (K1)", () => {
+  const basis: KennisRegelItem = {
+    domein: "aanbod", bewering: "Een proefles kost € 45.", status: "waargenomen", bron: "website", gebruik: "content",
+    bron_url: "https://x.nl/prijzen", citaat: "Proefles € 45", vastgelegd_door_taak: "profile_synthesis",
+  };
+  eq("een waargenomen item met citaat en adres is goed", controleerItem(basis).join("|"), "");
+  ok("waargenomen zonder citaat wordt geweigerd", controleerItem({ ...basis, citaat: null }).some((f) => f.includes("citaat")));
+  ok("waargenomen met alleen spaties als citaat wordt geweigerd", controleerItem({ ...basis, citaat: "   " }).length > 0);
+  ok("waargenomen zonder bronadres wordt geweigerd", controleerItem({ ...basis, bron_url: null }).length > 0);
+  ok("een model kan niet verklaren", controleerItem({ ...basis, bron: "ai", status: "verklaard", gebruik: "intern" }).some((f) => f.includes("model")));
+  ok("een model-item bevestigen zonder mens wordt geweigerd", controleerItem({ ...basis, bron: "ai", status: "bevestigd" }).some((f) => f.includes("Bevestigd")));
+  eq("een model-item dat een mens bevestigde, mag (K7, migratie 0117)", controleerItem({ ...basis, bron: "ai", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26" }).join("|"), "");
+  ok("bevestigd zonder wie en wanneer wordt geweigerd", controleerItem({ ...basis, status: "bevestigd", bron: "gesprek" }).some((f) => f.includes("Bevestigd")));
+  eq("bevestigd door een mens is goed", controleerItem({ ...basis, status: "bevestigd", bron: "gesprek", bevestigd_door: "u1", bevestigd_op: "2026-09-26T10:00:00Z" }).join("|"), "");
+  ok("afgeleid mag niet het gebruik content hebben", controleerItem({ ...basis, status: "afgeleid", bron: "ai" }).some((f) => f.includes("Afgeleid")));
+  eq("afgeleid en intern is goed", controleerItem({ ...basis, status: "afgeleid", bron: "ai", gebruik: "intern", citaat: null, bron_url: null }).join("|"), "");
+  ok("een onbekend domein wordt geweigerd", controleerItem({ ...basis, domein: "overig" }).length > 0);
+  ok("een onbekende bewijskracht wordt geweigerd", controleerItem({ ...basis, bewijskracht: "enorm" }).length > 0);
+  ok("zonder wie het vastlegde wordt geweigerd", controleerItem({ ...basis, vastgelegd_door_taak: null }).some((f) => f.includes("vastlegde")));
+  ok("een lege bewering wordt geweigerd", controleerItem({ ...basis, bewering: " " }).length > 0);
+  ok("drie gebreken geven drie fouten", controleerItem({ ...basis, citaat: null, domein: "x", vastgelegd_door_taak: null }).length === 3);
+});
+
+group("de kennislaag: wat mag in blok A (K1)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  const item = (over: Partial<KennisRegelItem>): KennisRegelItem => ({
+    domein: "bewijs", bewering: "x", status: "verklaard", bron: "gesprek", gebruik: "content", vastgelegd_door: "u1", ...over,
+  });
+  ok("een afgeleid item komt nooit in blok A", !magInBlokA(item({ status: "afgeleid", bron: "ai", gebruik: "intern" }), nu));
+  ok("ook niet als het gebruik toch op content staat", !magInBlokA(item({ status: "afgeleid", bron: "ai" }), nu));
+  ok("een verklaard item komt in blok A", magInBlokA(item({}), nu));
+  ok("een waargenomen item met citaat komt in blok A", magInBlokA(item({ status: "waargenomen", bron: "website", citaat: "c", bron_url: "https://x.nl" }), nu));
+  ok("een oude waargenomen rij zonder citaat glipt niet door", !magInBlokA(item({ status: "waargenomen", bron: "website" }), nu));
+  ok("een intern item komt niet in blok A", !magInBlokA(item({ gebruik: "intern" }), nu));
+  ok("een vervangen item komt niet in blok A", !magInBlokA(item({ vervangen_door: "k2" }), nu));
+  ok("een verlopen prijs komt niet in blok A", !magInBlokA(item({ verloopt_op: "2026-09-25" }), nu));
+  ok("op de dag zelf is hij nog geldig", magInBlokA(item({ verloopt_op: "2026-09-26" }), nu) && !isVerlopen({ verloopt_op: "2026-09-26" }, nu));
+
+  const set = setVoorBlokA([
+    item({ bewering: "waar", status: "waargenomen", bron: "website", citaat: "c", bron_url: "https://x.nl", bewijskracht: "sterk" }),
+    item({ bewering: "gezegd zwak", bewijskracht: "geen" }),
+    item({ bewering: "gezegd sterk", bewijskracht: "sterk" }),
+    item({ bewering: "bevestigd", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-20" }),
+    item({ bewering: "gedacht", status: "afgeleid", bron: "ai", gebruik: "intern" }),
+    item({ bewering: "zeg nooit gratis", domein: "grens", gebruik: "verboden", verloopt_op: "2026-01-01" }),
+  ], nu);
+  eq("bevestigd eerst, dan verklaard op bewijskracht, dan waargenomen", set.beweringen.map((b) => b.bewering).join(" | "), "bevestigd | gezegd sterk | gezegd zwak | waar");
+  ok("het afgeleide item zit nergens in de set", ![...set.beweringen, ...set.verboden].some((b) => b.bewering === "gedacht"));
+  eq("een verboden item komt alleen als verbod mee", set.verboden.map((b) => b.bewering).join("|"), "zeg nooit gratis");
+  ok("en nooit als bewering", !set.beweringen.some((b) => b.gebruik === "verboden"));
+  ok("een verbod veroudert niet", set.verboden.length === 1);
+});
+
+group("de kennislaag: vragen, kansen en het kennisoverzicht (K1)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  const item = (over: Partial<KennisRegelItem>): KennisRegelItem => ({
+    domein: "positionering", bewering: "x", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door_taak: "profile_market", ...over,
+  });
+  ok("afgeleid mag een vraag of kans voeden, als hypothese", magVoorVragenEnKansen(item({}), nu));
+  ok("verboden voedt geen kans", !magVoorVragenEnKansen(item({ gebruik: "verboden" }), nu));
+  ok("vervangen voedt niets meer", !magVoorVragenEnKansen(item({ vervangen_door: "k2" }), nu));
+  eq("afgeleid staat in het overzicht als 'we denken'", rolInOverzicht(item({}), nu), "we denken");
+  eq("verklaard staat er als 'volgens de klant'", rolInOverzicht(item({ status: "verklaard", bron: "gesprek" }), nu), "volgens de klant");
+  eq("verlopen staat erin, zodat de consultant het opnieuw bevestigt", rolInOverzicht(item({ status: "bevestigd", bron: "gesprek", verloopt_op: "2026-08-01" }), nu), "verlopen");
+  eq("verboden staat erin als verboden", rolInOverzicht(item({ gebruik: "verboden" }), nu), "verboden");
+});
+
+group("de kennislaag: wie mag een status veranderen (K1)", () => {
+  const metCitaat = { citaat: "letterlijk", bron_url: "https://x.nl" };
+  const zonder = { citaat: null, bron_url: null };
+  ok("afgeleid naar bevestigd door een mens mag", kennisMagOvergaan("afgeleid", "bevestigd", "mens", zonder));
+  ok("afgeleid naar bevestigd door de code mag niet", !kennisMagOvergaan("afgeleid", "bevestigd", "code", zonder));
+  ok("afgeleid naar bevestigd door een model mag niet", !kennisMagOvergaan("afgeleid", "bevestigd", "model", zonder));
+  ok("afgeleid naar verklaard door een model mag niet", !kennisMagOvergaan("afgeleid", "verklaard", "model", zonder));
+  ok("afgeleid naar waargenomen met citaat mag, door de code", kennisMagOvergaan("afgeleid", "waargenomen", "code", metCitaat));
+  ok("afgeleid naar waargenomen zonder citaat mag niet", !kennisMagOvergaan("afgeleid", "waargenomen", "code", zonder));
+  ok("een model zet nooit een status, ook met citaat niet", !kennisMagOvergaan("afgeleid", "waargenomen", "model", metCitaat));
+  ok("terug naar afgeleid bestaat niet", !kennisMagOvergaan("verklaard", "afgeleid", "mens", zonder));
+  ok("bevestigd is het eindpunt", !kennisMagOvergaan("bevestigd", "verklaard", "mens", zonder));
+  ok("verklaard naar bevestigd door een mens mag", kennisMagOvergaan("verklaard", "bevestigd", "mens", zonder));
+  ok("een model legt alleen afgeleid vast", magNieuwMetStatus("afgeleid", "model", "ai") && !magNieuwMetStatus("waargenomen", "model", "ai"));
+  ok("de code mag verklaard alleen overnemen van wat een mens zei", magNieuwMetStatus("verklaard", "code", "klant") && !magNieuwMetStatus("verklaard", "code", "website"));
+  ok("niemand legt een nieuw item meteen als bevestigd vast", !magNieuwMetStatus("bevestigd", "mens", "gesprek"));
+});
+
+group("de kennislaag: de database bewaakt dezelfde regels (migratie 0116)", () => {
+  const sql = leesBestand("supabase/migrations/0116_klantkennis.sql");
+  ok("waargenomen eist een citaat", sql.includes("klantkennis_waargenomen_citaat_check"));
+  ok("een model verklaart en bevestigt niet", sql.includes("klantkennis_ai_niet_verklaard_check"));
+  ok("bevestigd eist wie en wanneer", sql.includes("klantkennis_bevestigd_door_mens_check"));
+  ok("afgeleid is nooit content", sql.includes("klantkennis_afgeleid_niet_content_check"));
+  ok("alleen medewerkers lezen (V11)", sql.includes("using (public.is_staff())") && !/for (insert|update|delete)/.test(sql));
+  ok("geen drop table en geen drop column (conventie 4)", !/drop\s+(table|column)/i.test(sql));
+});
+
+// ── K2: de schrijfingang van de kennislaag ─────────────────────────────────
+//
+// De twee bewakingstests van K2 (§4 regel 2 en 3 van het plan). Ze lezen de
+// code zelf, zoals de controle op gedachtestreepjes dat doet. Elk heeft een
+// zelftest: een bewaking die niets kan vinden, bewaakt niets.
+
+/** Schrijft dit bestand in `klantkennis`, met de Supabase-client of met SQL? */
+function schrijftInKlantkennis(inhoud: string): boolean {
+  const client = /from\(\s*["'`]klantkennis["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/;
+  const sql = /\b(insert\s+into|update|delete\s+from)\s+(public\.)?klantkennis\b/i;
+  return client.test(inhoud) || sql.test(inhoud);
+}
+
+/** Zet dit bestand verklaard of bevestigd via de schrijfingang? */
+function zetMenselijkeStatus(inhoud: string): boolean {
+  if (!/@\/lib\/kennis\/vastleggen/.test(inhoud)) return false;
+  return /\bbevestig\s*\(/.test(inhoud) || /["'`](verklaard|bevestigd)["'`]/.test(inhoud);
+}
+
+/**
+ * Waar verklaard en bevestigd vandaan mogen komen (§4 regel 2): de route voor
+ * klantantwoorden (met `answerFact()` in `lib/facts.ts`, dat die route uitvoert),
+ * het gesprek (merkprofiel en het vastleggen van het gesprek), de keuze van de
+ * consultant bij een tegenstrijdigheid (K5), het kennisoverzicht (K7, eigen
+ * map), en het terugvullen (K3), dat overneemt wat een mens eerder zei. Een
+ * nieuwe plek hoort hier alleen bij met een besluit.
+ */
+const MENSELIJKE_STATUS_TOEGESTAAN = [
+  "app/api/profiles/[id]/facts/route.ts",
+  // K8: feiten uit een document dat de klant zelf aanlevert, verklaard met de
+  // letterlijke zin als citaat (besluit V21).
+  "app/api/profiles/[id]/dossier/route.ts",
+  // K8 deel 3: wat de consultant bij het aanmaken van een merk typt, legt hij
+  // vast zoals in het gesprek (verklaard); tot K8 kwam het niet in de kennislaag.
+  "app/api/profiles/route.ts",
+  "lib/facts.ts",
+  "app/api/profiles/[id]/route.ts",
+  "app/api/profiles/[id]/strategy/route.ts",
+  "app/api/profiles/[id]/fact-conflicts/route.ts",
+  "app/api/profiles/[id]/kennis/",
+  "scripts/kennis-terugvullen.ts",
+  // K8 deel 4: wat een mens aan de aanbodboom toevoegt of aanpast, is verklaard
+  // (zoals het terugvullen van K3 een aangepaste knoop vastlegde).
+  "app/api/profiles/[id]/offerings/route.ts",
+];
+
+function magMenselijkeStatus(pad: string): boolean {
+  return MENSELIJKE_STATUS_TOEGESTAAN.some((t) => (t.endsWith("/") ? pad.startsWith(t) : pad === t));
+}
+
+/** Importeert deze code een van deze modules (paden zonder `.ts`)? */
+function importeertModule(inhoud: string, modules: readonly string[]): boolean {
+  return modules.some((m) => new RegExp(`["'\`]@/${m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`).test(inhoud));
+}
+
+/**
+ * De omweg dichtzetten (K5). Een module in `lib/kennis/` mag verklaard zetten,
+ * want de map is de schrijfingang; maar dan kan elk bestand dat die module
+ * aanroept het ook, zonder het woord zelf te bevatten. Dus: wie een module
+ * aanroept die verklaard of bevestigd zet, moet zelf op de lijst staan, en is
+ * dat een module in `lib/`, dan geldt hetzelfde voor wie hem weer aanroept.
+ * Geeft de bestanden terug die dat niet mogen.
+ */
+function omwegenNaarMenselijkeStatus(bestanden: readonly string[], lees: (p: string) => string): { keten: string[]; overtreders: string[] } {
+  const zonderTest = bestanden.filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"));
+  const keten = zonderTest
+    .filter((p) => p.startsWith("lib/kennis/") && p !== "lib/kennis/vastleggen.ts")
+    .filter((p) => zetMenselijkeStatus(lees(p)))
+    .map((p) => p.replace(/\.tsx?$/, ""));
+  // K8 deel 4: ook een module in lib/kennis/ die zo'n module aanroept, zet via
+  // hem verklaard (`uit-aanbod.ts` via `verwerk()` in `uit-gesprek.ts`).
+  for (let groei = true; groei; ) {
+    groei = false;
+    for (const p of zonderTest.filter((q) => q.startsWith("lib/kennis/") && q !== "lib/kennis/vastleggen.ts")) {
+      const m = p.replace(/\.tsx?$/, "");
+      if (!keten.includes(m) && importeertModule(lees(p), keten)) {
+        keten.push(m);
+        groei = true;
       }
     }
   }
+  const overtreders = new Set<string>();
+  for (let i = 0; i < keten.length; i++) {
+    for (const p of zonderTest) {
+      if (p.startsWith("lib/kennis/") || !importeertModule(lees(p), [keten[i]])) continue;
+      if (!magMenselijkeStatus(p)) overtreders.add(p);
+      // Ook een lib-bestand dat niet mag, geeft het door: wie hem aanroept, telt ook.
+      if (p.startsWith("lib/") && !keten.includes(p.replace(/\.tsx?$/, ""))) keten.push(p.replace(/\.tsx?$/, ""));
+    }
+  }
+  return { keten, overtreders: [...overtreders] };
+}
 
+function codebestanden(): string[] {
+  return ["app", "lib", "components", "scripts"]
+    .flatMap((m) => [...tsOnder(m), ...tsxOnder(m)])
+    .map((p) => p.split("\\").join("/"))
+    .filter((p, i, a) => a.indexOf(p) === i);
+}
+
+group("de kennislaag: één schrijfingang (K2, §4 regel 3)", () => {
+  ok("zelftest: een insert via de client wordt herkend", schrijftInKlantkennis('admin.from("klantkennis").insert({})'));
+  ok("zelftest: ook met regels ertussen", schrijftInKlantkennis('admin\n  .from("klantkennis")\n  .update({ status: "x" })'));
+  ok("zelftest: SQL wordt herkend", schrijftInKlantkennis("insert into public.klantkennis (id) values ($1)"));
+  ok("zelftest: lezen is geen schrijven", !schrijftInKlantkennis('admin.from("klantkennis").select("*")'));
+  const buiten = codebestanden()
+    .filter((p) => !p.startsWith("lib/kennis/"))
+    // De tests zelf zetten testrijen klaar; dat is geen productiecode.
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijftInKlantkennis(leesBestand(p)));
+  ok("de bewaking leest echt de hele code", codebestanden().length > 300, String(codebestanden().length));
+  eq("niemand buiten lib/kennis/ schrijft in klantkennis", buiten.join(", "), "");
+  ok("en lib/kennis/vastleggen.ts wél", schrijftInKlantkennis(leesBestand("lib/kennis/vastleggen.ts")));
+});
+
+group("de kennislaag: verklaard en bevestigd alleen van een mens (K2, §4 regel 2)", () => {
+  ok("zelftest: bevestig() via de schrijfingang wordt herkend", zetMenselijkeStatus('import { bevestig } from "@/lib/kennis/vastleggen";\nawait bevestig(a, b, c);'));
+  ok("zelftest: status verklaard wordt herkend", zetMenselijkeStatus('import { legVast } from "@/lib/kennis/vastleggen";\nlegVast(a, { status: "verklaard" }, d)'));
+  ok("zelftest: afgeleid vastleggen is geen menselijke status", !zetMenselijkeStatus('import { legVast } from "@/lib/kennis/vastleggen";\nlegVast(a, { status: "afgeleid" }, d)'));
+  const overtreders = codebestanden()
+    .filter((p) => !p.startsWith("lib/kennis/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => zetMenselijkeStatus(leesBestand(p)))
+    .filter((p) => !magMenselijkeStatus(p));
+  eq("verklaard of bevestigd komt alleen uit de toegestane routes", overtreders.join(", "), "");
+
+  // De omweg via een module in lib/kennis/ (K5), met een zelftest op een
+  // verzonnen codebasis: een route die de gespreksmodule aanroept zonder op de
+  // lijst te staan, en een lib-bestand dat hem doorgeeft aan zo'n route.
+  const nep: Record<string, string> = {
+    "lib/kennis/nep-schrijver.ts": 'import { legVast } from "@/lib/kennis/vastleggen";\nlegVast(a, { status: "verklaard" }, d)',
+    "lib/tussen.ts": 'import { schrijf } from "@/lib/kennis/nep-schrijver";',
+    "app/api/iets/route.ts": 'import { doe } from "@/lib/tussen";',
+    "lib/facts.ts": 'import { schrijf } from "@/lib/kennis/nep-schrijver";',
+    "app/api/profiles/[id]/facts/route.ts": 'import { answerFact } from "@/lib/facts";',
+  };
+  const zelftest = omwegenNaarMenselijkeStatus(Object.keys(nep), (p) => nep[p]);
+  eq("zelftest: een omweg via lib/ naar een route wordt gevonden", zelftest.overtreders.sort().join(", "), "app/api/iets/route.ts, lib/tussen.ts");
+  const echt = omwegenNaarMenselijkeStatus(codebestanden(), leesBestand);
+  ok("de gespreksmodule zet verklaard en bevestigd, en de bewaking ziet dat", echt.keten.includes("lib/kennis/uit-gesprek"), echt.keten.join(", "));
+  ok("ook de aanbodmodule, die via de gespreksmodule schrijft (K8 deel 4)", echt.keten.includes("lib/kennis/uit-aanbod"), echt.keten.join(", "));
+  eq("en alleen de toegestane routes roepen hem aan, ook via een omweg", echt.overtreders.join(", "), "");
+  const bron = leesBestand("lib/kennis/vastleggen.ts");
+  ok("bevestig() weigert iets anders dan een mens", /export async function bevestig[\s\S]{0,400}door\.actor !== "mens"/.test(bron));
+  ok("wijsAf() weigert iets anders dan een mens", /export async function wijsAf[\s\S]{0,400}door\.actor !== "mens"/.test(bron));
+  ok("legVast() toetst de status aan de actor", bron.includes("magNieuwMetStatus(item.status"));
+  ok("de schrijfingang doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(bron));
+});
+
+group("de kennislaag: ontdubbelen en botsingen (K2)", () => {
+  const item = (over: Partial<SamenvoegItem>): SamenvoegItem => ({
+    id: "a", domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 45.", waarde: { min: 45, max: 45, eenheid: "EUR" },
+    geldt_voor: [], analysis_id: null, content_piece_id: null, sleutel: null, ...over,
+  });
+  eq(
+    "dezelfde bewering in een andere volgorde geeft dezelfde sleutel",
+    String(kennisSleutel(item({ bewering: "Een proefles kost € 45." })) === kennisSleutel(item({ bewering: "Kost een proefles € 45?" }))),
+    "true",
+  );
+  ok("een verhaal voor één pagina valt niet samen met hetzelfde merkbreed (V13)", kennisSleutel(item({})) !== kennisSleutel(item({ content_piece_id: "p1" })));
+  ok("ander domein, andere sleutel", kennisSleutel(item({})) !== kennisSleutel(item({ domein: "bewijs" })));
+  ok("andere soort, andere sleutel: werkgebied is geen groeiregio (K3)", kennisSleutel({ ...item({ bewering: "Eindhoven en omstreken" }), soort: "werkgebied" }) !== kennisSleutel({ ...item({ bewering: "Eindhoven en omstreken" }), soort: "groeiregio" }));
+  eq("een korte bewering krijgt de letterlijke tekst als sleutel", String(kennisSleutel(item({ bewering: " Je " }))), "aanbod|prijs|||=je");
+  eq("alleen een lege bewering heeft geen sleutel", String(kennisSleutel(item({ bewering: "  " }))), "null");
+  // K5: een getal van één of twee cijfers telt mee in de sleutel.
+  ok("80 en 85 procent zijn twee beweringen", kennisSleutel(item({ bewering: "80 procent slaagt" })) !== kennisSleutel(item({ bewering: "85 procent slaagt" })));
+  ok("een proefles van € 45 en van € 50 ook", kennisSleutel(item({ bewering: "Een proefles kost € 45." })) !== kennisSleutel(item({ bewering: "Een proefles kost € 50." })));
+  eq("de volgorde van de getallen maakt niet uit, net als die van de woorden", String(kennisSleutel(item({ bewering: "Van 10 tot 20 leerlingen" })) === kennisSleutel(item({ bewering: "leerlingen: van 10 tot 20" }))), "true");
+  eq("een bewering zonder kort getal houdt de sleutel die hij had", String(kennisSleutel(item({ bewering: "Al 2004 actief in Eindhoven" }))), "aanbod|prijs|||2004 actief eindhov");
+  const oudeRij = { id: "11111111-1111-1111-1111-111111111111", domein: "aanbod", soort: "prijs", bewering: "Een proefles kost € 45.", analysis_id: null, content_piece_id: null, sleutel: "aanbod|prijs|||kost proefle" };
+  const herberekend = sleutelUpdateSql([oudeRij, { ...oudeRij, id: "2", bewering: "Al 2004 actief", sleutel: String(kennisSleutel(item({ bewering: "Al 2004 actief" }))) }]);
+  eq("herberekenen raakt alleen de rij met een kort getal", String(herberekend.aantal), "1");
+  ok("met de nieuwe sleutel in de update", herberekend.sql.includes("'aanbod|prijs|||een kost proefle #45'"));
+  eq("een tweede run doet niets", String(sleutelUpdateSql([{ ...oudeRij, sleutel: "aanbod|prijs|||een kost proefle #45" }]).aantal), "0");
+  eq("de volgorde van geldt_voor maakt niet uit", String(geldigheid(item({ geldt_voor: ["x", "y"] })) === geldigheid(item({ geldt_voor: ["y", "x"] }))), "true");
+
+  const nieuw = item({ id: "n", bewering: "Een proefles kost € 50.", waarde: { min: 50, max: 50, eenheid: "EUR" } });
+  const botsing = botsingenMet(nieuw, [item({ id: "o" })]);
+  eq("twee prijzen voor hetzelfde botsen", String(botsing.length), "1");
+  eq("de paarsleutel is apart van de feitenparen en symmetrisch", botsing[0]?.paarSleutel ?? "", "kennis:n|o");
+  eq("een prijsbotsing houdt een pagina tegen", botsing[0]?.ernst ?? "", "blokkerend");
+  eq("een prijs voor een andere dienst botst niet", String(botsingenMet(nieuw, [item({ id: "o", geldt_voor: ["dienst-2"] })]).length), "0");
+  eq("dezelfde waarde botst niet", String(botsingenMet(item({ id: "n" }), [item({ id: "o" })]).length), "0");
+  eq("een afgewezen item botst niet meer", String(botsingenMet(nieuw, [item({ id: "o", afgewezen_op: "2026-09-26" })]).length), "0");
+  eq("een vervangen item botst niet meer", String(botsingenMet(nieuw, [item({ id: "o", vervangen_door: "n" })]).length), "0");
+  eq("zonder waarde geen botsing", String(botsingenMet(item({ id: "n", waarde: null }), [item({ id: "o" })]).length), "0");
+  eq("oude botsingen onderling komen niet terug", String(botsingenMet(item({ id: "n", soort: "termijn", waarde: { min: 2, eenheid: "weken" } }), [item({ id: "o" }), item({ id: "p", waarde: { min: 60, eenheid: "EUR" } })]).length), "0");
+});
+
+group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  const item: KennisRegelItem = { domein: "bewijs", bewering: "x", status: "verklaard", bron: "gesprek", gebruik: "content", vastgelegd_door: "u1" };
+  ok("een afgewezen item is niet actueel", !isActueel({ ...item, afgewezen_op: "2026-09-26" }, nu));
+  ok("en komt niet in blok A", !magInBlokA({ ...item, afgewezen_op: "2026-09-26" }, nu));
+  ok("ook niet als verbod", setVoorBlokA([{ ...item, gebruik: "verboden", afgewezen_op: "2026-09-26" }], nu).verboden.length === 0);
+  ok("en voedt geen vraag of kans", !magVoorVragenEnKansen({ ...item, afgewezen_op: "2026-09-26" }, nu));
+  eq("het kennisoverzicht toont hem als afgewezen", rolInOverzicht({ ...item, afgewezen_op: "2026-09-26" }, nu), "afgewezen");
+  ok("een model-item dat een mens bevestigde, komt in blok A", magInBlokA({ ...item, bron: "ai", status: "bevestigd", bevestigd_door: "u1", bevestigd_op: "2026-09-26" }, nu));
+  const sql = leesBestand("supabase/migrations/0117_kennislaag_schrijfingang.sql");
+  ok("de database laat een model nog steeds niets verklaren", sql.includes("not (bron = 'ai' and status = 'verklaard')"));
+  ok("afwijzen eist een mens", sql.includes("klantkennis_afgewezen_door_mens_check"));
+  ok("de conflictlijst kent de kennislaag", sql.includes("add column if not exists kennis_ids uuid[]"));
+  ok("geen drop table en geen drop column", !/drop\s+(table|column)/i.test(sql));
+  // Sinds K8 deel 2 toont het feitenscherm alleen nog botsingen in de kennislaag.
+  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/admin/feiten/page.tsx").includes('.not("kennis_ids", "is", null)'));
+  // Sinds K7 staan de botsingen tussen kennisitems op hetzelfde conflictscherm,
+  // dus de teller op het beheerscherm telt ze mee.
+  ok("de teller op het beheerscherm telt ook de botsingen in de kennis (K7)", !leesBestand("app/(app)/merk/[id]/admin/page.tsx").includes('.is("kennis_ids", null)'));
+});
+
+// ── K3: het terugvullen ─────────────────────────────────────────────────────
+
+function proefmerk(): BronMerk {
+  const leeg = {
+    brand_name: "Rijschool Test", aliases: ["RT"], name_exclusions: [], industry: "Rijschool", business_model: "dienstverlener",
+    summary: "Een rijschool.", intake_description: null, intake_audience: null, market_language: "nl-NL", service_scope: "lokaal",
+    service_regions: ["Eindhoven"], wikidata_id: null, wikipedia_url: null, products: ["Rijlessen", "Theorie-examen"],
+    priority_offerings: ["Rijlessen"], deprioritised_offerings: [], deal_value_band: "midden", seasonality: "Drukker in de zomer.",
+    goal_12m: "Bekend worden in Eindhoven.", growth_regions: ["Eindhoven"], personas: [{ name: "Scholier", description: "17 jaar" }],
+    target_segments: [], sales_objections: ["Te duur"], competitors: ["Rijschool Snel"], value_props: ["Persoonlijk"],
+    differentiator: null, offline_proof: [], proof_points: ["Hoeveel leerlingen slagen er? 80 procent", "Al 20 jaar actief"],
+    verhalen: "We begonnen in 2004.", stem_voorbeelden: [{ url: "https://rt.nl/over", tekst: "Bij ons leer je rijden." }, { url: "https://rt.nl/x", tekst: null }],
+    pronoun_preference: "je", taboo_phrases: ["goedkoop"], forbidden_topics: [], respect_site_structure: true,
+  };
+  return {
+    profiel: { id: "p1", url: "https://rt.nl", ...leeg },
+    veldHerkomst: [
+      { field: "aliases", source: "gesprek", not_applicable: false },
+      { field: "sales_objections", source: "gesprek", not_applicable: false },
+      { field: "taboo_phrases", source: "gesprek", not_applicable: false },
+      { field: "verhalen", source: "gesprek", not_applicable: false },
+      { field: "growth_regions", source: "gesprek", not_applicable: false },
+      { field: "service_regions", source: "gesprek", not_applicable: false },
+      { field: "pronoun_preference", source: "consultant", not_applicable: false },
+      { field: "seasonality", source: "gesprek", not_applicable: true },
+    ],
+    feiten: [
+      { id: "f1", analysis_id: null, text: "Een intake kost € 50.", source_url: "https://rt.nl/prijzen", kind: "site", allowed: true, superseded_by: null, soort: "prijs", waarde: { min: 50, eenheid: "EUR" }, geldt_voor: "rijlessen", stand: "site", bewijskracht: "gewoon" },
+      { id: "f2", analysis_id: null, text: "Het basispakket omvat 40 uur.", source_url: "https://rt.nl/prijzen", kind: "site", allowed: true, superseded_by: null, soort: "cijfer", waarde: null, geldt_voor: "basispakket", stand: "site", bewijskracht: "sterk" },
+      { id: "f3", analysis_id: null, text: "Oud feit.", source_url: null, kind: "site", allowed: true, superseded_by: "f1", soort: null, waarde: null, geldt_voor: null, stand: "site", bewijskracht: null },
+      { id: "f4", analysis_id: null, text: "Een feit zonder citaat.", source_url: null, kind: "site", allowed: true, superseded_by: null, soort: "overig", waarde: null, geldt_voor: null, stand: "site", bewijskracht: null },
+    ],
+    aanbod: [
+      { id: "o2", parent_id: "o1", kind: "dienst", name: "Proefles", description: "Een eerste les.", audience: "beginners", price_indication: "€ 45", evidence_url: "https://rt.nl/proefles", evidence_quote: "Een proefles voor beginners kost € 45", source: "ai", note: null, removed_at: null },
+      { id: "o1", parent_id: null, kind: "categorie", name: "Rijlessen", description: null, audience: null, price_indication: null, evidence_url: "https://rt.nl", evidence_quote: "Rijlessen", source: "ai", note: null, removed_at: null },
+      { id: "o3", parent_id: "o1", kind: "dienst", name: "Theorie", description: null, audience: null, price_indication: "€ 99", evidence_url: "https://rt.nl/t", evidence_quote: "Theorie", source: "consultant", note: null, removed_at: null },
+      { id: "o4", parent_id: null, kind: "dienst", name: "Oud", description: null, audience: null, price_indication: null, evidence_url: "https://rt.nl/o", evidence_quote: "Oud", source: "ai", note: null, removed_at: "2026-09-01" },
+    ],
+    vragen: [
+      { id: "v1", analysis_id: null, question: "Hoeveel leerlingen slagen er?", answer: "80 procent", status: "beantwoord", scope: "merk", content_piece_ids: [], open_vraag: false, raw_json: { bron: "synthese-gap" } },
+      { id: "v2", analysis_id: "a1", question: "Wat wil je zelf vertellen?", answer: "Onze eerste leerling...", status: "beantwoord", scope: "pagina", content_piece_ids: ["c1", "c2"], open_vraag: true, raw_json: null },
+      { id: "v3", analysis_id: "a1", question: "Open vraag?", answer: null, status: "open", scope: "analyse", content_piece_ids: [], open_vraag: false, raw_json: null },
+      { id: "v4", analysis_id: "a1", question: "Beschrijf een les.", answer: "We rijden eerst op een parkeerplaats.", status: "beantwoord", scope: "analyse", content_piece_ids: ["c1"], open_vraag: false, raw_json: { bron: "pagina_brief", soort: "praktijk" } },
+    ],
+    strategie: { profile_id: "p1", strategy_notes: "Focus op Eindhoven.", context_factors: [] },
+    facetten: [
+      { id: "s1", facet: "synthese", raw_json: { output_parsed: { facts: [{ text: "Een intake kost € 50.", quote: "Intake € 50", sourceUrl: "https://rt.nl/prijzen" }, { text: "Het basispakket omvat 40 uur.", quote: "Basispakket 40 uur", sourceUrl: "https://rt.nl/prijzen" }] } } },
+      { id: "m1", facet: "markt", raw_json: { output_parsed: { positioning: "Een persoonlijke rijschool.", competitors: [{ name: "Rijschool Snel", why: "Goedkoper.", evidenceUrl: "https://snel.nl" }] } } },
+      { id: "t1", facet: "techniek", raw_json: { facts: [{ key: "telefoon", value: "040 123" }, { key: "naam", value: "Home" }] } },
+    ],
+  };
+}
+
+group("het terugvullen: het plan (K3)", () => {
+  const merk = proefmerk();
+  const plan = maakTerugvulplan(merk);
+  const item = (ref: string) => plan.items.find((i) => i.ref === ref);
+  const uit = (ref: string) => plan.uitsluitingen.find((u) => u.ref === ref);
+  eq("elke oude rij is een item of een bewuste uitsluiting", dekking(merk, plan).join(", "), "");
+  eq("een sitefeit met citaat wordt waargenomen", `${item("brand_facts:f1")?.status}/${item("brand_facts:f1")?.citaat}`, "waargenomen/Intake € 50");
+  eq("en geldt voor de dienst waar het bij hoort", (item("brand_facts:f1")?.geldtVoorRefs ?? []).join(","), "profile_offerings:o1");
+  eq("een feit dat aan geen dienst te koppelen is, wordt merkbreed (V16)", String(item("brand_facts:f2")?.geldtVoorRefs.length), "0");
+  ok("en staat op de lijst voor de consultant", plan.voorConsultant.some((c) => c.ref === "brand_facts:f2" && c.reden.includes("basispakket")));
+  ok("een vervangen feit gaat niet mee", Boolean(uit("brand_facts:f3")) && !item("brand_facts:f3"));
+  eq("een sitefeit zonder citaat wordt een vermoeden, intern", `${item("brand_facts:f4")?.status}/${item("brand_facts:f4")?.gebruik}`, "afgeleid/intern");
+  ok("en ook dat ziet de consultant", plan.voorConsultant.some((c) => c.ref === "brand_facts:f4"));
+  eq("een aanbodknoop van het model met citaat is waargenomen", item("profile_offerings:o2")?.status ?? "", "waargenomen");
+  eq("een knoop die een mens aanpaste is verklaard, zonder het citaat van het model", `${item("profile_offerings:o3")?.status}/${item("profile_offerings:o3")?.citaat}`, "verklaard/null");
+  eq("een kind wijst naar zijn ouder", (item("profile_offerings:o2")?.geldtVoorRefs ?? []).join(","), "profile_offerings:o1");
+  ok("ouders staan voor kinderen in het plan", plan.items.findIndex((i) => i.ref === "profile_offerings:o1") < plan.items.findIndex((i) => i.ref === "profile_offerings:o2"));
+  eq("een prijs die in het citaat staat, is gezien", item("profile_offerings:o2:price_indication")?.status ?? "", "waargenomen");
+  eq("een doelgroep die in het citaat staat, is gezien", item("profile_offerings:o2:audience")?.status ?? "", "waargenomen");
+  ok("een weggehaalde knoop gaat niet mee", Boolean(uit("profile_offerings:o4")));
+  eq("een antwoord van de ondernemer wordt verklaard, met de vraag erbij", `${item("fact_requests:v1")?.status}/${item("fact_requests:v1")?.bewering}`, "verklaard/Hoeveel leerlingen slagen er?\n80 procent");
+  eq("de open vraag wordt een verhaal per pagina (V13)", plan.items.filter((i) => i.ref.startsWith("fact_requests:v2:")).map((i) => `${i.domein}:${i.contentPieceId}`).join(","), "verhaal:c1,verhaal:c2");
+  eq("een praktijkvoorbeeld uit het rapport geldt voor het cluster", `${item("fact_requests:v4")?.domein}/${item("fact_requests:v4")?.analysisId}`, "verhaal/a1");
+  ok("een open vraag zonder antwoord gaat niet mee", !plan.items.some((i) => i.ref.startsWith("fact_requests:v3")));
+  ok("een bewijspunt dat een kopie van een antwoord is, gaat niet mee", Boolean(uit("profiles:p1:proof_points:0")));
+  eq("een bewijspunt van het onderzoek wordt een vermoeden", item("profiles:p1:proof_points:1")?.status ?? "", "afgeleid");
+  eq("een verboden woord uit het gesprek is verklaard en verboden", `${item("profiles:p1:taboo_phrases:0")?.status}/${item("profiles:p1:taboo_phrases:0")?.gebruik}`, "verklaard/verboden");
+  eq("waardeproposities van het model zijn intern (inventaris §3 punt 5)", `${item("profiles:p1:value_props:0")?.status}/${item("profiles:p1:value_props:0")?.gebruik}`, "afgeleid/intern");
+  ok("'niet van toepassing' wordt een uitsluiting", Boolean(uit("profiles:p1:seasonality")));
+  ok("een product dat al een knoop is, gaat niet dubbel mee", Boolean(uit("profiles:p1:products:0")) && Boolean(item("profiles:p1:products:1")));
+  eq("een stemvoorbeeld met tekst is waargenomen, met het adres", `${item("profiles:p1:stem_voorbeelden:0")?.status}/${item("profiles:p1:stem_voorbeelden:0")?.bronUrl}`, "waargenomen/https://rt.nl/over");
+  ok("een stemvoorbeeld zonder tekst wordt uitgesloten", Boolean(uit("profiles:p1:stem_voorbeelden:1")));
+  eq("de positie uit het marktonderzoek is een vermoeden", item("profile_facets:m1:positioning")?.status ?? "", "afgeleid");
+  eq("een telefoonnummer uit de HTML is gezien", item("profile_facets:t1:facts:0")?.status ?? "", "waargenomen");
+  ok("een paginanaam uit de HTML is geen klantkennis", !plan.items.some((i) => i.ref === "profile_facets:t1:facts:1"));
+  eq("de aantekeningen van het gesprek zijn verklaard", item("profile_strategy:p1:strategy_notes")?.status ?? "", "verklaard");
+});
+
+group("het terugvullen: omzetten met de regels van legVast (K3)", () => {
+  const merk = proefmerk();
+  const plan = maakTerugvulplan(merk);
+  let n = 0;
+  const id = () => `00000000-0000-0000-0000-${String(++n).padStart(12, "0")}`;
+  const om = zetOm(plan, id);
+  eq("geen enkel item haalt de regels niet", om.geweigerd.map((g) => `${g.ref}: ${g.fouten.join(" ")}`).join(" | "), "");
+  ok("geen enkele rij is afgeleid en content", !om.rijen.some((r) => r.status === "afgeleid" && r.gebruik === "content"));
+  ok("elke waargenomen rij heeft een citaat en een adres", om.rijen.filter((r) => r.status === "waargenomen").every((r) => r.citaat && r.bron_url));
+  ok("de code legt niets als bevestigd vast", !om.rijen.some((r) => r.status === "bevestigd"));
+  ok("elke rij heeft herkomst", om.rijen.every((r) => r.herkomst_tabel && r.herkomst_id));
+  const proefles = om.rijen.find((r) => r.herkomst_id === "o2" && r.soort === "dienst");
+  const rijlessen = om.rijen.find((r) => r.herkomst_id === "o1");
+  eq("geldt_voor wijst naar het id van de ouder", (proefles?.geldt_voor ?? []).join(","), rijlessen?.id ?? "?");
+  ok("werkgebied en groeiregio Eindhoven zijn twee rijen", om.rijen.filter((r) => r.bewering === "Eindhoven").length === 2);
+  const tweede = zetOm(maakTerugvulplan(merk), id, new Map(om.rijen.filter((r) => r.sleutel).map((r) => [r.sleutel!, r.id])));
+  eq("een tweede run schrijft niets nieuws (conventie 9)", String(tweede.rijen.length), "0");
+  eq("koppelen op naam: bevat", koppelAanAanbod("proefles", merk.aanbod).join(","), "o2");
+  eq("koppelen negeert weggehaalde knopen", koppelAanAanbod("oud", merk.aanbod).join(","), "");
+  eq("een veld zonder herkomst is afgeleid", veldStatus([], "summary").status, "afgeleid");
+  eq("ouders eerst, ook als de invoer andersom staat", ouderEerst([{ id: "k", parent_id: "o" }, { id: "o", parent_id: null }]).map((r) => r.id).join(","), "o,k");
+});
+
+
+// ── K4: het onderzoek schrijft in de kennislaag ─────────────────────────────
+
+/** Haalt elk item de regels van legVast(), met de actor die doorVoor() kiest? */
+function onderzoekFouten(items: readonly PlanItem[], taak: (typeof ONDERZOEK_TAKEN)[number]): string[] {
+  return items.flatMap((i) => {
+    const door = doorVoor(i, taak);
+    const fouten = controleerItem({
+      domein: i.domein, bewering: i.bewering, status: i.status, bron: i.bron, gebruik: i.gebruik,
+      bron_url: i.bronUrl, citaat: i.citaat, bewijskracht: i.bewijskracht, vastgelegd_door_taak: door.taak,
+    });
+    if (!magNieuwMetStatus(i.status, door.actor, i.bron)) fouten.push(`${door.actor} mag ${i.status} niet`);
+    return fouten.map((f) => `${i.ref}: ${f}`);
+  });
+}
+
+group("het merkonderzoek als kennis (K4)", () => {
+  const model = {
+    brand_name: "Rijschool Test", industry: "Rijschool", business_model: "dienstverlener", summary: "Een rijschool.",
+    market_language: "Nederland, Nederlands", service_scope: "lokaal", service_regions: ["Eindhoven", "Best"],
+    products: ["Rijlessen"], value_props: ["Persoonlijk"], competitors: ["Rijschool Snel"],
+    proof_points: ["Al 20 jaar actief"], personas: [{ name: "Scholier", needs: ["snel slagen", "vaste instructeur"] }],
+  };
+  const items = kennisUitMerkonderzoek({
+    profileId: "p1",
+    model,
+    geschreven: {
+      // De branche zette een mens: filterProtectedFields() liet hem niet door.
+      brand_name: "Rijschool Test", business_model: "dienstverlener", summary: "Een eerdere samenvatting.",
+      market_language: "Nederland, Nederlands", service_scope: "lokaal",
+      service_regions: ["Eindhoven", "Best"], products: ["Theorie", "Rijlessen"], value_props: ["Persoonlijk"],
+      competitors: ["Rijschool Snel", "Door de consultant getypt"], proof_points: model.proof_points, personas: model.personas,
+    },
+  });
+  const met = (soort: string) => items.filter((i) => i.soort === soort).map((i) => i.bewering);
+  ok("alles is afgeleid, van het model", items.every((i) => i.status === "afgeleid" && i.bron === "ai"));
+  ok("niets gaat als paginatekst mee", items.every((i) => i.gebruik !== "content"));
+  eq("een veld dat een mens zette komt niet als vermoeden binnen", met("branche").join(","), "");
+  eq("een waarde die niet van het model is ook niet", met("omschrijving").join(","), "");
+  eq("van een lijst tellen alleen de waarden van het model", met("concurrent").join(","), "Rijschool Snel");
+  eq("wat de consultant typte in een lijst hoort er niet bij", met("product").join(","), "Rijlessen");
+  eq("het werkgebied per plaats", met("werkgebied").join(","), "Eindhoven,Best");
+  eq("de klantgroep met zijn behoeften", met("klantgroep").join(","), "Scholier: snel slagen, vaste instructeur");
+  eq("de merknaam wordt intern, want hij is afgeleid", items.find((i) => i.soort === "merknaam")?.gebruik ?? "", "intern");
+  const zonderPersonas = kennisUitMerkonderzoek({ profileId: "p1", model, geschreven: { personas: [{ name: "Scholier", needs: [] }] } });
+  eq("klantgroepen die er al stonden zijn niet van het model", zonderPersonas.filter((i) => i.soort === "klantgroep").length.toString(), "0");
+  eq("elk item haalt de regels van legVast()", onderzoekFouten(items, "profile_research").join(" | "), "");
+  ok("herkomst is het profiel", items.every((i) => i.herkomst.tabel === "profiles" && i.herkomst.id === "p1"));
+});
+
+group("de aanbodboom als kennis (K4)", () => {
+  const knoop = (over: Partial<BronAanbod>): BronAanbod => ({
+    id: "x", parent_id: null, kind: "dienst", name: "x", description: null, audience: null, price_indication: null,
+    evidence_url: "https://rt.nl", evidence_quote: "Rijlessen voor iedereen", source: "ai", note: null, removed_at: null, confidence: 1, ...over,
+  });
+  const knopen = [
+    knoop({ id: "k2", parent_id: "k1", name: "Proefles", audience: "beginners", price_indication: "€ 45", evidence_url: "https://rt.nl/proefles", evidence_quote: "Een proefles voor beginners kost € 45" }),
+    knoop({ id: "k1", kind: "categorie", name: "Rijlessen" }),
+    knoop({ id: "k3", name: "Theorie", price_indication: "€ 99", evidence_quote: "Theorie in één dag", confidence: 0.5 }),
+    knoop({ id: "k4", name: "Van de consultant", source: "consultant" }),
+  ];
+  const items = kennisUitAanbod(knopen);
+  const item = (ref: string) => items.find((i) => i.ref === ref);
+  eq("een knoop waarvan de code het citaat vond is waargenomen", item("profile_offerings:k2")?.status ?? "", "waargenomen");
+  eq("en wordt vastgelegd door de code", doorVoor(item("profile_offerings:k2")!, "profile_offering").actor, "code");
+  eq("een citaat dat niet op de pagina staat is een vermoeden", item("profile_offerings:k3")?.status ?? "", "afgeleid");
+  eq("en wordt vastgelegd door het model", doorVoor(item("profile_offerings:k3")!, "profile_offering").actor, "model");
+  ok("zonder gecontroleerd citaat geen citaat in het item", !item("profile_offerings:k3")?.citaat);
+  eq("een prijs die in het gevonden citaat staat is waargenomen", item("profile_offerings:k2:price_indication")?.status ?? "", "waargenomen");
+  eq("een prijs bij een vermoeden is ook een vermoeden", item("profile_offerings:k3:price_indication")?.status ?? "", "afgeleid");
+  eq("de ouder komt eerst", items.findIndex((i) => i.ref === "profile_offerings:k1") < items.findIndex((i) => i.ref === "profile_offerings:k2") ? "ja" : "nee", "ja");
+  eq("het kind hangt aan zijn ouder", (item("profile_offerings:k2")?.geldtVoorRefs ?? []).join(","), "profile_offerings:k1");
+  ok("wat een mens toevoegde schrijft het onderzoek niet", !item("profile_offerings:k4"));
+  const alsTekst = kennisUitAanbod([knoop({ id: "k5", name: "Uit de database", confidence: "1.00" as unknown as number })]);
+  eq("een zekerheid die als tekst uit de database komt telt ook", alsTekst[0]?.status ?? "", "waargenomen");
+  eq("elk item haalt de regels van legVast()", onderzoekFouten(items, "profile_offering").join(" | "), "");
+  // Dezelfde sleutel als het terugvullen: een tweede ronde legt niets dubbel vast.
+  const k3plan = maakTerugvulplan({ ...proefmerk(), aanbod: [knopen[1]] });
+  const sleutel = (i: PlanItem | undefined) => (i ? kennisSleutel({ domein: i.domein, soort: i.soort, bewering: i.bewering, analysis_id: null, content_piece_id: null }) : "?");
+  eq("zelfde knoop, zelfde sleutel als bij K3", String(sleutel(item("profile_offerings:k1"))), String(sleutel(k3plan.items.find((i) => i.ref === "profile_offerings:k1"))));
+});
+
+group("de samenvatting, de markt en de kennistest als kennis (K4)", () => {
+  const feiten = kennisUitSynthese("facet-1", [
+    { text: "De praktijk zit in Amersfoort.", sourceUrl: "https://x.nl/over", quote: "Wij zitten in Amersfoort." },
+    { text: "Zonder citaat.", sourceUrl: "https://x.nl", quote: " " },
+  ]);
+  eq("een sitefeit met gevonden citaat is waargenomen, met citaat", `${feiten[0]?.status}/${feiten[0]?.citaat}/${feiten[0]?.bronUrl}`, "waargenomen/Wij zitten in Amersfoort./https://x.nl/over");
+  eq("en verwijst naar het verslag van de samenvatting (sinds K8 deel 2)", `${feiten[0]?.herkomst.tabel}/${feiten[0]?.herkomst.id}`, "profile_facets/facet-1");
+  eq("zonder citaat geen item", String(feiten.length), "1");
+  eq("een sitefeit mag op een pagina", feiten[0]?.gebruik ?? "", "content");
+  eq("elk feit haalt de regels van legVast()", onderzoekFouten(feiten, "profile_synthesis").join(" | "), "");
+
+  const markt = kennisUitMarkt({
+    facetId: "m1", positioning: "Kleiner dan de rest, maar persoonlijker.",
+    concurrenten: [{ name: "Rijschool Snel", why: "Goedkoper", evidenceUrl: "https://snel.nl" }, { name: "Leeg", why: "" }],
+    nieuweNamen: ["Rijschool Snel"],
+  });
+  ok("alles uit de markt is afgeleid en intern", markt.every((i) => i.status === "afgeleid" && i.gebruik === "intern"));
+  eq("positie, één concurrent met reden, één nieuwe naam", markt.map((i) => i.soort).join(","), "positie in de markt,waarom een concurrent wint,concurrent");
+  ok("een bronadres zonder citaat maakt het geen waarneming", markt.every((i) => !i.citaat && !i.bronUrl));
+  eq("elk marktitem haalt de regels van legVast()", onderzoekFouten(markt, "profile_market").join(" | "), "");
+
+  const test = kennisUitKennistest({ profileId: "p1", voorstellen: ["Rijschool Test Utrecht", " "] });
+  eq("een gelijknamig bedrijf uit de kennistest is een vermoeden", test.map((i) => `${i.soort}/${i.status}/${i.gebruik}`).join(","), "niet ons merk/afgeleid/intern");
+  eq("elk kennistestitem haalt de regels van legVast()", onderzoekFouten(test, "profile_llm_baseline").join(" | "), "");
+});
+
+group("de onderzoeksstappen schrijven via de schrijfingang (K4)", () => {
+  for (const pad of [
+    "lib/pipeline/prepare-profile.ts",
+    "lib/pipeline/offering.ts",
+    "lib/pipeline/market.ts",
+    "lib/pipeline/llm-baseline.ts",
+    "lib/pipeline/synthesis.ts",
+  ]) {
+    ok(`${pad} legt zijn uitkomst vast in de kennislaag`, /await legOnderzoek(sveldenVast|Vast)\(/.test(leesBestand(pad)));
+  }
+  const omzetting = leesBestand("lib/kennis/onderzoek.ts");
+  ok("de omzetting doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(omzetting));
+  ok("de omzetting zet nooit verklaard of bevestigd (§4 regel 2)", !/["'`](verklaard|bevestigd)["'`]/.test(omzetting));
+  const schrijver = leesBestand("lib/kennis/uit-onderzoek.ts");
+  ok("de schrijver gaat door legVast()", schrijver.includes("await legVast("));
+  ok("de schrijver gooit geen fout naar de onderzoeksstap", !/\bthrow\b/.test(schrijver));
+});
+// ── K5: het gesprek en de antwoorden ─────────────────────────────────────────
+
+/** Haalt elk item de regels van legVast(), met een mens als actor? */
+function gesprekFouten(items: readonly PlanItem[]): string[] {
+  return items.flatMap((i) => {
+    const fouten = controleerItem({
+      domein: i.domein, bewering: i.bewering, status: i.status, bron: i.bron, gebruik: i.gebruik,
+      bron_url: i.bronUrl, citaat: i.citaat, bewijskracht: i.bewijskracht, vastgelegd_door: "u1",
+    });
+    if (!magNieuwMetStatus(i.status, "mens", i.bron)) fouten.push("status past niet bij een mens");
+    return fouten.map((f) => `${i.ref}: ${f}`);
+  });
+}
+
+group("het gesprek en de antwoorden als kennisitems (K5)", () => {
+  const merk = proefmerk();
+  const vraag = (id: string) => merk.vragen.find((v) => v.id === id)!;
+
+  // Een gerichte vraag voor één cluster, gekoppeld aan één pagina.
+  const gericht = kennisUitAntwoord({ ...vraag("v4"), scope: "pagina" });
+  eq("een gerichte vraag voor een pagina wordt één item", String(gericht.length), "1");
+  eq(
+    "verklaard, door de klant, als paginatekst",
+    `${gericht[0]?.status}/${gericht[0]?.bron}/${gericht[0]?.gebruik}`,
+    "verklaard/klant/content",
+  );
+  eq("met de reikwijdte van de vraag: dit cluster en deze pagina", `${gericht[0]?.analysisId}/${gericht[0]?.contentPieceId}`, "a1/c1");
+  eq("vraag en antwoord samen, want een los antwoord zegt niets", gericht[0]?.bewering ?? "", "Beschrijf een les.\nWe rijden eerst op een parkeerplaats.");
+  eq("een praktijkvoorbeeld is een verhaal", gericht[0]?.domein ?? "", "verhaal");
+  eq("geldt voor verwijst naar geen ander item: de reikwijdte zit in cluster en pagina (V13)", String(gericht[0]?.geldtVoorRefs.length), "0");
+
+  const merkbreed = kennisUitAntwoord(vraag("v1"));
+  eq("een vraag voor het hele merk heeft geen cluster en geen pagina", `${merkbreed[0]?.analysisId}/${merkbreed[0]?.contentPieceId}`, "null/null");
+  eq("een antwoord zonder praktijkvoorbeeld gaat over het aanbod", merkbreed[0]?.domein ?? "", "aanbod");
+
+  const cluster = kennisUitAntwoord(vraag("v4"));
+  eq("een vraag voor het cluster geldt voor het cluster, niet voor een pagina", `${cluster[0]?.analysisId}/${cluster[0]?.contentPieceId}`, "a1/null");
+
+  // De open vraag (besluit B3).
+  const open = kennisUitAntwoord({ ...vraag("v2"), content_piece_ids: ["c1"] });
+  eq("de open vraag wordt een verhaal, letterlijk", `${open[0]?.domein}/${open[0]?.soort}/${open[0]?.bewering}`, "verhaal/eigen verhaal/Onze eerste leerling...");
+  eq("alleen voor deze pagina", `${open[0]?.analysisId}/${open[0]?.contentPieceId}`, "a1/c1");
+  eq("verklaard en bruikbaar op de pagina", `${open[0]?.status}/${open[0]?.gebruik}`, "verklaard/content");
+  const openMerk = kennisUitAntwoord({ ...vraag("v2"), scope: "merk" });
+  eq("gold de open vraag voor het hele bedrijf, dan zonder cluster en pagina", `${openMerk.length}/${openMerk[0]?.analysisId}/${openMerk[0]?.contentPieceId}`, "1/null/null");
+
+  eq("een open vraag levert niets", String(kennisUitAntwoord(vraag("v3")).length), "0");
+  eq("een overgeslagen vraag levert niets", String(kennisUitAntwoord({ ...vraag("v1"), status: "overgeslagen" }).length), "0");
+  eq("een leeg antwoord levert niets", String(kennisUitAntwoord({ ...vraag("v1"), answer: "  " }).length), "0");
+
+  // Dezelfde sleutel als het terugvullen (K3): een antwoord van vandaag en het
+  // item dat K3 uit hetzelfde antwoord maakte, vallen samen.
+  const k3 = maakTerugvulplan(merk).items.filter((i) => i.herkomst.tabel === "fact_requests");
+  const k5 = merk.vragen.flatMap((v) => kennisUitAntwoord(v));
+  eq("elk antwoord krijgt dezelfde sleutel als bij het terugvullen", k5.map(sleutelVan).sort().join(" ~ "), k3.map(sleutelVan).sort().join(" ~ "));
+  eq("en dezelfde verwijzing naar de bron", k5.map((i) => i.ref).sort().join(","), k3.map((i) => i.ref).sort().join(","));
+  eq("elk antwoord haalt de regels van legVast(), met een mens", gesprekFouten(k5).join(" | "), "");
+
+  // Een gewijzigd antwoord is een nieuwe versie van het oude item.
+  const nu = { ...vraag("v1"), answer: "85 procent" };
+  const w = wijzigingen(kennisUitAntwoord(vraag("v1")), kennisUitAntwoord(nu));
+  eq("een gewijzigd antwoord vervangt het oude", `${w.vervangen.length}/${w.erbij.length}/${w.weg.length}`, "1/0/0");
+  eq("met de nieuwe tekst", w.vervangen[0]?.nieuw.bewering ?? "", "Hoeveel leerlingen slagen er?\n85 procent");
+  const zelfde = wijzigingen(kennisUitAntwoord(vraag("v1")), kennisUitAntwoord(vraag("v1")));
+  eq("hetzelfde antwoord opnieuw opslaan verandert niets", `${zelfde.vervangen.length}/${zelfde.erbij.length}/${zelfde.weg.length}`, "0/0/0");
+  const eerste = wijzigingen(kennisUitAntwoord({ ...vraag("v1"), status: "open", answer: null }), kennisUitAntwoord(vraag("v1")));
+  eq("een eerste antwoord is nieuw", `${eerste.vervangen.length}/${eerste.erbij.length}`, "0/1");
+
+  // Het gespreksscherm.
+  const profiel = { id: "p1", url: "https://rt.nl" };
+  const veld = (veldnaam: keyof typeof merk.profiel, waarde: unknown, bron: "klant" | "gesprek" | "consultant" = "gesprek") =>
+    kennisUitProfielveld({ profiel: { ...profiel, [veldnaam]: waarde }, veld: veldnaam, bron });
+  const onderscheid = veld("differentiator", "Elke leerling houdt dezelfde instructeur.");
+  eq("een veld uit het gesprek is verklaard, door het gesprek", `${onderscheid[0]?.domein}/${onderscheid[0]?.status}/${onderscheid[0]?.bron}/${onderscheid[0]?.gebruik}`, "positionering/verklaard/gesprek/content");
+  eq("van de klant zelf is de bron de klant", veld("differentiator", "Vaste instructeur.", "klant")[0]?.bron ?? "", "klant");
+  eq("de consultant telt als het gesprek", veld("differentiator", "Vaste instructeur.", "consultant")[0]?.bron ?? "", "gesprek");
+  eq("een verboden woord wordt een verbod", veld("taboo_phrases", ["goedkoop"]).map((i) => `${i.domein}/${i.gebruik}`).join(","), "grens/verboden");
+  eq("de verhalen van de ondernemer worden een verhaal", veld("verhalen", "We begonnen in 2004.")[0]?.domein ?? "", "verhaal");
+  eq("dezelfde sleutel als het terugvullen", String(sleutelVan(veld("verhalen", "We begonnen in 2004.")[0]!)), String(sleutelVan(maakTerugvulplan(merk).items.find((i) => i.ref === "profiles:p1:verhalen")!)));
+  eq("stemvoorbeelden niet: de tekst is een waarneming van de code", String(veld("stem_voorbeelden", [{ url: "https://rt.nl", tekst: "x" }]).length), "0");
+  ok("de stemvoorbeelden staan niet bij de gespreksvelden", !GESPREKSVELDEN.includes("stem_voorbeelden"));
+  ok("de verhalen, het onderscheid en de verboden woorden wel", ["verhalen", "differentiator", "taboo_phrases", "service_regions"].every((v) => GESPREKSVELDEN.includes(v as never)));
+  eq("een veld dat geen klantkennis is, levert niets", String(kennisUitProfielveld({ profiel, veld: "wikidata_id", bron: "gesprek" }).length), "0");
+  eq("elk gespreksveld haalt de regels van legVast(), met een mens", gesprekFouten(GESPREKSVELDEN.flatMap((v) => kennisUitProfielveld({ profiel: merk.profiel, veld: v, bron: "gesprek", aanbod: merk.aanbod, vragen: merk.vragen }))).join(" | "), "");
+  eq("een product dat al een dienst is, komt niet dubbel", kennisUitProfielveld({ profiel: { ...profiel, products: ["Rijlessen", "Theorie-examen"] }, veld: "products", bron: "gesprek", aanbod: merk.aanbod }).map((i) => i.bewering).join(","), "Theorie-examen");
+
+  // Een lijst: toevoegen, weghalen, en een naam aanpassen op zijn plek.
+  const regios = (lijst: string[]) => veld("service_regions", lijst);
+  const lijstW = wijzigingen(regios(["Eindhoven", "Best", "Veldhoven"]), regios(["Eindhoven", "Veldhoven", "Son"]));
+  eq("een weggehaalde plaats is weg, een nieuwe erbij", `${lijstW.weg.map((i) => i.bewering)}/${lijstW.erbij.map((i) => i.bewering)}/${lijstW.vervangen.length}`, "Best/Son/0");
+  const aangepast = wijzigingen(regios(["Tilburg"]), regios(["Tilburg en omstreken"]));
+  eq("een plaats aanpassen op dezelfde plek is een nieuwe versie", aangepast.vervangen.map((v) => `${v.oud.bewering} > ${v.nieuw.bewering}`).join(","), "Tilburg > Tilburg en omstreken");
+  const leeggemaakt = wijzigingen(veld("differentiator", "Vaste instructeur."), veld("differentiator", null));
+  eq("een veld leegmaken haalt het weg", `${leeggemaakt.weg.length}/${leeggemaakt.erbij.length}`, "1/0");
+
+  // De aantekeningen van het gesprek.
+  const notities = kennisUitGesprek({ profile_id: "p1", strategy_notes: "Focus op Eindhoven.", context_factors: [{ kind: "nieuwe_regio", description: "Vanaf maart ook in Best." }] });
+  eq("de aantekeningen en veranderingen zijn verklaard, door het gesprek", notities.map((i) => `${i.domein}/${i.status}/${i.bron}`).join(","), "positionering/verklaard/gesprek,identiteit/verklaard/gesprek");
+  eq("dezelfde sleutels als het terugvullen", String(sleutelVan(notities[0]!)), String(sleutelVan(maakTerugvulplan(merk).items.find((i) => i.ref === "profile_strategy:p1:strategy_notes")!)));
+  eq("elk item uit het gesprek haalt de regels van legVast(), met een mens", gesprekFouten(notities).join(" | "), "");
+});
+
+group("het gesprek en de antwoorden schrijven via de schrijfingang (K5)", () => {
+  const facts = leesBestand("lib/facts.ts");
+  ok("answerFact() legt het antwoord vast in de kennislaag", facts.includes("await legAntwoordVast("));
   ok(
-    "geen enkele servercomponent geeft een functie als prop door",
-    overtredingen.length === 0,
-    overtredingen.slice(0, 5).join(", "),
+    "ook de open vraag: het vastleggen staat vóór de vertakking daarop",
+    facts.indexOf("await legAntwoordVast(") > 0 && facts.indexOf("await legAntwoordVast(") < facts.indexOf("if (fact.open_vraag)"),
+  );
+  ok("met de vraag van vóór het antwoord, voor een gewijzigd antwoord", /vorige: alsBronVraag\(fact\)/.test(facts));
+  ok("de route geeft door wie antwoordde", leesBestand("app/api/profiles/[id]/facts/route.ts").includes("gebruikerId: user.id"));
+  ok("het gespreksscherm legt zijn velden vast (sinds K8 deel 3 samen met de kopie)", leesBestand("app/api/profiles/[id]/route.ts").includes("await slaProfielOp("));
+  const strategie = leesBestand("app/api/profiles/[id]/strategy/route.ts");
+  ok("het gesprek legt zijn aantekeningen vast", strategie.includes("await legGesprekVast("));
+  ok("en de namen en plaatsen die het aan het profiel toevoegt", strategie.includes("await slaProfielOp("));
+  ok("de keuze bij een tegenstrijdigheid gaat via de kennislaag (K8 deel 2)", leesBestand("app/api/profiles/[id]/fact-conflicts/route.ts").includes("await losKennisconflictOp("));
+  const schrijver = leesBestand("lib/kennis/uit-gesprek.ts");
+  ok("de schrijver gooit geen fout naar het opslaan", !/\bthrow\b/.test(schrijver));
+  ok("en doet geen AI-aanroep (§4 regel 1)", !/lib\/openai|callStructured|responses\.create/.test(schrijver + leesBestand("lib/kennis/gesprek.ts")));
+  ok("alles wat hij vastlegt, legt een mens vast", !/actor:\s*["'`](code|model)["'`]/.test(schrijver));
+});
+
+group("kansen: de volgorde en de uitleg (N1)", () => {
+  // Per bron een voorbeeld dat de kans steunt, zoals N2 en N3 het straks aanleveren.
+  const steunend: Record<KansBron, KansBewijs> = {
+    consultant: { bron: "consultant", toelichting: "De klant vroeg er zelf om" },
+    chatgpt: { bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 0, concurrenten: ["Rijschool Wit", "Rijschool Zwart"] },
+    ai_overview: { bron: "ai_overview", vragenGemeten: 4, vragenGenoemd: 1, eigenSiteGeciteerd: false },
+    gemini: { bron: "gemini", vragenGemeten: 3, vragenGenoemd: 2 },
+    search_console: { bron: "search_console", vertoningen: 240, klikken: 3, positie: 14.2, periodeDagen: 28 },
+    structuur: { bron: "structuur", toelichting: "Rijles in een automaat heeft geen pagina" },
+  };
+  const kans = (id: string, extra: Partial<KansInvoer> = {}): KansInvoer => ({
+    id,
+    titel: `Kans ${id}`,
+    handeling: "nieuwe_pagina",
+    commercieleWaarde: null,
+    potentie: null,
+    bewijs: [],
+    kennisOntbreekt: null,
+    ...extra,
+  });
+
+  // ── Wanneer een bron steunt ──
+  eq("ChatGPT steunt als het merk bij een gemeten vraag ontbreekt", steunVan(steunend.chatgpt), "steunt");
+  eq("ChatGPT steunt niet als het merk overal genoemd wordt", steunVan({ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 4 }), "steunt_niet");
+  eq("niet gemeten is geen gegevens, geen nul", steunVan({ bron: "chatgpt", vragenGemeten: null, vragenGenoemd: null }), "geen_gegevens");
+  eq("nul gemeten vragen is ook geen gegevens", steunVan({ bron: "gemini", vragenGemeten: 0, vragenGenoemd: 0 }), "geen_gegevens");
+  eq("AI Overview steunt als de eigen site niet geciteerd wordt", steunVan({ bron: "ai_overview", vragenGemeten: 4, vragenGenoemd: 4, eigenSiteGeciteerd: false }), "steunt");
+  eq("AI Overview met alleen een citatie steunt niet", steunVan({ bron: "ai_overview", eigenSiteGeciteerd: true }), "steunt_niet");
+  eq("Search Console steunt bij vertoningen", steunVan(steunend.search_console), "steunt");
+  eq("Search Console met 0 vertoningen steunt niet", steunVan({ bron: "search_console", vertoningen: 0, periodeDagen: 28 }), "steunt_niet");
+  eq("Search Console zonder koppeling is geen gegevens", steunVan({ bron: "search_console" }), "geen_gegevens");
+  eq("een oordeel van de consultant steunt altijd", steunVan({ bron: "consultant" }), "steunt");
+  eq("een dienst zonder pagina steunt altijd", steunVan({ bron: "structuur" }), "steunt");
+  eq("de sterkte telt bronnen, niet rijen", String(bewijsSterkte([steunend.chatgpt, steunend.chatgpt, steunend.search_console, { bron: "gemini" }])), "2");
+  eq("de bronnen van een kans volgen uit het bewijs, in vaste volgorde", bronnenVan([steunend.structuur, steunend.chatgpt, steunend.chatgpt]).join(","), "chatgpt,structuur");
+
+  // ── De volgorde ──
+  const ids = (lijst: KansInvoer[]) => ordenKansen(lijst).map((k) => k.id).join(",");
+  eq(
+    "commerciële waarde gaat voor al het andere",
+    ids([
+      kans("minder", { commercieleWaarde: "minder", potentie: 100, bewijs: [steunend.chatgpt, steunend.search_console] }),
+      kans("voorrang", { commercieleWaarde: "voorrang", potentie: 5 }),
+      kans("gewoon", { commercieleWaarde: "gewoon", potentie: 50 }),
+    ]),
+    "voorrang,gewoon,minder",
+  );
+  eq(
+    "onbekende waarde telt als gewoon, niet als minder",
+    ids([kans("minder", { commercieleWaarde: "minder" }), kans("onbekend", { commercieleWaarde: null })]),
+    "onbekend,minder",
+  );
+  eq(
+    "bij gelijke waarde: meer steunende bronnen eerst",
+    ids([
+      kans("een", { potentie: 90, bewijs: [steunend.chatgpt] }),
+      kans("drie", { potentie: 10, bewijs: [steunend.chatgpt, steunend.search_console, steunend.ai_overview] }),
+      kans("twee", { potentie: 50, bewijs: [steunend.chatgpt, steunend.structuur] }),
+    ]),
+    "drie,twee,een",
+  );
+  eq(
+    "een bron die niet steunt, telt niet mee",
+    ids([
+      kans("tegen", { bewijs: [{ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 4 }], potentie: 90 }),
+      kans("voor", { bewijs: [steunend.chatgpt], potentie: 10 }),
+    ]),
+    "voor,tegen",
+  );
+  eq(
+    "daarna de potentie, onbekend achteraan",
+    ids([kans("onbekend", { potentie: null }), kans("laag", { potentie: 12 }), kans("hoog", { potentie: 80 })]),
+    "hoog,laag,onbekend",
+  );
+  eq(
+    "een potentie van 0 is bekend, en komt voor onbekend",
+    ids([kans("onbekend", { potentie: null }), kans("nul", { potentie: 0 })]),
+    "nul,onbekend",
+  );
+  eq(
+    "daarna het kennisgat: minder ontbrekend eerst, niet uitgerekend achteraan",
+    ids([
+      kans("onbekend", { kennisOntbreekt: null }),
+      kans("twee", { kennisOntbreekt: ["prijs", "termijn"] }),
+      kans("niets", { kennisOntbreekt: [] }),
+    ]),
+    "niets,twee,onbekend",
+  );
+  eq("bij volledige gelijkheid beslist de titel, dus altijd dezelfde volgorde", ids([kans("b"), kans("a"), kans("c")]), "a,b,c");
+  const invoer = [kans("b"), kans("a")];
+  ordenKansen(invoer);
+  eq("ordenen laat de invoer ongemoeid", invoer.map((k) => k.id).join(","), "b,a");
+
+  // ── De uitleg ──
+  eq(
+    "het voorbeeld uit het plan, letterlijk",
+    uitlegVan({ handeling: "pagina_verbeteren", bewijs: [steunend.search_console, steunend.chatgpt] }),
+    "Mensen zoeken hiernaar (240 vertoningen in Google in 28 dagen), maar ChatGPT noemt je bij 0 van de 4 vragen en noemt twee concurrenten wel. Je huidige pagina gaat er deels over.",
+  );
+  eq("zonder enig bewijs: geen gegevens", uitlegVan({ handeling: "nieuwe_pagina", bewijs: [] }), "Voor deze kans zijn er nog geen gegevens.");
+  eq(
+    "een bron zonder gegevens wordt bij naam genoemd, nooit als nul",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "chatgpt" }, { bron: "search_console" }, { bron: "gemini", vragenGemeten: 0 }] }),
+    "Van Google Search Console, ChatGPT en Gemini zijn er nog geen gegevens.",
+  );
+  eq(
+    "zichtbaar in ChatGPT zegt dat ook",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 4, concurrenten: ["X"] }] }),
+    "ChatGPT noemt je al bij 4 van de 4 vragen.",
+  );
+  eq(
+    "één gemeten vraag leest als zin, niet als 0 van de 1",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "gemini", vragenGemeten: 1, vragenGenoemd: 0, concurrenten: ["X"] }] }),
+    "Gemini noemt je niet bij de enige gemeten vraag en noemt één concurrent wel.",
+  );
+  eq(
+    "zoekverkeer zonder gemis in AI: twee losse zinnen, geen 'maar'",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.search_console, { bron: "chatgpt", vragenGemeten: 2, vragenGenoemd: 2 }] }),
+    "Mensen zoeken hiernaar (240 vertoningen in Google in 28 dagen). ChatGPT noemt je al bij 2 van de 2 vragen.",
+  );
+  eq(
+    "nul vertoningen is gemeten: dat staat er ook zo",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "search_console", vertoningen: 0, periodeDagen: 28 }] }),
+    "In Google zien we hier nog geen zoekverkeer (0 vertoningen in 28 dagen).",
+  );
+  eq(
+    "grote getallen met een punt",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "search_console", vertoningen: 1248 }] }),
+    "Mensen zoeken hiernaar (1.248 vertoningen in Google).",
+  );
+  eq(
+    "AI Overview: genoemd en citatie in één zin",
+    uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.ai_overview] }),
+    "Google AI Overview noemt je bij 1 van de 4 vragen en citeert je site niet.",
+  );
+  eq(
+    "de consultant met en zonder toelichting",
+    `${uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.consultant] })} | ${uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "consultant" }] })}`,
+    "Je consultant zette deze kans erbij: De klant vroeg er zelf om. | Je consultant zette deze kans erbij.",
+  );
+  eq(
+    "een dienst zonder pagina, alleen bij een nieuwe pagina",
+    `${uitlegVan({ handeling: "nieuwe_pagina", bewijs: [steunend.structuur] })} | ${uitlegVan({ handeling: "pagina_verbeteren", bewijs: [steunend.structuur] })}`,
+    "Je biedt dit aan, maar er staat nog geen pagina over op je site. | Je huidige pagina gaat er deels over.",
   );
 
-  // De reparatie zelf: de contentpagina geeft een kant-en-klaar element door en
-  // de stand loopt via een context aan de clientkant.
-  const pagina = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-detail.tsx");
-  ok("het herschrijfvak gaat als element mee", pagina.includes("herschrijfvak={"));
-  ok("en niet meer als functie", !pagina.includes("herschrijven={("));
+  // Elke combinatie van bronnen (2^6 = 64), steunend en zonder gegevens, bij beide handelingen:
+  // nooit leeg, nooit een kaal "null" of "NaN", geen gedachtestreepje, en elke bron die steunt
+  // komt in de zin terug.
+  const AI_OF_ZOEK: readonly KansBron[] = ["chatgpt", "ai_overview", "gemini", "search_console"];
+  const fouten: string[] = [];
+  const vermelding: Record<KansBron, string> = {
+    consultant: "consultant",
+    chatgpt: "ChatGPT",
+    ai_overview: "Google AI Overview",
+    gemini: "Gemini",
+    search_console: "zoeken hiernaar",
+    structuur: "nog geen pagina",
+  };
+  for (let masker = 0; masker < 1 << KANS_BRONNEN.length; masker++) {
+    const gekozen = KANS_BRONNEN.filter((_, i) => masker & (1 << i));
+    for (const soort of ["steunend", "leeg"] as const) {
+      for (const handeling of KANS_HANDELINGEN) {
+        const bewijs = gekozen.map((b) => (soort === "steunend" ? steunend[b] : { bron: b }));
+        const zin = uitlegVan({ handeling, bewijs });
+        const naam = `${gekozen.join("+") || "niets"}/${soort}/${handeling}`;
+        if (zin.trim() === "") fouten.push(`${naam}: leeg`);
+        if (/\b(null|undefined|NaN)\b|[—–]|en\/of|\.\.|\s\s/.test(zin)) fouten.push(`${naam}: ${zin}`);
+        if (!/[.]$/.test(zin)) fouten.push(`${naam}: geen punt aan het eind`);
+        if (soort === "steunend") {
+          for (const b of gekozen) {
+            if (b === "structuur" && handeling === "pagina_verbeteren") continue;
+            if (!zin.includes(vermelding[b])) fouten.push(`${naam}: ${b} ontbreekt in "${zin}"`);
+          }
+        }
+        if (soort === "leeg" && gekozen.some((b) => AI_OF_ZOEK.includes(b)) && !zin.includes("nog geen gegevens")) {
+          fouten.push(`${naam}: zonder gegevens staat er niet "nog geen gegevens"`);
+        }
+        if (/\b0 van de\b/.test(zin) && soort === "leeg") fouten.push(`${naam}: geen gegevens leest als nul`);
+      }
+    }
+  }
+  eq("elke combinatie van bronnen geeft een nette zin (256 gevallen)", fouten.slice(0, 5).join(" | "), "");
 
-  const werkblad = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/content-werkblad.tsx");
-  ok("het werkblad zet er de context omheen", werkblad.includes("<HerschrijfProvider"));
-  const vak = leesBestand("app/(app)/analyses/[id]/bibliotheek/[pieceId]/revise-box.tsx");
-  ok("en het herschrijfvak leest hem daar", vak.includes("useHerschrijfstand()"));
+  // ── Het bewijs per bron, voor het uitklapbare blok op het kansenscherm (N7) ──
+  eq(
+    "search console met klikken en positie",
+    bewijsRegel({ bron: "search_console", vertoningen: 240, klikken: 3, positie: 8.2, periodeDagen: 28 }),
+    "Mensen zoeken hiernaar (240 vertoningen in Google in 28 dagen), 3 klikken, gemiddelde positie 8,2.",
+  );
+  eq(
+    "search console zonder gegevens",
+    bewijsRegel({ bron: "search_console" }),
+    "Google Search Console: nog geen gegevens.",
+  );
+  eq(
+    "chatgpt steunend",
+    bewijsRegel({ bron: "chatgpt", vragenGemeten: 4, vragenGenoemd: 0, concurrenten: ["X", "Y"] }),
+    "ChatGPT noemt je bij 0 van de 4 vragen en noemt twee concurrenten wel.",
+  );
+  eq("chatgpt zonder gegevens", bewijsRegel({ bron: "chatgpt" }), "ChatGPT: nog geen gegevens.");
+  eq(
+    "ai overview met citatie",
+    bewijsRegel({ bron: "ai_overview", eigenSiteGeciteerd: true }),
+    "Google AI Overview citeert je site wel.",
+  );
+  eq("consultant met toelichting", bewijsRegel({ bron: "consultant", toelichting: "eigen inzicht" }), "Je consultant: eigen inzicht.");
+  eq("consultant zonder toelichting", bewijsRegel({ bron: "consultant" }), "Je consultant zette deze kans erbij.");
+  eq(
+    "structuur",
+    bewijsRegel({ bron: "structuur" }),
+    "Je biedt dit aan, maar er staat nog geen pagina over op je site.",
+  );
+
+  // ── Dezelfde vaste waarden in code en database ──
+  const migratie = leesBestand("supabase/migrations/0118_kansen.sql");
+  const inCheck = (constraint: string, waarden: readonly string[]) => {
+    const blok = migratie.slice(migratie.indexOf(constraint), migratie.indexOf("exception", migratie.indexOf(constraint)));
+    return waarden.filter((w) => !blok.includes(`'${w}'`));
+  };
+  eq("elke bron staat in de check van de database", inCheck("kans_bewijs_bron_check", KANS_BRONNEN).join(","), "");
+  eq("elke status staat in de check van de database", inCheck("kansen_status_check", KANS_STATUSSEN).join(","), "");
+  eq("elke handeling staat in de check van de database", inCheck("kansen_handeling_check", KANS_HANDELINGEN).join(","), "");
+  eq("elke commerciële waarde staat in de check van de database", inCheck("kansen_commerciele_waarde_check", COMMERCIELE_WAARDEN).join(","), "");
+
+  // ── Geen model dat de volgorde of de uitleg bepaalt (N1 "niet") ──
+  const imports = leesBestand("lib/kansen/prioriteit.ts").split("\n").filter((r) => /^import\b/.test(r)).join("\n");
+  ok("de volgorde en de uitleg doen geen AI-aanroep", !/openai|pipeline|jobs|supabase/.test(imports), imports);
+  ok("en zijn puur, dus testbaar (conventie 2)", !/server-only/.test(imports), imports);
 });
+
+group("kansen: het rapport maakt kansen (N2)", () => {
+  // ── Van aanbeveling naar kans ──
+  const nieuw = kansUitAanbeveling("r1", 0, {
+    title: " Pagina over rijles in Best ",
+    action: "nieuw",
+    existingUrl: "null",
+    targetIntent: "Iemand uit Best die rijles zoekt",
+    targets: [{ promptId: "p1", weight: 0.5, text: "Rijschool in Best?" }],
+  });
+  eq("de sleutel is gelijk aan de oude source_ref van de kaart", `${nieuw?.sleutel}`, "r1#0");
+  eq("de sleutel komt uit één plek", kansSleutel("r1", 3), "r1#3");
+  eq("titel, lezer en handeling", `${nieuw?.titel}|${nieuw?.lezer}|${nieuw?.handeling}|${nieuw?.bestaandeUrl}`, "Pagina over rijles in Best|Iemand uit Best die rijles zoekt|nieuwe_pagina|null");
+  eq("de doelvragen gaan mee", JSON.stringify(nieuw?.doelvragen), JSON.stringify([{ promptId: "p1", weight: 0.5, text: "Rijschool in Best?" }]));
+  const verbeter = kansUitAanbeveling("r1", 1, { title: "Faalangstpagina", action: "verbeteren", existingUrl: "https://pompert.nl/faalangst/" });
+  eq("verbeteren met een adres", `${verbeter?.handeling}|${verbeter?.bestaandeUrl}`, "pagina_verbeteren|https://pompert.nl/faalangst/");
+  const zonderAdres = kansUitAanbeveling("r1", 2, { title: "Iets", action: "verbeteren", existingUrl: ":" });
+  eq("verbeteren zonder bruikbaar adres wordt een nieuwe pagina (de database weigert het anders)", `${zonderAdres?.handeling}|${zonderAdres?.bestaandeUrl}`, "nieuwe_pagina|null");
+  ok("zonder titel geen kans", kansUitAanbeveling("r1", 3, { title: "  " }) === null);
+  ok("een kapotte aanbeveling breekt niets", kansUitAanbeveling("r1", 4, {}) === null);
+
+  // ── Het bewijs per bron ──
+  eq("ChatGPT is de hoofdbron, ook zonder engine", `${bronVanEngine(null)}|${bronVanEngine("openai")}|${bronVanEngine("google_ai_overview")}|${bronVanEngine("gemini")}|${bronVanEngine("bing")}`, "chatgpt|chatgpt|ai_overview|gemini|null");
+  const m = (runId: string, promptId: string, engine: string | null, genoemd: boolean, concurrenten: string[] = [], citedSources: string[] = []): MetingVoorBewijs => ({
+    runId,
+    promptId,
+    engine,
+    genoemd,
+    concurrenten,
+    citedSources,
+  });
+  const doel = [{ promptId: "p1", weight: 0.5, text: null }, { promptId: "p2", weight: 0.3, text: null }];
+  const bewijs = bewijsUitMetingen(doel, [
+    m("a", "p1", "openai", false, ["Rijschool Wit", "Rijschool Zwart"]),
+    m("b", "p2", "openai", true),
+    // AI Overview meet drie keer; de meerderheid per vraag telt, zoals in het rapport.
+    m("c1", "p1", "google_ai_overview", false, ["Rijschool Wit"]),
+    m("c2", "p1", "google_ai_overview", false, ["Rijschool Wit"]),
+    m("c3", "p1", "google_ai_overview", true),
+    // Een meting van een vraag die niet bij deze kans hoort, telt niet.
+    m("d", "p9", "openai", false, ["Ander"]),
+  ]);
+  eq(
+    "per bron: gemeten, genoemd en de concurrenten waar het merk ontbrak",
+    bewijs.map((b) => `${b.bron}:${b.vragenGenoemd}/${b.vragenGemeten}:${(b.concurrenten ?? []).join("+")}`).join(" "),
+    "chatgpt:1/2:Rijschool Wit+Rijschool Zwart ai_overview:0/1:Rijschool Wit",
+  );
+  eq("de metingen gaan als bewijs mee", bewijs.map((b) => b.runIds.join("+")).join(" "), "a+b c1+c2+c3");
+  eq("een bron zonder meting van deze vragen levert geen rij (geen gegevens, geen nul)", bewijs.some((b) => b.bron === "gemini") ? "ja" : "nee", "nee");
+  const gelijk = bewijsUitMetingen([doel[0]!], [m("x", "p1", "openai", false), m("y", "p1", "openai", true)]);
+  eq("bij gelijke stand binnen een bron wint genoemd, net als bij het rapport", `${gelijk[0]?.vragenGenoemd}/${gelijk[0]?.vragenGemeten}`, "1/1");
+  const veel = bewijsUitMetingen([doel[0]!], [m("z", "p1", "openai", false, ["A", "B", "C", "D", "E", "F", "G"])]);
+  eq("hooguit een handvol concurrenten", String(veel[0]?.concurrenten?.length), String(MAX_CONCURRENTEN));
+  eq("zonder doelvragen geen bewijs", String(bewijsUitMetingen([], [m("a", "p1", "openai", false)]).length), "0");
+
+  // ── N4: citeert een bron de eigen site? ──
+  const geciteerd = bewijsUitMetingen(
+    doel,
+    [
+      m("e1", "p1", "openai", true, [], ["https://www.pompert.nl/faalangst/?utm=x"]),
+      m("e2", "p2", "openai", false, ["Concurrent"], ["https://concurrent.nl/faalangst"]),
+    ],
+    "https://pompert.nl",
+  );
+  ok("chatgpt citeert de eigen site (www, trackingcode en slash maken niets uit)", geciteerd.find((b) => b.bron === "chatgpt")?.eigenSiteGeciteerd === true, JSON.stringify(geciteerd));
+  const nietGeciteerd = bewijsUitMetingen(doel, [m("f1", "p1", "openai", true, [], ["https://concurrent.nl/faalangst"])], "https://pompert.nl");
+  eq("wel gemeten, geen citaat van de eigen site: false, geen null", String(nietGeciteerd[0]?.eigenSiteGeciteerd), "false");
+  const zonderUrl = bewijsUitMetingen(doel, [m("g1", "p1", "openai", true, [], ["https://pompert.nl/faalangst"])]);
+  eq("zonder bekend webadres: onbekend (null), geen 'nee'", String(zonderUrl[0]?.eigenSiteGeciteerd), "null");
+
+  // ── Wie telt als concurrent ──
+  const v = (rol: string | null, mentioned = true, is_own_brand = false) => isConcurrent({ is_own_brand, mentioned, mention_role: rol });
+  eq(
+    "aanbevolen telt, terloops niet, niet genoemd niet, het eigen merk niet, zonder rol wel",
+    [v("eerste_aanbeveling"), v("een_van_meerdere"), v("zijdelings"), v("een_van_meerdere", false), v("eerste_aanbeveling", true, true), v(null)].join(","),
+    "true,true,false,false,false,true",
+  );
+
+  // ── Commerciële waarde ──
+  const waarde = (diensten: string[], voorrang: string[], minder: string[]) => String(commercieleWaardeVan({ diensten, voorrang, minder }));
+  eq("een dienst met voorrang", waarde(["Rijles automaat"], ["rijles  automaat"], []), "voorrang");
+  eq("een dienst met minder voorrang", waarde(["Motorrijles"], ["Rijles"], ["Motorrijles"]), "minder");
+  eq("voorrang wint als het onderwerp beide raakt", waarde(["Rijles", "Motorrijles"], ["Rijles"], ["Motorrijles"]), "voorrang");
+  eq("wel prioriteiten, deze dienst niet: gewoon", waarde(["Theorie"], ["Rijles"], []), "gewoon");
+  eq("geen enkele opgave van het merk: onbekend, niet gewoon", waarde(["Rijles"], [], []), "null");
+
+  // ── Waarvoor de kans geldt ──
+  const kennis: KennisVoorKans[] = [
+    { id: "k-dienst", soort: "dienst", bewering: "Rijles", herkomstTabel: "profile_offerings", herkomstId: "o1" },
+    { id: "k-prijs", soort: "prijs", bewering: "€ 80", herkomstTabel: "profile_offerings", herkomstId: "o1" },
+    { id: "k-ander", soort: "dienst", bewering: "Motorrijles", herkomstTabel: "profile_offerings", herkomstId: "o2" },
+    { id: "k-best", soort: "werkgebied", bewering: "Best", herkomstTabel: "profiles", herkomstId: null },
+    { id: "k-son", soort: "werkgebied", bewering: "Son en Breugel", herkomstTabel: "profiles", herkomstId: null },
+    { id: "k-ehv", soort: "werkgebied", bewering: "Eindhoven", herkomstTabel: "profiles", herkomstId: null },
+  ];
+  const geldt = (titel: string, vraag = "") =>
+    geldtVoorVan({ kans: { titel, lezer: null, doelvragen: [{ promptId: null, weight: null, text: vraag }] }, dienstIds: ["o1"], kennis }).join(",");
+  eq("de dienst van het onderwerp, niet zijn prijs, niet een andere dienst", geldt("Pagina over rijles"), "k-dienst");
+  eq("een plaats die letterlijk in de titel staat", geldt("Rijles in Best"), "k-dienst,k-best");
+  eq("of in een doelvraag", geldt("Faalangst", "Welke rijschool in Son en Breugel helpt bij faalangst?"), "k-dienst,k-son");
+  eq("'Best' in 'beste rijschool' is geen plaats", geldt("De beste rijschool"), "k-dienst");
+  eq("Eindhovense is niet Eindhoven: alleen het hele woord", geldt("Voor Eindhovense leerlingen"), "k-dienst");
+
+  // ── De opdracht aan het rapport spreekt zichzelf niet meer tegen ──
+  const rapportCode = leesBestand("lib/pipeline/report.ts");
+  ok("geen vast aantal meer in de invoer", !/Geef 5 tot 8/.test(rapportCode));
+  ok("en de systeemopdracht zegt nog steeds dat het niet vastligt", rapportCode.includes("HET AANTAL AANBEVELINGEN LIGT NIET VAST"));
+  ok("de invoer zegt hetzelfde: het aantal dat het meeste gemis dekt", /ligt niet vast: kies het aantal[\s\S]{0,120}meeste gemeten gemis dekt/.test(rapportCode));
+
+  // ── Wie wat doet ──
+  ok("het rapport legt zijn kansen vast, na het opslaan", rapportCode.indexOf("await legKansenVast(") > rapportCode.indexOf('.from("reports")\n      .insert('));
+  const voorraad = leesBestand("lib/plan-backlog-data.ts");
+  ok("de voorraad leest uit kansen", voorraad.includes('.from("kansen")'));
+  ok("en niet meer uit de JSON van het rapport", !/recommendations_json/.test(voorraad.slice(voorraad.indexOf("export async function syncBacklog"), voorraad.indexOf("export async function meetbareVragenPerAnalyse"))));
+  ok("elke nieuwe kaart krijgt zijn kans", voorraad.includes("kans_id: k.kansId"));
+  const schrijver = leesBestand("lib/kansen/uit-rapport.ts");
+  const legVastRomp = schrijver.slice(schrijver.indexOf("export async function legKansenVast"), schrijver.indexOf("export async function werkPotentieBij"));
+  ok("het wegschrijven gooit geen fout naar het rapport: alles zit in één try met een catch", /\{\s*const telling[^\n]*\n\s*try \{/.test(legVastRomp) && legVastRomp.includes("} catch (err) {") && !/\bthrow\b/.test(legVastRomp));
+  ok("en doet geen AI-aanroep", !/lib\/openai|callStructured|responses\.create/.test(schrijver + leesBestand("lib/kansen/rapport.ts")));
+});
+
+group("kansen: één schrijfingang (N2)", () => {
+  const schrijft = (inhoud: string) =>
+    /from\(\s*["'`](kansen|kans_bewijs)["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(inhoud) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?(kansen|kans_bewijs)\b/i.test(inhoud);
+  ok("zelftest: een insert wordt herkend", schrijft('admin\n  .from("kansen")\n  .insert({})'));
+  ok("zelftest: lezen is geen schrijven", !schrijft('admin.from("kansen").select("*")'));
+  const buiten = ["app", "lib", "components", "scripts"]
+    .flatMap((m) => [...tsOnder(m), ...tsxOnder(m)])
+    .map((p) => p.split("\\").join("/"))
+    .filter((p) => !p.startsWith("lib/kansen/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijft(leesBestand(p)));
+  eq("niemand buiten lib/kansen/ schrijft in kansen of kans_bewijs", buiten.join(", "), "");
+  ok("en lib/kansen/uit-rapport.ts wél", schrijft(leesBestand("lib/kansen/uit-rapport.ts")));
+  ok("en lib/kansen/uit-search-console.ts (N3) ook", schrijft(leesBestand("lib/kansen/uit-search-console.ts")));
+});
+
+group("kansen: Search Console als kansbron (N3)", () => {
+  const rij = (query: string, impressions: number, clicks: number, position: number | null) => ({
+    query,
+    impressions,
+    clicks,
+    position,
+  });
+
+  // ── matchendeZoekopdrachten() ──
+  const zoekopdrachten = [
+    rij("auto financieren udenhout", 40, 2, 8.5),
+    rij("financiering audi", 15, 1, 12),
+    rij("auto huren eindhoven", 30, 5, 4),
+    rij("goedkope schoenen", 10, 0, 30),
+  ];
+  eq2(
+    "zonder kennistermen matcht niets",
+    matchendeZoekopdrachten(zoekopdrachten, []).length,
+    0,
+  );
+  eq(
+    "een kennisterm matcht elke zoekopdracht die het hele woord bevat",
+    matchendeZoekopdrachten(zoekopdrachten, ["financieren"]).map((r) => r.query).join(","),
+    "auto financieren udenhout",
+  );
+  eq(
+    "twee kennistermen matchen samen",
+    matchendeZoekopdrachten(zoekopdrachten, ["financiering", "huren"]).map((r) => r.query).sort().join(","),
+    ["auto huren eindhoven", "financiering audi"].sort().join(","),
+  );
+  eq2(
+    "'financier' matcht 'financieren' niet: geen heel woord",
+    matchendeZoekopdrachten(zoekopdrachten, ["financier"]).length,
+    0,
+  );
+
+  // ── zoekverkeerBewijsVan() ──
+  ok("geen matches geeft geen bewijs (null, geen nul)", zoekverkeerBewijsVan([], 28) === null);
+
+  const bewijs = zoekverkeerBewijsVan(
+    [rij("auto financieren udenhout", 40, 2, 8), rij("financiering audi", 15, 1, 12)],
+    28,
+  );
+  ok("de vertoningen zijn de som", bewijs?.vertoningen === 55);
+  ok("de klikken zijn de som", bewijs?.klikken === 3);
+  // Gewogen op vertoningen: (8*40 + 12*15) / 55 = 8,909...
+  ok(
+    "de positie is gewogen op vertoningen, niet het gewone gemiddelde",
+    Math.abs((bewijs?.positie ?? 0) - (8 * 40 + 12 * 15) / 55) < 0.001,
+  );
+  eq2("de periode komt mee zoals meegegeven", bewijs?.periodeDagen, 28);
+  eq(
+    "de zoekopdrachten staan erbij, meeste vertoningen eerst",
+    (bewijs?.zoekopdrachten ?? []).join(","),
+    "auto financieren udenhout,financiering audi",
+  );
+
+  const zonderPositie = zoekverkeerBewijsVan([rij("iets", 10, 0, null)], 28);
+  ok(
+    "een rij zonder positie telt niet mee in de weging, maar wel in vertoningen",
+    zonderPositie?.vertoningen === 10 && zonderPositie?.positie === null,
+  );
+
+  const dubbeleDag = zoekverkeerBewijsVan(
+    [rij("auto huren", 20, 1, 5), rij("auto huren", 10, 0, 7)],
+    28,
+  );
+  eq(
+    "dezelfde zoekopdracht op twee dagen komt maar één keer in de lijst",
+    dubbeleDag?.zoekopdrachten.join(",") ?? "",
+    "auto huren",
+  );
+});
+
+group("afhankelijkheden: één schrijfingang (G2)", () => {
+  const schrijft = (inhoud: string) =>
+    /from\(\s*["'`]afhankelijkheden["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(inhoud) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?afhankelijkheden\b/i.test(inhoud);
+  ok("zelftest: een upsert wordt herkend", schrijft('admin\n  .from("afhankelijkheden")\n  .upsert({})'));
+  ok("zelftest: lezen is geen schrijven", !schrijft('admin.from("afhankelijkheden").select("*")'));
+  const buiten = ["app", "lib", "components", "scripts"]
+    .flatMap((m) => [...tsOnder(m), ...tsxOnder(m)])
+    .map((p) => p.split("\\").join("/"))
+    .filter((p) => !p.startsWith("lib/afhankelijkheden/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijft(leesBestand(p)));
+  eq("niemand buiten lib/afhankelijkheden/ schrijft in afhankelijkheden", buiten.join(", "), "");
+  ok("en lib/afhankelijkheden/vastleggen.ts wél", schrijft(leesBestand("lib/afhankelijkheden/vastleggen.ts")));
+});
+
+group("kansen: het kennisgat per kans (N6)", () => {
+  const nu = new Date("2026-09-26T12:00:00Z");
+  let n = 0;
+  const item = (extra: Partial<KennisVoorGat>): KennisVoorGat => ({
+    id: `k${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering: "Iets",
+    status: "verklaard",
+    bron: "klant",
+    gebruik: "content",
+    vastgelegd_door: "u1",
+    geldt_voor: [],
+    analysis_id: null,
+    content_piece_id: null,
+    ...extra,
+  });
+  const kans: KansVoorGat = { analysisId: "a1", geldtVoor: ["dienst-rijles"], paginaIds: ["v1", "v2"], paginaSoort: "landing" };
+
+  // ── Wat een pagina nodig heeft ──
+  eq("een dienstpagina heeft alles nodig", behoeftenVoor("landing").join(","), "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs");
+  eq("een artikel geen prijs of termijn", behoeftenVoor("article").join(","), "werkwijze,voorbeeld,bewijs");
+  eq("een onbekend soort telt als dienstpagina, zodat een gat niet stil verdwijnt", behoeftenVoor(null).join(","), behoeftenVoor("landing").join(","));
+  ok("elke behoefte heeft een label", behoeftenVoor("landing").every((b) => BEHOEFTE_LABEL[b].length > 0));
+
+  // ── Wanneer een item bij de kans hoort ──
+  ok("merkbreed hoort altijd", hoortBijKans(item({}), kans));
+  ok("een ander cluster niet", !hoortBijKans(item({ analysis_id: "a2" }), kans));
+  ok("hetzelfde cluster wel", hoortBijKans(item({ analysis_id: "a1" }), kans));
+  ok("een andere dienst niet", !hoortBijKans(item({ geldt_voor: ["dienst-motor"] }), kans));
+  ok("dezelfde dienst wel", hoortBijKans(item({ geldt_voor: ["dienst-rijles"] }), kans));
+  ok("een andere pagina niet (B3)", !hoortBijKans(item({ analysis_id: "a1", content_piece_id: "ander" }), kans));
+  ok("een oudere versie van de pagina wel (gevonden in K5)", hoortBijKans(item({ analysis_id: "a1", content_piece_id: "v1" }), kans));
+
+  // ── De standen ──
+  const leeg = kennisgatVan(kans, [], nu);
+  eq("zonder kennis ontbreekt alles", leeg.ontbreekt.join(","), "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs");
+  const kennis = [
+    item({ soort: "werkwijze", bewering: "Eerst een intake." }),
+    item({ soort: "prijs", status: "afgeleid", bron: "ai", gebruik: "intern", vastgelegd_door: null, vastgelegd_door_taak: "profile_offering", geldt_voor: ["dienst-rijles"] }),
+    item({ soort: "prijs", bewering: "€ 60", geldt_voor: ["dienst-motor"] }),
+    item({ domein: "verhaal", soort: "eigen verhaal", analysis_id: "a1", content_piece_id: "v1" }),
+    item({ domein: "bewijs", soort: "cijfer", status: "waargenomen", bron: "website", citaat: "93 procent", bron_url: "https://x.nl", vastgelegd_door: null, vastgelegd_door_taak: "kennis_terugvullen" }),
+    item({ soort: "termijn", afgewezen_op: "2026-09-20T00:00:00Z" }),
+  ];
+  const gat = kennisgatVan(kans, kennis, nu);
+  eq(
+    "per behoefte: bekend, alleen een vermoeden, of niets",
+    gat.perBehoefte.map((b) => `${b.behoefte}:${b.stand}`).join(" "),
+    "werkwijze:bekend prijs:afgeleid termijn:onbekend voorbeeld:bekend voor_wie_niet:onbekend bewijs:bekend",
+  );
+  eq("een vermoeden telt als ontbrekend: het mag niet op de pagina", gat.ontbreekt.join(","), "prijs,termijn,voor_wie_niet");
+  eq("bekend zijn precies de items die op de pagina mogen", gat.bekend.join(","), [kennis[0]!.id, kennis[3]!.id, kennis[4]!.id].join(","));
+  ok("een afgewezen item vult niets", gat.perBehoefte.find((b) => b.behoefte === "termijn")?.ids.length === 0);
+  ok("de prijs van een andere dienst vult deze prijs niet", !gat.perBehoefte.find((b) => b.behoefte === "prijs")?.ids.includes(kennis[2]!.id));
+  const verlopen = kennisgatVan(kans, [item({ soort: "werkwijze", verloopt_op: "2026-01-01" })], nu);
+  eq("een verlopen item is niet meer bekend", verlopen.perBehoefte[0]?.stand ?? "", "onbekend");
+
+  const merkbreedPrijs = kennisgatVan(kans, [item({ soort: "prijs", bewering: "Een offerte is gratis." }), item({ soort: "termijn", bewering: "Offerte binnen vier uur." })], nu);
+  eq(
+    "een prijs of termijn van het hele bedrijf is niet die van deze dienst (productie, 27 september 2026)",
+    merkbreedPrijs.perBehoefte.filter((b) => b.behoefte === "prijs" || b.behoefte === "termijn").map((b) => b.stand).join(","),
+    "onbekend,onbekend",
+  );
+  eq("maar een merkbrede werkwijze telt wel", kennisgatVan(kans, [item({ soort: "werkwijze" })], nu).perBehoefte[0]?.stand ?? "", "bekend");
+  eq("en een prijs voor dit cluster ook", kennisgatVan(kans, [item({ soort: "prijs", analysis_id: "a1" })], nu).perBehoefte[1]?.stand ?? "", "bekend");
+
+  // ── De zin voor de consultant ──
+  eq("de zin", String(kennisgatZin(["prijs", "termijn", "voor_wie_niet"])), "Nog niet bekend: een prijsindicatie, een termijn en voor wie het niet is.");
+  eq("één ding", String(kennisgatZin(["bewijs"])), "Nog niet bekend: bewijs.");
+  eq("niets ontbreekt", String(kennisgatZin([])), "Alles wat deze pagina nodig heeft, weten we al.");
+  eq("niet uitgerekend: geen zin (conventie 3)", String(kennisgatZin(null)), "null");
+
+  // ── Zonder model, en alleen de consultant ziet het ──
+  const bron = leesBestand("lib/kansen/kennisgat.ts");
+  ok("geen model bepaalt wat ontbreekt", !/openai|callStructured|server-only/.test(bron.split("\n").filter((r) => r.startsWith("import")).join("\n")));
+  ok("het plan geeft het kennisgat alleen aan de consultant", leesBestand("app/(app)/merk/[id]/strategie/plan/page.tsx").includes("kennisgat={staff ? bundle.kennisgat : undefined}"));
+  ok("de voorraad werkt het bij bij elke synchronisatie", leesBestand("lib/plan-backlog-data.ts").includes("await werkKennisgatBij(admin, profileId);"));
+});
+
+group("A4: de kennisronde in het gesprek", () => {
+  const kans = (titel: string, kennisOntbreekt: KennisrondeKans["kennisOntbreekt"]): KennisrondeKans => ({
+    titel,
+    kennisOntbreekt,
+  });
+
+  eq2("zonder kansen niets te vragen", kennisrondeVoorMerk([]).length, 0);
+  eq2("een kans zonder gat levert niets op", kennisrondeVoorMerk([kans("A", [])]).length, 0);
+  eq2("nog niet uitgerekend levert niets op (conventie 3)", kennisrondeVoorMerk([kans("A", null)]).length, 0);
+
+  const ronde = kennisrondeVoorMerk([
+    kans("Warmtepomp installeren", ["prijs", "voorbeeld"]),
+    kans("Onderhoud warmtepomp", ["prijs", "bewijs"]),
+  ]);
+  eq("gegroepeerd per domein: aanbod, verhaal, bewijs, in de volgorde van de eerste kans", ronde.map((d) => d.domein).join(","), "aanbod,verhaal,bewijs");
+  eq("aanbod heeft prijs, want dat komt bij beide kansen voor", ronde[0]!.regels.map((r) => r.behoefte).join(","), "prijs");
+  eq("de eerste kans staat eerst bij prijs", ronde[0]!.regels[0]!.kansen.join(","), "Warmtepomp installeren,Onderhoud warmtepomp");
+  eq("verhaal heeft alleen het voorbeeld van de eerste kans", ronde[1]!.regels.map((r) => r.kansen.join(",")).join(";"), "Warmtepomp installeren");
+  eq("bewijs komt van de tweede kans", ronde[2]!.regels[0]!.kansen.join(","), "Onderhoud warmtepomp");
+
+  eq2("elke behoefte heeft een domein", Object.keys(BEHOEFTE_DOMEIN).length, behoeftenVoor("landing").length);
+
+  // ── Zonder model, en dezelfde volgorde als het kansenscherm ──
+  const bron = leesBestand("lib/kansen/kennisronde.ts");
+  ok("geen model bepaalt de volgorde", !/openai|callStructured|server-only/.test(bron.split("\n").filter((r) => r.startsWith("import")).join("\n")));
+  const pagina = leesBestand("app/(app)/merk/[id]/admin/onboarding/page.tsx");
+  ok("het gesprek gebruikt dezelfde volgorde als het kansenscherm (N1)", pagina.includes("ordenKansen("));
+  ok("alleen kansen die nog geschreven moeten worden", pagina.includes('in("status", ["open", "ingepland", "in_voorbereiding"])'));
+  ok("de sessie toont de kennisronde", leesBestand("app/(app)/merk/[id]/_components/onboarding-session.tsx").includes("kennisronde.map"));
+});
+
+group("A5: een herinnering bij openstaande vragen", () => {
+  // ── Op het startscherm van de klant: sinds wanneer ──
+  const work = leesBestand("lib/work.ts");
+  ok(
+    "de briefing toont sinds wanneer hij wacht",
+    /status === "briefing"[\s\S]{0,600}meta: `Wacht sinds \$\{formatDateShort\(piece\.created_at\)\}`/.test(work),
+  );
+
+  // ── Op het CSM-overzicht van de consultant ──
+  const csm = leesBestand("lib/csm.ts");
+  ok("wachten op antwoorden legt de bal bij de klant", csm.includes("b.paginasWachtenOpAntwoorden > 0"));
+  ok("de vlag noemt het aantal en sinds wanneer", csm.includes("wachten op antwoorden"));
+
+  // ── De e-mail, alleen als EMAILS_ENABLED aanstaat ──
+  const mail = leesBestand("lib/email/question-reminder.ts");
+  ok("de mail controleert de schakelaar", mail.includes("emailsEnabled()"));
+  const route = leesBestand("app/api/cron/reminders/route.ts");
+  ok("de cron stopt zonder de schakelaar", /if \(!emailsEnabled\(\)\)/.test(route));
+  ok("een week wachten voordat er gemaild wordt", route.includes("const cutoff = new Date(Date.now() - WAITING_DAYS * 86_400_000)"));
+  ok("alleen pagina's die nog op antwoorden wachten", route.includes('.eq("status", "briefing")'));
+  ok(
+    "de vlag wordt gezet vóór het versturen, tegen een dubbele mail",
+    route.indexOf('update({ question_reminder_sent_at:') < route.indexOf("sendQuestionReminder("),
+  );
+  ok("één keer per analyse, niet per pagina", route.includes('.is("question_reminder_sent_at", null)'));
+
+  // ── De migratie ──
+  ok(
+    "de kolom is additief (conventie 4)",
+    leesBestand("supabase/migrations/0128_question_reminder.sql").includes("add column if not exists question_reminder_sent_at"),
+  );
+});
+
+group("de open punten van de kennislaag afhandelen (V16)", () => {
+  const twintig = [
+    "c1629728-1d90-4792-b780-64d5000693a6", "94811f89-9330-415d-ae53-52202e75cc35", "ed9ac524-05a2-41ec-9d8c-76221772b5f9",
+    "bfec7a2e-7c69-451c-ae2a-ed996e5dd970", "fbdbd1b9-c187-4568-b304-b0b15b2546d6", "fe5d4bae-b01a-4c9a-8bbc-c59d55ae842b",
+    "c7d404ba-e17b-4d0c-b48f-8d3ffef0bd1f", "ba8eafec-a7d7-43d6-9e87-bb10da27f9b9", "e1cb22a9-faa9-4481-965f-6abf8f471e3a",
+    "84de2e15-7235-4949-a19b-424b5e93cfa3", "1b8ff72a-11d2-4348-b9f6-95456a073181", "b37c7e95-1072-44e1-8f6f-64adfd8d80bb",
+    "fd8f1556-ac2f-40c9-8738-159d783fb27e", "db79b321-40d8-4836-b519-19a1db18fdb0", "94a4e737-c6a9-47e8-9e90-4838dd2088f6",
+    "3aaefec8-11a6-458a-bff7-96586c63885a", "0c691c35-996d-482b-872d-112f772c09cf", "25994597-d02e-41f8-9313-889516ac77e9",
+    "3ad103af-db40-4e88-8fc9-e6af437c4bbe", "6339c1c5-72f0-460a-be5c-519f212cdffa",
+  ];
+  const behandeld = BESLUITEN.flatMap((b) => ("id" in b ? [b.id] : []));
+  eq("elk van de twintig punten heeft precies één besluit", twintig.filter((id) => behandeld.filter((b) => b === id).length !== 1).join(","), "");
+  eq("en er is geen besluit over iets anders", behandeld.filter((id) => !twintig.includes(id)).join(","), "");
+  ok("geen afwijzing en geen bevestiging: dat is voor een mens (V6)", !BESLUITEN.some((b) => ["afwijzen", "bevestigen"].includes(b.soort as string)));
+  const nieuw = BESLUITEN.flatMap((b) => (b.soort === "vervangen" || b.soort === "erbij" ? [b.nieuw] : []));
+  eq("elk nieuw item haalt de regels van de schrijfingang", nieuw.flatMap((n) => foutenVan(n)).join(" | "), "");
+  ok("geen oude prijs van € 76 per uur meer bij handgeschakeld", !nieuw.some((n) => n.bewering.includes("handgeschakeld") && n.bewering.includes("76")));
+  const sql = openPuntenSql(BESLUITEN, "2026-09-27");
+  eq("de SQL controleert elk citaat voordat er iets verandert", String((sql.match(/raise exception 'Citaat niet letterlijk/g) ?? []).length), String(nieuw.length));
+  ok("en de controles staan vóór de eerste wijziging", sql.indexOf("raise exception") < sql.indexOf("insert into") && sql.lastIndexOf("raise exception") < sql.indexOf("update public.klantkennis"));
+  ok("er wordt niets verwijderd", !/\bdelete\b|\bdrop\b|\btruncate\b/i.test(sql));
+  ok("alles in één blok: gaat één stap mis, dan gebeurt er niets", sql.startsWith("do $$") && sql.trim().endsWith("end $$;"));
+  ok("een tweede run doet niets: elke vervanging kijkt eerst of het oude item nog actueel is", (sql.match(/and vervangen_door is null\)/g) ?? []).length >= BESLUITEN.filter((b) => b.soort !== "merkbreed").length);
+  let geweigerd = "";
+  try {
+    openPuntenSql([{ soort: "erbij", nieuw: { ...nieuw[0]!, citaat: "" }, reden: "x" }], "2026-09-27");
+  } catch (e) {
+    geweigerd = String((e as Error).message);
+  }
+  ok("een item zonder citaat levert geen SQL op", geweigerd.length > 0);
+});
+
+// ── K8: niemand leest nog wat "niet meer gebruiken" heet ───────────────────
+//
+// De kolommen komen uit de inventaris zelf (`docs/tasks/kennismodel-inventaris.md`
+// §4), niet uit een tweede lijst hier: wie daar een kolom op "niet meer
+// gebruiken" zet, krijgt deze test er vanzelf bij. Commentaar telt niet (een
+// naam in de uitleg is geen lezer), een schrijfactie wel (wie schrijft, houdt
+// de kolom in leven).
+
+interface OudeKolom {
+  tabel: string;
+  kolom: string;
+}
+
+function nietMeerGebruiken(inventaris: string): OudeKolom[] {
+  const uit: OudeKolom[] = [];
+  let tabel = "";
+  for (const regel of inventaris.split("\n")) {
+    const kop = /^### 4\.\d+ `([a-z_]+)`/.exec(regel);
+    if (kop) {
+      tabel = kop[1];
+      continue;
+    }
+    const rij = /^\| `([a-z0-9_]+)` \|/.exec(regel);
+    if (!rij || !tabel) continue;
+    const cellen = regel.split("|").map((c) => c.trim()).filter((c, i, a) => i > 0 && i < a.length - 1);
+    if (cellen[cellen.length - 1]?.startsWith("niet meer gebruiken")) uit.push({ tabel, kolom: rij[1] });
+  }
+  return uit;
+}
+
+/** Commentaar eraf; strings blijven, want een kolomnaam in een `select()` is een lezer. */
+function codeZonderCommentaar(bron: string): string {
+  return bron.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1").replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "");
+}
+
+/**
+ * Noemt deze code de kolom? Bij een naam die in meer tabellen voorkomt
+ * (`verify_after` staat ook in `fact_requests`, waar hij meegaat), of die ook
+ * een gewone eigenschap is (`citable` in `factcard.ts`), telt het alleen als
+ * dezelfde code ook de tabel noemt.
+ */
+function noemtKolom(code: string, k: OudeKolom, opTabel: boolean): boolean {
+  if (!new RegExp(`\\b${k.kolom}\\b`).test(code)) return false;
+  if (!opTabel) return true;
+  return new RegExp(`["'\`]${k.tabel}["'\`]`).test(code);
+}
+
+/**
+ * Waar een oude kolom nog genoemd mag worden, met de reden. Het terugvullen
+ * (K3) leest per definitie de oude tabellen: dat was zijn werk, en het script
+ * moet herhaalbaar blijven (conventie 9).
+ */
+const OUDE_KOLOM_UITZONDERINGEN: { pad: string; reden: string }[] = [
+  { pad: "lib/types/database.ts", reden: "de typen van de tabel zelf (K8 in het plan)" },
+  { pad: "lib/kennis/terugvullen.ts", reden: "het terugvullen van K3 leest de oude kolommen" },
+  { pad: "scripts/kennis-terugvullen.ts", reden: "idem, de uitvoering" },
+  { pad: "lib/kennis/profielvelden.ts", reden: "sluit de bewijspunten juist uit de kennisvelden uit" },
+];
+
+group("K8: niemand leest nog een kolom met 'niet meer gebruiken'", () => {
+  const kolommen = nietMeerGebruiken(leesBestand("docs/tasks/kennismodel-inventaris.md"));
+  eq("de inventaris levert de 35 kolommen (37, min de twee gecorrigeerde `confidence`)", String(kolommen.length), "35");
+  ok("waaronder de auteursvelden en de bewijspunten", kolommen.some((k) => k.kolom === "author_bio") && kolommen.some((k) => k.kolom === "proof_points"));
+  ok("en niet de meegenomen `verify_after` van een vraag", !kolommen.some((k) => k.tabel === "fact_requests" && k.kolom === "verify_after"));
+
+  const tellingPerNaam = new Map<string, number>();
+  const inventaris = leesBestand("docs/tasks/kennismodel-inventaris.md");
+  for (const k of kolommen) tellingPerNaam.set(k.kolom, (inventaris.match(new RegExp(`^\\| \`${k.kolom}\` \\|`, "gm")) ?? []).length);
+  const opTabel = (k: OudeKolom) => (tellingPerNaam.get(k.kolom) ?? 0) > 1 || k.kolom === "citable";
+
+  ok("zelftest: een select wordt gevonden", noemtKolom(codeZonderCommentaar('.select("id, usp")'), { tabel: "profiles", kolom: "usp" }, false));
+  ok("zelftest: commentaar niet", !noemtKolom(codeZonderCommentaar("// usp stond hier\n/* en usp hier */"), { tabel: "profiles", kolom: "usp" }, false));
+  ok("zelftest: een adres met // blijft code", codeZonderCommentaar('const u = "https://x.nl"; usp').includes("usp"));
+  ok("zelftest: verify_after zonder brand_facts telt niet", !noemtKolom('from("fact_requests").insert({ verify_after })', { tabel: "brand_facts", kolom: "verify_after" }, true));
+  ok("zelftest: met brand_facts wel", noemtKolom('from("brand_facts").select("verify_after")', { tabel: "brand_facts", kolom: "verify_after" }, true));
+
+  const bestanden = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => !OUDE_KOLOM_UITZONDERINGEN.some((u) => u.pad === p));
+  const treffers: string[] = [];
+  for (const pad of bestanden) {
+    const code = codeZonderCommentaar(leesBestand(pad));
+    for (const k of kolommen) if (noemtKolom(code, k, opTabel(k))) treffers.push(`${pad}: ${k.tabel}.${k.kolom}`);
+  }
+  eq("geen code buiten de uitzonderingen noemt zo'n kolom", treffers.join(" | "), "");
+});
+
+group("K8: de stemvoorbeelden en het merkdossier schrijven in de kennislaag", () => {
+  const profiel = { id: "p1", url: "https://voorbeeld.nl" };
+  const items = kennisUitStemvoorbeelden(profiel, [
+    { url: "https://voorbeeld.nl/over-ons", tekst: "Wij zijn al dertig jaar een familiebedrijf." },
+    { url: "https://voorbeeld.nl/werkwijze", tekst: null },
+  ]);
+  eq("alleen een adres met opgehaalde tekst wordt een item", String(items.length), "1");
+  ok(
+    "waargenomen, met het adres als bron en de tekst als citaat",
+    items[0]?.status === "waargenomen" && items[0]?.bron === "website" && items[0]?.bronUrl === "https://voorbeeld.nl/over-ons" && items[0]?.citaat === items[0]?.bewering,
+  );
+  ok("in het domein stem, voor op de pagina", items[0]?.domein === "stem" && items[0]?.gebruik === "content");
+
+  const bestaand = [
+    { id: "a", bron_url: "https://voorbeeld.nl/over-ons", bewering: "Oude tekst." },
+    { id: "b", bron_url: "https://voorbeeld.nl/weg", bewering: "Weggehaald." },
+    { id: "c", bron_url: "https://voorbeeld.nl/werkwijze", bewering: "Niet te lezen, wel gekozen." },
+  ];
+  const plan = stemPlan(bestaand, items, ["https://voorbeeld.nl/over-ons", "https://voorbeeld.nl/werkwijze"]);
+  eq("een andere tekst op hetzelfde adres wordt een nieuwe versie", plan.vervangen.map((v) => v.oudId).join(","), "a");
+  eq("een weggehaald adres wordt afgewezen", plan.afwijzen.join(","), "b");
+  eq("en niets is nieuw", String(plan.nieuw.length), "0");
+  eq("dezelfde tekst verandert niets", String(stemPlan([{ ...bestaand[0], bewering: items[0]!.bewering }], items, ["https://voorbeeld.nl/over-ons"]).vervangen.length), "0");
+  eq("een adres zonder item is nieuw", String(stemPlan([], items, ["https://voorbeeld.nl/over-ons"]).nieuw.length), "1");
+
+  const feit = { vraagId: "v1", question: "Wat kost een proefles?", answer: "€ 45", zin: "Een proefles kost € 45.", verlooptOp: "2027-03-27" };
+  const doc = kennisUitDocument(feit, "d1");
+  eq("één feit, één item", String(doc.length), "1");
+  ok("verklaard, met het document als bron (V21)", doc[0]?.status === "verklaard" && doc[0]?.bron === "document");
+  ok("met de letterlijke zin als citaat", doc[0]?.citaat === "Een proefles kost € 45.");
+  ok("en het document als herkomst", doc[0]?.herkomst.tabel === "brand_documents" && doc[0]?.herkomst.id === "d1");
+  ok("een prijs verloopt", doc[0]?.verlooptOp === "2027-03-27");
+  const alsAntwoord = kennisUitAntwoord({
+    id: "v1", analysis_id: null, question: feit.question, answer: feit.answer, status: "beantwoord", scope: "merk",
+    content_piece_ids: [], open_vraag: false, raw_json: { bron: "merkdossier" },
+  });
+  ok(
+    "dezelfde sleutel als het antwoord op die vraag: een latere wijziging wordt een nieuwe versie",
+    sleutelVan(doc[0]!) === sleutelVan(alsAntwoord[0]!),
+  );
+  ok("zonder document is de vraag de herkomst", kennisUitDocument(feit, null)[0]?.herkomst.tabel === "fact_requests");
+
+  const stemRoute = leesBestand("app/api/profiles/[id]/route.ts");
+  ok("de profielroute legt de stemvoorbeelden vast na het ophalen", stemRoute.includes("await legStemVast("));
+  ok("maar niet als de adressen intussen veranderden", /if \(huidig !== args\.gekozen\.join\("\|"\)\) return \{ \.\.\.telling, bewaard: false \}/.test(leesBestand("lib/kennis/uit-stem.ts")));
+  ok("het merkdossier legt zijn feiten vast", leesBestand("app/api/profiles/[id]/dossier/route.ts").includes("await legDocumentVast("));
+  const stem = leesBestand("lib/kennis/uit-stem.ts");
+  ok("de stemmodule gooit geen fout", !/\bthrow\b/.test(stem));
+  ok("en zet nooit verklaard of bevestigd", !/["'`](verklaard|bevestigd)["'`]/.test(stem));
+});
+
+group("K8 deel 2: sitefeiten worden ingedeeld in de kennislaag, niemand schrijft nog in brand_facts", () => {
+  const basis = { soort: null, bron: "website", status: "waargenomen", herkomst_tabel: "profile_facets", vervangen_door: null, afgewezen_op: null } as const;
+  ok("een sitefeit zonder soort moet ingedeeld", moetIngedeeld(basis));
+  ok("een feit uit het terugvullen ook", moetIngedeeld({ ...basis, herkomst_tabel: "brand_facts" }));
+  ok("maar niet als het al een soort heeft", !moetIngedeeld({ ...basis, soort: "prijs" }));
+  ok("niet een antwoord van de klant", !moetIngedeeld({ ...basis, bron: "klant", status: "verklaard", herkomst_tabel: "fact_requests" }));
+  ok("niet een vermoeden", !moetIngedeeld({ ...basis, status: "afgeleid" }));
+  ok("niet wat een mens afwees", !moetIngedeeld({ ...basis, afgewezen_op: "2026-09-27" }));
+  ok("niet een oude versie", !moetIngedeeld({ ...basis, vervangen_door: "x" }));
+
+  const aanbod = [{ kennisId: "k1", naam: "Intake op kantoor" }, { kennisId: "k2", naam: "Intake in de auto" }, { kennisId: "k3", naam: "Rijles" }];
+  const prijs = indelingVoorKennis({ soort: "prijs", waarde: { min: 50, max: 50, eenheid: "EUR" }, geldtVoor: "intake op kantoor", bewijskracht: "gewoon" }, aanbod);
+  eq("een prijs voor een product hangt aan dat product", prijs.geldtVoor.join(","), "k1");
+  eq("met het domein uit de soort, zoals het terugvullen", prijs.domein, "aanbod");
+  ok("de uitvoer van het model gaat mee in ruw", JSON.stringify(prijs.ruw).includes("intake op kantoor"));
+  eq("een naam die bij geen product hoort, blijft merkbreed", indelingVoorKennis({ soort: "termijn", waarde: null, geldtVoor: "levertijd", bewijskracht: "gewoon" }, aanbod).geldtVoor.length.toString(), "0");
+  eq("een werkgebied is identiteit", indelingVoorKennis({ soort: "werkgebied", waarde: null, geldtVoor: null, bewijskracht: "geen" }, aanbod).domein, "identiteit");
+  eq("een keurmerk is bewijs", indelingVoorKennis({ soort: "certificering", waarde: null, geldtVoor: null, bewijskracht: "sterk" }, aanbod).domein, "bewijs");
+
+  const vastleggen = leesBestand("lib/kennis/vastleggen.ts");
+  ok("deelIn() deelt alleen een item zonder soort in", /export async function deelIn[\s\S]{0,900}if \(item\.soort\) return/.test(vastleggen));
+  ok("en zoekt daarna naar botsingen", /export async function deelIn[\s\S]*await zetBotsingen\(admin, data as Klantkennis\)/.test(vastleggen));
+  ok("de taak fact_register deelt de kennislaag in", leesBestand("lib/jobs/handlers.ts").includes("await deelKennisIn(admin, job.profile_id)"));
+  ok("het model dat elk paar beoordeelde is weg (V14)", !existsSync("lib/pipeline/conflict-judge.ts") && !existsSync("lib/pipeline/feitenregister.ts"));
+
+  /** Schrijft deze code in `brand_facts`, met de Supabase-client of met SQL? */
+  const schrijftInFeiten = (inhoud: string) =>
+    /from\(\s*["'`]brand_facts["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(inhoud) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?brand_facts\b/i.test(inhoud);
+  ok("zelftest: een insert wordt herkend", schrijftInFeiten('admin.from("brand_facts").insert(rijen)'));
+  ok("zelftest: lezen is geen schrijven", !schrijftInFeiten('admin.from("brand_facts").select("*")'));
+  const schrijvers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijftInFeiten(codeZonderCommentaar(leesBestand(p))));
+  eq("niemand schrijft nog in brand_facts", schrijvers.join(", "), "");
+  const lezers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => !OUDE_KOLOM_UITZONDERINGEN.some((u) => u.pad === p))
+    .filter((p) => /from\(\s*["'`]brand_facts["'`]\s*\)/.test(codeZonderCommentaar(leesBestand(p))));
+  eq("en alleen het terugvullen leest de tabel nog", lezers.join(", "), "");
+});
+
+
+// ── K8 deel 3: alleen lib/kennis/ schrijft een kennisveld op profiles (V9, V22) ──
+
+/**
+ * De kennisvelden die dit bestand op `profiles` schrijft. Een letterlijk object
+ * wordt op sleutels gelezen; een variabele (`update(update)`) telt als schrijven
+ * van elk kennisveld dat het bestand ergens als sleutel of toewijzing noemt.
+ */
+function kennisveldenGeschreven(code: string, velden: readonly string[]): string[] {
+  const uit = new Set<string>();
+  const re = /from\(\s*["'`]profiles["'`]\s*\)\s*\.\s*(update|insert|upsert)\s*\(\s*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(code))) {
+    const rest = code.slice(re.lastIndex);
+    if (rest.startsWith("{")) {
+      // Tot de sluitende accolade van het object.
+      let diepte = 0;
+      let eind = 0;
+      for (let i = 0; i < rest.length; i++) {
+        if (rest[i] === "{") diepte++;
+        else if (rest[i] === "}" && --diepte === 0) {
+          eind = i;
+          break;
+        }
+      }
+      const obj = rest.slice(0, eind + 1);
+      for (const v of velden) if (new RegExp(`(^|[\\s,{])${v}\\s*[:,}]`).test(obj)) uit.add(v);
+      if (/\.\.\.\s*[a-zA-Z_]/.test(obj)) uit.add("(spreiding van een variabele)");
+    } else {
+      for (const v of velden) if (new RegExp(`(\\b${v}\\s*:|\\.${v}\\s*=)`).test(code)) uit.add(v);
+    }
+  }
+  return [...uit];
+}
+
+group("K8 deel 3: alleen lib/kennis/ schrijft een kennisveld op het merkprofiel", () => {
+  eq("de kennisvelden zijn wat de inventaris meenam, zonder bewijspunten", String(KENNISVELDEN.length), String(PROFIEL_MEENEMEN.length - 1));
+  ok("met de stuurvelden van de meting (V9)", ["brand_name", "aliases", "name_exclusions", "service_scope", "service_regions", "competitors", "market_language"].every((v) => KENNISVELDEN.includes(v)));
+  ok("zelftest: een letterlijk kennisveld wordt gevonden", kennisveldenGeschreven('admin.from("profiles").update({ competitors: unie }).eq("id", id)', KENNISVELDEN).join() === "competitors");
+  ok("zelftest: een ander veld niet", kennisveldenGeschreven('admin.from("profiles").update({ status: "bezig" }).eq("id", id)', KENNISVELDEN).length === 0);
+  ok("zelftest: een variabele met een kennisveld erin wel", kennisveldenGeschreven('update.aliases = x;\nadmin.from("profiles").update(update)', KENNISVELDEN).join() === "aliases");
+  ok("zelftest: een spreiding telt als verdacht", kennisveldenGeschreven('admin.from("profiles").insert({ url, ...intake })', KENNISVELDEN).length === 1);
+
+  const buiten = codebestanden()
+    .filter((p) => !p.startsWith("lib/kennis/"))
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .flatMap((p) => kennisveldenGeschreven(codeZonderCommentaar(leesBestand(p)), KENNISVELDEN).map((v) => `${p}: ${v}`));
+  eq("niemand buiten lib/kennis/ schrijft een kennisveld op profiles", buiten.join(" | "), "");
+  const binnen = codebestanden()
+    .filter((p) => p.startsWith("lib/kennis/"))
+    .filter((p) => /from\(\s*["'`]profiles["'`]\s*\)\s*\.\s*(update|insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));
+  eq("en binnen lib/kennis/ alleen de kopie", binnen.join(", "), "lib/kennis/profielkopie.ts");
+
+  // De kopie volgt het kennisoverzicht.
+  const profiel = { aliases: ["Fysio West", "FWMW"], competitors: ["Fysio Oost"], summary: "Een praktijk.", intake_description: "Een praktijk." };
+  const alias = { domein: "identiteit" as const, soort: "andere naam", bewering: "fysio west", herkomst_tabel: "profiles" as const };
+  eq("een afgewezen naam verdwijnt uit de lijst", JSON.stringify(kopieNaHandeling(profiel, alias, null)), JSON.stringify({ veld: "aliases", waarde: ["FWMW"] }));
+  eq("een aangepaste naam wordt vervangen", JSON.stringify(kopieNaHandeling(profiel, alias, "Fysiotherapie West")), JSON.stringify({ veld: "aliases", waarde: ["Fysiotherapie West", "FWMW"] }));
+  eq("een concurrent uit de markt ook", kopieNaHandeling(profiel, { domein: "positionering", soort: "concurrent", bewering: "Fysio Oost", herkomst_tabel: "profile_facets" }, null)?.veld ?? "-", "competitors");
+  eq("staat de tekst in twee velden, dan niets (liever achter dan verkeerd)", String(kopieNaHandeling(profiel, { domein: "identiteit", soort: "omschrijving", bewering: "Een praktijk.", herkomst_tabel: "profiles" }, null)), "null");
+  eq("staat hij nergens, dan niets", String(kopieNaHandeling(profiel, { ...alias, bewering: "Onbekend" }, null)), "null");
+  eq("een antwoord op een vraag raakt het profiel niet", String(kopieNaHandeling(profiel, { ...alias, herkomst_tabel: "fact_requests" }, null)), "null");
+  const overzicht = leesBestand("lib/kennis/uit-overzicht.ts");
+  ok("afwijzen en aanpassen op het kennisoverzicht werken de kopie bij", (overzicht.match(/await werkKopieBij\(/g) ?? []).length === 3);
+});
+
+group("K8 deel 4: alleen lib/kennis/ schrijft de aanbodboom", () => {
+  const schrijftAanbod = (code: string) =>
+    /from\(\s*["'`]profile_offerings["'`]\s*\)\s*\.\s*(insert|update|upsert|delete)\s*\(/.test(code) ||
+    /\b(insert\s+into|update|delete\s+from)\s+(public\.)?profile_offerings\b/i.test(code);
+  ok("zelftest: een update wordt herkend", schrijftAanbod('admin.from("profile_offerings").update({ name })'));
+  ok("zelftest: lezen niet", !schrijftAanbod('admin.from("profile_offerings").select("id")'));
+  const schrijvers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/test-") && !p.startsWith("scripts/chain/"))
+    .filter((p) => schrijftAanbod(codeZonderCommentaar(leesBestand(p))));
+  eq("alleen lib/kennis/ schrijft profile_offerings", schrijvers.join(", "), "lib/kennis/aanbodkopie.ts, lib/kennis/uit-aanbod.ts");
+  const route = leesBestand("app/api/profiles/[id]/offerings/route.ts");
+  ok("het bewerkscherm voegt toe, past aan, haalt weg en zet terug via de kennislaag", ["voegKnoopToe(", "werkKnoopBij(", "haalKnopenWeg(", "zetKnoopTerug("].every((f) => route.includes(`await ${f}`)));
+  ok("het onderzoek bewaart de boom via de kennislaag", leesBestand("lib/pipeline/offering.ts").includes("await bewaarAanbodboom("));
+});
+
+group("A1: de brief krijgt de kennisgaten (besluit B21)", () => {
+  const basis = {
+    titel: "Warmtepomp installeren", paginasoort: "dienstpagina", handeling: "nieuw" as const, zoekintentie: null, waarom: null,
+    doelvragen: [], merknaam: "Keeris", werkgebied: [], bedrijf: "- Wij installeren warmtepompen.", huidigeTekst: null, eerdereVragen: [],
+  };
+  const met = briefInvoer({ ...basis, kennisgat: ["een termijn", "voor wie het niet is"] });
+  ok("de invoer noemt wat we voor deze pagina nog niet weten", met.includes("Wat we voor deze pagina nog niet weten over het bedrijf:\n- een termijn\n- voor wie het niet is"));
+  ok("na wat we al weten", met.indexOf("Wat we al weten") < met.indexOf("Wat we voor deze pagina nog niet weten"));
+  ok("zonder kans of zonder gat geen blok", !briefInvoer({ ...basis, kennisgat: null }).includes("nog niet weten") && !briefInvoer({ ...basis, kennisgat: [] }).includes("nog niet weten"));
+  ok("de opdracht zegt: vraag eerst naar wat ontbreekt, en liever om een voorbeeld", BRIEF_SYSTEEM.includes('Staat er een lijst "Wat we voor deze pagina nog niet weten", vraag dan eerst daarnaar, en vraag liever om een voorbeeld uit de praktijk dan om een los feit.'));
+  ok("nog steeds hooguit acht vragen", MAX_BRIEFVRAGEN === 8 && BRIEF_SYSTEEM.includes(`hooguit ${MAX_BRIEFVRAGEN}`));
+  eq("brief versie 4", String(BRIEF_VERSIE), "4");
+  ok("de brief haalt het gat op", leesBestand("lib/pagina/brief.ts").includes("kennisgatVoorPagina(admin, pieceId)"));
+});
+
+
+group("A2: een antwoord over een dienst geldt voor de dienst (besluit V23)", () => {
+  const vraag = (extra: Partial<BronVraag> = {}): BronVraag => ({
+    id: "v1", analysis_id: "c1", question: "Hoe verloopt een installatie?", answer: "Eerst een adviesbezoek.", status: "beantwoord",
+    scope: "pagina", content_piece_ids: ["p1"], open_vraag: false, raw_json: { bron: "pagina_brief", soort: "werkwijze" }, ...extra,
+  });
+  const metDienst = kennisUitAntwoord(vraag(), ["d1"]);
+  eq("één item, voor de dienst", `${metDienst.length}/${metDienst[0]?.geldtVoorIds?.join(",")}/${metDienst[0]?.contentPieceId}/${metDienst[0]?.analysisId}`, "1/d1/null/null");
+  eq("zonder dienst zoals het was: voor de pagina", String(kennisUitAntwoord(vraag())[0]?.contentPieceId), "p1");
+  eq("een praktijkvoorbeeld blijft bij de pagina (B3)", String(kennisUitAntwoord(vraag({ raw_json: { bron: "pagina_brief", soort: "praktijk" } }), ["d1"])[0]?.contentPieceId), "p1");
+  eq("de open vraag ook", String(kennisUitAntwoord(vraag({ open_vraag: true }), ["d1"])[0]?.contentPieceId), "p1");
+  eq("een merkvraag blijft merkbreed", String(kennisUitAntwoord(vraag({ scope: "merk", content_piece_ids: [] }), ["d1"])[0]?.geldtVoorIds), "undefined");
+  ok("de antwoordroute zoekt de diensten van de pagina op", leesBestand("lib/facts.ts").includes("dienstenVanPaginas(admin, input.profileId"));
+  ok("een antwoord van vóór A2 blijft bij zijn pagina als het gewijzigd wordt", /if \(!sleutel \|\| !\(await metSleutel\(admin, args\.profileId, sleutel\)\)\) diensten = \[\];/.test(leesBestand("lib/kennis/uit-gesprek.ts")));
+});
+
+group("A3: één bron van vragen (besluit V3)", () => {
+  const punten = openPuntenUitOnderzoek([
+    { facet: "synthese", raw_json: { gaps: ["- Hoeveel fysiotherapeuten werken er?", "Welke specialisaties per vestiging?", "  "] } },
+    { facet: "aanbod", raw_json: { output_parsed: { gaps: ["De tarieven van de specialisaties ontbreken.", "hoeveel fysiotherapeuten werken er?"] } } },
+    { facet: "markt", raw_json: { gaps: ["Niet van deze stappen."] } },
+  ]);
+  eq("de punten van de samenvatting en het aanbod, zonder opsomteken en zonder dubbele", punten.map((p) => `${p.bron}:${p.punt}`).join(" | "),
+    "samenvatting:Hoeveel fysiotherapeuten werken er? | samenvatting:Welke specialisaties per vestiging? | aanbod:De tarieven van de specialisaties ontbreken.");
+  eq("zonder verslag niets", String(openPuntenUitOnderzoek([{ facet: "synthese", raw_json: null }]).length), "0");
+  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("openPuntenUitOnderzoek("));
+  const vraagSchrijvers = codebestanden()
+    .filter((p) => !p.startsWith("scripts/"))
+    .filter((p) => /from\(\s*["'`]fact_requests["'`]\s*\)\s*\.\s*(insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));
+  eq(
+    "vragen aan de klant komen alleen nog uit de voorbereiding van een pagina, de open vraag en het merkdossier",
+    vraagSchrijvers.sort().join(", "),
+    "app/api/profiles/[id]/dossier/route.ts, lib/pagina/brief.ts, lib/pagina/open-vraag.ts",
+  );
+});
+

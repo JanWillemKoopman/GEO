@@ -8,12 +8,12 @@
  * Een systematische fout daar corrumpeert stil het hele product.
  *
  * Draaien:
- *   npm run eval:mention              # test het productiemodel (gpt-5.6-luna)
- *   npm run eval:mention -- --compare # vergelijkt Luna tegen Terra
+ *   npm run eval:mention              # test het productiemodel (gpt-6-luna)
+ *   npm run eval:mention -- --compare # vergelijkt GPT-6 Luna tegen GPT-5.6 Luna
  *
  * ⚠️ Dit maakt ECHTE, betaalde OpenAI-calls. Met de startset (15 gevallen) is
- * dat een fractie van een cent op Luna; met --compare loopt dat op, want Terra
- * kost tienmaal zoveel per token.
+ * dat een fractie van een cent op Luna; met --compare komt de vorige Luna erbij,
+ * die twee keer zoveel per token kost.
  *
  * De testset staat in scripts/mention-goldenset.json en is bewust klein en
  * met de hand geschreven rond bekende faalpatronen. Vul hem aan met echte
@@ -35,11 +35,11 @@ loadEnv({ path: ".env.local", override: true });
 // script standalone draait zonder padalias-resolutie (zelfde keuze als
 // scripts/test-openai.ts). De PROMPT wordt wél geïmporteerd. Die mag nooit
 // afwijken van productie, anders test je iets anders dan er draait.
-const PRODUCTION_MODEL = "gpt-5.6-luna";
-// De naasthogere tier van dezelfde generatie. Was `gpt-4.1-mini` toen productie
-// nog op nano draaide; nu volume én quality op Luna staan, is Terra het model
-// waar je naartoe zou wijken als de classificatie tekortschiet.
-const COMPARISON_MODEL = "gpt-5.6-terra";
+const PRODUCTION_MODEL = "gpt-6-luna";
+// Het model van vóór 23 september 2026. Sinds de overstap naar GPT-6 is dit de
+// vergelijking die telt: classificeert de nieuwe Luna minstens zo goed als de
+// oude? Zo niet, dan verschuift de zichtbaarheidsscore door het model.
+const COMPARISON_MODEL = "gpt-5.6-luna";
 
 // Precies zoals productie deze call verstuurt (WORK.deterministic in
 // lib/openai/sampling.ts): geen redeneertijd, temperatuur 0. Meet je met andere

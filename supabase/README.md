@@ -627,3 +627,198 @@ dat account zo buiten kon sluiten. De app roept de functie alleen aan via de ser
 (`lib/rate-limit.ts`), dus er verandert niets aan het gewone inloggen. Op productie toegepast op 22
 september 2026, nagerekend met `has_function_privilege`: `anon` nee, `authenticated` nee,
 `service_role` ja.
+
+## 0109 — Clusters ontdekken
+
+Twee tabellen voor de ontdekkingsronde (`docs/tasks/clusters-ontdekken.md`):
+`cluster_discovery_runs` (status, invoer, ruwe DataForSEO-antwoorden, kosten gesplitst in zoekdata
+en AI) en `cluster_discovery_candidates` (kandidaat-clusters met zoektermen, score, status en
+afwijsreden). Lezen mag wie het merk mag lezen, schrijven alleen de server. Op `profile_topics`
+komt `discovery_candidate_id` bij, en de herkomst `ontdekking` mag in `origin`. De zoekvolumes gaan
+bewust nergens de potentiescore in. Op productie toegepast op 23 september 2026.
+
+## 0110 — Zinnen zonder bron die de klant laat staan
+
+Voegt `content_pieces.geaccepteerde_zinnen` toe (jsonb, standaard `[]`): per zin de tekst, wie hem
+accepteerde en wanneer. Een zin die iets over het bedrijf zegt zonder bevestigd feit blokkeert
+publicatie; met "Akkoord, laat staan" verdwijnt dat punt en blijft de zin in de tekst. Het
+paginascherm telt ook de lijsten van eerdere versies van dezelfde pagina mee. Schrijven alleen via
+`app/api/analyses/[id]/content/[pieceId]/zinnen/route.ts`. Op productie toegepast op 23 september 2026:
+27 teksten, alle 27 met een lege lijst.
+
+## 0111 — Thema per ontdekkingsronde
+
+Voegt `cluster_discovery_runs.theme` toe (tekst): de productcategorie of het thema dat de
+consultant opgeeft bij het starten van een ronde. `null` voor rondes van daarvoor. De route
+`app/api/profiles/[id]/discovery` start geen ronde zonder thema. Op productie toegepast op 23
+september 2026.
+
+## 0112 — Elke AI-aanroep bewaart wat erin ging
+
+Voegt `ai_calls.input_json` (jsonb) en `ai_calls.prompt_hash` (tekst) toe. `input_json` bevat de
+systeemopdracht, de gebruikersopdracht, de schemanaam, het soort werk, de redeneerinspanning, de
+temperatuur en of er op het web gezocht werd; `prompt_hash` is een korte vingerafdruk van alleen de
+systeemopdracht, zodat twee rondes met een andere prompt uit elkaar te houden zijn. Gevuld op één
+plek (`lib/openai/ledger.ts`, via `lib/openai/input-capture.ts`). Rijen van vóór deze migratie
+blijven leeg. Besluit van de eigenaar op 23 september 2026: altijd bewaren. Op productie toegepast
+op 23 september 2026.
+
+## 0113 — Feitsoort en conflicten
+
+Voegt aan `brand_facts` de kolommen `soort`, `waarde` (jsonb), `geldt_voor`, `stand`, `bewijskracht`
+en `ingedeeld_at` toe, met controles op de toegestane waarden, en de tabel `fact_conflicts`: per
+beoordeeld paar feiten het oordeel van het model, de ernst, de status (open, opgelost, gevraagd,
+geen_conflict) en het besluit. Lezen alleen voor medewerkers (`is_staff()`); schrijven alleen via
+`app/api/profiles/[id]/fact-conflicts/route.ts` en de taak `fact_register`. Additief en idempotent.
+WP2 van `docs/tasks/contentpijplijn-publicatiewaardig.md`. Op productie toegepast op 25 september 2026.
+
+## 0114 — Paginastrategie, redactie en de duur van elke aanroep
+
+Voegt aan `content_pieces` de kolommen `strategy_json`, `edit_log_json` en `readiness_json` toe
+(jsonb): de paginastrategie met de correcties van de code en een eventuele wachtstand op een
+conflict, straks het logboek van de eindredactie (WP5) en het oordeel over publicatiegereedheid.
+Voegt `ai_calls.duration_ms` toe (integer, de duur van de aanroep in milliseconden) met een index
+op soort en tijd, voor het besluit over de achtergrondmodus. Additief en idempotent. WP3 van
+`docs/tasks/contentpijplijn-publicatiewaardig.md`. Op productie toegepast op 25 september 2026.
+
+## 0115 — De contentketen opnieuw
+
+Voegt `content_pieces.brief_json` (de content brief) en `content_pieces.controle_json` (de uitkomst
+van de controle en de bevestigde gele zinnen) toe, `fact_requests.open_vraag` (de vaste open vraag per
+pagina, met een unieke index zodat er per pagina hooguit één is), en `profiles.verhalen` en
+`profiles.stem_voorbeelden`. Een kolom `open_vraag` en geen nieuwe `kind`, omdat die check-constraint
+alleen te verruimen is door hem eerst te verwijderen. Additief en idempotent. Zie
+`docs/tasks/contentketen-opnieuw.md` §7.1. Op productie toegepast op 25 september 2026.
+
+## 0116 — De kennislaag
+
+Maakt `klantkennis`: één rij per kennisitem, met domein, status (waargenomen, verklaard, bevestigd,
+afgeleid), bron, citaat, gebruik (content, intern, verboden), bewijskracht, verwijzingen naar andere
+kennis, cluster en pagina, en de herkomst. Vier regels van `lib/kennis/regels.ts` staan er ook als
+check-constraint in: waargenomen eist een citaat en een bronadres, een model verklaart en bevestigt
+niet, bevestigd eist wie en wanneer, afgeleid is nooit content. Alleen medewerkers lezen (besluit V11);
+schrijven alleen met de service-role key. Nog niemand schrijft of leest erin. Additief en idempotent.
+Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` K1 en §6.1. Op productie toegepast op 26 september
+2026; de vier regels daar nagelopen met proefrijen die daarna weer weg zijn.
+
+## 0117 — De schrijfingang van de kennislaag
+
+Drie aanvullingen op 0116 voor `lib/kennis/vastleggen.ts` (K2). `klantkennis.afgewezen_door` en
+`afgewezen_op`: een mens zegt "dit klopt niet", het item blijft bewaard maar telt niet meer mee. De
+regel over modellen versmald: een model verklaart nooit iets namens de klant, maar een mens mag een
+item dat een model voorstelde wel bevestigen (de tabel was leeg, dus geen rij veranderde van
+betekenis). `fact_conflicts.kennis_ids`: een botsing tussen twee kennisitems (besluit V14); de oude
+lezers kijken alleen naar rijen zonder `kennis_ids`. Additief; het vervangen van de constraint
+verwijdert geen data. Op productie toegepast op 26 september 2026.
+
+## 0118 — Kansen als eigen object
+
+Maakt `kansen` (één kans per te nemen actie: titel, lezer, handeling, het cluster als `analysis_id`,
+commerciële waarde, potentie, kennisgat, status en de uitleg) en `kans_bewijs` (één rij per bron per
+kans: ChatGPT, AI Overview, Gemini, Search Console, de consultant of een dienst zonder pagina, met
+getypte kolommen waarin leeg "geen gegevens" betekent en geen nul). Check-constraints voor de vaste
+waarden, een verbetering eist een adres, genoemd kan niet vaker dan gemeten. Leesbaar voor wie het merk
+mag zien (`readable_profile_ids()`, want het kansenscherm N7 is voor de klant); schrijven alleen met de
+service-role key. Nog niemand schrijft of leest erin (dat is N2 en N7). Volgorde en uitleg:
+`lib/kansen/prioriteit.ts`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` N1 en §6.2. Additief
+en idempotent. Op productie toegepast op 26 september 2026; de regels daar nagelopen met proefrijen die
+daarna weer weg zijn.
+
+## 0119 — Een kaart in de voorraad verwijst naar zijn kans
+
+Voegt `planned_pages.kans_id` toe (verwijzing naar `kansen`, `on delete set null`, zodat een kaart met
+werk eraan nooit verdwijnt). `syncBacklog()` vult hem voor nieuwe en bestaande kaarten; `source_ref`
+blijft staan en is gelijk aan `kansen.sleutel`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` N2.
+Additief en idempotent. Op productie toegepast op 26 september 2026.
+
+## 0120 — Is de eigen pagina geciteerd?
+
+Voegt `content_impact.target_cited_own_page` toe (boolean, NULL = nog niet gemeten of geen adres
+bekend, niet "nee"): staat het gepubliceerde adres van de pagina, genormaliseerd, tussen de
+`cited_sources` van een eigen-merk-vermelding in deze golf. `computeImpact()` rekent het uit met
+`citeertEigenPagina()` (`lib/pipeline/impact-math.ts`), dezelfde regels als `isRedirectedElsewhere()`
+in `lib/url.ts`. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M3. Additief en idempotent. Op
+productie toegepast op 27 september 2026.
+
+## 0121 — De idempotentiesleutel van een impactmeting kent de bron
+
+`tracking_runs_impact_unique_idx` (0020) kende geen `engine`-kolom: een ChatGPT- en een AI
+Overview-meting van dezelfde vraag, pagina en golf zouden op elkaars rij botsen sinds M3 AI Overview ook
+laat meemeten. De index krijgt `engine` erbij, dezelfde soort reparatie als migratie 0066 destijds voor de
+periodieke meting. Alleen een indexdefinitie vervangen, geen rijen weg; strenger dan de oude index, dus
+geen bestaande rij kan ermee in strijd zijn. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M3.
+Additief en idempotent. Op productie toegepast op 27 september 2026.
+
+## 0122 — Het meetplan, vastgelegd bij het goedkeuren
+
+Maakt `meetplannen`: één rij per pagina, bevroren op het moment van goedkeuren (`lib/pipeline/meetplan.ts`).
+`doelvragen` en `controlegroep` (jsonb, `{promptId, tekst}[]`) vervangen `content_piece_targets` als bron voor
+de effectmeting: sinds de contentketen opnieuw gebouwd is (WP1) schreef niemand daar meer in, en elke pagina
+uit de nieuwe keten had daardoor stil geen doelvragen. `bronnen` (welke motoren toen meededen) en `adres`
+(gezet bij publicatie) staan er ook naast; `regio` en `zoekopdrachten` horen bij M2 en blijven leeg tot dat
+gebouwd is. Eén meetplan per pagina (unieke index op `content_piece_id`). Nog niemand leest of schrijft
+client-side. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` M1. Additief en idempotent. Op productie
+toegepast op 27 september 2026.
+
+## 0123 — De gebeurtenissenlaag
+
+Maakt `gebeurtenissen` (het logboek: merk, soort, welke tabel en rij veranderde, vrije payload; nu
+alleen de soort `kennis_gewijzigd`) en `gebeurtenis_verwerkingen` (één rij per abonnee per
+gebeurtenis, unieke index op het paar). `lib/gebeurtenissen/verwerken.ts` kijkt in die tweede tabel
+vóór het werk van een abonnee, zodat een abonnee een gebeurtenis precies één keer verwerkt, ook als
+de werker dezelfde taak twee keer probeert. Beide tabellen zijn interne infrastructuur zoals `jobs`:
+RLS aan, geen policies, dus geen enkele clientrol kan erbij. Nog geen abonnee geregistreerd (dat is
+G3 en G4); `lib/kennis/vastleggen.ts` publiceert al wel bij elke geslaagde schrijfactie. Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` G1. Additief en idempotent. Op productie toegepast op
+27 september 2026.
+
+## 0124 — Welke kennis in een versie zat
+
+Voegt `content_pieces.gebruikte_kennis` toe (uuid-array, geen foreign key: een array kan er geen
+dragen). `tekstKolommen()` (`lib/pagina/schrijven.ts`) vult hem bij schrijven en herschrijven uit
+dezelfde keuze die `kiesVoorBlokA()` voor de schrijver maakte. Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` C3. Additief en idempotent. Op productie toegepast op
+27 september 2026.
+
+## 0125 — Afhankelijkheden
+
+Maakt `afhankelijkheden`: welk object (`kansen` of `content_pieces`) op welk kennisitem leunt, unieke
+index op het drietal zodat opnieuw vastleggen geen dubbele rij geeft. `lib/afhankelijkheden/
+vastleggen.ts` is de enige schrijfingang; gevuld bij het vastleggen van een kans (uit `geldt_voor`) en
+bij het schrijven of herschrijven van een pagina (uit `gebruikte_kennis`, migratie 0124). De
+meetvragen (`prompts`) dragen nog geen dienst of regio uit de kennislaag, dus dat derde deel van G2
+is bewust nog niet gevuld. Interne infrastructuur zoals `jobs`: RLS aan, geen policies. Bestaande
+kansen en pagina's zijn met een eenmalige, idempotente backfill uit hun `geldt_voor` en
+`gebruikte_kennis` nagevuld. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` G2. Additief en
+idempotent. Op productie toegepast op 27 september 2026.
+
+## 0126 — Melding bij een pagina waarvan de kennis veranderde
+
+Voegt `content_pieces.kennis_gewijzigd_op` toe (timestamptz, `null` = niets te melden): wanneer een
+kennisitem uit `gebruikte_kennis` van deze versie voor het laatst veranderde. Gezet door de eerste
+echte abonnee op "kennis gewijzigd" (`kennis_wijziging_impact`), die ook `kansen.status` op
+`vervallen` of `te_herzien` zet (die waarden bestaan al sinds migratie 0118). Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` G3. Additief en idempotent. Op productie toegepast op
+27 september 2026.
+
+## 0127 — De verversingslogica wordt een abonnee
+
+Voegt `profiles.velden_te_verversen` toe (text array, geen foreign key: het zijn kolomnamen van
+`profiles` zelf). De tweede echte abonnee, `onderzoek_refresh`, houdt hierin bij welke profielvelden
+een mens zette sinds de laatste volledige onderzoeksronde; de bijwerkroute
+(`/api/profiles/[id]/refresh`) en het onboardingscherm lazen dat vroeger allebei zelf uit met een
+live vergelijking tegen `profile_field_sources` en `deep_research_at`, en lezen nu deze kolom.
+`profile_field_sources` blijft bestaan en gevuld voor zijn andere rol (`lib/pipeline/field-merge.ts`
+beschermt daarmee een door een mens gezet veld tegen een volgende onderzoeksronde). Een nieuwe
+onderzoeksronde (`lib/pipeline/prepare-profile.ts`) maakt de kolom weer leeg. Zie
+`docs/tasks/van-pijplijn-naar-kennissysteem.md` G4. Additief en idempotent. Op productie toegepast op
+27 september 2026.
+
+## 0128 — Een herinnering bij openstaande vragen
+
+Voegt `analyses.question_reminder_sent_at` toe (timestamptz), dezelfde vorm als
+`publish_reminder_sent_at` (migratie 0020): één eenmalige mail per analyse als er langer dan een week
+een pagina in status `briefing` op de antwoorden van de klant wacht. `/api/cron/reminders` (nu uit
+`vercel.json`, Hobby-limiet) verstuurt hem naast de bestaande publicatieherinnering, alleen als
+`EMAILS_ENABLED` aanstaat. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` A5. Additief en
+idempotent. Op productie toegepast op 27 september 2026.

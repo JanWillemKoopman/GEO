@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
 import { PagesTrafficChart } from "@/components/pages-traffic-chart";
 import { ZoekverkeerPaginas, type OnzePaginaRij } from "@/components/zoekverkeer-paginas";
 import { AnalyticsFilters } from "@/components/analytics-filters";
@@ -29,7 +30,8 @@ import {
 import { legeStaat } from "@/lib/search-console/lege-staat";
 import type { ClusterLabel } from "@/lib/types/database";
 import { impactUitleg, type ImpactCijfers } from "@/lib/impact-uitleg";
-import { Icon } from "@/components/icon";
+import { bewijsladder } from "@/lib/meting/bewijsladder";
+import { DataCard } from "@/components/data-card";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Zoekverkeer" };
@@ -131,21 +133,30 @@ export default async function ZoekverkeerPage({
   // ── V3: content_impact ernaast, de laatste golf per pagina ────────────────
   const stukIds = stukken.map((s) => s.id);
   // De hele rij en niet alleen het oordeel: de klant ziet de aantallen achter
-  // het woord, naast de controlegroep (`lib/impact-uitleg.ts`).
+  // het woord, naast de controlegroep (`lib/impact-uitleg.ts`). Sinds M4 ook
+  // `target_cited_own_page` (M3), voor de trede "geciteerd door AI" van de
+  // bewijsladder.
   const { data: impactRijen } =
     stukIds.length > 0
       ? await admin
           .from("content_impact")
           .select(
             "content_piece_id, wave, verdict, target_total, target_before_mentioned, target_after_mentioned, " +
-              "control_total, control_before_mentioned, control_after_mentioned, target_delta, control_delta, delta_threshold",
+              "control_total, control_before_mentioned, control_after_mentioned, target_delta, control_delta, delta_threshold, target_cited_own_page",
           )
           .in("content_piece_id", stukIds)
       : { data: [] };
   const impactPerStuk = new Map<string, ImpactCijfers>();
-  for (const r of (impactRijen ?? []) as unknown as (ImpactCijfers & { content_piece_id: string })[]) {
+  const citatiePerStuk = new Map<string, boolean | null>();
+  for (const r of (impactRijen ?? []) as unknown as (ImpactCijfers & {
+    content_piece_id: string;
+    target_cited_own_page: boolean | null;
+  })[]) {
     const bestaand = impactPerStuk.get(r.content_piece_id);
-    if (!bestaand || r.wave > bestaand.wave) impactPerStuk.set(r.content_piece_id, r);
+    if (!bestaand || r.wave > bestaand.wave) {
+      impactPerStuk.set(r.content_piece_id, r);
+      citatiePerStuk.set(r.content_piece_id, r.target_cited_own_page);
+    }
   }
 
   const typePerUrl = new Map<string, string>();
@@ -197,7 +208,7 @@ export default async function ZoekverkeerPage({
           {leeg.staat === "geen_toegang" &&
             profile.gsc_last_error &&
             (staff ? (
-              <p className="text-sm text-[var(--status-error)]">
+              <p className="text-sm text-[var(--intent-danger-content)]">
                 De laatste poging liep vast: {profile.gsc_last_error}
               </p>
             ) : (
@@ -208,7 +219,7 @@ export default async function ZoekverkeerPage({
             ))}
           {leeg.aanZet === "consultant" &&
             (staff ? (
-              <Link href="/instellingen/koppelingen" className="btn-primary w-fit">
+              <Link href={`/instellingen/koppelingen/${id}`} className="btn-primary w-fit">
                 Naar de koppeling
               </Link>
             ) : (
@@ -234,13 +245,10 @@ export default async function ZoekverkeerPage({
           labelfilter={labelfilter}
           clusterfilter={clusterfilter}
         />
-        <div className="card flex flex-col gap-1">
-          <span className="mono-label">Geen pagina&apos;s in deze selectie</span>
-          <p className="text-secondary">
-            Er staan wel pagina&apos;s van ORBIT ENGINE live, alleen niet in het cluster of label dat
-            je hier gekozen hebt. Kies een andere selectie.
-          </p>
-        </div>
+        <EmptyState title="Geen pagina's in deze selectie">
+          Er staan wel pagina&apos;s van ORBIT ENGINE live, alleen niet in het cluster of label dat
+          je hier gekozen hebt. Kies een andere selectie.
+        </EmptyState>
       </div>
     );
   }
@@ -270,12 +278,33 @@ export default async function ZoekverkeerPage({
     const eigenRijen = perUrl.get(stuk.published_url) ?? [];
     const totClicks = eigenRijen.reduce((s, r) => s + r.clicks, 0);
     const totImpr = eigenRijen.reduce((s, r) => s + r.impressions, 0);
-    const sindsPublicatie = stuk.published_at
-      ? eigenRijen
-          .filter((r) => r.day >= stuk.published_at!.slice(0, 10))
-          .sort((a, b) => a.day.localeCompare(b.day))
-          .map((r) => ({ day: r.day, clicks: r.clicks }))
+    const rijenSindsPublicatie = stuk.published_at
+      ? eigenRijen.filter((r) => r.day >= stuk.published_at!.slice(0, 10)).sort((a, b) => a.day.localeCompare(b.day))
       : [];
+    const sindsPublicatie = rijenSindsPublicatie.map((r) => ({ day: r.day, clicks: r.clicks }));
+    // M4: de bewijsladder wil een echte telling SINDS PUBLICATIE, niet het
+    // hele bereik van `search_console_days` (dat kan van vóór de pagina
+    // dateren als een oud adres hergebruikt is).
+    const dagenSindsPublicatie = stuk.published_at
+      ? Math.floor((Date.now() - new Date(stuk.published_at).getTime()) / 86_400_000)
+      : null;
+    const zoekmachine =
+      dagenSindsPublicatie === null
+        ? null
+        : { aantal: rijenSindsPublicatie.reduce((s, r) => s + r.impressions, 0), dagenSindsPublicatie };
+    const verkeer =
+      dagenSindsPublicatie === null
+        ? null
+        : { aantal: rijenSindsPublicatie.reduce((s, r) => s + r.clicks, 0), dagenSindsPublicatie };
+    const ladder = bewijsladder({
+      gepubliceerdOp: stuk.published_at,
+      // Zonder Search Console-koppeling zijn er geen dagen om te tellen: dan
+      // is `zoekmachine`/`verkeer` bewust `null` (geen_gegevens), niet 0.
+      zoekmachine: profile.gsc_property ? zoekmachine : null,
+      verkeer: profile.gsc_property ? verkeer : null,
+      vermelding: impactPerStuk.get(stuk.id) ?? null,
+      eigenSiteGeciteerd: citatiePerStuk.get(stuk.id) ?? null,
+    });
     return {
       page: stuk.published_url,
       clicks: totClicks,
@@ -285,6 +314,7 @@ export default async function ZoekverkeerPage({
       type: typePerUrl.get(normaliseerUrl(stuk.published_url)) ?? null,
       effectOpAi: impactPerStuk.get(stuk.id)?.verdict ?? null,
       effectUitleg: impactPerStuk.has(stuk.id) ? impactUitleg(impactPerStuk.get(stuk.id)!) : null,
+      ladder,
       sindsPublicatie,
       publishedAt: stuk.published_at,
     };
@@ -362,7 +392,7 @@ export default async function ZoekverkeerPage({
       </div>
 
       {/* ── De rest van de site, ingeklapt (V1) ─────────────────────────── */}
-      <details className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] p-3">
+      <details className="vlak">
         <summary className="cursor-pointer text-sm text-secondary">De rest van je site, ter vergelijking</summary>
         <div className="mt-3 flex flex-col gap-2">
           <p className="text-sm text-muted">
@@ -421,20 +451,26 @@ function Cijfer({
   beterIsHoger: boolean;
 }) {
   const beter = delta === null || delta === 0 ? null : beterIsHoger ? delta > 0 : delta < 0;
+  // Tot 23 september 2026 een eigen tegel met 30px en het verschil in
+  // kapitalen, en een verslechtering in de foutkleur. Een verslechtering is
+  // een daling, geen fout (`docs/designsystem.md` §2.6).
   return (
-    <div className="card flex flex-col gap-1">
-      <span className="mono-label">{label}</span>
-      <span className="stat-value text-2xl">{waarde}</span>
-      {delta === null || delta === 0 ? (
-        <span className="mono-label text-muted">{delta === 0 ? "gelijk" : "geen vergelijking"}</span>
-      ) : (
-        <span className="mono-label" style={{ color: beter ? "var(--trend-up-text)" : "var(--intent-danger-text)" }}>
-          <Icon naam={delta > 0 ? "stijging" : "daling"} size={12} />
-          {Math.abs(delta).toLocaleString("nl-NL")}
-          {eenheid ? ` ${eenheid}` : ""}
-        </span>
-      )}
-    </div>
+    <DataCard
+      label={label}
+      waarde={waarde === "-" ? null : waarde}
+      toelichting={delta === null ? "geen vergelijking" : undefined}
+      verschil={
+        delta === null
+          ? undefined
+          : delta === 0
+            ? { tekst: "gelijk", richting: "vlak" }
+            : {
+                tekst: `${Math.abs(delta).toLocaleString("nl-NL")}${eenheid ? ` ${eenheid}` : ""}`,
+                richting: delta > 0 ? "omhoog" : "omlaag",
+                oordeel: beter ? "beter" : "slechter",
+              }
+      }
+    />
   );
 }
 

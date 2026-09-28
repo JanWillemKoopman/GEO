@@ -14,7 +14,7 @@ import {
 import { KANS_BEDRIJF } from "@/lib/sales/relaties";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Opportunities" };
+export const metadata: Metadata = { title: "Kansen" };
 
 /**
  * De prioriteitenlijst, en het belangrijkste scherm van de module (plan §5.2).
@@ -102,8 +102,8 @@ export default async function SalesOpportunitiesPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Sales"
-        title="Opportunities"
-        description="De bedrijven met de interessantste GEO-kans, op volgorde. Per regel lees je binnen twee seconden wie het is en waarom je belt."
+        title="Kansen"
+        description="De bedrijven met de interessantste GEO-kans, op volgorde: wie het is en waarom je belt."
       />
 
       {/* ⚠️ Een storing is iets anders dan een lege lijst, en dat verschil hoort

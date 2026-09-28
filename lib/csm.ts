@@ -23,6 +23,7 @@
  */
 import type { AnalysisStatus, ProfileStatus } from "@/lib/types/database";
 import type { ProfileStage } from "@/lib/profile-stage";
+import { formatDateShort } from "@/lib/format";
 
 /**
  * De zeven segmenten, op volgorde van "vraagt iets van jou" naar "loopt".
@@ -68,7 +69,7 @@ export const CSM_SEGMENT_META: Record<CsmSegment, SegmentMeta> = {
   },
   nakijken: {
     label: "Wacht op jouw nakijkwerk",
-    banner: "Het onderzoek is klaar en het merkprofiel is nog niet nagekeken. Doe dat vóór het demogesprek.",
+    banner: "Het onderzoek is klaar en het merkdossier is nog niet nagekeken. Doe dat vóór het demogesprek.",
     leeg: "Alle merkprofielen zijn nagekeken.",
     actie: true,
   },
@@ -176,6 +177,10 @@ export interface CsmBrand {
   laatstGeplaatst: string | null;
   /** Definitief mislukte taken van dit merk. */
   pijplijnfouten: number;
+  /** A5: pagina's die op antwoorden van de klant wachten (status `briefing`). */
+  paginasWachtenOpAntwoorden: number;
+  /** De oudste van die pagina's, sinds wanneer. `null` zonder wachtende pagina. */
+  wachtOpAntwoordenSinds: string | null;
   /**
    * Waar dit merk in de verkoopcyclus staat (onboarding 3.0, deel B4).
    * Afgeleid, niet opgeslagen: zie `lib/profile-stage.ts`.
@@ -204,7 +209,8 @@ export function segmentOf(b: CsmBrand): CsmSegment {
   const wachtOpKlant =
     b.maandenTerGoedkeuring > 0 ||
     b.paginasTerGoedkeuring > 0 ||
-    b.analyseStatussen.includes("concept_klaar");
+    b.analyseStatussen.includes("concept_klaar") ||
+    b.paginasWachtenOpAntwoorden > 0;
   if (wachtOpKlant) return "wacht_op_klant";
 
   if (!b.heeftPlan) return "geen_plan";
@@ -239,6 +245,17 @@ export function flagsOf(b: CsmBrand): string[] {
       b.maandenTerGoedkeuring === 1
         ? "1 maand wacht op akkoord"
         : `${b.maandenTerGoedkeuring} maanden wachten op akkoord`,
+    );
+  }
+  // A5: een pagina wacht niet ongemerkt op de klant. Het aantal en de datum van
+  // de oudste, zodat "bel als het te lang duurt" (de banner van dit segment)
+  // ook zegt hoe lang.
+  if (b.paginasWachtenOpAntwoorden > 0) {
+    const sinds = b.wachtOpAntwoordenSinds ? `, oudste sinds ${formatDateShort(b.wachtOpAntwoordenSinds)}` : "";
+    vlaggen.push(
+      b.paginasWachtenOpAntwoorden === 1
+        ? `1 pagina wacht op antwoorden${sinds}`
+        : `${b.paginasWachtenOpAntwoorden} pagina's wachten op antwoorden${sinds}`,
     );
   }
   // Het pakket is een belofte per maand. Blijft de teller eronder, dan levert

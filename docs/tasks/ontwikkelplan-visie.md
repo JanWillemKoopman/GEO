@@ -1,5 +1,9 @@
 # Ontwikkelplan: van de app van vandaag naar de visie
 
+> **Sinds 26 september 2026** staat de architectuur van de volgende versie (klantkennis, kansen, meetlaag)
+> in [`van-pijplijn-naar-kennissysteem.md`](./van-pijplijn-naar-kennissysteem.md). Sprint 2 en 4 gaan daarin
+> op; §14 daar zegt welke sprints hier blijven.
+
 **Opgesteld:** 18 augustus 2026 · **Herzien:** 18 augustus 2026, na de eerste ronde feedback ·
 **Bestemming:** [`../visie.md`](../visie.md) en [`../merkstrategie.md`](../merkstrategie.md)
 

@@ -1,0 +1,7 @@
+basis-1 totaal=50 publiceren=na_aanpassing
+basis-2 totaal=44 publiceren=na_aanpassing
+f1 totaal=46 publiceren=na_aanpassing gevonden=ja(eerste probleem, hoog: gemiste omzet + vijf jaar garantie)
+f2 totaal=54 publiceren=na_aanpassing gevonden=ja(eerste probleem, hoog: clichéopening; ook u/je-wissel)
+f4 totaal=46 publiceren=na_aanpassing gevonden=ja(eerste twee problemen, hoog: kun u / u voertuigen; middel: je/u-wissel)
+f5 totaal=56 publiceren=na_aanpassing gevonden=ja(eerste probleem, hoog: vulalinea)
+f3 totaal=52 gevonden=ja(middel: gemeenplaatsensectie, vijfde probleem)
