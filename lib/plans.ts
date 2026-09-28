@@ -862,7 +862,20 @@ export async function vulOpenMaanden(
 
     const maand = maandenRaw.find((m) => m.id === opdracht.monthId);
     if (maand) {
-      await herplanMaand(admin, { id: maand.id, month_number: maand.month_number, started_on: plan.started_on }, null);
+      // ⚠️ `now` moet mee, anders herdateert deze functie met de WERKELIJKE
+      // klok terwijl de rest van deze ronde (`magNogVullen` hierboven) met de
+      // meegegeven `now` rekende. Bij een nieuw plan is dat verschil normaal
+      // nul (`createPlan()` geeft `now = startedOn` mee), maar zodra iemand
+      // een vaste `now` in het verleden meegeeft (zoals de ketentest van 28
+      // september 2026 voor "Te Laat BV") kan de echte datum wél al in de
+      // doelmaand vallen, `isRunningMonth()` slaat dan aan en `spreadDates()`
+      // geeft een lege lijst terug: de pagina krijgt geen datum.
+      await herplanMaand(
+        admin,
+        { id: maand.id, month_number: maand.month_number, started_on: plan.started_on },
+        null,
+        now,
+      );
     }
   }
 
@@ -1171,6 +1184,7 @@ async function herplanMaand(
   admin: Admin,
   maand: MaandMetPlan,
   verplaatsing: { verplaatst: string; naarIndex: number | null } | null,
+  now: Date = new Date(),
 ): Promise<void> {
   const { data } = await admin
     .from("planned_pages")
@@ -1194,7 +1208,7 @@ async function herplanMaand(
     }
   }
 
-  const updates = resequenceMonth(maand.started_on, maand.month_number, rijen);
+  const updates = resequenceMonth(maand.started_on, maand.month_number, rijen, now);
   for (const u of updates) {
     await admin
       .from("planned_pages")
