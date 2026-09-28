@@ -12906,3 +12906,13 @@ diensten, dus de instructie voor "retailer" vraagt er nu expliciet ook naar (kin
 er al gevraagd werd. Geen nieuwe knoopsoort nodig: `dienst` bestond al in `lib/schemas/offering.ts`,
 voor het geval `dienstverlener`. Op productie nog niet opnieuw gedraaid: dat kan de eigenaar zelf met
 de knop "Onderzoek opnieuw" op het aanbodscherm van Van den Udenhout, zodra deze wijziging gemergd is.
+
+Search Console-koppelingen als tabel (28 september 2026): het scherm `/instellingen/koppelingen`
+zette alle merken met hun volledige formulier onder elkaar, en na "Opnieuw controleren" was niet te
+zien of het gelukt was: de melding verdween na een paar seconden en een property zonder geslaagde
+leespoging gaf geen enkel signaal. Nu staat er een tabel (datum toegevoegd, klant, website, status)
+met een groen of rood bolletje plus tekst, en het formulier per klant op
+`/instellingen/koppelingen/[id]`, met hetzelfde bolletje bovenaan. Groen vraagt een property, een
+geslaagde leespoging én geen fout sinds die poging (`lib/search-console/koppelstatus.ts`, zeven
+tests): de nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout, dus op de datum
+alleen afgaan hield een koppeling die gisteren brak groen.

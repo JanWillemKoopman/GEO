@@ -1,13 +1,11 @@
 import { PageSkeleton } from "@/components/skeleton";
 
 /**
- * Koppelingen praat met Google Search Console om te zien of de verbinding nog
- * staat. Dat is een externe dienst, dus de wachttijd hangt niet aan ons.
+ * Het overzicht van koppelingen: een kop en een tabel, in de volle breedte
+ * zoals de pagina zelf (sinds 28 september 2026 geen formulieren meer).
  */
 export default function Loading() {
   return (
-    <div className="mx-auto w-full max-w-xl">
-      <PageSkeleton blocks={2} hoogte="h-40" />
-    </div>
+    <PageSkeleton blocks={1} hoogte="h-64" />
   );
 }

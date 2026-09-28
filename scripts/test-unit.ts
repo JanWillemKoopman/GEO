@@ -123,6 +123,7 @@ import { stripProseDashes } from "@/lib/pipeline/dash-guard";
 import { publicFactRequest } from "@/lib/fact-request-public";
 import { plattetekst, kopieeropties } from "@/lib/kopieervormen";
 import { legeStaat } from "@/lib/search-console/lege-staat";
+import { koppelStatus } from "@/lib/search-console/koppelstatus";
 import {
   startdatumBijToewijzing,
   afspraakGaten,
@@ -19565,6 +19566,42 @@ group("elke staat zegt wie er aan zet is", () => {
     "wie kan wachten leest dat ook",
     alle.filter((a) => a.aanZet !== "klant").every((a) => a.geruststelling.trim().length > 0),
   );
+});
+
+// ── Groen of rood op het koppelscherm (28 september 2026) ─────────────────
+console.log("\nSearch Console: werkt de koppeling?");
+
+const kst = (over: Partial<Parameters<typeof koppelStatus>[0]> = {}) =>
+  koppelStatus({
+    property: "https://www.voorbeeld.nl/",
+    verifiedAt: "2026-09-27T02:00:00Z",
+    lastError: null,
+    sleutelIngesteld: true,
+    ...over,
+  });
+
+group("alleen een koppeling die leest is groen", () => {
+  ok("alles in orde is groen", kst().goed && kst().staat === "werkt");
+  ok("geen property is rood", !kst({ property: null }).goed);
+  ok("een lege property is rood", kst({ property: "   " }).staat === "niet_gekoppeld");
+  ok("zonder sleutel is rood", kst({ sleutelIngesteld: false }).staat === "geen_sleutel");
+  ok("nooit gelukt is rood", kst({ verifiedAt: null }).staat === "niet_gelukt");
+  // De nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout:
+  // een koppeling die gisteren brak mag dus niet groen blijven.
+  ok("een fout na een eerdere verificatie is rood", kst({ lastError: "403 van Google" }).staat === "fout");
+  ok("geen property weegt het zwaarst", kst({ property: null, lastError: "x", sleutelIngesteld: false }).staat === "niet_gekoppeld");
+});
+
+group("elke kleur heeft een tekst erbij", () => {
+  const alle = [
+    kst(),
+    kst({ property: null }),
+    kst({ sleutelIngesteld: false }),
+    kst({ lastError: "x" }),
+    kst({ verifiedAt: null }),
+  ];
+  ok("vijf verschillende labels", new Set(alle.map((a) => a.label)).size === 5);
+  ok("precies één is groen", alle.filter((a) => a.goed).length === 1);
 });
 
 // ── De drie kopieervormen (16 september 2026) ───────────────────────────────
