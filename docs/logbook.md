@@ -12935,6 +12935,28 @@ blijft ongemoeid, en een tweede aanroep overschrijft dezelfde rij in plaats van 
 maken. Op productie nog niet gezien: Van den Udenhout heeft Search Console gekoppeld en
 geverifieerd, maar nog geen kansen (geen cluster gestart).
 
+Aanbodboom: budget en bedrijfsmodel-branch, ronde twee (28 september 2026). Na de eerste
+reparatie van dezelfde dag (de retailer-instructie vroeg alsnog naar diensten) een kritische
+blik op de hele stap gevraagd: maakt de indeling naar bedrijfsmodel het geheel onnodig complex
+en minder volledig? Antwoord: het bedrijfsmodel zelf is onschuldig op 17 van de 18 plekken waar
+het voorkomt (alleen context in een prompt); op precies één plek, `lib/pipeline/offering.ts`,
+bepaalde het welke knooptypes het model mocht vinden, en dat was de echte fout. Twee wijzigingen,
+allebei simpeler in plaats van complexer: (1) de opdracht vertakt niet meer per bedrijfsmodel,
+elk bedrijf krijgt dezelfde volledige vraag naar dienst, product, categorie, merk en vestiging,
+het bedrijfsmodel is nu alleen nog een hint voor de nadruk (`modelContext()`, verving
+`briefingFor()`); (2) het tekenbudget ging van 55.000 naar 250.000 tekens. Dat laatste bleek de
+grotere hefboom: bij 150 gecrawlde pagina's van elk hoogstens 4.000 tekens paste maar ongeveer
+een kwart van de crawl in het oude budget, ongeacht wat de opdracht vroeg (`docs/doorloop-van-
+klant-tot-content.md` noemde dit al als open punt op 26 september). Kosten verwaarloosbaar: GPT-6
+Luna kost $0,10 per miljoen tokens aan invoer, het verschil is ongeveer een halve dollarcent per
+merk, één keer. Bewust NIET gebouwd: een opsplitsing in meerdere aanroepen per sectie van de site
+(een eigen jobtype met een samenvoegstap erna). Dat lost hetzelfde probleem nog beter op bij een
+hele grote site, maar voegt een nieuw soort taak en een nieuwe samenvoegstap toe zonder dat een
+echte klant heeft aangetoond dat het grotere budget tekortschiet (conventie 10). Geen migratie,
+geen schema-wijziging: `tsc`, `test:unit` (5523) en `test:chain` (985) ongewijzigd groen, want
+geen van beide wijzigingen raakt een pure, geteste functie. Op productie nog niet opnieuw
+gedraaid voor Van den Udenhout; dat kan de eigenaar zelf met "Onderzoek opnieuw".
+
 ## 28 september 2026: het Kwaliteitslab ook uit het menu
 
 Het scherm `/beheer/kwaliteit` en zijn API-route verdwenen met de ombouw van de contentketen
@@ -12946,6 +12968,18 @@ De tabellen `content_quality_reviews` en `content_quality_runs` blijven staan (c
 productie hadden beide 0 rijen: de twaalf oordelen van 3 september staan er niet meer in. Wie de
 nieuwe keten ooit naast een menselijk oordeel wil leggen, begint vanaf `content-reviews/feedback/`.
 
+Aanbodboom: MAX_NODES ook verhoogd (28 september 2026), ronde drie op dezelfde dag. Na de
+budgetverhoging (250.000 tekens) opnieuw gedraaid voor Van den Udenhout op productie: van 11 naar
+59 knopen, alle eerder ontbrekende diensten (financiering, lease, verhuur, schadeherstel,
+onderhoud: 36 diensten in totaal) erbij. Maar het model vond eigenlijk 87 knopen; de vaste grens
+van 60 (`MAX_NODES` in `lib/pipeline/offering.ts`) kapte de rest af, en de zes automerken (Audi,
+CUPRA, SEAT, Škoda, Volkswagen, Volkswagen Bedrijfswagens) vielen daarbij weg. Dezelfde soort fout
+als het tekenbudget: een vaste grens die nooit tegen een echte grote klant was afgezet. Naar 200,
+ruim boven wat Van den Udenhout liet zien. `persistTree()` meldt nog steeds in `gaps` als zelfs
+dat niet genoeg is, dus een grens die opnieuw te krap blijkt blijft zichtbaar. Geen pure geteste
+functie geraakt: `tsc`, `test:unit` (5524) en `test:chain` (985) ongewijzigd groen. Op productie
+nog niet opnieuw gedraaid voor Van den Udenhout.
+
 ## 28 september 2026: de tien discussiepunten van de doorloop besloten, en één signaal gebouwd
 
 De eigenaar liep de "tien belangrijkste punten om te bespreken" van `docs/doorloop-van-klant-tot-
@@ -12955,12 +12989,15 @@ vragen) in A3/besluit V3, en punt 9 (geen herinnering bij openstaande vragen) in
 27 september 2026 geland. Het document is nu bijgewerkt: die drie staan er doorgestreept met hun
 besluit, in plaats van nog open te lijken.
 
-Punt 5 uit de oorspronkelijke telling (nu punt 6: de aanbodboom ziet maar een kwart van de site)
-werd door de eigenaar als "al opgelost in een andere sessie" aangedragen. Nagelopen in de code
-(`lib/pipeline/offering.ts` regel 178, `lib/pipeline/page-select.ts` regel 7): het budget van
-~35 van de 150 gecrawlde pagina's, elk afgekapt op 1.500 tekens, is ongewijzigd. Conventie
-"neem een cijfer nooit zonder verificatie over" gold hier letterlijk; het punt blijft open in het
-document, met een kanttekening dat het bij het bespreken ten onrechte als opgelost gold.
+Punt 6 (de aanbodboom ziet maar een kwart van de site) werd door de eigenaar als "al opgelost in
+een andere sessie" aangedragen. Nagelopen in de code (`lib/pipeline/offering.ts` regel 178,
+`lib/pipeline/page-select.ts` regel 7) op het moment van bespreken: het oude budget stond er nog,
+dus het punt bleef aanvankelijk open in het document, met een kanttekening dat het ten onrechte
+als opgelost gold. Bij het samenvoegen van deze branch met `main` bleek de andere sessie er
+diezelfde dag alsnog wél mee klaar te zijn (zie hierboven en de twee aanbodboom-reparaties
+ervoor): het document is bij het mergen alsnog aangepast om dat te tonen. Les voor volgende keer:
+verificatie tegen de code is alleen zo goed als het moment waarop hij draait, bij twee sessies
+tegelijk kan dat achterhaald raken binnen enkele uren.
 
 Voor de punten "de meting is een nabootsing" (4), "het zoekvolume is een schatting" (5), en "Sol
 beoordeelt Sol" (10) is besloten voorlopig geen actie te ondernemen; ze blijven zo in het document
