@@ -90,6 +90,7 @@ een document af van wat de code doet, dan is het document fout.
 | [`docs/designsystem.md`](./docs/designsystem.md) | Je raakt kleur, vorm of typografie aan. §9b heeft het open ontwerpbesluit |
 | [`docs/schrijfstijl.md`](./docs/schrijfstijl.md) | Je schrijft tekst die de klant leest, tot en met foutmeldingen |
 | [`docs/merkstrategie.md`](./docs/merkstrategie.md) | Je maakt iets voor búiten de app: campagne, website, presentatie |
+| [`docs/contentkwaliteit-testmethode.md`](./docs/contentkwaliteit-testmethode.md) | Je wilt de kwaliteit van geschreven pagina's testen, met een externe copywriter, of een verbetering daaraan verifiëren |
 | [`supabase/README.md`](./supabase/README.md) | Je schrijft een migratie |
 
 ### Naslag

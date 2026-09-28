@@ -22,6 +22,11 @@ demogesprek, pijplijn doet onderzoek, profiel wordt pas ná verkoop aan klantacc
 **De contentketen wordt opnieuw gebouwd** volgens `docs/tasks/contentketen-opnieuw.md`. Werk je aan
 iets rond het schrijven van pagina's, lees dan eerst §0 en §3 daarvan: bouw niets wat daar niet staat.
 
+**Contentkwaliteit testen** volgt een vaste, herhaalbare methode in plaats van losse ad-hocrondes:
+`docs/contentkwaliteit-testmethode.md`. Gebruik die methode voor elke nieuwe klanttest van de
+schrijfpijplijn, een verificatie na een wijziging, of een test van een nieuwe pijplijnversie, zodat
+rondes onderling vergelijkbaar blijven.
+
 **De Sales-module** (`lib/sales/`, `app/(app)/sales/`, `docs/tasks/geo-prospect-engine.md`) is
 intern: een klant ziet er niets van, en de scheiding staat in de database en niet alleen in de
 schermen. Hij zoekt uit een markt de beste saleskansen, onderbouwt ze en zet een conceptmail klaar.
