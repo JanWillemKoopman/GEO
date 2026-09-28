@@ -314,7 +314,9 @@ was elke wijziging aan de schrijfinstructie een gok (herstelplan T2). `benchmark
 waarmee losse beoordelingen een benchmark vormen: merk is `profiles`, cluster is `analyses`, pagina
 is `content_pieces`, en een vierde structuur ernaast zou een tweede bron van waarheid zijn. Twintig
 pagina's of duizend maakt daarmee geen verschil. Nul policies: dit is intern materiaal, geen
-klantdata, en `/api/beheer/kwaliteit/[pieceId]` is de enige schrijfingang.
+klantdata, en `/api/beheer/kwaliteit/[pieceId]` was de enige schrijfingang. Die route en het scherm
+erboven zijn met de ombouw van de contentketen verwijderd; beide tabellen staan er nog, leeg (0 rijen
+op 28 september 2026), en geen code gebruikt ze.
 
 Additief en idempotent: geen bestaande rij verandert en alle nieuwe kolommen mogen NULL zijn.
 

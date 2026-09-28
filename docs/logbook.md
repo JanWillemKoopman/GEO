@@ -12956,3 +12956,14 @@ echte klant heeft aangetoond dat het grotere budget tekortschiet (conventie 10).
 geen schema-wijziging: `tsc`, `test:unit` (5523) en `test:chain` (985) ongewijzigd groen, want
 geen van beide wijzigingen raakt een pure, geteste functie. Op productie nog niet opnieuw
 gedraaid voor Van den Udenhout; dat kan de eigenaar zelf met "Onderzoek opnieuw".
+
+## 28 september 2026: het Kwaliteitslab ook uit het menu
+
+Het scherm `/beheer/kwaliteit` en zijn API-route verdwenen met de ombouw van de contentketen
+(`docs/tasks/contentketen-opnieuw.md`), maar het menu-item "Kwaliteitslab" onder Admin bleef staan
+en leidde naar een 404. Een test hield het in leven door negen Admin-items te eisen. Het item is weg,
+de grens voor Admin staat terug op acht, en de test controleert nu dat de link niet terugkomt.
+
+De tabellen `content_quality_reviews` en `content_quality_runs` blijven staan (conventie 4). Op
+productie hadden beide 0 rijen: de twaalf oordelen van 3 september staan er niet meer in. Wie de
+nieuwe keten ooit naast een menselijk oordeel wil leggen, begint vanaf `content-reviews/feedback/`.
