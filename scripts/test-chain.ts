@@ -1491,6 +1491,89 @@ async function main(): Promise<void> {
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // Toewijzen per e-mailadres, zonder eerst in Supabase een gebruiker aan
+    // te maken (28 september 2026, `lib/profile-assign.ts`)
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nToewijzen per e-mailadres");
+    {
+      const { wijsToeAanGebruiker, wijsToeAanNieuwAccount } = await import("@/lib/profile-assign");
+      const { findUserByEmail } = await import("@/lib/invites");
+
+      const consultantId = randomUUID();
+      const profielNieuwEmail = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        consultantId,
+        "consultant-email-toewijzen@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Nog geen accountklant', 'https://nog-geen-account.nl', 'Nog geen accountklant', 'klaar')`,
+        [profielNieuwEmail, consultantId],
+      );
+
+      // Een e-mailadres zonder gebruiker: er moet een nieuw account komen, met
+      // een uitnodiging, geen 500 en geen halve toewijzing.
+      ok("dit adres heeft nog geen gebruiker", (await findUserByEmail("nieuwe-klant@voorbeeld.nl")) === null);
+
+      const nieuw = await wijsToeAanNieuwAccount(adminClient, {
+        profileId: profielNieuwEmail,
+        profileName: "Nog geen accountklant",
+        email: "nieuwe-klant@voorbeeld.nl",
+        invitedBy: consultantId,
+      });
+      ok("het nieuwe account wordt aangemaakt", nieuw.ok, nieuw.error ?? "");
+      ok(
+        "er komt een uitnodigingslink terug",
+        typeof nieuw.inviteLink === "string" && nieuw.inviteLink.includes("/uitnodiging/"),
+        nieuw.inviteLink ?? "geen link",
+      );
+
+      const { rows: naNieuwAccount } = await db.client.query(
+        `select account_id, assigned_at from public.profiles where id = $1`,
+        [profielNieuwEmail],
+      );
+      ok("het profiel staat op een account", naNieuwAccount[0]?.account_id != null);
+      ok("de toewijsdatum is gezet", naNieuwAccount[0]?.assigned_at != null);
+
+      const { rows: uitnodigingRijen } = await db.client.query(
+        `select account_id, email, role from public.account_invites where account_id = $1`,
+        [naNieuwAccount[0]?.account_id],
+      );
+      ok("er staat precies één uitnodiging voor dit account", uitnodigingRijen.length === 1);
+      ok(
+        "op het opgegeven adres, als beheerder",
+        uitnodigingRijen[0]?.email === "nieuwe-klant@voorbeeld.nl" && uitnodigingRijen[0]?.role === "admin",
+      );
+
+      // Een adres dat al een gebruiker heeft: geen tweede account, gewoon
+      // dezelfde toewijzing als de keuzelijst zou geven.
+      const bestaandeKlantId = randomUUID();
+      const profielBestaandeEmail = randomUUID();
+      await db.client.query("insert into auth.users (id, email) values ($1, $2)", [
+        bestaandeKlantId,
+        "bestaande-klant-email@voorbeeld.nl",
+      ]);
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status)
+         values ($1, $2, 'Al een accountklant', 'https://al-een-account.nl', 'Al een accountklant', 'klaar')`,
+        [profielBestaandeEmail, consultantId],
+      );
+
+      const gevondenUserId = await findUserByEmail("bestaande-klant-email@voorbeeld.nl");
+      ok("dit adres heeft al een gebruiker", gevondenUserId === bestaandeKlantId);
+
+      const bestaand = await wijsToeAanGebruiker(adminClient, profielBestaandeEmail, gevondenUserId as string);
+      ok("de toewijzing aan de bestaande gebruiker lukt", bestaand.ok, bestaand.error ?? "");
+      ok("er komt geen uitnodigingslink bij, die gebruiker kan al inloggen", bestaand.inviteLink === undefined);
+
+      const { rows: naBestaandeGebruiker } = await db.client.query(
+        `select user_id from public.profiles where id = $1`,
+        [profielBestaandeEmail],
+      );
+      ok("het profiel staat op de bestaande gebruiker", naBestaandeGebruiker[0]?.user_id === bestaandeKlantId);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // Het budgetplafond (F1, migratie 0053; herstelplan na audit T5, migratie
     // 0089: het accountplafond is een dagplafond geworden, `daily_budget_eur`
     // in plaats van `monthly_budget_eur`)

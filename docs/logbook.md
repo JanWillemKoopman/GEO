@@ -12876,3 +12876,20 @@ AI-meting. "Conversie" en "omzet" staan altijd op "geen gegevens": er is geen An
 CRM-koppeling (§5 van het plan), en de tekst zegt dat met zoveel woorden in plaats van het te
 verzwijgen. Niet op productie te zien: 0 gepubliceerde pagina's en 0 metingen op dit moment, dus de
 ladder wacht op de eerste live pagina.
+
+Toewijzen per e-mailadres (28 september 2026): `/merk/[id]/admin/toewijzen` kon een profiel alleen aan
+een BESTAANDE gebruiker koppelen, gekozen uit een keuzelijst; een nieuw klantaccount aanmaken kon
+alleen in het Supabase-dashboard, een bewuste keuze uit de tijd dat er nog geen echte klant was
+(comment bij `app/api/profiles/[id]/assign/route.ts`, "Accounts aanmaken hoort hier NIET"). Die
+aanname klopt niet meer zodra er echte klanten door de toewijsstap gaan: de eigenaar wil dit gewoon in
+het scherm kunnen doen. `AssignBox` heeft er daarom een e-mailveld bij gekregen, en de route
+`POST /api/profiles/[id]/assign-by-email` hergebruikt de bestaande uitnodigingsinfrastructuur van
+migratie 0047 (`account_invites`, al in gebruik door `TeamBox` op hetzelfde scherm) in plaats van een
+tweede uitnodigingsmechanisme te bouwen: bestaat het adres al als gebruiker, dan is het resultaat
+identiek aan de keuzelijst (`wijsToeAanGebruiker()`); bestaat het nog niet, dan maakt
+`wijsToeAanNieuwAccount()` een nieuw account, wijst het profiel er meteen aan toe en geeft een
+uitnodigingslink terug om te kopiëren (`lib/profile-assign.ts`). `profiles.user_id` blijft in dat
+tweede geval bewust op de consultant staan tot de klant de uitnodiging accepteert: de accountlaag
+(laag 1) geeft dan al toegang, precies zoals een extra teamlid via `TeamBox` dat ook al deed. Voor
+Van den Udenhout (udenhout.nl, het eerste profiel van de nieuwe kennissysteem-architectuur, F0.1)
+alvast klaargezet als eerste toepassing. Ketenscenario "Toewijzen per e-mailadres" dekt beide paden.
