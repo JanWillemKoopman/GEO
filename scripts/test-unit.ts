@@ -175,6 +175,14 @@ import {
 import type { ExistingPageCandidate } from "@/lib/pipeline/existing-page-match";
 import { compare, deltaOf, thresholdOf, verdictOf, minQuestionsForSignal, citeertEigenPagina } from "@/lib/pipeline/impact-math";
 import { impactUitleg, type ImpactCijfers } from "@/lib/impact-uitleg";
+import {
+  bewijsladder,
+  hoogsteBewezenTrede,
+  TREDE_LABEL,
+  MIN_DAGEN_ZOEKMACHINE,
+  type BewijsladderInvoer,
+  type Trede,
+} from "@/lib/meting/bewijsladder";
 import { faseVoorPagina } from "@/lib/plan-funnel";
 import { buildChangeBlock, isWorthEmailing } from "@/lib/pipeline/period-change-format";
 import type { PeriodChange } from "@/lib/pipeline/period-change-format";
@@ -1958,6 +1966,148 @@ group("impactUitleg: het oordeel met de cijfers eronder", () => {
     .flatMap((u) => [u.doel, u.controle ?? "", u.conclusie, u.moment, u.kort])
     .join(" ");
   ok("geen gedachtestreepjes in de uitleg", !/[—–]/.test(allesTekst));
+});
+
+group("M4: de bewijsladder", () => {
+  function vermeldingRij(d: Partial<ImpactCijfers>): ImpactCijfers {
+    const basis: ImpactCijfers = {
+      wave: 1,
+      target_total: 10,
+      target_before_mentioned: 2,
+      target_after_mentioned: 8,
+      control_total: 5,
+      control_before_mentioned: 1,
+      control_after_mentioned: 1,
+      target_delta: null,
+      control_delta: null,
+      delta_threshold: null,
+      verdict: "gestegen",
+    };
+    return { ...basis, ...d };
+  }
+
+  const basisInvoer: BewijsladderInvoer = {
+    gepubliceerdOp: null,
+    zoekmachine: null,
+    vermelding: null,
+    eigenSiteGeciteerd: null,
+    verkeer: null,
+  };
+
+  // ── Elke trede heeft een label en de vaste volgorde is de plan-volgorde ──
+  const leeg = bewijsladder(basisInvoer);
+  eq2("zeven tredes", leeg.length, 7);
+  eq(
+    "de volgorde uit het plan",
+    leeg.map((t) => t.sleutel).join(","),
+    "publicatie,zichtbaarheid,vermelding,citatie,verkeer,conversie,omzet",
+  );
+  ok("elke trede heeft het label uit TREDE_LABEL", leeg.every((t) => t.label === TREDE_LABEL[t.sleutel]));
+  ok("zonder enige invoer is alles geen gegevens", leeg.every((t) => t.status === "geen_gegevens"));
+  ok("geen enkele trede bewezen zonder invoer", hoogsteBewezenTrede(leeg) === null);
+
+  // ── Publicatie ──
+  const gepubliceerd = bewijsladder({ ...basisInvoer, gepubliceerdOp: "2026-09-01T00:00:00Z" });
+  eq("gepubliceerd is bewezen", gepubliceerd[0]!.status, "bewezen");
+  ok("met de datum als cijfer", gepubliceerd[0]!.cijfer?.includes("2026") ?? false);
+
+  // ── Zichtbaarheid en verkeer: een echte telling, geen steekproef ──
+  const nogNietGepubliceerd = bewijsladder({ ...basisInvoer, zoekmachine: { aantal: 40, dagenSindsPublicatie: 30 } });
+  eq("zonder publicatie ook geen zoekmachinecijfer", nogNietGepubliceerd[1]!.status, "geen_gegevens");
+
+  const geenKoppeling = bewijsladder({ ...basisInvoer, gepubliceerdOp: "2026-08-01T00:00:00Z" });
+  eq("geen Search Console gekoppeld: geen gegevens", geenKoppeling[1]!.status, "geen_gegevens");
+
+  const teVroeg = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 0, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE - 1 },
+  });
+  eq("te kort geleden gepubliceerd: te weinig gegevens", teVroeg[1]!.status, "te_weinig_gegevens");
+
+  const welVertoningen = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 12, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("genoeg dagen en vertoningen: bewezen", welVertoningen[1]!.status, "bewezen");
+  ok("met het aantal als cijfer", welVertoningen[1]!.cijfer === "12 vertoningen", welVertoningen[1]!.cijfer ?? "");
+
+  const nulVertoningen = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 0, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("genoeg dagen maar nul vertoningen: geen verandering", nulVertoningen[1]!.status, "geen_verandering");
+
+  const éénVertoning = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 1, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  ok("één vertoning is enkelvoud", éénVertoning[1]!.cijfer === "1 vertoning", éénVertoning[1]!.cijfer ?? "");
+
+  const klikken = bewijsladder({
+    ...basisInvoer,
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    verkeer: { aantal: 3, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("verkeer volgt dezelfde regel als zichtbaarheid", klikken[4]!.status, "bewezen");
+  ok("met klikken in het cijfer", klikken[4]!.cijfer === "3 klikken", klikken[4]!.cijfer ?? "");
+
+  // ── Genoemd door AI: leest het bestaande oordeel, verzint niets nieuws ──
+  const zonderMeting = bewijsladder(basisInvoer);
+  eq("geen golf gemeten: geen gegevens", zonderMeting[2]!.status, "geen_gegevens");
+
+  const gestegen = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "gestegen" }) });
+  eq("gestegen is bewezen", gestegen[2]!.status, "bewezen");
+  ok("het cijfer komt uit impactUitleg().kort", gestegen[2]!.cijfer === impactUitleg(vermeldingRij({ verdict: "gestegen" })).kort);
+
+  const gedaald = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "gedaald", target_before_mentioned: 8, target_after_mentioned: 2 }) });
+  eq("gedaald is geen bewijs van meer zichtbaarheid", gedaald[2]!.status, "geen_verandering");
+  ok("maar de daling blijft leesbaar in de uitleg", gedaald[2]!.uitleg.includes("daling"), gedaald[2]!.uitleg);
+
+  const gelijk = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "gelijk", target_total: 5, target_before_mentioned: 0, target_after_mentioned: 1 }) });
+  eq("gelijk is geen verandering", gelijk[2]!.status, "geen_verandering");
+
+  const teWeinigData = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({ verdict: "te_weinig_data", target_total: 1, target_before_mentioned: 0, target_after_mentioned: 1 }) });
+  eq("te weinig data blijft te weinig gegevens", teWeinigData[2]!.status, "te_weinig_gegevens");
+
+  // ── Geciteerd door AI: alleen samen met een gemeten golf ──
+  const zonderCitatiemeting = bewijsladder({ ...basisInvoer, eigenSiteGeciteerd: true });
+  eq("een citatie zonder golf telt niet mee (geen dubbele waarheid)", zonderCitatiemeting[3]!.status, "geen_gegevens");
+
+  const welGeciteerd = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({}), eigenSiteGeciteerd: true });
+  eq("geciteerd is bewezen", welGeciteerd[3]!.status, "bewezen");
+
+  const nietGeciteerd = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({}), eigenSiteGeciteerd: false });
+  eq("niet geciteerd is geen verandering, geen 'nee' zonder onderscheid", nietGeciteerd[3]!.status, "geen_verandering");
+
+  const onbekendeCitatie = bewijsladder({ ...basisInvoer, vermelding: vermeldingRij({}), eigenSiteGeciteerd: null });
+  eq("golf gemeten maar geen adres bekend: geen gegevens, nooit 'nee' (conventie 3)", onbekendeCitatie[3]!.status, "geen_gegevens");
+
+  // ── Conversie en omzet: buiten de scope van dit plan (§5), altijd geen gegevens ──
+  eq("conversie", leeg[5]!.status, "geen_gegevens");
+  eq("omzet", leeg[6]!.status, "geen_gegevens");
+  ok(
+    "de reden noemt geen CRM- of Analytics-koppeling, geen belofte die niet klopt",
+    leeg[5]!.uitleg.includes("niet gekoppeld") && leeg[6]!.uitleg.includes("niet gekoppeld"),
+  );
+
+  // ── De hoogste bewezen trede, voor een compacte samenvatting ──
+  const volledig: Trede[] = bewijsladder({
+    gepubliceerdOp: "2026-08-01T00:00:00Z",
+    zoekmachine: { aantal: 12, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+    vermelding: vermeldingRij({ verdict: "gestegen" }),
+    eigenSiteGeciteerd: true,
+    verkeer: { aantal: 0, dagenSindsPublicatie: MIN_DAGEN_ZOEKMACHINE },
+  });
+  eq("de verste bewezen trede, niet per se de laatste", hoogsteBewezenTrede(volledig)?.sleutel ?? "", "citatie");
+  eq("niet aaneengesloten hoeft geen probleem te zijn: verkeer is apart gemeten", volledig[4]!.status, "geen_verandering");
+
+  // ── Geen gedachtestreepjes en geen los cijfer als opbrengst verpakt (P7) ──
+  const alleTeksten = [...leeg, ...volledig].flatMap((t) => [t.label, t.uitleg, t.cijfer ?? ""]).join(" ");
+  ok("geen gedachtestreepjes", !/[—–]/.test(alleTeksten));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

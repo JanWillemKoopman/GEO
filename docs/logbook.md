@@ -12864,3 +12864,15 @@ Hobby-limiet van twee cron-taken; een derde, eigen cron kon dus niet. Een eigen 
 van de bestaande publicatieherinnering. Niet op productie gezien: er staat op dit moment geen enkele
 pagina in `briefing` (alle 11 staan op `ready`), dus de herinnering wacht op de volgende keer dat een
 pagina daar weer in komt te staan.
+
+M4, de bewijsladder (28 september 2026): het scherm Zoekverkeer toont per pagina niet langer één
+woordoordeel ("gestegen"), maar zeven tredes van gepubliceerd tot omzet, elk met de stand bewezen,
+geen verandering, te weinig gegevens of geen gegevens (`lib/meting/bewijsladder.ts`). "Genoemd door
+AI" en "geciteerd door AI" lezen de bestaande effectmeting (M1, M3) en rekenen niets opnieuw uit; een
+daling telt niet mee als bewijs van meer zichtbaarheid maar blijft wel als daling leesbaar in de
+uitleg. "Zichtbaar in Google" en "verkeer" gebruiken Search Console-tellingen sinds publicatie zonder
+foutmarge, want het zijn echte tellingen van Google en geen steekproef van 30 vragen zoals de
+AI-meting. "Conversie" en "omzet" staan altijd op "geen gegevens": er is geen Analytics- of
+CRM-koppeling (§5 van het plan), en de tekst zegt dat met zoveel woorden in plaats van het te
+verzwijgen. Niet op productie te zien: 0 gepubliceerde pagina's en 0 metingen op dit moment, dus de
+ladder wacht op de eerste live pagina.
