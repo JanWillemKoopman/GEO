@@ -485,9 +485,13 @@ of wijkt de samenvatting uit naar Luna. De fase wordt afgeleid in `lib/profile-s
 
 **Om te bespreken**
 
-- **De aanbodboom ziet maar een kwart van de site.** Van de 150 gelezen pagina's passen er ongeveer 35 in
-  het tekenbudget, en elke pagina is bij het lezen al afgekapt op 1.500 tekens. Alles daarna hangt aan
-  deze boom. Is een groter budget, of een tweede ronde over de rest van de site, de moeite waard?
+- ~~**De aanbodboom ziet maar een kwart van de site.**~~ Opgelost (28 september 2026): het tekenbudget
+  ging van 55.000 naar 250.000 tekens, bij 150 pagina's van elk hoogstens 4.000 tekens vrijwel de hele
+  crawl. Gevonden bij Van den Udenhout: 11 knopen in plaats van de tientallen diensten die er echt
+  staan. Daarbij ook gevonden en opgelost: de opdracht vertakte per bedrijfsmodel, en de tak voor
+  "retailer" (Van den Udenhouts label) vroeg nooit naar diensten. Elk bedrijf krijgt nu dezelfde
+  volledige vraag (dienst, product, categorie, merk, vestiging), het bedrijfsmodel is alleen nog een
+  hint voor de nadruk (`lib/pipeline/offering.ts`).
 - **Drie stappen maakten elk hun eigen lijst "feiten".** Sinds K8 (27 september 2026) zet het
   merkonderzoek (2.4) geen `proof_points` en stijlvoorbeelden meer op het profiel: de bewijspunten van
   het model gaan alleen als vermoeden de kennislaag in, en de schrijver leest zijn feiten uit de
@@ -1455,8 +1459,9 @@ het eerst merkt, staat bovenaan.
    eraan.
 5. **Het zoekvolume is een schatting van het model.** De weging van de score en de volgorde van de kansen
    hangen ervan af. Echte zoekdata zit al in "Clusters ontdekken"; kan die hier ook in?
-6. **De aanbodboom ziet maar een kwart van de site** (ongeveer 35 van 150 pagina's, elk afgekapt op 1.500
-   tekens). Alles daarna leunt op die boom.
+6. ~~**De aanbodboom ziet maar een kwart van de site**~~ (ongeveer 35 van 150 pagina's). Opgelost in
+   dezelfde ronde als hierboven (28 september 2026): budget van 55.000 naar 250.000 tekens, en de
+   opdracht vertakt niet meer per bedrijfsmodel.
 7. **Oude feitenbronnen die niemand meer leest.** Opgeruimd in K8 deel 1 (27 september 2026):
    `proof_points` en de stijlvoorbeelden staan niet meer op het merkprofiel en worden niet meer
    geschreven. Het model levert de bewijspunten nog wel (de opdracht van 2.4 is niet veranderd), en die

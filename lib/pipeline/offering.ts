@@ -47,60 +47,61 @@ import {
 import type { BusinessModel, Profile } from "@/lib/types/database";
 import { requireCount } from "@/lib/require-count";
 
-/** Hoeveel sitetekst er de aanroep in gaat. Zelfde orde als het profielonderzoek. */
-const MAX_SITE_CHARS = 55_000;
+/**
+ * Hoeveel sitetekst er de aanroep in gaat.
+ *
+ * ⚠️ Stond op 55.000 (ongeveer 14.000 tokens), en dat was bij een grotere
+ * klant de echte bottleneck, groter dan welke promptvraag dan ook. Bij Van
+ * den Udenhout (130 gecrawlde pagina's, elk tot 4.000 tekens bewaard) paste
+ * daardoor maar ongeveer een kwart van wat er al gelezen was in de aanroep;
+ * financiering, lease, verhuur en schadeherstel stonden allemaal in
+ * `profile_pages`, maar geen van die pagina's haalde het budget (gevonden
+ * 28 september 2026, `docs/logbook.md`).
+ *
+ * GPT-6 Luna (`MODELS.quality`) heeft ruimschoots plaats voor meer, en de
+ * kosten zijn verwaarloosbaar: $0,10 per miljoen tokens aan invoer, dus het
+ * verschil tussen 55.000 en 250.000 tekens is ongeveer een halve dollarcent
+ * per merk, één keer. Bij 150 pagina's van elk hoogstens 4.000 tekens is
+ * 250.000 tekens vrijwel altijd de hele crawl, ook bij een grote klant.
+ */
+const MAX_SITE_CHARS = 250_000;
 
 /** Hoeveel knopen we bewaren. Meer dan dit is geen boom meer maar een export. */
 const MAX_NODES = 60;
 
 /**
- * Wat het model per bedrijfsmodel moet zoeken. Dit is het scharnierpunt van het
- * hele idee: bij een dienstverlener de dienstverlening, bij een productverkoper
- * het assortiment. Dezelfde vorm, andere vraag.
+ * Context over het bedrijfsmodel, ter aanvulling op de vaste opdracht
+ * hieronder. Bewust GEEN filter meer op welke knooptypes het model mag
+ * vinden: tot 28 september 2026 vertakte de hele opdracht op het
+ * bedrijfsmodel, en de tak voor "retailer" vroeg dan nooit naar diensten.
+ * Van den Udenhout (autodealer, kreeg het label "retailer") verkoopt ook
+ * financiering, lease, verhuur en schadeherstel, en de aanbodboom bleef
+ * daardoor op 11 knopen steken terwijl de pagina's er al lagen. Eén
+ * classificatie (zelf al een gok, uit dezelfde aanroep als toon en
+ * doelgroepen) hoort niet te bepalen wat een latere, duurdere aanroep mag
+ * ZIEN. Elk bedrijf krijgt nu dezelfde volledige vraag; dit is alleen een
+ * hint voor de nadruk.
  */
-function briefingFor(model: BusinessModel | null): string {
+function modelContext(model: BusinessModel | null): string {
   switch (model) {
     case "dienstverlener":
-      return (
-        `Dit is een DIENSTVERLENER. Breng de dienstverlening volledig in kaart:\n` +
-        `- elke dienst als eigen knoop (kind 'dienst'), gegroepeerd onder een 'categorie' als de site dat doet;\n` +
-        `- per dienst: welk probleem hij oplost, voor wie, en de prijsindicatie als die genoemd wordt;\n` +
-        `- elke vestiging of werklocatie als kind 'vestiging'.\n` +
-        `Wees fijnmazig: "fysiotherapie" is een categorie, "dry needling" en "sportmassage" zijn diensten.`
-      );
+      return "Dit bedrijf is vooral een DIENSTVERLENER. Waarschijnlijk vooral diensten, mogelijk ook producten ernaast.";
     case "retailer":
       return (
-        `Dit is een RETAILER: hij verkoopt producten van ANDERE merken. Breng het assortiment in kaart:\n` +
-        `- de categoriestructuur als knopen met kind 'categorie', in de vorm die de sitestructuur hieronder laat zien;\n` +
-        `- productgroepen (niet losse artikelen!) als kind 'product' onder hun categorie;\n` +
-        `- de GEVOERDE MERKEN als kind 'merk'. Dit is belangrijk: die merken zijn géén concurrenten van deze klant.\n` +
-        `- DIENSTEN ERNAAST, als de site ze noemt. Veel retailers verdienen naast de verkoop ook aan financiering, ` +
-        `lease, verhuur, reparatie, onderhoud, installatie of bezorging; dat zijn net zo goed eigen knopen (kind ` +
-        `'dienst', gegroepeerd onder een 'categorie' als de site dat doet) als het assortiment zelf. Sla deze ` +
-        `stap niet over alleen omdat het bedrijfsmodel "retailer" is.\n` +
-        `Noem geen individuele artikelnummers: een categorie met 400 artikelen is één knoop.`
+        "Dit bedrijf is vooral een RETAILER: verkoopt producten van andere merken. Let op de gevoerde " +
+        "merken (dat zijn géén concurrenten van deze klant), en op diensten ernaast zoals financiering, " +
+        "lease, verhuur, reparatie, onderhoud of installatie: veel retailers verdienen daar ook aan."
       );
     case "fabrikant":
-      return (
-        `Dit is een FABRIKANT: hij maakt en verkoopt zijn eigen producten. Breng in kaart:\n` +
-        `- de productlijnen als kind 'categorie' en de producten daarbinnen als kind 'product';\n` +
-        `- per product waar het voor dient en voor wie;\n` +
-        `- productielocaties of vestigingen als kind 'vestiging'.`
-      );
+      return "Dit bedrijf is vooral een FABRIKANT: maakt en verkoopt eigen producten, mogelijk ook diensten eromheen.";
     case "platform":
       return (
-        `Dit is een PLATFORM: het brengt vraag en aanbod van derden bij elkaar. Breng in kaart:\n` +
-        `- welke categorieën aanbod erop staan (kind 'categorie');\n` +
-        `- welke diensten het platform zélf levert (kind 'dienst'): bemiddeling, garantie, betaling;\n` +
-        `- de partijen aan de aanbodzijde als kind 'merk', als die genoemd worden.\n` +
-        `Let op het verschil tussen wat het platform aanbiedt en wat de aanbieders erop aanbieden.`
+        "Dit bedrijf is vooral een PLATFORM: brengt vraag en aanbod van derden bij elkaar. Onderscheid " +
+        "wat het platform zelf aanbiedt (bijvoorbeeld bemiddeling, garantie, betaling) van wat de " +
+        "aanbieders erop aanbieden."
       );
     default:
-      return (
-        `Het bedrijfsmodel is niet vastgesteld. Bepaal het zelf uit het materiaal en breng vervolgens ` +
-        `in kaart wat dit bedrijf aanbiedt: diensten als kind 'dienst', producten of productgroepen ` +
-        `als kind 'product', groeperingen als 'categorie', locaties als 'vestiging'.`
-      );
+      return "Het bedrijfsmodel is niet vastgesteld; bepaal zelf uit het materiaal wat voor soort bedrijf dit is.";
   }
 }
 
@@ -203,7 +204,18 @@ export async function buildOfferingTree(profileId: string): Promise<OfferingResu
     `Je brengt het AANBOD van een bedrijf in kaart op basis van zijn eigen website. ` +
     `Je output is een boom: knopen met een 'parent' die verwijst naar de NAAM van een andere knoop ` +
     `(leeg voor het bovenste niveau).\n\n` +
-    `${briefingFor(profile.business_model)}\n\n` +
+    `${modelContext(profile.business_model)}\n\n` +
+    `BRENG ALLES IN KAART WAT DIT BEDRIJF AANBIEDT, ONGEACHT BEDRIJFSMODEL:\n` +
+    `- elke dienst als eigen knoop (kind 'dienst'), gegroepeerd onder een 'categorie' als de site dat ` +
+    `doet; per dienst welk probleem hij oplost, voor wie, en de prijsindicatie als die genoemd wordt;\n` +
+    `- elk product of elke productgroep (niet losse artikelen!) als kind 'product', gegroepeerd onder ` +
+    `een 'categorie' in de vorm die de sitestructuur hieronder laat zien;\n` +
+    `- gevoerde merken van andere partijen als kind 'merk' (dat zijn géén concurrenten van deze klant);\n` +
+    `- elke vestiging of werklocatie als kind 'vestiging'.\n` +
+    `Wees fijnmazig: "fysiotherapie" is een categorie, "dry needling" en "sportmassage" zijn diensten. ` +
+    `Noem geen individuele artikelnummers: een categorie met 400 artikelen is één knoop. Levert dit ` +
+    `bedrijf iets niet (geen diensten, geen gevoerde merken, geen vestigingen), laat die knooptypes dan ` +
+    `gewoon leeg: dit is geen checklist die elk vakje wil vullen.\n\n` +
     `HARDE REGELS:\n` +
     `1. Elke knoop MOET een evidenceUrl hebben uit de meegegeven pagina's, en een evidenceQuote die ` +
     `LETTERLIJK in de tekst van die pagina staat. Kun je dat niet, dan hoort de knoop er niet.\n` +
