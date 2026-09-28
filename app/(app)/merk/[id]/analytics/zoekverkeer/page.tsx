@@ -219,7 +219,7 @@ export default async function ZoekverkeerPage({
             ))}
           {leeg.aanZet === "consultant" &&
             (staff ? (
-              <Link href="/instellingen/koppelingen" className="btn-primary w-fit">
+              <Link href={`/instellingen/koppelingen/${id}`} className="btn-primary w-fit">
                 Naar de koppeling
               </Link>
             ) : (

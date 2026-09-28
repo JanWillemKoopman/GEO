@@ -3255,6 +3255,26 @@ textarea.field {
   width: 6px;
   height: 6px;
 }
+
+/* ── Het stilstaande statusbolletje (28 september 2026) ─────────────────────
+   Groen of rood naast de Search Console-koppeling, in de tabel en boven het
+   formulier. Stil, zonder beweging: "werkt" en "werkt niet" zijn standen en
+   geen gebeurtenissen, en de puls van `.live-dot` belooft dat er iets loopt.
+   Altijd met een tekst ernaast (§11 regel 4), want groen en rood zijn voor
+   één op de twaalf mannen niet van elkaar te onderscheiden. */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.status-dot-goed {
+  background-color: var(--intent-success-solid);
+}
+.status-dot-fout {
+  background-color: var(--intent-danger-solid);
+}
 @keyframes live-puls {
   0% {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--intent-success-solid) 45%, transparent);

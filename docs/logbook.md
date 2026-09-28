@@ -12893,3 +12893,13 @@ tweede geval bewust op de consultant staan tot de klant de uitnodiging accepteer
 (laag 1) geeft dan al toegang, precies zoals een extra teamlid via `TeamBox` dat ook al deed. Voor
 Van den Udenhout (udenhout.nl, het eerste profiel van de nieuwe kennissysteem-architectuur, F0.1)
 alvast klaargezet als eerste toepassing. Ketenscenario "Toewijzen per e-mailadres" dekt beide paden.
+
+Search Console-koppelingen als tabel (28 september 2026): het scherm `/instellingen/koppelingen`
+zette alle merken met hun volledige formulier onder elkaar, en na "Opnieuw controleren" was niet te
+zien of het gelukt was: de melding verdween na een paar seconden en een property zonder geslaagde
+leespoging gaf geen enkel signaal. Nu staat er een tabel (datum toegevoegd, klant, website, status)
+met een groen of rood bolletje plus tekst, en het formulier per klant op
+`/instellingen/koppelingen/[id]`, met hetzelfde bolletje bovenaan. Groen vraagt een property, een
+geslaagde leespoging én geen fout sinds die poging (`lib/search-console/koppelstatus.ts`, zeven
+tests): de nachtelijke ronde laat de verificatiedatum staan en zet alleen de fout, dus op de datum
+alleen afgaan hield een koppeling die gisteren brak groen.

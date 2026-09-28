@@ -540,7 +540,7 @@ export function OnboardingSession({
                             <span className="chip chip-neutral">Nog niet gekoppeld</span>
                           )}
                           <a
-                            href="/instellingen/koppelingen"
+                            href={`/instellingen/koppelingen/${profileId}`}
                             className="text-sm text-secondary underline-offset-2 hover:underline"
                           >
                             Naar koppelingen
