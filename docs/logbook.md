@@ -12935,6 +12935,28 @@ blijft ongemoeid, en een tweede aanroep overschrijft dezelfde rij in plaats van 
 maken. Op productie nog niet gezien: Van den Udenhout heeft Search Console gekoppeld en
 geverifieerd, maar nog geen kansen (geen cluster gestart).
 
+Aanbodboom: budget en bedrijfsmodel-branch, ronde twee (28 september 2026). Na de eerste
+reparatie van dezelfde dag (de retailer-instructie vroeg alsnog naar diensten) een kritische
+blik op de hele stap gevraagd: maakt de indeling naar bedrijfsmodel het geheel onnodig complex
+en minder volledig? Antwoord: het bedrijfsmodel zelf is onschuldig op 17 van de 18 plekken waar
+het voorkomt (alleen context in een prompt); op precies één plek, `lib/pipeline/offering.ts`,
+bepaalde het welke knooptypes het model mocht vinden, en dat was de echte fout. Twee wijzigingen,
+allebei simpeler in plaats van complexer: (1) de opdracht vertakt niet meer per bedrijfsmodel,
+elk bedrijf krijgt dezelfde volledige vraag naar dienst, product, categorie, merk en vestiging,
+het bedrijfsmodel is nu alleen nog een hint voor de nadruk (`modelContext()`, verving
+`briefingFor()`); (2) het tekenbudget ging van 55.000 naar 250.000 tekens. Dat laatste bleek de
+grotere hefboom: bij 150 gecrawlde pagina's van elk hoogstens 4.000 tekens paste maar ongeveer
+een kwart van de crawl in het oude budget, ongeacht wat de opdracht vroeg (`docs/doorloop-van-
+klant-tot-content.md` noemde dit al als open punt op 26 september). Kosten verwaarloosbaar: GPT-6
+Luna kost $0,10 per miljoen tokens aan invoer, het verschil is ongeveer een halve dollarcent per
+merk, één keer. Bewust NIET gebouwd: een opsplitsing in meerdere aanroepen per sectie van de site
+(een eigen jobtype met een samenvoegstap erna). Dat lost hetzelfde probleem nog beter op bij een
+hele grote site, maar voegt een nieuw soort taak en een nieuwe samenvoegstap toe zonder dat een
+echte klant heeft aangetoond dat het grotere budget tekortschiet (conventie 10). Geen migratie,
+geen schema-wijziging: `tsc`, `test:unit` (5523) en `test:chain` (985) ongewijzigd groen, want
+geen van beide wijzigingen raakt een pure, geteste functie. Op productie nog niet opnieuw
+gedraaid voor Van den Udenhout; dat kan de eigenaar zelf met "Onderzoek opnieuw".
+
 ## 28 september 2026: het Kwaliteitslab ook uit het menu
 
 Het scherm `/beheer/kwaliteit` en zijn API-route verdwenen met de ombouw van de contentketen
