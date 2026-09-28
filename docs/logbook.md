@@ -11664,3 +11664,14 @@ Teksten om goed te keuren en pagina's om live te zetten staan alleen in de bibli
 omdat de lijst begint bij wat op de klant wacht. De drie klikbare tegels bovenaan de bibliotheek zijn
 vervangen door een zoekbalk en vier filters (status, cluster, soort content, type), omdat een tegel
 er niet uitziet als een knop. Pure filterlogica in `lib/pagina-lijst.ts`, getest in `test-unit.ts`.
+
+## 28 september 2026: het Kwaliteitslab ook uit het menu
+
+Het scherm `/beheer/kwaliteit` en zijn API-route verdwenen met de ombouw van de contentketen
+(`docs/tasks/contentketen-opnieuw.md`), maar het menu-item "Kwaliteitslab" onder Admin bleef staan
+en leidde naar een 404. Een test hield het in leven door negen Admin-items te eisen. Het item is weg,
+de grens voor Admin staat terug op acht, en de test controleert nu dat de link niet terugkomt.
+
+De tabellen `content_quality_reviews` en `content_quality_runs` blijven staan (conventie 4). Op
+productie hadden beide 0 rijen: de twaalf oordelen van 3 september staan er niet meer in. Wie de
+nieuwe keten ooit naast een menselijk oordeel wil leggen, begint vanaf `content-reviews/feedback/`.

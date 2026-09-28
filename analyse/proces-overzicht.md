@@ -394,7 +394,7 @@ ORBIT ENGINE meet hoe vaak en hoe positief een merk genoemd wordt in antwoorden 
 
 **Welke keuzes of aannames heeft de code hier gemaakt die u bewust zou moeten goedkeuren?** Een geslaagde automatische keuring ("pass") is uitdrukkelijk niet hetzelfde als "een mens heeft dit goedgekeurd"; die twee zijn los van elkaar vastgelegd (zie stap 18). Er bestaat daarnaast een apart, alleen voor staf zichtbaar "kwaliteitslab" waarin een mens het automatische oordeel kan vergelijken met zijn eigen oordeel; dat blokkeert of publiceert niets, het is puur een meetinstrument voor het team.
 
-**Waar in de code zit dit?** `lib/pipeline/quality-run.ts`, `lib/pipeline/content-panel.ts`, `app/(app)/beheer/kwaliteit/`.
+**Waar in de code zit dit?** `lib/pipeline/quality-run.ts`, `lib/pipeline/content-panel.ts`, `app/(app)/beheer/kwaliteit/` (alle drie inmiddels verwijderd met de ombouw van de contentketen).
 
 ---
 
