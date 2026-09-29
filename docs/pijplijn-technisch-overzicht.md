@@ -4,14 +4,18 @@
 > die geen mens ooit aanklikt omdat de app ze zelf doet. Per stap staat wat er gebeurt, welke techniek
 > erachter zit, welke data erin en eruit gaat, en waarom de stap bestaat.
 >
-> **Peildatum en bron.** 29 september 2026. Alles hieronder is nagelezen tegen de code op de branch
-> `claude/content-chain-quality-analysis-p53hg4`, laatste commit `8115080` ("Documentatie fase 2: brief
-> ziet eerdere antwoorden, kop zonder gedachtestreepje"). Waar dit document afwijkt van de oudere
+> **Peildatum en bron.** 30 september 2026. Alles hieronder is nagelezen tegen de code op `main`, commit
+> `80631e6`: de samenvoeging van de pijplijnanalyse, fase 1 tot en met 5
+> ([JanWillemKoopman/GEO#208](https://github.com/JanWillemKoopman/GEO/pull/208)), het verwijderen van de
+> Sales-module en van het scherm Diagnose, en de nieuwe zijbalk (die raakt de pijplijn niet). De eerste versie van dit
+> document (29 september 2026) beschreef de stand na fase 2; fase 3 tot en met 5 en de Sales- en
+> Diagnosewijziging zijn in deze versie verwerkt. Waar dit document afwijkt van de oudere
 > documentatie in `docs/` (bijvoorbeeld `doorloop-van-klant-tot-content.md`), is de code leidend en staat
 > de afwijking in [bijlage G](#bijlage-g-waar-dit-document-afwijkt-van-de-oudere-documentatie).
 >
-> **Wat wel en niet is gecontroleerd.** De code is gelezen, niet uitgevoerd. Er is voor dit document geen
-> betaalde AI-aanroep gedaan, geen database van productie bevraagd en geen test gedraaid. Bedragen en
+> **Wat wel en niet is gecontroleerd.** De code is gelezen. Er is voor dit document geen
+> betaalde AI-aanroep gedaan en geen database van productie bevraagd. De testsuites zijn bij de
+> samenvoeging wel gedraaid (zie het einde van bijlage H). Bedragen en
 > doorlooptijden komen uit de projectdocumentatie (`CLAUDE.md`, `docs/doorloop-van-klant-tot-content.md`)
 > en zijn hier niet opnieuw gemeten; ze staan er als richtwaarde. Het project houdt zelf de regel aan dat
 > "gebouwd" niet "geverifieerd" is (`CLAUDE.md`, conventie 10). Waar ik uit de code iets afleid dat ik niet
@@ -216,7 +220,8 @@ Het volledige schema staat in `supabase/migrations/`. De tabellen die in dit doc
 | Kansen en plan | `kansen`, `kans_bewijs`, `content_plans`, `plan_months`, `planned_pages` | Kansen uit het rapport, en de planning |
 | Content | `content_pieces`, `content_piece_targets` (niet meer geschreven), `meetplannen`, `content_impact` | De pagina met alle versies, het meetplan, het effect |
 | Wachtrij en boekhouding | `jobs`, `ai_calls`, `rate_limits` | Achtergrondwerk, elke AI-aanroep met kosten en ruwe uitvoer |
-| Aanverwant | `technical_audits`, `source_landscape`, `offsite_tasks`, `search_console_days`, `search_console_queries`, `reputation_*`, `cluster_discovery_*`, `sales_*`, `keyword_demand` | Zie hoofdstap 18 |
+| Aanverwant | `technical_audits`, `source_landscape`, `offsite_tasks`, `search_console_days`, `search_console_queries`, `reputation_*`, `cluster_discovery_*`, `keyword_demand` | Zie hoofdstap 18 |
+| Buiten gebruik | `sales_*` | De Sales-module is op 30 september 2026 uit de app verwijderd; de tabellen blijven staan omdat migraties additief zijn, net als de kolommen `sales_market_id` en `sales_run_id` op `jobs` en `ai_calls` (die de code nog meestuurt, maar altijd leeg). Geen code leest of schrijft de `sales_*`-tabellen nog |
 
 Enkele afspraken over het model die de code afdwingt:
 
@@ -264,8 +269,8 @@ latere hoofdstappen verwijzen ernaar met "zie 0.x".
   HTTP-verzoek doet naar `/api/cron/worker` op de site, met `Authorization: Bearer <CRON_SECRET>`. De site-URL
   en het geheim staan als Supabase Vault-geheimen (`geo_site_url`, `geo_cron_secret`). Zijn ze niet gezet,
   dan gebeurt er zonder foutmelding niets. De route (`app/api/cron/worker/route.ts`, `maxDuration = 300`)
-  controleert het geheim, draait eerst de geplande sales-hermetingen (`draaiGeplandeHermetingen`) en dan
-  `runWorker()` (`lib/jobs/worker.ts`).
+  controleert het geheim en draait `runWorker()` (`lib/jobs/worker.ts`). (Tot 30 september 2026 draaide
+  de route eerst nog de geplande hermetingen van de Sales-module; die is verwijderd.)
 - **Hoe `runWorker()` werkt.**
   1. `reclaim_stuck_jobs(5)` zet taken die langer dan 5 minuten op `running` staan terug in de rij (een
      vorige werker-aanroep is dan kennelijk afgekapt).
@@ -679,7 +684,10 @@ Een taak met `payload.chain === false` doet zijn werk maar plant zijn opvolger n
      onbekend) met plaatsen, harde feiten die letterlijk op de site staan, en twee of drie voorbeeldzinnen
      van de merkstem. Bij tien of meer pagina's mag het model concluderen dat wat ontbreekt waarschijnlijk niet
      wordt aangeboden; bij minder pagina's niet. Weet het model het werkgebied niet, dan moet het "onbekend"
-     kiezen: "een beter antwoord dan een gok".
+     kiezen: "een beter antwoord dan een gok". Het werkgebied hoort in **plaatsen** te staan zoals een klant
+     ze uitspreekt, niet in streken; noemt de site alleen een streek, dan de plaatsen die de site daarbinnen
+     noemt, en anders de streek zelf (besluit V10, 29 september 2026: bij één merk stonden er alleen streken,
+     en noemden alle 90 meetvragen een streek in plaats van een dorp).
   5. **Samenvoegen in code.** `filterProtectedFields()` (`lib/pipeline/field-merge.ts`) laat een veld dat een
      mens zette staan; het model wint nooit van een mens. Lijstvelden (producten, concurrenten) worden
      samengevoegd zonder dubbelen; waardeproposities gaan door `schoneWaardeproposities()`. Plaatsnamen worden
@@ -803,8 +811,8 @@ Een taak met `payload.chain === false` doet zijn werk maar plant zijn opvolger n
 
 ### 3.9 De samenvatting
 
-- **Wat.** Eén leesbaar dossier voor het gesprek, een lijst citeerbare feiten, en een agenda met wat nog
-  onbekend is.
+- **Wat.** Eén leesbaar dossier voor het gesprek, een lijst citeerbare feiten, de concrete klussen die de
+  site zelf beschrijft, en een agenda met wat nog onbekend is.
 - **Techniek.** Taak `profile_synthesis`, `synthesiseProfile()` (`lib/pipeline/synthesis.ts`).
   1. Bestaat het facet `synthese` al, dan stopt de functie. Zijn er geen pagina's, dan ook.
   2. Model: Sol (`gpt-6-sol`, `content`) als `SYNTHESIS_PREMIUM` niet uit staat en er nog minstens 0,25 dollar
@@ -815,12 +823,18 @@ Een taak met `payload.chain === false` doet zijn werk maar plant zijn opvolger n
      vakjargon, (2) open punten die in dertig seconden te beantwoorden zijn ("niet 'meer over de doelgroep' maar
      'hoeveel behandelkamers zijn er?'"), (3) citeerbare feiten, elk met een `sourceUrl` en een `quote` die
      letterlijk, teken voor teken, op die pagina staat; schrijf de bewering zelf op en niet dat de site hem
-     doet; liever tien scherpe dan veertig vage.
+     doet; liever tien scherpe dan veertig vage; (4) **klussen** (besluit V9, 29 september 2026): concrete
+     klussen of projecten die de site zelf beschrijft (recente werkzaamheden, projecten, cases, een
+     nieuwsbericht over een klus), per klus wat er gebeurde, de plaats als die er staat, de pagina en een
+     letterlijk citaat; hooguit `MAX_KLUSSEN = 10`; een algemene dienstomschrijving is geen klus.
   5. **Controle in code:** een feit waarvan de bron niet bij de gelezen pagina's hoort, of waarvan het citaat
      niet letterlijk op de pagina staat (`quoteOnPage`, minimaal 12 tekens), vervalt. Maximaal 25 feiten
-     (`MAX_FACTS`). De rest gaat het facet `synthese` in, met `confidence` gelijk aan het aandeel geldige
-     feiten.
-  6. De geldige feiten gaan via `legOnderzoekVast()` de kennislaag in, als "waargenomen" met citaat. De open
+     (`MAX_FACTS`). Dezelfde regel geldt voor de klussen. De rest gaat het facet `synthese` in, met
+     `confidence` gelijk aan het aandeel geldige feiten en het aantal geldige klussen in `raw_json.klussen`.
+  6. De geldige feiten gaan via `legOnderzoekVast()` de kennislaag in, als "waargenomen" met citaat. De
+     geldige klussen gaan erin als domein `verhaal`, soort `klus`, waargenomen, voor gebruik in content
+     (`kennisUitSynthese()`), naast de klussen die de consultant in het gesprek vastlegt (5.2). Aanleiding: de
+     site van een klant had een hele reeks "recente werkzaamheden", en in de kennislaag stonden er twee. De open
      punten (`gaps`) blijven in de ruwe uitvoer van het facet; op het kennisoverzicht ziet de consultant ze als
      onderwerp voor het gesprek. Ze worden geen vragen aan de klant (besluit V3, 27 september 2026).
 - **Waarom.** De feiten die letterlijk op de site staan zijn de enige claims die een schrijver later als
@@ -833,6 +847,15 @@ Een taak met `payload.chain === false` doet zijn werk maar plant zijn opvolger n
   of het onderzoek niet klaar is; daarna `klaar_voor_gesprek`; na het vastleggen van het gesprek
   `gesprek_gehad`; na toewijzing `overgedragen`. Een stap die niets vindt toont een waarschuwing en geen groen
   vinkje.
+- **Het statusoverzicht.** Op het onboardinggesprek (hoofdstap 5) ziet de consultant sinds 30 september 2026
+  één statusoverzicht (`buildOnboardingStatus()` en `statusZin()` in `lib/pipeline/onboarding-status.ts`, puur;
+  getoond door `app/(app)/merk/[id]/_components/profile-readiness-panel.tsx`): de
+  onderzoekstaken en de volledigheidscheck van het dossier samen, in drie groepen (onderzoek, dossier,
+  gesprek). De balk, de zin erboven en de getallen per groep tellen dezelfde regels. Daarvoor bestonden er
+  twee overzichten die anders telden (het scherm Diagnose met "9 van de 9" en een blok Voorbereiding met
+  "7 van de 7" terwijl er tien regels onder stonden); het scherm Diagnose is verwijderd, en daarmee ook het
+  kostenlogboek, de ruwe modeluitvoer en de herkomst per veld die daar te zien waren. Die gegevens staan nog
+  in de database (`ai_calls`, `profile_field_sources`).
 - **Waarom.** Zo kan de fase nooit uit de pas lopen met de taken.
 
 **Uitkomst van hoofdstap 3:** een merkprofiel, `profile_pages`, een aanbodboom, 5 tot 8 conceptonderwerpen, het
@@ -907,7 +930,7 @@ en met K8 (26 en 27 september 2026).
 | Het profiel (3.4) | `lib/kennis/onderzoek.ts`, `uit-onderzoek.ts` | Merkonderzoek: waargenomen alleen waar de code het citaat terugvond, het overige afgeleid en intern |
 | Het aanbod (3.5) | `lib/kennis/aanbodkopie.ts`, `onderzoek.ts` | Aanbodknopen, waargenomen bij `confidence = 1` |
 | De markt en kennistest | `onderzoek.ts` | Concurrenten, gelijknamige bedrijven |
-| De samenvatting (3.9) | `onderzoek.ts` (`kennisUitSynthese`) | Citeerbare feiten, waargenomen |
+| De samenvatting (3.9) | `onderzoek.ts` (`kennisUitSynthese`) | Citeerbare feiten, waargenomen; de klussen van de site als verhaal (domein `verhaal`, soort `klus`), waargenomen |
 | Het gesprek (hoofdstap 5) | `lib/kennis/gesprek.ts`, `uit-gesprek.ts` | Profielvelden en aantekeningen, verklaard |
 | Antwoorden op vragen (hoofdstap 12) | `gesprek.ts` (`kennisUitAntwoord`) | Een antwoord op een gerichte vraag geldt voor het cluster van de pagina (besluit V17); een praktijkvoorbeeld en het antwoord op de open vraag blijven bij hun pagina |
 | Stemvoorbeelden en merkdossier | `lib/kennis/uit-stem.ts` | Domein `stem` |
@@ -969,13 +992,22 @@ een groot deel van de latere tekstkwaliteit bepaald.
 
 ### 5.1 Het scherm
 
-- **Wat.** Bovenaan staat wat nog niet bekend is (en per kans wat er voor die pagina ontbreekt, de
-  "kennisronde"), daarna het dossier blok voor blok: het bedrijf en de namen, het aanbod, de markt, het
-  bewijs, de klant en de toon, materiaal en veranderingen, techniek en koppelingen, en afspraken.
-- **Techniek.** Component `app/(app)/merk/[id]/_components/onboarding-session.tsx`. De kennisronde
-  (`lib/kansen/kennisronde.ts`, `kennisrondeVoorMerk()`) groepeert het kennisgat van elke kans die nog
-  geschreven moet worden per domein, in de volgorde van het kansenscherm (`ordenKansen`, hoofdstap 9); geen
-  model.
+- **Wat.** Bovenaan staat het statusoverzicht van het onderzoek en het dossier (3.10), en wat nog niet bekend
+  is (en per kans wat er voor die pagina ontbreekt, de "kennisronde"), daarna het dossier blok voor blok: het
+  bedrijf en de namen, het aanbod, de markt, het bewijs, de klant en de toon, materiaal en veranderingen,
+  techniek en koppelingen, en afspraken.
+- **Techniek.** Component `app/(app)/merk/[id]/_components/onboarding-session.tsx`, met
+  `profile-readiness-panel.tsx` voor het statusoverzicht. De kennisronde (`lib/kansen/kennisronde.ts`,
+  `kennisrondeVoorMerk()`) groepeert het kennisgat van elke kans die nog geschreven moet worden per domein,
+  in de volgorde van het kansenscherm (`ordenKansen`, hoofdstap 9); geen model.
+- **De open punten van het onderzoek** staan op het kennisoverzicht (`/merk/[id]/admin/kennis`): eerst
+  `werkgebiedPunten()` (`lib/kennis/overzicht.ts`, besluit V10), dan de open punten van de samenvatting en
+  het aanbod (`openPuntenUitOnderzoek()`). Staat er een streek in het werkgebied van een lokaal bedrijf
+  (`isStreek()`: "regio …", "… en omstreken", een provincie of een bekende streek als Alblasserwaard; een stad
+  met de naam van een provincie, zoals Utrecht, telt als plaats), dan is het eerste punt "Welke plaatsen
+  vallen precies onder …?". Is het bedrijfsmodel leeg of `overig`, dan volgt de vraag wat voor bedrijf het is.
+  Geen model; de consultant vult de plaatsen in het gesprek in (er is in de app geen lijst van plaatsen per
+  streek).
 - **Waarom.** Zo weet de consultant welke vragen hij in het gesprek moet stellen om pagina's te kunnen
   schrijven zonder later de klant te hoeven storen.
 
@@ -1156,6 +1188,12 @@ consultant.
   geen `concept` meer is (409, zie 3.6). Een onderwerp dat al een analyse heeft, geeft dezelfde analyse terug.
   De route maakt een `analyses`-rij (`status = 'bezig'`, `topic`, `name`, `content_brief` uit de aantekeningen
   van de klant via `buildTopicBrief()`, `notify_by_email`) en plant `prepare_analysis` in.
+- **Waarschuwing bij een lijkend cluster** (besluit V18, 29 september 2026). Het formulier voor een zelf
+  ingetypt onderwerp (`app/(app)/analyses/new/`) toont "Lijkt op: …" als het onderwerp lijkt op een bestaand
+  cluster van hetzelfde merk (`lijktOp()`, `lib/cluster-overlap.ts`, puur: minstens 60 procent van de
+  betekenisdragende woorden van het kleinste onderwerp gedeeld, met een eenvoudige stam en zonder lege woorden
+  als "de" of "beste"). Het houdt niets tegen: twee clusters die op elkaar lijken, kunnen een bewuste keuze
+  zijn.
 - **De verdeling van de vragen** (`lib/prompt-mix.ts`): standaard 10 per funnelfase (oriëntatie, overweging,
   beslissing), dus 30. Per analyse instelbaar in `analyses.prompts_orientatie`, `prompts_overweging` en
   `prompts_beslissing`; `checkMix()` en `checkNewClusterMix()` bewaken de grenzen.
@@ -1186,20 +1224,31 @@ consultant.
 - **Techniek.** Taak `generate_prompts` (`generateAnalysisPrompts()` in `prepare.ts`,
   `generatePromptsForStage()` in `lib/pipeline/prompts.ts`), per funnelfase. **AI-aanroep** (kind `prompts`):
   Luna, `creative`, zonder zoeken. Invoer: website, merknaam en concurrenten (om te vermijden), het onderwerp,
-  branche, aanbod, samenvatting, werkgebied en groeiregio's, en de bezwaren van klanten uit het gesprek.
+  branche, aanbod, samenvatting, werkgebied en groeiregio's, de bezwaren van klanten uit het gesprek (alleen
+  in de fase overweging), en de actieve vragen van de andere clusters van hetzelfde merk
+  (`vragenVanAndereClusters()` in `prepare.ts`, hooguit `ANDERE_CLUSTERS_MAX = 60` in de opdracht) met de
+  opdracht die niet opnieuw te stellen, ook niet in andere woorden (besluit V18).
   Opdracht: "Je bedenkt realistische vragen die een echte koper aan een AI-assistent zoals ChatGPT stelt."
   Natuurlijke, gesproken vragen, gevarieerd, precies het aantal van de fase. Fasen: *oriëntatie* (iemand die
   zich net inleest en nog geen aanbieder kent), *overweging* (opties vergelijken zonder merk), *beslissing*
   (een aanbieder kiezen). Harde regel: nooit de eigen merknaam of het domein, en nooit een concurrent bij naam
   (generieke productmerken mogen wel). Bij een lokaal bedrijf moet **elke** vraag een plaats uit het
   werkgebied bevatten, en die plaats moet de vraag echt lokaal maken (met een fout en een goed voorbeeld in de
-  opdracht). Minstens één vraag over een twijfel uit het verkoopgesprek (oriëntatie en overweging). Per vraag
+  opdracht). **Hooguit één vraag per cluster over een bezwaar uit het verkoopgesprek**, alleen in de fase
+  overweging en alleen als het bezwaar echt over het onderwerp gaat (besluit V11, 29 september 2026; tot dan
+  "minstens één" in oriëntatie én overweging, en kwam bij één merk hetzelfde bezwaar vijf keer terug in 90
+  vragen, ook in clusters waar het niet over ging). Omdat de drie fasen parallel lopen, is één fase de enige
+  manier om er één per cluster van te maken. Per vraag
   ook de intentie, het type (`informational`, `commercial`, `transactional`), de specificiteit (`head` of
   `long_tail`), of er koopintentie is, een cluster-label, en `volumeEstimate` (een schatting van hoe vaak de
   vraag gesteld wordt, 0 tot 100).
 - **Code daarna** (dit is het echte vangnet):
   1. `containsForbidden()` verwerpt een vraag met een verboden naam (merk, domein, concurrenten);
-  2. `nieuweVraag()` verwerpt dubbelen, ook als twee vragen alleen in de plaatsnaam verschillen;
+  2. `nieuweVraag()` verwerpt dubbelen, ook als twee vragen alleen in de plaatsnaam verschillen, en een
+     vraag die letterlijk al in een ander cluster van het merk staat (die tellen vooraf als gezien); en
+     `tweedeBezwaarvraag()` (`lib/pipeline/prompt-dedupe.ts`) verwerpt een tweede vraag over een bezwaar uit
+     het gesprek (`raaktBezwaar()`: minstens twee gedeelde inhoudswoorden, of alle woorden van een kort
+     bezwaar als "te duur");
   3. is het aantal niet gehaald, dan volgen tot `MAX_TOPUP_ATTEMPTS = 3` aanvulrondes met de ontbrekende
      hoeveelheid erbij;
   4. bij een lokaal bedrijf (`isLokaal`) volgen geo-rondes (`geoBalance`, `REGIO_DREMPEL = 1,0`, dus alle
@@ -1224,7 +1273,13 @@ consultant.
 
 - **Techniek.** De laatste `generate_prompts` van de analyse (geteld met `requireCount` op nog lopende
   taken) roept `finishPromptGeneration()` aan: dubbelen over de fasen heen worden verwijderd
-  (`duplicatePromptIds`, een echte `delete`), en heeft de analyse nul vragen dan wordt hij `mislukt`. Anders
+  (`duplicatePromptIds`, een echte `delete`), en ook vragen van dit cluster die al actief in een ander cluster
+  van hetzelfde merk staan (`dubbelMetAndereClusters()`, vergelijking na `vraagSleutel()`: zonder hoofdletters,
+  accenten en leestekens; besluit V18). Alleen de vragen van het nieuwe cluster gaan weg, want op bestaande
+  clusters zijn al metingen gedaan, en er blijft altijd minstens één vraag staan. Dit vangt twee clusters die
+  tegelijk hun vragen opstellen; de opdracht in 7.3 kreeg de andere vragen al mee. Reden: dezelfde vraag in
+  drie clusters werd drie keer gemeten, telde drie keer mee in de merkscore en leverde drie rapporten op die
+  naar dezelfde pagina wezen. Heeft de analyse nul vragen, dan wordt hij `mislukt`. Anders
   `analyses.status = 'concept_klaar'`. Daarna plant hij `calibrate_volumes` in.
   `calibratePromptVolumes()` doet één **AI-aanroep** (`volume_calibration`, Luna, `content`, zonder zoeken)
   voor de vragen die niet `gemeten` zijn: "Je bent een zoekgedrag-analist", schat de relatieve frequentie 0 tot
@@ -1450,21 +1505,35 @@ om dat te veranderen. De aanbevelingen worden later de kaarten in het contentpla
 
 ### 9.4 Het rapport en de aanbevelingen
 
-- **Techniek.** **AI-aanroep** (kind `report`): Luna, `analytical`, zonder zoeken (`REPORT_SYSTEM`,
-  `buildReportInput`). Invoer: alles van 9.3 plus de uitkomst daarvan, het aantal vragen en metingen, de
+- **Techniek.** **AI-aanroep** (kind `report`): Luna, **`judging`** (denkinspanning middel), zonder zoeken
+  (`REPORT_SYSTEM`, `buildReportInput`). Tot 29 september 2026 was dit `analytical` (denkinspanning laag);
+  het rapport kreeg meer denktijd omdat hier beslist wordt welke pagina's er komen (besluit V6, B-b). Op
+  productie duurde het rapport daarvoor hooguit 29 seconden en kostte het 0,0035 dollar. Invoer: alles van 9.3
+  plus de uitkomst daarvan, het aantal vragen en metingen, de
   bestaande pagina's van de site (maximaal 150 adressen), de diensten zonder eigen pagina, het doel over twaalf
-  maanden, het seizoen, en de commerciële sturing uit het gesprek (prioriteiten, groeiregio's, doelgroepen,
-  verboden onderwerpen, bewijs buiten de site). Opdracht: een kort jargonvrij rapport voor een ondernemer,
-  eindigend in aanbevelingen. Per aanbeveling: **verbeteren** (het adres letterlijk uit de lijst) of **nieuw**;
-  welke gemiste vragen (V-codes) de pagina moet winnen, minimaal één; een rangnummer; en in `targetIntent`
-  de lezer in één zin ("niet 'Daklekkage Apeldoorn' maar 'iemand met water door zijn plafond die vandaag hulp
-  zoekt en wil weten wat een reparatie kost'"). Het aantal aanbevelingen ligt niet vast: een aanbeveling
+  maanden, het seizoen, de commerciële sturing uit het gesprek (prioriteiten, groeiregio's, doelgroepen,
+  verboden onderwerpen, bewijs buiten de site), en **de open kansen van het hele merk** (`openKansenBlok()`,
+  `lib/kansen/samenvoegen.ts`: hooguit `OPEN_KANSEN_MAX = 40` kansen met status `open`, `ingepland`,
+  `in_voorbereiding` of `te_herzien`, elk met een code K1, K2, ..., de titel, de rol en het adres bij een
+  verbetering; besluit V7). Opdracht: een kort jargonvrij rapport voor een ondernemer,
+  eindigend in aanbevelingen. **Een aanbeveling beschrijft een pagina, geen opdracht** (besluit V6):
+  `title` is het onderwerp zoals een bezoeker het zou zoeken, nooit een gebiedende wijs of een belofte; `rol`
+  zegt in één zin wat deze pagina doet dat de andere pagina's van het merk niet doen; `kernvraag` is de ene
+  vraag die de pagina moet beantwoorden om bestaansrecht te hebben; `why` is de onderbouwing uit de meting,
+  zonder schrijfinstructies. Verder per aanbeveling: **verbeteren** (het adres letterlijk uit de lijst) of
+  **nieuw**; welke gemiste vragen (V-codes) de pagina moet winnen, minimaal één; een rangnummer; in
+  `targetIntent` de lezer in één zin ("niet 'Daklekkage Apeldoorn' maar 'iemand met water door zijn plafond
+  die vandaag hulp zoekt en wil weten wat een reparatie kost'"); en `bestaandeKans`: de K-code van een open
+  kans die deze aanbeveling versterkt, of `null`. Het aantal aanbevelingen ligt niet vast: een aanbeveling
   alleen als (1) er een gemeten gemis met bewijs is, (2) de klant er via zijn aanbod of feiten iets echts over
-  te zeggen heeft, (3) geen bestaande pagina het al goed dekt, (4) hij niet overlapt. Wat afvalt komt in
+  te zeggen heeft, (3) geen bestaande pagina het al goed dekt, (4) hij niet overlapt, en dat laatste geldt
+  sinds V7 voor het hele merk, niet alleen voor dit rapport. Wat afvalt komt in
   `declinedGaps` met de reden. Het model levert ook `factRequests`, maar die worden sinds besluit V3 (27
   september 2026) geen vragen aan de klant meer en blijven in de ruwe uitvoer.
 - **Code daarna, in deze volgorde** (`generateReport()`):
-  1. `resolveTargets()` koppelt de V-codes aan de vraag en het `runId` van de meting;
+  1. `resolveTargets()` koppelt de V-codes aan de vraag en het `runId` van de meting, zet de K-code om in het
+     id van de kans (`bijKans`; een onbekende code wordt `null`), en maakt van een lege of nietszeggende
+     `rol` of `kernvraag` ("onbekend", "nvt") `null`;
   2. `mergeOverlappingRecommendations()` voegt overlappende aanbevelingen samen;
   3. `reconcileExistingPageActions()` (`existing-page-match.ts`, zonder model) herrekent uit de gecrawlde
      pagina's (termoverlap op woordstammen, `page-relevance.ts`) of een aanbeveling iets dekt wat de site al
@@ -1484,19 +1553,39 @@ om dat te veranderen. De aanbevelingen worden later de kaarten in het contentpla
 - **Data uit.** `reports` (`summary`, `gaps_json`, `recommendations_json`, `declined_json`,
   `stripped_claims_json`, `change_json`, en de volledige ruwe uitvoer van beide aanroepen in
   `gap_analysis_raw_json` en `raw_json`), `analyses.status = 'gereed'`. Elke aanbeveling heeft `targets` met de
-  vraagtekst en het `runId` van de meting.
+  vraagtekst en het `runId` van de meting, en (in rapporten vanaf 29 september 2026) `rol`, `kernvraag` en
+  `bijKans`. Bij oudere rapporten zijn die drie `null` (`readRecommendations()`).
 - **Waarom.** Het bewijs staat per vraag in het rapport. Zo kan later per pagina worden bepaald voor welke
   vragen die pagina is gemaakt (17.1).
 
 ### 9.5 Van aanbeveling naar kans
 
 - **Wat.** Sinds N2 (27 september 2026) wordt elke aanbeveling ook een **kans**: een eigen object met bewijs
-  per bron, een commerciële waarde en een kennisgat.
+  per bron, een commerciële waarde en een kennisgat. Sinds 29 september 2026 wordt een aanbeveling voor een
+  pagina waar al een open kans voor is, geen tweede kans maar extra bewijs bij die kans (stap 2).
 - **Techniek.** `legKansenVast()` (`lib/kansen/uit-rapport.ts`, de enige schrijver in `kansen` en
   `kans_bewijs`, gooit nooit een fout) na het opslaan van het rapport:
   1. `kansUitAanbeveling()` (`lib/kansen/rapport.ts`) maakt per aanbeveling een kans (`titel`, `handeling`
-     `nieuwe_pagina` of `pagina_verbeteren`, `lezer`, `doelvragen`);
-  2. **bewijs per bron** (`bewijsUitMetingen`): voor ChatGPT, AI Overview en Gemini hoeveel vragen gemeten en
+     `nieuwe_pagina` of `pagina_verbeteren`, `lezer`, `doelvragen`; de hele aanbeveling, met `rol` en
+     `kernvraag`, staat in `kansen.ruw`);
+  2. **Eén kaart per pagina** (besluit V7 en V20, 29 september 2026). Vóór een nieuwe kans wordt aangemaakt,
+     beslist `kiesDoelKans()` (`lib/kansen/samenvoegen.ts`, puur) of hij bij een open kans van hetzelfde merk
+     uit een **ander** rapport hoort (status `open`, `ingepland`, `in_voorbereiding` of `te_herzien`). Drie
+     regels, in deze volgorde: het rapport wees die kans zelf aan (`bijKans`); beide verbeteren dezelfde
+     bestaande pagina (adres vergeleken met `canonicalKey`, dus `www` en een slash aan het eind tellen niet);
+     of de nieuwe kans is een nieuwe pagina die op precies één meetvraag rust en de open kans heeft die vraag
+     ook. Is dat zo, dan wordt de nieuwe kans **extra bewijs** bij de open kans (`voegToeAlsBewijs()`): het
+     bewijs van alleen de doelvragen die de open kans nog niet had wordt per bron opgeteld (`telBewijsOp()`:
+     aantallen opgeteld, concurrenten en metingen zonder dubbelen), zodat één vraag nooit twee keer meetelt,
+     en de uitleg van de open kans wordt opnieuw berekend. De nieuwe kans wordt toch vastgelegd, met status
+     `vervallen` en in `ruw` een verwijzing (`samengevoegdMet`, `samenvoegReden`), zodat een tweede aanroep
+     niets dubbel toevoegt (conventie 9) en terug te zien is waar hij bleef; de voorraad (10.1) slaat
+     vervallen kansen over, en het kennisoverzicht telt zo'n kans niet als "geraakt door een kenniswijziging"
+     (`geraaktOverzicht()`). Binnen één rapport voegt deze stap
+     niets samen: daar doen `mergeOverlappingRecommendations()` en `eenVerbeteringPerAdres()` dat al (9.4).
+     Aanleiding: in ronde 1 van de contentkwaliteit wezen drie rapporten van hetzelfde merk naar dezelfde
+     pagina, en stonden er twee vervangingen voor één adres in het plan;
+  3. **bewijs per bron** (`bewijsUitMetingen`): voor ChatGPT, AI Overview en Gemini hoeveel vragen gemeten en
      genoemd zijn en welke concurrenten genoemd werden, en of het eigen domein geciteerd wordt
      (`eigenSiteGeciteerd`: `true`, `false` of `null` zonder meting). Twee bronnen komen op andere momenten
      bij: Search Console (vertoningen, klikken, positie) na elke geslaagde `gsc_sync`
@@ -1504,14 +1593,17 @@ om dat te veranderen. De aanbevelingen worden later de kaarten in het contentpla
      zoekterm), en `consultant` bij een handmatige kans. De bewijssoort `structuur` (een dienst zonder pagina)
      bestaat in de volgorde en de uitleg (`lib/kansen/prioriteit.ts`), maar een plek in de code die hem
      schrijft heb ik niet gevonden;
-  3. `commercieleWaardeVan()`: `voorrang`, `gewoon` of `minder` uit de prioriteiten van de klant;
-  4. `geldtVoorVan()`: de werkgebieden (kennisitems) die letterlijk in de kans voorkomen. Sinds besluit B32
+  4. `commercieleWaardeVan()`: `voorrang`, `gewoon` of `minder`, als een dienst die de klant voorrang (of
+     juist minder aandacht) gaf letterlijk in de titel, de lezer of een doelvraag van de kans staat (besluit
+     B32; op woordstammen, zonder koppeling aan het aanbod);
+  5. `geldtVoorVan()`: de werkgebieden (kennisitems) die letterlijk in de kans voorkomen. Sinds besluit B32
      (29 september 2026) hangt een kans **niet** meer aan diensten of producten; alleen aan plaatsen;
-  5. `kennisgatVan()` (`lib/kansen/kennisgat.ts`): een vaste lijst van wat er per soort pagina nodig is (prijs,
+  6. `kennisgatVan()` (`lib/kansen/kennisgat.ts`): een vaste lijst van wat er per soort pagina nodig is (prijs,
      termijn, voor wie het niet is, enzovoort), per behoefte `bekend`, `afgeleid` of `onbekend`, zonder model;
-  6. de afhankelijkheden (kans leunt op kennisitems, 4.5) worden vastgelegd.
-  Het kennisgat gaat sinds besluit V19 niet meer naar de brief; het staat op het plan en het gesprek voor de
-  consultant (5.1, 10.4).
+  7. de afhankelijkheden (kans leunt op kennisitems, 4.5) worden vastgelegd.
+  Het kennisgat gaat sinds besluit V19 niet meer naar de brief en staat sinds besluit B-j ook niet meer op de
+  kaart in het plan (daar staat nu de kaartzin, 10.1); de consultant ziet het nog in de kennisronde van het
+  gesprek (5.1), en het telt mee in de volgorde van de kansen (hieronder).
 - **De volgorde van kansen** (`ordenKansen`, `lib/kansen/prioriteit.ts`, zonder model, in vier lagen waarvan
   elke alleen beslist als de vorige gelijk is): (1) commerciële waarde (voorrang, dan gewoon of onbekend, dan
   minder), (2) het aantal bronnen dat de kans steunt, (3) de potentiescore, (4) het kennisgat (minder
@@ -1546,8 +1638,10 @@ begint.
 ### 10.1 De kansen komen in de voorraad
 
 - **Techniek.** `syncBacklog()` (`lib/plan-backlog-data.ts`) draait bij elke keer dat het plan geladen wordt
-  en ook bij het opstellen van een plan. Voor het meest recente rapport van elke analyse wordt per aanbeveling
-  een kaart in `planned_pages` gezet met `plan_month_id = null` (de voorraad), `source_ref =
+  en ook bij het opstellen van een plan. Eerst roept hij `legKansenVast()` (9.5) aan voor het meest recente
+  rapport van elke analyse (een vangnet voor rapporten van vóór de kansen); daarna komt per kans van die
+  rapporten die niet `vervallen` is (een kans die als bewijs bij een andere kans ging, telt dus niet mee) een
+  kaart in `planned_pages` met `plan_month_id = null` (de voorraad), `source_ref =
   '<rapport-id>#<volgnummer>'` (de lijn terug naar de meetvragen), `source_analysis_id`, `potential`,
   `target_weight`, de funnelfase (`faseVoorPagina`), de handeling en (bij verbeteren) het bestaande adres,
   en `kans_id`. Een kaart wordt nooit gewist. Handmatige kansen (`lib/kansen/handmatig.ts`,
@@ -1556,6 +1650,16 @@ begint.
   `prompts` bewaard maar niet gemeten.
 - **Waarom.** Eén voorraad waaruit consultant en klant plannen, met de herkomst van elke kaart terug te
   vinden.
+- **De kaartzin voor de consultant** (besluiten V8, V19 en V20, B-j; 29 september 2026). Alleen een beheerder
+  ziet onder een kaart één zin (`kaartZin()`, `lib/kansen/kaart.ts`, puur; samengesteld in `loadPlan()`,
+  `lib/plans.ts`): "Voorrang van de klant." als `kansen.commerciele_waarde = 'voorrang'` (9.5); "Rust op één
+  meetvraag." bij een gemeten kans met precies één doelvraag (`rustOpEenVraag()`); en de stand van de
+  kernvraag van de pagina ("Kernvraag beantwoord.", "Kernvraag wacht op antwoord." of "Kernvraag niet
+  beantwoord."), via de pagina op de kaart, `brief_json.kernvraagId` (11.2) en de stand van die vraag in
+  `fact_requests`. Zonder iets te melden staat er niets. De zin staat op elke kaart in de voorraad, en op een
+  kaart in een maand zolang die nog `gepland` is. Hij houdt niets tegen (besluit B5): de consultant kan de
+  kaart wisselen of de klant nog even bellen. Tot 29 september 2026 stond hier het kennisgat ("Nog niet
+  bekend: prijs, werkwijze en voorbeeld"), dat bij bijna elke kaart hetzelfde was.
 
 ### 10.2 Het plan opstellen
 
@@ -1633,8 +1737,10 @@ hem kan. Vanaf hier werkt de contentketen die op 25 en 26 september 2026 opnieuw
      `planned_pages.content_piece_id` wordt gezet.
   4. **De vaste open vraag** (`maakOpenVraag()`, `lib/pagina/open-vraag.ts`): een `fact_requests`-rij met
      `open_vraag = true`, `scope = 'pagina'`, `answer_type = 'tekst_lang'`, `content_piece_ids = [piece]`
-     en de tekst "Wat wil je zelf op deze pagina vertellen?" met uitleg en voorbeelden
-     (`lib/pagina/open-vraag-tekst.ts`). Dit maakt de code, geen AI, en het is idempotent (bestaat er al een,
+     de tekst `Wat wil je zelf vertellen op de pagina "<titel>"?` (de titel erin, omdat `fact_requests` een
+     unieke index op merk en vraagtekst heeft) en een vaste uitleg (`openVraagTekst()`, `openVraagUitleg()`,
+     `lib/pagina/open-vraag-tekst.ts`). De drie voorbeeldantwoorden (`OPEN_VRAAG_VOORBEELDEN`) staan sinds 30
+     september 2026 niet meer als voorbeeldtekst in het invulveld. Dit maakt de code, geen AI, en het is idempotent (bestaat er al een,
      of botst de unieke index, dan doet hij niets). Zo is hij er altijd, ook als de brief mislukt, en nooit
      dubbel.
   5. Voor elk betrokken merk wordt `fact_register` ingepland (4.6): de nieuwe sitefeiten worden ingedeeld,
@@ -1666,10 +1772,13 @@ hem kan. Vanaf hier werkt de contentketen die op 25 en 26 september 2026 opnieuw
      `existing_page_text` of anders één keer van de site gehaald (`fetchExistingPage`) en bewaard, met
      `zonderSiteHerhaling()` (13.2) erover, in de opdracht afgekapt op `HUIDIGE_TEKST_MAX = 12.000` tekens.
   7. `merkNamen()`: de merknaam, alle schrijfwijzen en aliassen, voor de controle op vakkennis (11.4).
+  8. `laadPaginaDefinitie()` (`lib/pagina/context.ts`): de `rol` en de `kernvraag` van de aanbeveling achter de
+     pagina (9.4), via `source_ref`. Bij een rapport van vóór 29 september 2026, een handmatige kans of een
+     kans uit Search Console `null`: onbekend, niet leeg (conventie 3).
 - **AI-aanroep** (kind `pagina_brief`): **Sol**, `analytical`, **met web-zoeken**. Brief versie
-  `BRIEF_VERSIE = 5`. De opdracht (`lib/pagina/brief-opdracht.ts`, `BRIEF_SYSTEEM`), samengevat: "Je bereidt
+  `BRIEF_VERSIE = 6`. De opdracht (`lib/pagina/brief-opdracht.ts`, `BRIEF_SYSTEEM`), samengevat: "Je bereidt
   één webpagina voor van een Nederlands mkb-bedrijf. Een schrijver maakt de pagina straks; jij zorgt dat hij
-  weet wat hij moet weten. Je schrijft zelf geen tekst voor de pagina." Twee taken:
+  weet wat hij moet weten. Je schrijft zelf geen tekst voor de pagina." Twee taken, en een markering:
   1. **Onderzoek**: de zoekintentie in de woorden van de bezoeker, de deelvragen, de vakkennis (elk punt met het
      webadres waar het gevonden is; zonder adres laten weglaten; over het vak, nooit over dit bedrijf; als
      feit over het onderwerp), en de valkuilen (wat klanten vaak verkeerd begrijpen).
@@ -1685,7 +1794,13 @@ hem kan. Vanaf hier werkt de contentketen die op 25 en 26 september 2026 opnieuw
      voorbeeldvraag. Noemt de vakkennis iets wat per bedrijf verschilt, vraag dan hoe dit bedrijf het doet.
      Vraagvorm: één vraag vraagt één ding, kort, in "je"-vorm, een vraag naar bewijs is merkbreed. Per vraag
      `waarom` (één zin voor de ondernemer), `antwoord_type` (`ja_nee`, `bedrag`, `getal`, `tekst_kort`,
-     `tekst_lang`, `keuze`) en `merkbreed`.
+     `tekst_lang`, `keuze`), `merkbreed` en `kern`.
+  3. **De kernvraag** (besluit V8, B-c; versie 6, 29 september 2026): de invoer noemt de kernvraag van de
+     pagina uit het rapport ("De kernvraag van deze pagina: ..."). Kan het antwoord daarop alleen van de
+     ondernemer komen en staat het nog nergens, dan stelt de brief er een vraag over en zet bij die ene vraag
+     `kern: true`; staat er al een vraag over in de eerdere vragen, dan zet hij het id daarvan in
+     `kern_eerder`. Is het antwoord al bekend of is er geen kernvraag, dan is `kern` overal onwaar en
+     `kern_eerder` `null`.
   De brief krijgt sinds versie 5 **geen** kennisgat meer en **geen** concurrentieanalyse (besluit V19 en B22,
   29 september 2026): het kennisgat is voor de consultant, en concurrentiegegevens leidden de schrijver af.
 - **Code daarna** (`verwerkBrief()`, `lib/pagina/brief-regels.ts`):
@@ -1696,13 +1811,18 @@ hem kan. Vanaf hier werkt de contentketen die op 25 en 26 september 2026 opnieuw
      zonder accenten en leestekens);
   4. hooguit acht vragen; een keuzevraag met minder dan twee opties wordt een korte tekstvraag;
   5. alle tekst gaat door `pasSchrijfregelsToe()` (geen gedachtestreepjes en dergelijke);
-  6. `ook_voor_deze_pagina` blijft alleen over voor bestaande vragen met stand `open` of `beantwoord`.
+  6. `ook_voor_deze_pagina` blijft alleen over voor bestaande vragen met stand `open` of `beantwoord`;
+  7. hooguit één vraag houdt `kern`, en nooit een merkbrede vraag (die geldt voor het hele bedrijf, niet
+     voor één pagina); `kern_eerder` telt alleen als er geen nieuwe kernvraag is en het id bij een open of
+     beantwoorde vraag van het merk hoort, en die vraag wordt dan ook aan de pagina gekoppeld.
 - **Opslaan, in deze volgorde:** eerst de vragen (`bewaarVragen()`: `fact_requests` met `scope = 'merk'` of
-  `'pagina'`, `kind` uit de soort, `answer_type`, `options`, `content_piece_ids = [piece]`, `raw_json =
-  { bron: 'pagina_brief', soort }`; een unieke-index-botsing wordt genegeerd), dan de koppelingen
-  (`koppelVragen()`: de pagina wordt aan een bestaande vraag toegevoegd), dan pas `brief_json = { onderzoek,
-  bedrijf: { feiten: [{ id, text }] }, versie }` (alleen als het nog `null` is). Reden: anders ziet de poort
-  even nul openstaande vragen en schrijft de app te vroeg.
+  `'pagina'`, `kind` uit de soort, `answer_type`, `options`, `content_piece_ids = [piece]`, `required = kern`,
+  `raw_json = { bron: 'pagina_brief', soort, kern }`; een unieke-index-botsing wordt genegeerd), dan de
+  koppelingen (`koppelVragen()`: de pagina wordt aan een bestaande vraag toegevoegd), dan pas `brief_json =
+  { onderzoek, bedrijf: { feiten: [{ id, text }] }, versie, kernvraagId }` (alleen als het nog `null` is).
+  `kernvraagId` is het id van de nieuwe kernvraag, of anders `kern_eerder`, of `null`; het staat per pagina en
+  niet op de vraag, omdat een eerdere vraag de kern van deze pagina kan zijn en niet van een andere. Reden
+  voor de volgorde: anders ziet de poort even nul openstaande vragen en schrijft de app te vroeg.
 - **Bij fouten.** Faalt de brief vier keer, dan zet `briefGafOp()` een brief zonder onderzoek
   (`onderzoek: null`) en gaat de pagina door met alleen de open vraag. De tekst wordt minder goed, maar de
   pagina blijft niet hangen.
@@ -1789,12 +1909,18 @@ tussen een eigen pagina en een algemene AI-tekst.
 ### 12.1 De vragen staan per pagina
 
 - **Techniek.** `components/pagina/vragenlijst.tsx` en het vragenscherm lezen `fact_requests`
-  (`status` in `open`, `beantwoord`, `overgeslagen`). De open vraag staat bovenaan met een groot tekstvak;
-  bij elke gerichte vraag staat in één zin waarom hij gesteld wordt (`reason`). De vorm van het invoerveld
+  (`status` in `open`, `beantwoord`, `overgeslagen`). Op het scherm van een pagina staat de **kernvraag**
+  (`required = true`, 11.2) bovenaan, dan de open vraag met een groot tekstvak, dan de rest; op het
+  vragenscherm staat de kernvraag bovenaan de open vragen (`kernvraagEerst()`, `lib/feitenvraag.ts`). Bij de
+  kernvraag staat "Zonder dit antwoord wordt deze pagina zwak. Overslaan mag: de pagina wordt dan zonder dit
+  stuk geschreven." (`VERPLICHT_UITLEG`), op het vragenscherm met het label "Kernvraag van de pagina". Bij
+  elke gerichte vraag staat in één zin waarom hij gesteld wordt (`reason`). De vorm van het invoerveld
   volgt uit `answer_type` en `options` (`vraagVorm()`, `lib/feitenvraag.ts`: keuze, tekstvak, regel, getal,
-  bedrag, url).
+  bedrag, url); het tekstvak en de regel houden de grens van 1.500 tekens aan, en het tekstvak toont een
+  teller (`components/antwoordveld.tsx`).
 - **Waarom.** Het antwoord op de open vraag mag niet afhangen van of de klant zelf gaat typen: de consultant
-  kan de vragen samen met de ondernemer invullen, in diens woorden.
+  kan de vragen samen met de ondernemer invullen, in diens woorden. De kernvraag bovenaan helpt juist een
+  drukke klant om de ene vraag te beantwoorden die ertoe doet.
 
 ### 12.2 Beantwoorden of overslaan
 
@@ -1832,8 +1958,10 @@ van het kennisitem (4.2).
 ### 12.4 Wat er niet meer is
 
 - Sinds A3 en besluit V3 (27 september 2026) stellen het rapport (9.4) en de samenvatting (3.9) geen vragen
-  aan de klant meer. Alleen de brief stelt gerichte vragen, naast de vaste open vraag en het merkdossier.
-  Wat het onderzoek niet weet, staat als "open punt" op het kennisoverzicht van de consultant.
+  aan de klant meer. Alleen de brief stelt gerichte vragen, naast de vaste open vraag, het merkdossier en,
+  sinds 29 september 2026, de vraag van de schrijver (13.5). Een bewakingstest in `scripts/test-unit.ts`
+  staat alleen deze vier plekken toe. Wat het onderzoek niet weet, staat als "open punt" op het
+  kennisoverzicht van de consultant (5.1).
 - **Herinneringen.** Op het startscherm van de klant staat "Wacht sinds ..." (`lib/work.ts`), en het
   CSM-overzicht van de consultant telt pagina's die op antwoorden wachten (`lib/csm.ts`). De e-mail
   (`lib/email/question-reminder.ts`) rijdt mee op `/api/cron/reminders`, die niet in `vercel.json` staat en
@@ -1879,20 +2007,28 @@ van het bedrijf omzet in een pagina die de ondernemer zo op zijn site zet.
 - **Techniek.** `laadSchrijfbasis()` (`lib/pagina/schrijven.ts`) verzamelt de invoer (`SchrijfBlokken`) en
   `schrijfInvoer()` (`lib/pagina/schrijfopdracht.ts`) zet hem in deze volgorde in de opdracht:
   1. **De pagina:** titel, soort, nieuw of verbeteren.
-  2. **Zoekintentie (blok D):** wat de bezoeker wil (uit de brief, anders uit het plan) en de doelvragen (de
-     vragen die mensen aan AI-assistenten stellen; alleen de vraagtekst, niet het antwoord).
+  2. **Zoekintentie (blok D):** wat de bezoeker wil (uit de brief, anders uit het plan), de kernvraag van de
+     pagina ("De vraag die deze pagina moet beantwoorden: ..."), de rol ("Wat deze pagina doet dat de andere
+     pagina's van dit bedrijf niet doen: ...") en de doelvragen (de vragen die mensen aan AI-assistenten
+     stellen; alleen de vraagtekst, niet het antwoord). Rol en kernvraag komen uit het rapport
+     (`laadPaginaDefinitie()`, 11.2) en ontbreken als ze onbekend zijn (besluit V6, B-b).
   3. **"Wat we zeker weten over het bedrijf" (blok A)**, gemarkeerd als bedrijfskennis (11.3).
-  4. **"Wat de ondernemer vertelde" (blok B)**, ook bedrijfskennis: de open vraag letterlijk, en de
+  4. **"Wat de ondernemer vertelde" (blok B)**, ook bedrijfskennis: de open vraag letterlijk, de
      antwoorden op de gerichte vragen van deze pagina (`klantinput()`: `fact_requests` met deze pagina in
-     `content_piece_ids`, `status = 'beantwoord'`; merkbrede vragen en overgeslagen vragen niet).
+     `content_piece_ids`, `status = 'beantwoord'`; merkbrede vragen niet), en de gerichte vragen die de
+     ondernemer **oversloeg** ("Vragen die de ondernemer oversloeg (hier is geen antwoord op, dus beweer er
+     niets over)"; besluit V8, B-c). Een overgeslagen open vraag telt daar niet bij.
   5. **"Wat een goede pagina over dit onderwerp behandelt" (blok C)**, gemarkeerd als algemene kennis, met de
      zin "Dit is onderzoek op het web over het onderwerp, niet over dit bedrijf. Het zegt niet wat dit bedrijf
      doet of belooft.": deelvragen, vakkennis en valkuilen uit de brief.
   6. **"Zo klinkt dit bedrijf":** de stemvoorbeelden (`stemVan()`), elk met `zonderSiteHerhaling()` erover en
      afgekapt op 2.000 tekens; zonder stemvoorbeelden de homepagina vanaf de eerste alinea. Met de zin:
      "Neem de toon, de zinsbouw en de woordkeus over, niet de inhoud en niet de zinnen zelf."
-  7. **"Andere pagina's van dit bedrijf":** tot 60 titels van andere actuele pagina's van het merk, met de
-     aanwijzing er niet overheen te schrijven.
+  7. **"Andere pagina's over dit onderwerp, met wat ze doen (schrijf ernaast, niet eroverheen)":** tot
+     `MAX_BUREN = 20` andere pagina's uit hetzelfde cluster, elk als "titel: rol" (`burenInCluster()`: de
+     kansen van hetzelfde cluster die niet `vervallen` zijn, zonder de kans van deze pagina; de rol uit
+     `kansen.ruw`, besluit V7). Tot 29 september 2026 waren dit tot 60 titels van alle pagina's van het merk,
+     waaruit de schrijver niet kon opmaken wat hij aan zijn buren moest overlaten.
   8. **Bij verbeteren:** "De functie van deze pagina (vaste eis)" (`functieblok()`) en de huidige tekst.
 - **`zonderSiteHerhaling()`** (`lib/pipeline/site-herhaling.ts`, besluit V2): een reeks van `REEKS = 6`
   woorden die letterlijk op minstens `AANDEEL = 0,4` van de andere pagina's van dezelfde site terugkomt (bij
@@ -1911,17 +2047,21 @@ van het bedrijf omzet in een pagina die de ondernemer zo op zijn site zet.
   2. `haalStructuredOp()` haalt het resultaat op: `klaar`, `bezig` (nieuwe ophaaltaak met langere vertraging,
      tot `MAX_OPHAALPOGINGEN`) of `mislukt` (één herstart, `MAX_HERSTARTS = 1`).
 - **AI-aanroep** (kind `pagina_schrijven`): **Sol**, `redactioneel` (veel denktijd), achtergrondmodus.
-  Schrijfopdracht versie `SCHRIJFOPDRACHT_VERSIE = 4` (`lib/pagina/schrijfopdracht.ts`, het enige bestand
+  Schrijfopdracht versie `SCHRIJFOPDRACHT_VERSIE = 5` (`lib/pagina/schrijfopdracht.ts`, het enige bestand
   waar je aan draait om de kwaliteit te verbeteren). De opdracht in het kort (letterlijke kernzinnen):
   *"Je bent een ervaren vakschrijver en schrijft een pagina voor de eigen website van dit bedrijf. Schrijf de
-  beste pagina die iemand met deze vraag zou kunnen lezen. Wees inhoudelijk volledig, natuurlijk, concreet en
-  overtuigend. Beantwoord de vraag van de bezoeker meteen, en behandel daarna wat hij verder wil weten."*
+  beste pagina die iemand met deze vraag zou kunnen lezen. Beantwoord wat deze bezoeker wil weten, zo kort
+  als dat kan, en zeg elk punt één keer. Begin met het antwoord op zijn vraag. Schrijf natuurlijk, concreet en
+  overtuigend. Gebruik algemene vakkennis alleen waar die de lezer helpt kiezen of handelen, niet om te laten
+  zien wat je weet."* Versie 5 (besluit V13, 29 september 2026) verving "wees inhoudelijk volledig" en
+  "schrijf zo uitgebreid als nodig is", die in ronde 1 naar lange pagina's met randgevallen duwden.
   Houd bedrijfskennis en algemene kennis uit elkaar: bedrijfskennis is de enige basis voor wat dit bedrijf
   doet, biedt, belooft, rekent, adviseert of hanteert; algemene kennis mag uitleggen, maar nooit als werkwijze,
   belofte, advies of eigenschap van het bedrijf. *"Verzin geen bedrijfsclaims, cijfers, garanties, prijzen,
   resultaten, certificeringen, termijnen of andere concrete eigenschappen die niet uit de bedrijfskennis
   blijken. Weet je iets niet, laat het dan weg."* Een gegeven overal hetzelfde, ook in de metabeschrijving en
-  de FAQ. *"Schrijf zo uitgebreid als nodig is ... Voeg geen tekst toe alleen om langer te worden."*
+  de FAQ. *"Sloeg de ondernemer een vraag over, schrijf er dan niet omheen: geen alinea over wat de lezer zelf
+  moet navragen of wat niet bekend is. Kies een invalshoek die je met de informatie wel kunt waarmaken."*
   *"Schrijf als een vakman, niet als een AI die informatie afvinkt."* Noem nooit een ander bedrijf bij naam.
 - **Huisregels** (`schrijfSysteem()`): de aanspreekvorm (u, je of wij), de verboden onderwerpen ("Schrijf niet
   over ..."), de verboden woorden ("Gebruik deze woorden niet ..."), geen gedachtestreepje en nooit de schuine streep tussen "en" en "of", een
@@ -1963,6 +2103,16 @@ van het bedrijf omzet in een pagina die de ondernemer zo op zijn site zet.
   publicatie, 16.2). De titel uit het plan blijft de titel van de pagina. `status` blijft `draft`.
   Daarna `legAfhankelijkhedenVast()` (kans en pagina leunen op de kennisitems in `gebruikte_kennis`, 4.5) en
   `pagina_controle` wordt ingepland.
+- **De vraag van de schrijver wordt een vraag aan de klant** (besluit V16, 29 september 2026). Staat er in
+  `notitie_voor_ondernemer` iets bruikbaars (`vraagUitNotitie()`, `lib/pagina/notitie-vraag.ts`: niet leeg,
+  niet "null" of "nvt", hooguit `NOTITIE_VRAAG_MAX = 500` tekens), dan maakt `notitieAlsVraag()`
+  (`lib/pagina/taken.ts`) er een open vraag van bij deze pagina: `fact_requests` met `scope = 'pagina'`, het
+  cluster als `analysis_id`, `kind = 'aanvulling'`, `answer_type = 'tekst_lang'`, en `raw_json = { bron:
+  'notitie_schrijver' }`. Heeft het merk al een vraag met dezelfde tekst (na `normaliseerVraag`), dan hangt
+  de pagina aan die vraag in plaats van een tweede. Alleen bij het eerste schrijven, niet bij een
+  herschrijving; een fout hier houdt de pagina niet tegen. De pagina is dan al geschreven: de open vraag
+  houdt het goedkeuren niet tegen, maar het antwoord gaat de kennislaag in (voor de andere pagina's van het
+  cluster) en de klant kan er om een aanpassing mee vragen (15.3).
 - **Bij fouten.** Geeft het schrijven op (vier pogingen), dan gaat de pagina terug naar `briefing`
   (`schrijvenGafOp()`, alleen als er nog geen tekst is) en de plan-pagina naar `mislukt`. De ochtendronde
   probeert het de volgende dag opnieuw.
@@ -2031,10 +2181,14 @@ ondernemer voor in plaats van het zelf te beslissen.
      uitleg staat; als iets wat dit bedrijf doet of belooft wel. De zinnen van de code zijn "niet automatisch
      fout".
   2. *Is het goed?* De hoofdvraag meteen beantwoord, de zoekintentie afgedekt, natuurlijk geschreven, klinkt als
-     de stemvoorbeelden, genoeg diepgang, geen onnodige herhaling, geen zinnen letterlijk overgenomen uit de
-     stemvoorbeelden, geen AI-content, iets wat echt van dit bedrijf komt, heeft de lezer er iets aan.
+     de stemvoorbeelden, geen onnodige herhaling, geen zinnen die de lezer niet helpen, geen zinnen letterlijk
+     overgenomen uit de stemvoorbeelden, geen AI-content, iets wat echt van dit bedrijf komt, heeft de lezer er
+     iets aan. De vraag naar "genoeg diepgang" is sinds 29 september 2026 weg (besluit V14, B-d).
   "Oordeel 'goed' als je deze pagina zo op de site van de ondernemer zou zetten." Anders `niet_goed`, met
-  hooguit `MAX_PUNTEN = 5` punten (waar, probleem, hoe het beter kan). Geen punten over smaak.
+  hooguit `MAX_PUNTEN = 5` punten (waar, probleem, hoe het beter kan). Geen punten over smaak. **Een punt
+  schrapt, corrigeert, verplaatst of maakt korter**: het vraagt nooit om een bedrag, een totaal, een
+  voorwaarde, een uitzondering, een belofte of een voorbehoud dat niet al in de informatie staat (V14). In
+  ronde 1 gingen de punten vooral over meer voorbehouden, en voegde de herschrijving die allemaal toe.
 - **Uitvoer** (`ControleSchema`): `oordeel` (`goed` of `niet_goed`), `verzonnen` (zin en waarom), `punten`.
   **Geen cijfer.**
 - **Waarom.** Sol beoordeelt tekst van Sol, met het risico van een milde beoordelaar. De verdediging: er is geen
@@ -2042,11 +2196,15 @@ ondernemer voor in plaats van het zelf te beslissen.
 
 ### 14.4 De beslissing
 
-- **Techniek.** `moetHerschrijven(beoordeling, ongedekt + verboden)` (puur): herschrijven als het oordeel
-  `niet_goed` is, of als er `verzonnen` zinnen zijn, of als er ongedekte of verboden zinnen zijn. Mislukt de
-  beoordeling zelf (`beoordeling = null`), dan komt er **geen** herschrijving. Bij "herschrijven" schrijft de
-  code `controle_json` alvast weg (`ongedekt`, `verboden`, `beoordeling`, `herschreven: false`) en plant
-  `pagina_herschrijven` in; anders gaat de pagina direct naar de klant (14.6).
+- **Techniek.** `moetHerschrijven(beoordeling, verboden)` (puur): herschrijven als het oordeel `niet_goed`
+  is, als er `verzonnen` zinnen zijn, of als er een zin met een verboden woord in staat. **Een zin die alleen
+  de code niet terugvond (ongedekt), is geen reden om te herschrijven** (besluit V15, B-e, 29 september
+  2026): die zin wordt geel en de ondernemer beslist (14.6). In ronde 1 kwamen drie van de tien
+  herschrijvingen alleen daardoor, en bij één pagina gingen daarbij drie bruikbare veelgestelde vragen
+  verloren. Een verboden woord blijft wel een reden: dat is een harde huisregel van de klant, geen twijfel
+  over een feit. Mislukt de beoordeling zelf (`beoordeling = null`), dan komt er **geen** herschrijving. Bij
+  "herschrijven" schrijft de code `controle_json` alvast weg (`ongedekt`, `verboden`, `beoordeling`,
+  `herschreven: false`) en plant `pagina_herschrijven` in; anders gaat de pagina direct naar de klant (14.6).
 - **Waarom.** Regelwerk in code en niet een model dat beslist of hij zichzelf overdoet.
 
 ### 14.5 De herschrijving (niet altijd)
@@ -2055,14 +2213,18 @@ ondernemer voor in plaats van het zelf te beslissen.
   (`is_current`), er tekst is, en (zonder klantwens) er een `controle_json` is dat nog niet herschreven is: dus
   **hooguit één herschrijving per pagina**. **AI-aanroep** (kind `pagina_herschrijven`): Sol, `redactioneel`,
   achtergrondmodus, dezelfde opdracht en invoer als het schrijven, plus `herschrijfInvoer()`: "HIER IS JE
-  VORIGE VERSIE EN DE FEEDBACK. SCHRIJF EEN BETERE VERSIE." met de vorige versie, de punten van de eindredacteur,
-  de verzonnen en ongedekte zinnen ("haal ze weg of schrijf ze zonder de bewering") en de zinnen met een
-  verboden woord.
+  VORIGE VERSIE EN DE FEEDBACK. SCHRIJF EEN BETERE VERSIE. Voer de punten uit en laat de rest van de tekst
+  staan, ook de veelgestelde vragen." (die laatste zin sinds V14) met de vorige versie, de punten van de
+  eindredacteur, de verzonnen en ongedekte zinnen ("haal ze weg of schrijf ze zonder de bewering") en de
+  zinnen met een verboden woord.
 - **Code daarna.** De mechanische reparatie (13.4) en de controles 14.1 en 14.2 draaien opnieuw op de nieuwe
-  tekst. `kiesVersie()`: de nieuwe versie blijft, tenzij hij **meer** onbewezen of verboden zinnen heeft dan de
-  vorige; dan blijft de eerste versie staan. De keuze wordt vastgelegd in `controle_json.herschrijving`
-  (`ongedekt_vorige`, `ongedekt_nieuw`, `behouden`). Bij de nieuwe versie worden `gebruikte_kennis` en de
-  afhankelijkheden bijgewerkt.
+  tekst. **De herschrijving blijft altijd** (besluit V15, B-e, 29 september 2026). Tot die datum koos
+  `kiesVersie()` de vorige versie zodra de herschrijving meer ongedekte zinnen had, en ging zo bij één pagina
+  in ronde 1 een betere versie weg die het ontbrekende telefoonnummer had opgelost. Nu worden de ongedekte en
+  verboden zinnen van de nieuwe versie geel, en houdt `nieuwOngedekt()` apart bij welke daarvan de
+  herschrijving bijzette. Vastgelegd in `controle_json.herschrijving` (`ongedekt_vorige`, `ongedekt_nieuw`,
+  `behouden`, dat nu altijd `nieuw` is, en `nieuw_ongedekt`; oudere controles kunnen nog `vorige` dragen). De
+  nieuwe versie krijgt bijgewerkte `gebruikte_kennis` en afhankelijkheden.
 - **Er komt geen tweede beoordeling en geen tweede herschrijving.**
 - **Bij fouten.** Geeft de herschrijving op (`herschrijvenGafOp()`), dan blijft de eerste versie staan met de
   gele zinnen.
@@ -2074,7 +2236,18 @@ ondernemer voor in plaats van het zelf te beslissen.
   die er (na eventuele herschrijving) nog in staan. Een gele zin houdt de pagina niet tegen, maar de klant moet
   hem bevestigen of aanpassen voor hij goedkeurt (15.3). `zetKlaar()` zet `status = 'ready'`,
   `needs_review = true`, schrijft `controle_json = { ongedekt, verboden, beoordeling, herschreven, herschrijving?,
-  gele_zinnen, bevestigd: [] }`, en zet de plan-pagina op `ter_goedkeuring`.
+  gele_zinnen, bevestigd: [], verdwenen? }`, en zet de plan-pagina op `ter_goedkeuring`.
+- **Verdwenen gegevens** (besluit V21 punt 3, B-h, 29 september 2026). Bij een verbeterpagina zoekt
+  `verdwenenVan()` (`lib/pagina/taken.ts`) met `verdwenenGegevens()` (`lib/pagina/verdwenen-gegevens.ts`,
+  puur, zonder model) de harde gegevens van de huidige pagina die niet in de nieuwe tekst (hoofdtekst,
+  metabeschrijving en FAQ-antwoorden) staan: telefoonnummers (vergeleken op cijfers), keurmerken met sterren
+  (`SKG***` en `SKG★★★` zijn hetzelfde), en getallen met een harde eenheid (euro, procent, dag, week, maand,
+  jaar, uur, minuut; een getal zonder eenheid of een opsomming als "3 tips" telt niet). Op de huidige tekst
+  gaat eerst `zonderSiteHerhaling()` (13.2), zodat een telefoonnummer in de voettekst van de site niet als
+  verdwenen telt. Hooguit `MAX_VERDWENEN = 10`, in `controle_json.verdwenen` (alleen als er iets ontbreekt).
+  Dit houdt niets tegen: soms is weglaten juist de bedoeling (een oude prijs). Aanleiding: bij een
+  verbeterpagina in ronde 1 verdween een deel van de tarieven, en bij een andere het telefoonnummer, zonder
+  dat iemand het zag.
 - **Bij fouten.** Mislukt de beoordeling helemaal (`controleGafOp()`), dan komt er geen herschrijving: de
   ongedekte zinnen worden geel en de pagina gaat toch naar de klant.
 - **Waarom.** De laatste beslissing over wat er over zijn bedrijf staat, ligt bij de ondernemer. De app legt
@@ -2097,8 +2270,13 @@ zo op mijn site? Dat is de enige maatstaf die telt (`docs/tasks/contentketen-opn
 
 - **Techniek.** `app/(app)/merk/[id]/strategie/bibliotheek/[paginaId]/page.tsx` rendert `body_markdown` met
   `renderMarkdown()` (`lib/markdown.ts`), met bovenaan de `notitie_voor_ondernemer` van de schrijver als die
-  er is. De gele zinnen (`controle_json.gele_zinnen`) worden in de tekst, de metabeschrijving en de
-  FAQ-antwoorden gemarkeerd (`markeerZinnen()`, `lib/tekst-markering.ts`), elk met "Klopt" en "Pas aan". De
+  er is (die staat sinds V16 ook als open vraag bij de pagina, 13.5). De gele zinnen
+  (`controle_json.gele_zinnen`) worden in de tekst, de metabeschrijving en de
+  FAQ-antwoorden gemarkeerd (`markeerZinnen()`, `lib/tekst-markering.ts`), elk met "Klopt" en "Pas aan". Bij
+  een verbeterpagina staat, zolang de pagina niet is goedgekeurd, het blok "Gegevens van je huidige pagina"
+  met de gegevens uit `controle_json.verdwenen` (14.6) en de zin dat ze op de huidige pagina staan en niet in
+  de nieuwe tekst; horen ze erbij, dan vraagt de klant een aanpassing (15.3), zijn ze niet meer actueel, dan
+  keurt hij gewoon goed (`components/pagina/goedkeuren.tsx`). De
   punten van de eindredacteur staan erbij als "Wat we nog zien", maar alleen als er niet herschreven is. Onder
   de tekst staan, ook vóór het goedkeuren, de metatitel, de metabeschrijving en de FAQ: ze horen bij wat de
   ondernemer goedkeurt.
@@ -2134,7 +2312,8 @@ zo op mijn site? Dat is de enige maatstaf die telt (`docs/tasks/contentketen-opn
   beoordeling**. Het resultaat wordt een **nieuwe versie** (`nieuweVersie()`): een nieuwe `content_pieces`-rij
   met `version + 1`, `supersedes_id`, `revision_note` (de wens), `is_current = true` (de oude wordt
   `is_current = false` en blijft bewaard), status `ready`, `needs_review = true`, en een `controle_json` waarin
-  alle ongedekte en verboden zinnen van de nieuwe tekst meteen geel zijn. `wijsNaarNieuweVersie()` laat de
+  alle ongedekte en verboden zinnen van de nieuwe tekst meteen geel zijn (zonder een nieuwe lijst met
+  verdwenen gegevens: die berekent alleen `zetKlaar()`, 14.6). `wijsNaarNieuweVersie()` laat de
   plan-pagina en alle bijbehorende `fact_requests` naar de nieuwe versie wijzen. De afhankelijkheden worden
   opnieuw vastgelegd.
 - **Waarom.** De klant blijft de baas over de tekst, zonder dat de app een tweede cyclus van eigen oordelen
@@ -2435,8 +2614,11 @@ Search Console-synchronisatie (18.3).
 | **Clusters ontdekken** | Vindt nieuwe kandidaat-clusters voor een thema uit Search Console en DataForSEO Labs (eigen site, echte concurrenten, suggesties), schift ze op aanbod en strategie, en bundelt tot 6 tot 12 kandidaten. Eén zware AI-aanroep (de bundeling). Schrijft niet in de potentiescore of de meetgewichten | `discovery_collect`, `discovery_expand`, `discovery_sift`, `discovery_bundle` | `lib/pipeline/cluster-discovery.ts`, `lib/discovery/`, `app/api/profiles/[id]/discovery` |
 | **Clusters aanvullen** | Stelt extra onderwerpen voor (`propose_more_topics`), alleen door de consultant (`clusters_aanvullen`) | `propose_topics`-achtig | `lib/pipeline/propose-more-topics.ts` |
 | **Reputatie** | Een los product: een analyse van de reputatie van het merk (toon, plaats, bewijskracht) met eigen vragen, vergelijkingen met concurrenten en een synthese. De volgorde van inplannen is een budgetmaatregel: de vergelijking valt als eerste weg | `reputation_start`, `_evidence`, `_brand`, `_offering`, `_compare`, `_sources`, `_market`, `_synthesis` | `lib/pipeline/reputation-*.ts`, `app/api/profiles/[id]/reputation` |
-| **Sales-module** | Intern (een klant ziet er niets van, de scheiding staat in de database): zoekt uit een markt de beste saleskansen, onderbouwt ze en zet een conceptmail klaar. De app verstuurt zelf nooit een openingsmail; elk getal in een zin die naar buiten gaat wordt tegen de meetdata gecontroleerd | `sales_*` (13 soorten) | `lib/sales/`, `lib/pipeline/sales-*.ts`, `app/(app)/sales`, `app/api/sales` |
 | **Solliciteren** | Een zijproject van één pagina achter dezelfde inlog, met eigen stijlblad; geen onderdeel van de klantpijplijn | Geen | `app/solliciteren/`, `app/api/solliciteren` |
+
+De **Sales-module** (saleskansen uit een markt, onderbouwing en conceptmails, dertien taaksoorten) is op
+30 september 2026 uit de app verwijderd: schermen, API-routes, `lib/sales/`, `lib/pipeline/sales-*.ts`,
+`app/markt/` en de tests. Alleen de `sales_*`-tabellen staan nog in de database (deel I §4).
 
 ---
 
@@ -2466,7 +2648,7 @@ tweede kolom. "Luna" is `gpt-6-luna` (in de code `MODELS.quality` of `MODELS.vol
 | 8.4 | `classify_entities` | Luna | deterministic | Nee | `aggregate_week` |
 | 8.7 | `competitor_intel` | Luna | deterministic | Nee | `profile_competitors` |
 | 9.3 | `gap_analysis` | Luna | analytical | Nee | `generate_report` |
-| 9.4 | `report` | Luna | analytical | Nee | `generate_report` |
+| 9.4 | `report` | Luna | judging (tot 29 september 2026 analytical) | Nee | `generate_report` |
 | 9.5 | `search_demand_calibration` | Luna | content | Nee | `recalculate_potential` |
 | 11.2 | `pagina_brief` | Sol | analytical | Ja | `pagina_brief` |
 | 13.3 | `pagina_schrijven` | Sol | redactioneel, achtergrondmodus | Nee | `pagina_schrijven` |
@@ -2477,11 +2659,13 @@ tweede kolom. "Luna" is `gpt-6-luna` (in de code `MODELS.quality` of `MODELS.vol
 | 18.4 | `source_presence` en verwante | Luna | Zie `lib/offsite/` | Ja | `offsite_scan` |
 | 18.5 | `discovery_seeds`, `discovery_sift`, `discovery_bundle` | Luna | Zie `lib/pipeline/cluster-discovery.ts` | Nee | `discovery_*` |
 | 18.5 | `reputation_*` (o.a. `reputation_ratings`, `_verdict`, `_synthesis`) | Luna | Zie `lib/pipeline/reputation-*.ts` | Ja | `reputation_*` |
-| 18.5 | `sales_*` | Luna | Zie `lib/pipeline/sales-*.ts` | Deels | `sales_*` |
 
 Wat er niet in de tabel staat omdat er geen AI-aanroep is: vooronderzoek (3.1), de crawl (3.2), de audit (3.3),
-alle controles in code (14.1, 14.2), de kansenvolgorde, het meetplan, het oordeel over de nameting, de
-publicatiecontrole, de kennistest-oordelen.
+alle controles in code (14.1, 14.2, de verdwenen gegevens in 14.6), de kansenvolgorde, het samenvoegen van
+kansen (9.5), de kaartzin (10.1), de vraag van de schrijver (13.5), het meetplan, het oordeel over de
+nameting, de publicatiecontrole, de kennistest-oordelen. De fasen 3 tot en met 5 van de pijplijnanalyse
+(29 september 2026) hebben geen AI-aanroep toegevoegd: ze veranderden opdrachten en invoer van bestaande
+aanroepen, en de denkinspanning van het rapport.
 
 ## Bijlage B. Alle taaksoorten
 
@@ -2521,7 +2705,9 @@ genoeg tijd over is (0.2).
 | `measure_impact` | 17.3 | Nee | `measure_prompt`, `measure_ai_overview` |
 | `compute_impact` | 17.4 | Nee | Geen |
 | `gsc_sync` | 18.3 | Nee | Geen |
-| `discovery_*` (4), `reputation_*` (8), `sales_*` (13) | 18.5 | Deels | Zie modules |
+| `discovery_*` (4), `reputation_*` (8) | 18.5 | Deels | Zie modules |
+
+De dertien `sales_*`-taaksoorten zijn op 30 september 2026 met de Sales-module verwijderd.
 
 ## Bijlage C. Statusmodellen
 
@@ -2533,8 +2719,8 @@ genoeg tijd over is (0.2).
 | `analyses.status` | `bezig`, `concept_klaar`, `meten`, `gemeten`, `gereed`, `mislukt` | 7.1, 7.4, 7.5, 8.6, 9.4 |
 | `profile_topics.status` en `stage` | `voorgesteld`, `goedgekeurd`, `afgewezen`; `concept`, `definitief` | 3.6, 5.4, 7.1 |
 | `klantkennis.status` | `waargenomen`, `verklaard`, `bevestigd`, `afgeleid` | 4.2 |
-| `fact_requests.status` | `open`, `beantwoord`, `overgeslagen` | 11.2, 12.2 |
-| `kansen.status` | `open`, `ingepland`, `in_voorbereiding`, `geschreven`, `gepubliceerd`, `vervallen`, `te_herzien` | 9.5, 4.5 |
+| `fact_requests.status` | `open`, `beantwoord`, `overgeslagen` | 11.1, 11.2, 13.5 (nieuw, `open`), 12.2 |
+| `kansen.status` | `open`, `ingepland`, `in_voorbereiding`, `geschreven`, `gepubliceerd`, `vervallen`, `te_herzien` | 9.5 (ook `vervallen` voor een kans die als bewijs bij een andere kans ging), 4.5 |
 | `content_plans.status` | `concept`, `actief`, `gestopt` | 10.2 |
 | `plan_months.status` | `concept`, `ter_goedkeuring`, `goedgekeurd`, `afgewezen` | 10.2, 10.4 |
 | `planned_pages.status` | `gepland`, `schrijven`, `ter_goedkeuring`, `goedgekeurd`, `geplaatst`, `afgewezen`, `mislukt` | 10, 13.1, 14.6, 15.4, 16.2 |
@@ -2582,7 +2768,7 @@ In de database (per merk of account): `profiles.onboarding_budget_usd` (2,15), `
 
 | Wat | Waar | Schema | Doet |
 |---|---|---|---|
-| Werker | Supabase `pg_cron` `geo-worker` → `trigger_worker()` → `pg_net` → `/api/cron/worker` | Elke minuut | Pakt taken op (0.2), plus geplande sales-hermetingen |
+| Werker | Supabase `pg_cron` `geo-worker` → `trigger_worker()` → `pg_net` → `/api/cron/worker` | Elke minuut | Pakt taken op (0.2) |
 | Ochtendronde | Supabase `pg_cron` `orbit-engine-plan-writer` → `trigger_plan_writer()` → `/api/cron/plan` | 04:00 UTC dagelijks | Voorbereiden en schrijven van vrijgegeven pagina's (11.6), en `gsc_sync` per gekoppeld merk (18.3) |
 | Maandelijkse meting | Vercel Cron | `0 6 1 * *` | `/api/cron/tracking` (18.1) |
 | Herinneringen | Route `/api/cron/reminders` | Staat niet in `vercel.json` en draait dus niet automatisch (Vercel Hobby laat twee cron-taken toe, volgens `docs/architecture.md`); doet bovendien niets zonder `EMAILS_ENABLED` | E-mail bij pagina's die op publicatie of antwoorden wachten |
@@ -2616,15 +2802,21 @@ gemeten. De echte kosten staan per aanroep in `ai_calls.cost_usd`.
 Bij het nalezen tegen de code bleek een aantal beweringen in `docs/doorloop-van-klant-tot-content.md` (peildatum
 26 september 2026, gecontroleerd tegen `main` na PR #162) niet meer of niet te kloppen. De code is leidend.
 
-| Onderwerp | Oudere documentatie | Code op deze branche |
+| Onderwerp | Oudere documentatie | Code op `main` |
 |---|---|---|
 | Pakketmaten | 5, 10 of 20 pagina's per maand | **10, 20 of 40** (`PACKAGE_SIZES`, check-constraint in migratie 0046, foutmelding in de accountroute) |
 | Klantaccount aanmaken | Alleen "toewijzen aan een gebruiker" | Ook: `assign-by-email` maakt een nieuw account en een uitnodiging met link als het adres nog niet bestaat (6.1) |
 | Tekenbudget merkonderzoek | 55.000 tekens (bij het aanbod vermeld als 55.000 en later 250.000) | Profiel: 60.000 (`prepare-profile.ts`); aanbod: 250.000 (`offering.ts`); samenvatting: 45.000 (`synthesis.ts`) |
 | Zoekvolume van meetvragen | "Een schatting van het model, geen echte zoekdata" | Een schatting, **tenzij** `SEARCH_DEMAND_ENABLED=true` (standaard uit): dan gemeten via DataForSEO (`volume_source`) |
 | Aanbodcitaat | "Het citaat wordt nagelopen; wat afvalt, komt als open punt" | Een knoop zonder bekende bronpagina of met een adviescitaat vervalt; een citaat dat niet letterlijk op de pagina staat geeft `confidence = 0,5` maar de knoop blijft |
-| Brief | Versie 4, met het kennisgat van de kans en de concurrentie | **Versie 5**: geen kennisgat meer (V19), geen concurrentie (B22), vakkennis over het bedrijf zelf valt weg (V4), eerdere antwoorden meegegeven (V17) |
-| Schrijfopdracht | Versie 3 | **Versie 4** (`SCHRIJFOPDRACHT_VERSIE = 4`) |
+| Brief | Versie 4, met het kennisgat van de kans en de concurrentie | **Versie 6**: geen kennisgat meer (V19), geen concurrentie (B22), vakkennis over het bedrijf zelf valt weg (V4), eerdere antwoorden meegegeven (V17), en de kernvraag van de pagina met een markering van de vraag die hem beantwoordt (V8, 11.2) |
+| Schrijfopdracht | Versie 3 | **Versie 5** (`SCHRIJFOPDRACHT_VERSIE = 5`): de lezer als maatstaf, zo kort als dat kan, niet om een overgeslagen vraag heen schrijven (V13, 13.3) |
+| Andere pagina's voor de schrijver | Tot 60 titels van het merk, "schrijf er niet overheen" | Tot 20 pagina's uit hetzelfde cluster, elk met hun rol, "schrijf ernaast, niet eroverheen" (V7, 13.2) |
+| Aanbeveling | Een titel, de lezer, de reden | Een onderwerp als titel (geen opdracht), de lezer, een rol in de set en een kernvraag; het rapport ziet de open kansen van het hele merk (V6, V7, 9.4) |
+| Meetvragen en bezwaren | Minstens één vraag over een twijfel uit het verkoopgesprek | Hooguit één per cluster, alleen in de fase overweging en alleen als het bezwaar bij het onderwerp past (V11); een vraag die al in een ander cluster van het merk staat, wordt niet nog eens gemeten (V18, 7.3, 7.4) |
+| De beoordeling | Onder meer "genoeg diepgang" | Die vraag is weg; een verbeterpunt schrapt, corrigeert, verplaatst of maakt korter en voegt niets toe (V14, 14.3) |
+| De beslissing om te herschrijven | Bij "niet goed", verzonnen, onbewezen of verboden zinnen | Bij "niet goed", een verzonnen zin of een verboden woord; een zin die alleen de code niet terugvond wordt geel zonder herschrijving (V15, 14.4) |
+| Welke versie blijft na herschrijven | De nieuwe, tenzij hij meer onbewezen zinnen heeft | Altijd de nieuwe; wat hij aan onbewezen zinnen bijzette wordt geel (V15, 14.5) |
 | Lengte gericht antwoord | Tot 500 tekens | **1.500** (`GERICHT_ANTWOORD_MAX`, V1); open vraag 3.000 |
 | Blok A | Feiten uit `brand_facts`, beperkt met een woordfilter | Uit de kennislaag (`klantkennis`), met statusregels, dossier per pagina en een cap van 150 (K6, V3) |
 | Antwoorden hergebruik | Een antwoord hoort bij de pagina | Een gericht antwoord geldt ook voor het cluster van die pagina (V17, B32), een praktijkvoorbeeld en de open vraag niet |
@@ -2693,8 +2885,9 @@ en zijn niet op productie of met testdata nagelopen; waar iets een afleiding is,
 **Contentkwaliteit**
 
 15. **Sol beoordeelt tekst van Sol** (14.3). De verdediging is het ontbreken van een cijfer en het maximum van één
-    herschrijving. Op de proef werd volgens de documentatie 5 van 9 pagina's herschreven; of de drempel
-    ("niet goed" of één ongedekte zin) te streng of goed is, is niet vastgesteld.
+    herschrijving. Op de proef werd volgens de documentatie 5 van 9 pagina's herschreven, toen nog ook bij
+    alleen een ongedekte zin. Sinds 29 september 2026 is dat geen reden meer (14.4); of de drempel ("niet
+    goed", een verzonnen zin of een verboden woord) nu goed staat, is nog niet tegen productie nagerekend.
 16. **De controle in code ziet geen beweringen zonder getal of beloftewoord** (14.1).
 17. **Blok A kan tot 150 items bevatten**; of goede feiten in een lange lijst verdwijnen is niet gemeten.
 18. **De crawler leest `robots.txt` alleen voor sitemapregels** en negeert `Disallow` (3.2). Alleen de technische
@@ -2702,12 +2895,25 @@ en zijn niet op productie of met testdata nagelopen; waar iets een afleiding is,
 19. **De schrijfpoort behandelt een onbekend aantal open vragen als "nog niet"** (13.1). Een databasefout bij het
     tellen zet het schrijven dus stil tot de ochtendronde (11.6).
 20. **De kennistest meet één plaats** (`service_regions[0]`), ook bij meerdere vestigingen (3.8).
+21. **Fase 3 tot en met 5 van de pijplijnanalyse zijn gebouwd, niet geverifieerd.** De wijzigingen van 29
+    september 2026 (9.4, 9.5, 10.1, 11.2, 13.2, 13.3, 13.5, 14.3 tot en met 14.6, 7.3, 7.4, 3.9) zijn getest
+    met eenheids- en ketentests, maar nog niet tegen productie of opgeslagen klantdata nagerekend
+    (`docs/tasks/pijplijnanalyse-contentketen.md` §10). Een rapport van vóór die datum heeft geen rol en geen
+    kernvraag, dus bestaande kansen en pagina's krijgen die pas na een nieuw rapport.
+22. **Het samenvoegen van kansen kijkt niet door naar de pagina.** Gaat een nieuwe kans als bewijs bij een open
+    kans die al een pagina in voorbereiding heeft (9.5), dan krijgt de telling van die kans de extra
+    doelvragen, maar de schrijver van die pagina leest zijn doelvragen nog uit het oorspronkelijke rapport
+    (`laadDoelvragen()` via `source_ref`). Afgeleid uit de code.
 
-**Kwaliteitsborging in de repository (niet door mij uitgevoerd)**
+**Kwaliteitsborging in de repository**
 
 - Vóór elke commit horen `npx tsc --noEmit`, `npm run test:unit`, `npm run test:chain` en `npm run build`
-  groen te zijn (`CLAUDE.md`). Volgens het commitbericht van `e74937e` waren dat 5.594 eenheidstests en 994
-  ketentests. `npm run test:openai` doet echte, betaalde aanroepen; `npm run eval:mention` toetst de
+  groen te zijn (`CLAUDE.md`). Bij de samenvoeging in PR #208 (30 september 2026) waren alle vier groen, met
+  5.020 eenheidstests en 825 ketentests. Minder dan de 5.684 en 1.004 van een dag eerder, omdat de tests
+  van de Sales-module met die module zijn verwijderd. Bij die samenvoeging bleek ook dat het
+  eenheidstestbestand sinds het verwijderen van Sales halverwege stopte en ruim 1.400 tests stil oversloeg
+  terwijl de uitslag "0 mislukt" gaf; de samenvatting staat nu onderaan het bestand, zodat dat niet meer
+  kan. `npm run test:openai` doet echte, betaalde aanroepen; `npm run eval:mention` toetst de
   beoordeling uit 8.3.
 - De tests vervangen de AI met `__setTestTransport()` (0.4), zodat de ketentests (`scripts/test-chain.ts`) de
   volledige keten zonder betaalde aanroepen kunnen doorlopen.
