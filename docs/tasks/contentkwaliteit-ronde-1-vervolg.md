@@ -13,6 +13,11 @@
 
 ## 0. Waar we staan (29 september 2026)
 
+> **Bijgewerkt 29 september 2026:** de feedback op alle drie de documenten is binnen
+> (`content-reviews/ronde-1-feedback/`). Stap 2 en 3 zijn gedaan; het concept voor stap 4 staat in
+> `content-reviews/ronde-1-patronen.md`, met de ingevulde matrix. Open: of de beoordeling door een
+> mens of door een AI is gedaan, en de publiceer-keuzes van klant B.
+
 De drie klanten zijn doorlopen via de gewone routes van de app, achttien pagina's zijn geschreven,
 niets is gepubliceerd. Alle drie de klantdocumenten zijn gebouwd met sjabloonversie 2 van §4.
 
