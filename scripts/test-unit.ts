@@ -58,6 +58,12 @@ import {
   type KennisVoorKans,
 } from "@/lib/kansen/rapport";
 import { BESLUITEN } from "./kennis-open-punten";
+import { GERICHT_ANTWOORD_MAX, antwoordGrens, antwoordTeLang } from "@/lib/feitenvraag";
+import { keurmerkSterren, zonderCodeOpmaak } from "@/lib/pagina/mechanisch";
+import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
+import { isOnleesbaarAntwoord } from "@/lib/openai/onleesbaar";
+import { metPublicatiedatum } from "@/lib/schema-jsonld";
+import { contactUitFeiten, contactBlok } from "@/lib/pagina/contact";
 import { openPuntenSql, foutenVan } from "@/lib/kennis/open-punten";
 import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
 import { kennisrondeVoorMerk, BEHOEFTE_DOMEIN, type KennisrondeKans } from "@/lib/kansen/kennisronde";
@@ -18568,9 +18574,10 @@ group("De bestaande pagina als bron (O3, existing-page-fetch.ts)", () => {
     "en zonder allebei is er niets",
     chooseExistingText({ fresh: "   ", excerpt: null }) === null,
   );
-  // ⚠️ 6000 tekens en niet 1500: 667 van de 738 gecrawlde pagina's op productie
-  // staan op de crawlgrens, en 9 van de 10 daadwerkelijk verbeterde pagina's ook.
-  ok("de ophaalgrens ligt op 6000 tekens", EXISTING_PAGE_MAX_CHARS === 6000);
+  // ⚠️ Niet 1500: 667 van de 738 gecrawlde pagina's op productie staan op de
+  // crawlgrens. En sinds 29 september 2026 niet 6000: in ronde 1 stonden 2 van de
+  // 12 verbeterpagina's precies op die grens (V21).
+  ok("de ophaalgrens ligt op 12000 tekens", (EXISTING_PAGE_MAX_CHARS as number) === 12000);
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -21070,6 +21077,13 @@ group("Een verbetering houdt de functie van de pagina (verbeterronde, punt 45)",
   ok("een prijzenpagina wel te verbeteren", !isFunctiepagina("https://www.autorijschoolpompert.nl/prijzen-lespakketten/"));
   const blok = functieblok("https://www.autorijschoolpompert.nl/prijzen-lespakketten/", "Autorijles pakketten & prijzen");
   ok("het blok zegt dat alle prijzen blijven", blok.includes("Alle prijzen en pakketten") && blok.includes("Autorijles pakketten & prijzen"));
+  eq("V21: de tipspagina van ronde 1 is een verzameling", paginaSoort("https://www.ongediertebestrijdingdewaard.nl/tips/"), "verzameling");
+  eq("V21: een los nieuwsbericht", paginaSoort("https://ongediertebestrijdingdewaard.nl/nieuws/aziatische-hoornaar-krimpenerwaard"), "bericht");
+  eq("V21: een kennisbankartikel is een onderwerp", paginaSoort("https://www.myfinance.nl/kennisbank/artikel/boekhouder-aangifte-ib/"), "onderwerp");
+  eq("V21: de prijspagina van de software is een prijzenpagina", paginaSoort("https://myfinance.nl/prijzen/"), "prijzen");
+  ok("V21: verzameling en bericht worden niet vervangen", isFunctiepagina("https://www.ongediertebestrijdingdewaard.nl/tips/") && isFunctiepagina("https://ongediertebestrijdingdewaard.nl/nieuws/x"));
+  ok("V21: de gegevens van de pagina blijven erop", blok.includes("blijven erop, tenzij de bedrijfskennis"));
+  ok("V21: de schrijver krijgt de functie weer mee", leesBestand("lib/pagina/schrijven.ts").includes("functieblok(pagina.bestaandAdres, null)") && leesBestand("lib/pagina/schrijfopdracht.ts").includes("DE FUNCTIE VAN DEZE PAGINA (vaste eis)"));
   eq("zonder bestaande pagina geen blok", functieblok(null, null), "");
 
   // De echte aanbeveling van de hovenier: de homepage verbeteren.
@@ -21403,7 +21417,7 @@ group("lib/pagina importeert alleen wat op de lijst van §7.3 staat", () => {
     /^@\/lib\/types\/database$/,
     /^@\/lib\/open-questions$/,
     /^@\/lib\/schrijfregel-vangnet$/,
-    /^@\/lib\/pipeline\/(redact|existing-page-fetch|waardeproposities|dash-guard|metatitel|content-export|structured-data|meetplan)$/,
+    /^@\/lib\/pipeline\/(redact|existing-page-fetch|waardeproposities|dash-guard|metatitel|content-export|structured-data|meetplan|site-herhaling|paginafunctie)$/,
     /^@\/lib\/schema-jsonld$/,
     /^@\/lib\/plan-(status|writing)$/,
     /^@\/lib\/kennis\/(voor-pagina|blok-a)$/,
@@ -23618,3 +23632,89 @@ group("A3: één bron van vragen (besluit V3)", () => {
   );
 });
 
+
+group("V1: een antwoord wordt nooit stil afgekapt (pijplijnanalyse-contentketen.md)", () => {
+  eq2("een gericht antwoord mag 1500 tekens", GERICHT_ANTWOORD_MAX, 1500);
+  eq2("de open vraag houdt zijn eigen grens", antwoordGrens(true, 3000), 3000);
+  eq2("een gerichte vraag krijgt de gerichte grens", antwoordGrens(false, 3000), 1500);
+  ok("800 tekens passen (was: afgekapt op 500)", !antwoordTeLang("a".repeat(800), GERICHT_ANTWOORD_MAX));
+  ok("1501 tekens passen niet", antwoordTeLang("a".repeat(1501), GERICHT_ANTWOORD_MAX));
+  const route = codeZonderCommentaar(leesBestand("app/api/profiles/[id]/facts/route.ts"));
+  ok("de route knipt niet meer met slice", !/answer\.trim\(\)\.slice\(/.test(route));
+  ok("de route weigert een te lang antwoord", route.includes("antwoordTeLang(answer, grens)"));
+  ok("het invulveld toont een teller", leesBestand("components/antwoordveld.tsx").includes("van {GERICHT_ANTWOORD_MAX} tekens"));
+});
+
+group("V3a: de sterren van een keurmerk botsen niet met vetgedrukt", () => {
+  eq("de fout uit ronde 1", keurmerkSterren("**€42,50 voor een SKG**-cilinder** of **€72,50 voor een SKG***-cilinder**."), "**€42,50 voor een SKG★★-cilinder** of **€72,50 voor een SKG★★★-cilinder**.");
+  eq("aan het eind van een zin", keurmerkSterren("cilinders met minimaal SKG**."), "cilinders met minimaal SKG★★.");
+  eq("vetgedrukte afkorting blijft", keurmerkSterren("Let op de **BTW** en **SKG**."), "Let op de **BTW** en **SKG**.");
+  eq("gewoon vetgedrukt blijft", keurmerkSterren("Dit is **heel belangrijk** voor je."), "Dit is **heel belangrijk** voor je.");
+  eq("code-opmaak gaat weg", zonderCodeOpmaak("een `SKG***`-cilinder"), "een SKG***-cilinder");
+  eq("samen", keurmerkSterren(zonderCodeOpmaak("een `SKG***`-cilinder")), "een SKG★★★-cilinder");
+});
+
+group("V2: menu, telefoonbalk en voettekst die op de hele site staan, zijn geen inhoud", () => {
+  // Nagebouwd op de site van De Waard uit ronde 1: elke pagina begint met dezelfde
+  // telefoonbalk en hetzelfde menu, en eindigt met dezelfde afsluiter.
+  const kop = "Overlast van ongedierte? 0184-701084 / 06-36232091 Snel & voordelig Menu Home Nieuws Diensten Wespenbestrijding Mollenbestrijding Tips Contact";
+  const staart = "Ook last van ongedierte? Neem contact op";
+  const pagina = (titel: string, inhoud: string) => `${titel} ${kop} ${inhoud} ${staart}`;
+  const site = [
+    pagina("Diensten", "Onze diensten in ongediertebestrijding."),
+    pagina("Contact", "Heeft u vragen of opmerkingen? Neem dan gerust contact met ons op!"),
+    pagina("Determinatie", "Onbekende beestjes tegengekomen? Dan biedt De Waard u een gratis determinatie aan."),
+    pagina("Tips", "Hoe maak ik een wespenvanger? Een plastic fles en een zoete vloeistof zijn genoeg."),
+  ];
+  const mollen = pagina("Mollenbestrijding", "Mollen worden bestreden met mollenklemmen die in goed belopen gangen worden geplaatst.");
+  const schoon = zonderSiteHerhaling(mollen, site);
+  ok("het menu is weg", !schoon.includes("Menu Home Nieuws"), schoon);
+  ok("de telefoonbalk is weg", !schoon.includes("0184-701084"), schoon);
+  ok("de afsluiter is weg", !schoon.includes("Neem contact op"), schoon);
+  ok("de inhoud blijft", schoon.includes("Mollen worden bestreden met mollenklemmen die in goed belopen gangen worden geplaatst."), schoon);
+  eq("met te weinig andere pagina's verandert er niets", zonderSiteHerhaling(mollen, site.slice(0, 2)), mollen);
+  const alleenRand = `Nieuws ${kop} ${staart}`;
+  eq("is bijna alles herhaling, dan blijft de tekst staan (minder tekst is erger dan ruis)", zonderSiteHerhaling(alleenRand, site), alleenRand);
+  ok("de schrijver krijgt de stem en de huidige tekst zonder herhaling", /zonderSiteHerhaling\(pagina\.bestaandeTekst, site\)/.test(leesBestand("lib/pagina/schrijven.ts")) && leesBestand("lib/pagina/schrijven.ts").includes("zonderSiteHerhaling(home.text_excerpt, site)"));
+  ok("de brief ook", leesBestand("lib/pagina/brief.ts").includes("zonderSiteHerhaling(opgehaald.text, site)"));
+});
+
+group("V12: een meetantwoord dat geen JSON is, krijgt één poging met redeneertijd", () => {
+  ok("de fout uit ronde 1", isOnleesbaarAntwoord(new SyntaxError(`Unexpected token 'W', "We need ou"... is not valid JSON`)));
+  ok("geen geparst resultaat", isOnleesbaarAntwoord(new Error('OpenAI gaf geen geldig geparst resultaat voor schema "mention".')));
+  ok("een netwerkfout niet", !isOnleesbaarAntwoord(new Error("fetch failed: ECONNRESET")));
+  ok("een limietfout niet", !isOnleesbaarAntwoord(new Error("429 Rate limit reached")));
+  const meet = codeZonderCommentaar(leesBestand("lib/pipeline/measure.ts"));
+  ok("de beoordeling probeert het dan met redeneertijd", meet.includes('if (!isOnleesbaarAntwoord(err)) throw err;') && meet.includes('beoordeel("judging")'));
+});
+
+group("V23: de gestructureerde gegevens zeggen wie het bedrijf is en waar het werkt", () => {
+  const org = {
+    name: "Slotenspecialist van Kessel",
+    url: "https://slotenspecialistvankessel.nl",
+    lokaal: true,
+    telefoon: "030-2660400",
+    email: "info@slotenspecialistvankessel.nl",
+    adres: "Tingietersgilde 16, 3994 XP, Houten, NL",
+    werkgebied: ["Houten", "Utrecht", "Nieuwegein"],
+  };
+  const json = JSON.parse(validateOrRebuildJsonLd(null, { type: "landing", title: "Buitengesloten in Houten?", description: "d", url: "https://slotenspecialistvankessel.nl/slotenmaker-houten.html", faq: [], businessModel: "dienstverlener", organization: org, datePublished: null, dateModified: "2026-09-29T10:00:00Z" })) as { "@graph": Record<string, unknown>[] };
+  const [pagina, bedrijf] = json["@graph"];
+  eq("een lokaal dienstverlenend bedrijf is een LocalBusiness", String(bedrijf?.["@type"]), "LocalBusiness");
+  eq("met telefoon", String(bedrijf?.telephone), "030-2660400");
+  eq("met adres", String(bedrijf?.address), "Tingietersgilde 16, 3994 XP, Houten, NL");
+  eq("met werkgebied", JSON.stringify(bedrijf?.areaServed), JSON.stringify(["Houten", "Utrecht", "Nieuwegein"]));
+  eq("de dienst heeft een aanbieder", JSON.stringify(pagina?.provider), JSON.stringify({ "@id": "https://slotenspecialistvankessel.nl/#organization" }));
+  ok("geen publicatiedatum bij het schrijven", pagina?.datePublished === undefined);
+  const live = JSON.parse(metPublicatiedatum(JSON.stringify(json), "2026-10-02T09:00:00Z")!) as { "@graph": Record<string, unknown>[] };
+  eq("de publicatiedatum komt bij het live melden", String(live["@graph"][0]?.datePublished), "2026-10-02T09:00:00Z");
+  eq("wat niet parst, blijft ongewijzigd", String(metPublicatiedatum("geen json", "x")), "geen json");
+  const zonder = JSON.parse(validateOrRebuildJsonLd(null, { type: "landing", title: "t", description: "d", url: "https://x.nl/a", faq: [], businessModel: "fabrikant", organization: { name: "X", url: "https://x.nl" }, datePublished: null, dateModified: null })) as { "@graph": Record<string, unknown>[] };
+  eq("een landelijk bedrijf blijft een Organization", String(zonder["@graph"][1]?.["@type"]), "Organization");
+  ok("zonder gegevens geen lege velden", zonder["@graph"][1]?.telephone === undefined && zonder["@graph"][1]?.areaServed === undefined);
+  const c = contactUitFeiten([{ key: "kvk", value: "42023906" }, { key: "telefoon", value: "030-2660400" }, { key: "adres", value: "Tingietersgilde 16" }]);
+  eq("de contactgegevens uit de oogst", `${c.telefoon}|${c.email}|${c.adres}`, "030-2660400|null|Tingietersgilde 16");
+  eq("als blok voor de schrijver", String(contactBlok(c)), "Contact:\n- Telefoon: 030-2660400\n- Adres: Tingietersgilde 16");
+  eq("zonder gegevens geen blok", String(contactBlok({ telefoon: null, email: null, adres: null })), "null");
+  ok("het live melden zet de datum", leesBestand("lib/pipeline/publish.ts").includes("metPublicatiedatum("));
+});

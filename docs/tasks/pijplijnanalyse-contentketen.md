@@ -5,8 +5,9 @@
 > achttien pagina's. Per stap: wat erin gaat, welke opdracht het model krijgt, wat de code ermee
 > doet, wat eruit komt, en of dat de volgende stap goed voedt. Daarna één verbeterplan.
 >
-> **Status: voorstel, er is niets gebouwd.** Na akkoord van de eigenaar gaan we bouwen, in de
-> volgorde van §5. Alles wat `contentketen-opnieuw.md` §2 of §3 raakt, staat apart als besluit in §6.
+> **Status: akkoord op 29 september 2026, in aanbouw.** De eigenaar zei ja op alle tien besluiten
+> van §6; ze staan als B22 tot en met B32 in §2 van `contentketen-opnieuw.md`. De voortgang per fase
+> staat in §10.
 >
 > **De maatstaf voor elk voorstel** (opdracht van de eigenaar): het moet voor alle toekomstige klanten
 > betere kwaliteit opleveren, of de keten stabieler en logischer maken. Geen pleister op één klant,
@@ -817,3 +818,14 @@ Geen enkel voorstel voegt een AI-aanroep toe. Het rapport met meer denktijd kost
 dollarcent extra, op een meetronde van ongeveer $1. V15 scheelt herschrijvingen (in ronde 1 drie van
 de tien, rond $0,05 per stuk). V4 punt 4 maakt de brief en de schrijfinvoer iets korter. V18 scheelt meetkosten: een vraag die nu in drie clusters staat, wordt één keer gemeten. V21 punt 2 maakt de invoer bij een lange verbeterpagina iets groter. Per saldo
 blijven de kosten per pagina ruim onder de grens van $0,50 uit B4.
+
+
+## 10. Stand van de bouw
+
+| Fase | Stand |
+|---|---|
+| 1. Fundament | Gebouwd: V1, V2, V3a, V12, V0, V21 punt 1 en 2, V23, met eenheidstests en een ketentest voor V0. Nog niet tegen productie nagerekend |
+| 2. Invoer | Bezig |
+| 3. Pagina-definitie en set | Nog niet begonnen |
+| 4. Na het schrijven | Nog niet begonnen |
+| 5. Onderzoek en meting | Nog niet begonnen |

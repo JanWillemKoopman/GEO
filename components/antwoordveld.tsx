@@ -1,6 +1,6 @@
 "use client";
 
-import { vraagVorm, type VraagBron } from "@/lib/feitenvraag";
+import { GERICHT_ANTWOORD_MAX, vraagVorm, type VraagBron } from "@/lib/feitenvraag";
 
 /**
  * Het invoerveld bij één feitenvraag.
@@ -57,15 +57,21 @@ export function Antwoordveld({
 
   if (vorm === "tekstvak") {
     return (
-      <textarea
-        id={id}
-        className="field"
-        rows={3}
-        value={waarde}
-        disabled={uitgeschakeld}
-        onChange={(e) => zetWaarde(e.target.value)}
-        placeholder={hint}
-      />
+      <div>
+        <textarea
+          id={id}
+          className="field"
+          rows={3}
+          value={waarde}
+          maxLength={GERICHT_ANTWOORD_MAX}
+          disabled={uitgeschakeld}
+          onChange={(e) => zetWaarde(e.target.value)}
+          placeholder={hint}
+        />
+        <p className="mt-1 type-caption text-muted tabular">
+          {waarde.length} van {GERICHT_ANTWOORD_MAX} tekens
+        </p>
+      </div>
     );
   }
 
@@ -79,6 +85,7 @@ export function Antwoordveld({
         inputMode={vorm === "bedrag" ? "decimal" : undefined}
         className="field flex-1"
         value={waarde}
+        maxLength={GERICHT_ANTWOORD_MAX}
         disabled={uitgeschakeld}
         onChange={(e) => zetWaarde(e.target.value)}
         placeholder={hint}

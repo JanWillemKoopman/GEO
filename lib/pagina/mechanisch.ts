@@ -3,7 +3,8 @@
  * (`docs/tasks/contentketen-opnieuw.md` §6.5).
  *
  * Alleen regels die geen oordeel vragen: de verboden tekens uit
- * `docs/schrijfstijl.md` §10 en de lengte van metatitel en metabeschrijving.
+ * `docs/schrijfstijl.md` §10, de lengte van metatitel en metabeschrijving, de
+ * sterren van een keurmerk en code-opmaak die niet in een webtekst hoort.
  * Repareren, nooit blokkeren: een pagina die om een gedachtestreepje wordt
  * tegengehouden, is precies de starheid waar de vorige keten aan ten onder ging.
  *
@@ -59,14 +60,41 @@ function schoon(tekst: string): string {
   return pasSchrijfregelsToe(tekst).replace(/(\p{L})[—–](\p{L})/gu, "$1, $2");
 }
 
+/**
+ * De sterren van een keurmerk ("SKG***") als ster-teken ("SKG★★★").
+ *
+ * ⚠️ In Markdown botsen de sterretjes met vetgedrukt: "**€42,50 voor een
+ * SKG**-cilinder**" werd verkeerd weergegeven, en in ronde 1 ging een deel van
+ * twee herschrijvingen daarover (V3a van `pijplijnanalyse-contentketen.md`).
+ * Een ontsnapt sterretje (`\*`) begrijpen niet alle plekken waar de tekst
+ * terechtkomt (het scherm, de HTML, het websitesysteem van de klant); het
+ * ster-teken wel, en zo schrijft SKG het zelf ook.
+ *
+ * Alleen na een afkorting in hoofdletters en niet na een openend `*`, zodat
+ * "**BTW**" (vetgedrukt) blijft zoals het is.
+ */
+export function keurmerkSterren(tekst: string): string {
+  return tekst.replace(/(?<![*\p{L}])(\p{Lu}{2,})(\*{1,3})(?![\p{L}\d*])/gu, (_m, merk: string, sterren: string) => merk + "★".repeat(sterren.length));
+}
+
+/** Code-opmaak (`zo`) hoort niet in een webtekst: de tekens eromheen gaan weg. */
+export function zonderCodeOpmaak(tekst: string): string {
+  return tekst.replace(/`([^`\n]+)`/g, "$1");
+}
+
+/** Alles wat in de lopende tekst en de FAQ gerepareerd wordt. */
+function schoneTekst(tekst: string): string {
+  return keurmerkSterren(zonderCodeOpmaak(schoon(tekst)));
+}
+
 export function repareerMechanisch(p: PaginaTekst, bedrijfsnaam: string): PaginaTekst {
   return {
-    titel: schoon(p.titel).trim(),
+    titel: keurmerkSterren(zonderCodeOpmaak(schoon(p.titel))).trim(),
     meta_titel: korteMetatitel(schoon(p.meta_titel).trim(), bedrijfsnaam),
     meta_beschrijving: korteMetabeschrijving(schoon(p.meta_beschrijving).trim(), bedrijfsnaam),
-    tekst_markdown: schoon(p.tekst_markdown).trim(),
+    tekst_markdown: schoneTekst(p.tekst_markdown).trim(),
     faq: p.faq
-      .map((f) => ({ vraag: schoon(f.vraag).trim(), antwoord: schoon(f.antwoord).trim() }))
+      .map((f) => ({ vraag: schoneTekst(f.vraag).trim(), antwoord: schoneTekst(f.antwoord).trim() }))
       .filter((f) => f.vraag && f.antwoord),
   };
 }

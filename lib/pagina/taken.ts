@@ -461,11 +461,79 @@ async function nieuweVersie(
     vanId: nieuwId,
     kennisIds: (kolommen.gebruikte_kennis as string[] | undefined) ?? [],
   });
-  await admin.from("planned_pages").update({ content_piece_id: nieuwId, status: "ter_goedkeuring" }).eq("content_piece_id", oudId);
+  await wijsNaarNieuweVersie(admin, oudId, nieuwId, "ter_goedkeuring");
+}
+
+/** Het plan en de vragen van een pagina wijzen voortaan naar de nieuwe versie. */
+async function wijsNaarNieuweVersie(admin: Admin, oudId: string, nieuwId: string, planStatus: string): Promise<void> {
+  await admin.from("planned_pages").update({ content_piece_id: nieuwId, status: planStatus }).eq("content_piece_id", oudId);
   const { data: vragen } = await admin.from("fact_requests").select("id, content_piece_ids").contains("content_piece_ids", [oudId]);
   for (const v of (vragen ?? []) as { id: string; content_piece_ids: string[] }[]) {
+    if (v.content_piece_ids.includes(nieuwId)) continue;
     await admin.from("fact_requests").update({ content_piece_ids: [...v.content_piece_ids, nieuwId] }).eq("id", v.id);
   }
+}
+
+export type OpnieuwUitkomst =
+  | { uitkomst: "gestart"; nieuwId: string }
+  | { uitkomst: "geen_pagina" | "nog_niet_geschreven" | "geen_brief" | "mislukt"; fout?: string };
+
+/**
+ * OPNIEUW SCHRIJVEN MET DEZELFDE INVOER, om een verbetering van de keten te
+ * toetsen (V0 van `docs/tasks/pijplijnanalyse-contentketen.md`, besluit B27).
+ *
+ * Een nieuwe versie met dezelfde brief, dezelfde bewaarde tekst van de huidige
+ * pagina en dezelfde antwoorden van de klant, die daarna gewoon door het
+ * schrijven, de controle en eventueel de herschrijving gaat. Geen nieuwe brief
+ * en geen nieuwe vragen: dan verschilt alleen de keten, en is oud naast nieuw
+ * een eerlijke vergelijking. De oude versie blijft bewaard.
+ *
+ * Alleen voor beheerders; geen klantroute en geen planning (§3 regel 7 van
+ * `contentketen-opnieuw.md` gaat over het inplannen van pagina's).
+ */
+export async function schrijfOpnieuwMetZelfdeInvoer(admin: Admin, oudId: string): Promise<OpnieuwUitkomst> {
+  const { data: oud } = await admin
+    .from("content_pieces")
+    .select("analysis_id, report_id, title, type, target_intent, action, existing_url, existing_page_text, related_url, brief_json, version, cluster, body_markdown")
+    .eq("id", oudId)
+    .maybeSingle();
+  if (!oud) return { uitkomst: "geen_pagina" };
+  const o = oud as Record<string, unknown>;
+  if (!(typeof o.body_markdown === "string" && o.body_markdown.trim())) return { uitkomst: "nog_niet_geschreven" };
+  if (!o.brief_json) return { uitkomst: "geen_brief" };
+
+  await admin.from("content_pieces").update({ is_current: false }).eq("id", oudId);
+  const { data: nieuw, error } = await admin
+    .from("content_pieces")
+    .insert({
+      analysis_id: o.analysis_id,
+      report_id: o.report_id ?? null,
+      title: o.title,
+      type: o.type,
+      target_intent: o.target_intent ?? null,
+      action: o.action ?? "nieuw",
+      existing_url: o.existing_url ?? null,
+      existing_page_text: o.existing_page_text ?? null,
+      related_url: o.related_url ?? null,
+      brief_json: o.brief_json,
+      cluster: o.cluster ?? null,
+      version: ((o.version as number | null) ?? 1) + 1,
+      supersedes_id: oudId,
+      revision_note: "Opnieuw geschreven met dezelfde invoer, om een wijziging van de keten te toetsen.",
+      is_current: true,
+      status: "briefing",
+    })
+    .select("id")
+    .single();
+  if (error || !nieuw) {
+    await admin.from("content_pieces").update({ is_current: true }).eq("id", oudId);
+    return { uitkomst: "mislukt", fout: error?.message };
+  }
+  const nieuwId = (nieuw as { id: string }).id;
+  await wijsNaarNieuweVersie(admin, oudId, nieuwId, "schrijven");
+  const start = await probeerTeSchrijven(admin, nieuwId, { negeerDatum: true });
+  if (start.uitkomst !== "ingepland") return { uitkomst: "mislukt", fout: `Schrijven startte niet: ${start.uitkomst}` };
+  return { uitkomst: "gestart", nieuwId };
 }
 
 /**

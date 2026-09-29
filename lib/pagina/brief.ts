@@ -29,7 +29,8 @@ import {
   type NieuweVraag,
   type Onderzoek,
 } from "@/lib/pagina/brief-regels";
-import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, type PaginaBasis } from "@/lib/pagina/context";
+import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, siteTeksten, type PaginaBasis } from "@/lib/pagina/context";
+import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 import { schrijfpoort, type SchrijfpoortOordeel as Poortuitslag } from "@/lib/pagina/schrijfpoort";
 import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
 import { kennisgatVoorPagina } from "@/lib/kennis/voor-pagina";
@@ -140,15 +141,20 @@ async function koppelVragen(admin: Admin, pagina: PaginaBasis, ids: string[]): P
 /** Bij "verbeteren": de huidige tekst van de pagina, één keer opgehaald en bewaard. */
 async function huidigeTekst(admin: Admin, pagina: PaginaBasis): Promise<string | null> {
   if (pagina.handeling !== "verbeteren") return null;
-  if (pagina.bestaandeTekst?.trim()) return pagina.bestaandeTekst;
+  const site = await siteTeksten(admin, pagina.profileId);
+  // V2: menu, telefoonbalk en voettekst die op de hele site staan, zijn geen
+  // tekst van deze pagina. Ook bij een al bewaarde tekst, want die kan van vóór
+  // deze regel zijn.
+  if (pagina.bestaandeTekst?.trim()) return zonderSiteHerhaling(pagina.bestaandeTekst, site);
   if (!pagina.bestaandAdres) return null;
   const opgehaald = await fetchExistingPage(pagina.bestaandAdres);
   if (!opgehaald.text) return null;
+  const tekst = zonderSiteHerhaling(opgehaald.text, site);
   await admin
     .from("content_pieces")
-    .update({ existing_page_text: opgehaald.text, existing_page_fetched_at: opgehaald.fetchedAt })
+    .update({ existing_page_text: tekst, existing_page_fetched_at: opgehaald.fetchedAt })
     .eq("id", pagina.pieceId);
-  return opgehaald.text;
+  return tekst;
 }
 
 export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUitkomst> {

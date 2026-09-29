@@ -11,18 +11,32 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OrganizationInfo } from "@/lib/schema-jsonld";
+import { contactUitFeiten } from "@/lib/pagina/contact";
 
 export async function laadOrganisatie(admin: SupabaseClient, profileId: string): Promise<OrganizationInfo | null> {
   const [{ data: profiel }, { data: techniek }] = await Promise.all([
-    admin.from("profiles").select("brand_name, name, url").eq("id", profileId).maybeSingle(),
+    admin.from("profiles").select("brand_name, name, url, service_scope, business_model, service_regions").eq("id", profileId).maybeSingle(),
     admin.from("profile_facets").select("raw_json").eq("profile_id", profileId).eq("facet", "techniek").maybeSingle(),
   ]);
-  const p = profiel as { brand_name: string | null; name: string; url: string } | null;
+  const p = profiel as {
+    brand_name: string | null;
+    name: string;
+    url: string;
+    service_scope: string | null;
+    business_model: string | null;
+    service_regions: string[] | null;
+  } | null;
   if (!p) return null;
+  const ruw = (techniek?.raw_json ?? null) as { sameAs?: string[]; facts?: { key?: string; value?: string }[] } | null;
   return {
     name: p.brand_name ?? p.name,
     // `profiles.url` is een kale hostnaam; het schema komt er hier bij.
     url: `https://${p.url.replace(/^https?:\/\//, "")}`,
-    sameAs: (techniek?.raw_json as { sameAs?: string[] } | null)?.sameAs ?? [],
+    sameAs: ruw?.sameAs ?? [],
+    ...contactUitFeiten(ruw?.facts ?? []),
+    // V23: een lokaal dienstverlenend bedrijf is voor zoekmachines een
+    // `LocalBusiness`, met zijn werkgebied erbij.
+    lokaal: p.service_scope === "lokaal" && p.business_model === "dienstverlener",
+    werkgebied: p.service_scope === "lokaal" ? (p.service_regions ?? []).filter((r) => r.trim()) : [],
   };
 }

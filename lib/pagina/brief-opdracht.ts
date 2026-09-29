@@ -88,7 +88,7 @@ export interface BriefContext {
 /** Hoeveel tekens van een winnend antwoord mee gaan. */
 export const ANTWOORD_MAX = 1500;
 /** Hoeveel tekens van de huidige pagina mee gaan. */
-export const HUIDIGE_TEKST_MAX = 8000;
+export const HUIDIGE_TEKST_MAX = 12000;
 
 export function briefInvoer(c: BriefContext): string {
   const delen: string[] = [];

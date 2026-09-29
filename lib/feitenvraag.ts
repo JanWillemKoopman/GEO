@@ -34,6 +34,29 @@
  * verzendknop heeft. Wat daar nog aan vastzit staat in dat document.
  */
 
+/**
+ * Hoe lang een antwoord op een gerichte vraag mag zijn.
+ *
+ * ⚠️ Was 500, en de route knipte stil af. In ronde 1 van de contentkwaliteit
+ * (29 september 2026) waren daardoor 14 van de 21 gerichte antwoorden van de
+ * rijkste klant midden in een zin afgebroken ("een SKG***-cil"), terwijl het
+ * invulveld geen grens en geen teller had. Juist wie uitgebreid antwoordt,
+ * verloor het meest (`docs/tasks/pijplijnanalyse-contentketen.md` V1).
+ * Nu: een ruimere grens, een teller in het veld, en de route weigert een te
+ * lang antwoord in plaats van het stil in te korten.
+ */
+export const GERICHT_ANTWOORD_MAX = 1500;
+
+/** De grens voor dit antwoord: de open vraag krijgt ruimte voor een verhaal (B3). */
+export function antwoordGrens(openVraag: boolean, openMax: number): number {
+  return openVraag ? openMax : GERICHT_ANTWOORD_MAX;
+}
+
+/** Is dit antwoord te lang? Nooit stil inkorten: de gebruiker moet het zien. */
+export function antwoordTeLang(antwoord: string, grens: number): boolean {
+  return antwoord.trim().length > grens;
+}
+
 /** Het invoerveld dat bij een vraag hoort. */
 export type Invoervorm = "keuze" | "tekstvak" | "regel" | "getal" | "bedrag" | "url";
 

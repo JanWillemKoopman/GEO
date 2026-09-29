@@ -497,7 +497,11 @@ export function relatedPageWarning(url: string | null): string {
  * Ter vergelijking: het crawl-excerpt is 1500 tekens (`PAGE_MAX_CHARS`), en 667
  * van de 738 gecrawlde pagina's op productie staan precies op die grens.
  */
-export const EXISTING_PAGE_MAX_CHARS = 6000;
+// 29 september 2026: van 6000 naar 12000. In ronde 1 stonden 2 van de 12
+// verbeterpagina's precies op 6000; de schrijver verbeterde dan een pagina
+// waarvan hij het einde niet zag (V21 van `pijplijnanalyse-contentketen.md`).
+// Menu en voettekst gaan er sindsdien eerst af (`zonderSiteHerhaling()`).
+export const EXISTING_PAGE_MAX_CHARS = 12000;
 
 /**
  * Welke tekst de schrijfstap van de bestaande pagina gebruikt.

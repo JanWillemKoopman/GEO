@@ -13030,3 +13030,21 @@ gelden. Ook besloten: levert een cluster minder dan twee aanbevelingen, dan aanv
 cluster van hetzelfde merk, bij voorkeur met het pad (nieuw of verbeteren) dat nog ontbreekt (§2.3).
 De schatting per pagina gaat van $0,90 naar ongeveer $0,20: de $0,90 kwam uit de oude keten met
 reparatierondes. Uitvoering, log en document: `content-reviews/fase1-klant-a/`.
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 1 (fundament) gebouwd
+
+Na akkoord van de eigenaar op het hele verbeterplan (`docs/tasks/pijplijnanalyse-contentketen.md`,
+besluiten B22 tot en met B32 in `contentketen-opnieuw.md` §2) is fase 1 gebouwd: stille
+kwaliteitsverliezen. Een gericht antwoord mag 1.500 tekens in plaats van 500 en wordt nooit meer
+stil afgekapt (in ronde 1 waren 14 van de 21 antwoorden van de rijkste klant midden in een zin
+afgebroken). Tekst die op een groot deel van de pagina's van een site letterlijk terugkomt (menu,
+telefoonbalk, voettekst) gaat uit de stem en de huidige tekst van een verbeterpagina. De sterren van
+een keurmerk worden "SKG★★★" en code-opmaak gaat weg (twee herschrijvingen gingen deels over die
+opmaak). Een verbeterpagina krijgt weer de functie van de pagina mee (`functieblok()`, sinds de
+ombouw niet meer aangeroepen); een tips- of nieuwspagina wordt niet meer vervangen door een
+dienstpagina; de huidige tekst mag 12.000 tekens. De beoordeling van een meetantwoord krijgt bij
+een antwoord dat geen JSON is één poging met redeneertijd (negen meetvragen vielen in ronde 1
+definitief uit). De gestructureerde gegevens dragen nu adres, telefoon, e-mail en werkgebied, een
+lokaal dienstverlenend bedrijf is een `LocalBusiness`, en de publicatiedatum komt pas bij het live
+melden. Nieuw: `POST /api/beheer/paginas/[pieceId]/opnieuw-schrijven` (B27), om een wijziging van de
+keten met dezelfde invoer te toetsen. Nog niet tegen productie nagerekend (conventie 10).

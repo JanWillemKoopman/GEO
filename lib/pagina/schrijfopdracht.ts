@@ -125,6 +125,8 @@ export interface SchrijfBlokken {
   doelvragen: string[];
   andereTitels: string[];
   huidigeTekst: string | null;
+  /** Bij "verbeteren": wat de pagina nu is en wat erop blijft (`functieblok()`, V21). */
+  functie?: string | null;
 }
 
 function lijst(kop: string, items: string[]): string | null {
@@ -183,7 +185,13 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
   }
 
   delen.push(lijst("ANDERE PAGINA'S VAN DIT BEDRIJF (schrijf er niet overheen)", b.andereTitels));
-  if (b.huidigeTekst?.trim()) delen.push(`DE HUIDIGE TEKST VAN DEZE PAGINA\n"""${b.huidigeTekst.trim()}"""`);
+  if (b.huidigeTekst?.trim()) {
+    delen.push(
+      [b.functie?.trim() ? `DE FUNCTIE VAN DEZE PAGINA (vaste eis)\n${b.functie.trim()}` : null, `DE HUIDIGE TEKST VAN DEZE PAGINA\n"""${b.huidigeTekst.trim()}"""`]
+        .filter(Boolean)
+        .join("\n\n"),
+    );
+  }
 
   return delen.filter(Boolean).join("\n\n");
 }

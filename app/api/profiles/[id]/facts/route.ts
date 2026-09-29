@@ -5,6 +5,8 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { answerFact } from "@/lib/facts";
 import { probeerNaAntwoord } from "@/lib/pagina/start";
 import { publicFactRequest } from "@/lib/fact-request-public";
+import { antwoordGrens, antwoordTeLang } from "@/lib/feitenvraag";
+import { OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 
 /**
  * PATCH /api/profiles/[id]/facts, de klant beantwoordt (of slaat over) een
@@ -27,9 +29,8 @@ import { publicFactRequest } from "@/lib/fact-request-public";
  * Next.js request te moeten nabootsen (punt 6 van
  * docs/tasks/opdracht-bevindingen-5-tot-9.md).
  */
-const MAX_ANSWER_LENGTH = 500;
-/** De open vraag van een pagina krijgt ruimte voor een verhaal (besluit B3). */
-const MAX_OPEN_ANTWOORD = 3000;
+// De grenzen staan in `lib/feitenvraag.ts` en `lib/pagina/open-vraag-tekst.ts`,
+// zodat het invulveld en deze route hetzelfde getal gebruiken.
 
 /**
  * Ruimte voor het werk ná het antwoord (`after()` hieronder): het beoordelen
@@ -87,9 +88,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json(data ? publicFactRequest(data) : data);
   }
 
-  const grens = (factRow as { open_vraag?: boolean | null }).open_vraag ? MAX_OPEN_ANTWOORD : MAX_ANSWER_LENGTH;
-  const answer = typeof body.answer === "string" ? body.answer.trim().slice(0, grens) : "";
+  const grens = antwoordGrens(Boolean((factRow as { open_vraag?: boolean | null }).open_vraag), OPEN_VRAAG_MAX);
+  const answer = typeof body.answer === "string" ? body.answer.trim() : "";
   if (!answer) return NextResponse.json({ error: "Vul een antwoord in." }, { status: 400 });
+  // Nooit stil inkorten (V1 van `pijplijnanalyse-contentketen.md`): een
+  // afgekapt antwoord bereikt de schrijver midden in een zin.
+  if (antwoordTeLang(answer, grens)) {
+    return NextResponse.json(
+      { error: `Je antwoord is ${answer.length} tekens; er passen er ${grens}. Kort het iets in.` },
+      { status: 400 },
+    );
+  }
 
   const resultaat = await answerFact(admin, {
     profileId: id,

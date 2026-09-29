@@ -201,3 +201,14 @@ export async function laadDoelvragen(admin: Admin, sourceRef: string | null, con
       return { vraag: (d.text as string).trim(), antwoord: ruw ? redactCompetitors(ruw, concurrenten) : null };
     });
 }
+
+/**
+ * De tekst van de gecrawlde pagina's van dit merk, om menu, telefoonbalk en
+ * voettekst te herkennen (`zonderSiteHerhaling()`, V2 van
+ * `pijplijnanalyse-contentketen.md`). Het crawl-excerpt is genoeg: die
+ * herhaling staat bovenaan elke pagina.
+ */
+export async function siteTeksten(admin: Admin, profileId: string): Promise<string[]> {
+  const { data } = await admin.from("profile_pages").select("text_excerpt").eq("profile_id", profileId).limit(200);
+  return ((data ?? []) as { text_excerpt: string | null }[]).map((r) => r.text_excerpt ?? "").filter((t) => t.trim());
+}

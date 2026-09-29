@@ -5725,6 +5725,29 @@ async function main(): Promise<void> {
       ok("zonder nieuwe beoordeling", aanroepen.filter((a) => a.schema === "pagina_controle").length === controlesVoor && (await wachtrij("pagina_controle")).length === 0);
       ok("de plan-pagina wijst naar versie 2", (await stukVan(planId("Tuinontwerp laten maken"))) === versies[1].id);
 
+      // ── V0: opnieuw schrijven met dezelfde invoer (B27) ───────────────────
+      const { schrijfOpnieuwMetZelfdeInvoer } = await import("@/lib/pagina/taken");
+      const schrijfVoor = aanroepen.filter((a) => a.schema === "pagina").length;
+      const briefsVoor = aanroepen.filter((a) => a.schema === "content_brief").length;
+      const opnieuw = await schrijfOpnieuwMetZelfdeInvoer(admin as never, versies[1].id);
+      ok("V0: opnieuw schrijven start", opnieuw.uitkomst === "gestart");
+      await draai("pagina_schrijven");
+      const { rows: v3 } = await db.client.query(
+        "select id, version, is_current, supersedes_id, brief_json, body_markdown from public.content_pieces where analysis_id = $1 and title = 'Tuinontwerp laten maken' order by version",
+        [cluster],
+      );
+      ok("V0: er is een derde versie, en die is de actuele", v3.length === 3 && v3[2].version === 3 && v3[2].is_current === true && v3[1].is_current === false);
+      ok("V0: met dezelfde brief", JSON.stringify(v3[2].brief_json) === JSON.stringify(v3[1].brief_json));
+      ok("V0: zonder nieuwe brief", aanroepen.filter((a) => a.schema === "content_brief").length === briefsVoor);
+      ok("V0: precies één nieuwe schrijfbeurt", aanroepen.filter((a) => a.schema === "pagina").length === schrijfVoor + 1);
+      ok("V0: de schrijver kreeg de antwoorden van de klant weer", aanroepen.filter((a) => a.schema === "pagina").slice(-1)[0]?.user.includes("aan de keukentafel") === true);
+      ok("V0: en de nieuwe versie gaat door de gewone controle", (await wachtrij("pagina_controle")).length === 1);
+      ok("V0: de plan-pagina wijst naar versie 3", (await stukVan(planId("Tuinontwerp laten maken"))) === v3[2].id);
+      await draai("pagina_controle");
+      await draai("pagina_herschrijven");
+      const nietGeschreven = await schrijfOpnieuwMetZelfdeInvoer(admin as never, border[0].id.replace(/.$/, "0"));
+      ok("V0: een onbekende pagina geeft geen_pagina", nietGeschreven.uitkomst === "geen_pagina");
+
       async function enqueueHerschrijven(pieceId: string): Promise<void> {
         await db.client.query(
           "insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status) values ('pagina_herschrijven', $1, $2, $3, 'queued')",

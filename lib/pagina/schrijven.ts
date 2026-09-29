@@ -23,7 +23,9 @@ import type { StructuredCallOptions } from "@/lib/openai/structured";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
 import { blokA, type BedrijfsInvoer } from "@/lib/pagina/bedrijfskennis";
 import type { BriefJson } from "@/lib/pagina/brief";
-import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, type MerkBasis, type PaginaBasis } from "@/lib/pagina/context";
+import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, siteTeksten, type MerkBasis, type PaginaBasis } from "@/lib/pagina/context";
+import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
+import { functieblok } from "@/lib/pipeline/paginafunctie";
 import { repareerMechanisch, type PaginaTekst } from "@/lib/pagina/mechanisch";
 import { laadOrganisatie } from "@/lib/pagina/organisatie";
 import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
@@ -58,9 +60,13 @@ export interface Schrijfbasis {
  * Zonder stemvoorbeelden de tekst van de homepage (§6.10): dat is ook de eigen
  * tekst van het bedrijf, en beter dan geen stem.
  */
-async function stemVan(admin: Admin, merk: MerkBasis, profileId: string): Promise<Stemvoorbeeld[]> {
+async function stemVan(admin: Admin, merk: MerkBasis, profileId: string, site: readonly string[]): Promise<Stemvoorbeeld[]> {
+  // V2: menu en telefoonbalk zijn geen stem. Ook bij opgegeven stemvoorbeelden,
+  // want die zijn met dezelfde ophaalfunctie van de site gehaald.
   if (merk.stemVoorbeelden.length > 0) {
-    return merk.stemVoorbeelden.map((v) => ({ bron: v.url, tekst: (v.tekst ?? "").slice(0, STEMTEKST_MAX) }));
+    return merk.stemVoorbeelden
+      .map((v) => ({ bron: v.url, tekst: zonderSiteHerhaling(v.tekst ?? "", site).slice(0, STEMTEKST_MAX) }))
+      .filter((v) => v.tekst.trim());
   }
   const { data } = await admin.from("profile_pages").select("url, text_excerpt").eq("profile_id", profileId).limit(200);
   const paginas = (data ?? []) as { url: string; text_excerpt: string | null }[];
@@ -71,7 +77,7 @@ async function stemVan(admin: Admin, merk: MerkBasis, profileId: string): Promis
       return false;
     }
   });
-  const tekst = home?.text_excerpt ? vanafEersteAlinea(home.text_excerpt).slice(0, STEMTEKST_MAX) : "";
+  const tekst = home?.text_excerpt ? vanafEersteAlinea(zonderSiteHerhaling(home.text_excerpt, site)).slice(0, STEMTEKST_MAX) : "";
   return tekst ? [{ bron: home!.url, tekst }] : [];
 }
 
@@ -126,8 +132,9 @@ export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<S
     verbodenWoorden: [...new Set([...merkProfiel.verbodenWoorden, ...bedrijf.verbodenWoorden])],
     verbodenOnderwerpen: [...new Set([...merkProfiel.verbodenOnderwerpen, ...bedrijf.verbodenOnderwerpen])],
   };
+  const site = await siteTeksten(admin, pagina.profileId);
   const [stem, klant, titels, doelvragen] = await Promise.all([
-    stemVan(admin, merk, pagina.profileId),
+    stemVan(admin, merk, pagina.profileId, site),
     klantinput(admin, pieceId),
     andereTitels(admin, pagina),
     laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten),
@@ -146,7 +153,8 @@ export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<S
     zoekintentie: onderzoek?.zoekintentie || pagina.zoekintentie,
     doelvragen: doelvragen.map((d) => d.vraag),
     andereTitels: titels,
-    huidigeTekst: pagina.handeling === "verbeteren" ? pagina.bestaandeTekst : null,
+    huidigeTekst: pagina.handeling === "verbeteren" && pagina.bestaandeTekst ? zonderSiteHerhaling(pagina.bestaandeTekst, site) : null,
+    functie: pagina.handeling === "verbeteren" ? functieblok(pagina.bestaandAdres, null) || null : null,
   };
   const bronnen = [
     bedrijfTekst,
@@ -229,7 +237,9 @@ export async function tekstKolommen(
       faq,
       businessModel: (profiel as { business_model?: never } | null)?.business_model ?? null,
       organization: organisatie,
-      datePublished: nu,
+      // V23: de publicatiedatum komt pas bij "deze pagina staat live"
+      // (`markPublished()`), niet op het moment van schrijven.
+      datePublished: null,
       dateModified: nu,
     }),
     word_count: tekst.tekst_markdown.split(/\s+/).filter(Boolean).length,
