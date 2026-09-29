@@ -5,6 +5,7 @@ import { ProfileMenu } from "@/components/profile-menu";
 import { PreviewToggle } from "@/components/preview-toggle";
 import { WorkspaceChrome } from "@/components/workspace-chrome";
 import { OpenQuestionsBadge } from "@/components/open-questions-badge";
+import { NotificatieKnop } from "@/components/notificaties";
 import { isTelefoon } from "@/lib/apparaat";
 import { weergaveNaam } from "@/lib/weergavenaam";
 import type { Workspace } from "@/lib/workspace";
@@ -89,6 +90,7 @@ export async function AppShell({
           href={workspace.active ? `/merk/${workspace.active.id}/strategie/vragen` : null}
         />
       }
+      notificaties={<NotificatieKnop />}
       previewToggle={staffAccount ? <PreviewToggle previewing={!staff} /> : null}
       accountMenu={
         <ProfileMenu naam={naam} email={email} signOutAction={signOut} plek="topbalk" />

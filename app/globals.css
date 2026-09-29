@@ -2892,43 +2892,127 @@ textarea.field {
 }
 
 /* ── Broodroostermelding ────────────────────────────────────────────────────
-   De bewegingen komen uit de gecompileerde CSS van nova.inspace.io: 0,15s in,
-   0,12s uit, en een streepje dat leegloopt over de levensduur van de melding.
-   Zie components/toast.tsx voor het waarom. */
+   Klein, rond en rustig (29 september 2026): één regel met een gekleurde stip
+   ervoor en "Bekijk alle notificaties" eronder. Rechtsonder op een breed
+   scherm, onderaan boven de onderbalk op een telefoon. Zie components/toast.tsx
+   voor het waarom.
+
+   De vorm volgt het systeem: het vlak van alles wat zweeft
+   (`--bg-elevated-contrast`, `--shadow-lg`), de rand van een kaart, en de
+   grootste radius die het systeem kent (`--radius-xxxl`, 12px, §5.1). De
+   bewegingen blijven die van Nova: 0,15s in, 0,12s uit, een streep die
+   leegloopt. */
+.toast-regio {
+  position: fixed;
+  z-index: 50;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+/* Op de telefoon staat de onderbalk (56px plus de veilige zone) onderaan; de
+   melding komt daar net boven, over de volle breedte met 16px marge. */
+:root:has(.onderbalk) .toast-regio {
+  left: 16px;
+  bottom: calc(56px + env(safe-area-inset-bottom) + 12px);
+  align-items: stretch;
+}
 .toast-card {
+  pointer-events: auto;
   position: relative;
   overflow: hidden;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  /* GEMETEN bij OKX (`--okd-message-box-*`): padding 16, radius md, schaduw xl,
-     en een breedte tussen 451 en 700 pixels. Die ondergrens is ruimer dan wat
-     hier stond en hij is er met reden: een melding die smaller is dan de zin
-     erin breekt af op twee regels en leest dan als een foutmelding. */
-  padding: 16px;
-  min-width: 451px;
-  max-width: 700px;
-  border-radius: var(--radius-md);
+  align-items: flex-start;
+  gap: 10px;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 10px 12px 14px;
+  border-radius: var(--radius-xxxl);
+  border: var(--border-width-xs) solid var(--border-primary);
   background-color: var(--bg-elevated-contrast);
-  border: var(--border-width-xs) solid var(--border-subtle);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-lg);
   animation: toast-in var(--duration-base) var(--ease-standard);
 }
-/* Op een telefoon past 451 pixels niet. GEMETEN afstand tot de rand: 16. */
-@media (max-width: 639px) {
-  .toast-card {
-    min-width: 0;
-    width: calc(100vw - 32px);
-  }
+:root:has(.onderbalk) .toast-card {
+  width: auto;
 }
 .toast-card[data-leaving] {
   animation: toast-out var(--duration-fast) ease-in forwards;
+}
+.toast-card[data-kleur="groen"] {
+  --toast-kleur: var(--intent-success-solid);
+}
+.toast-card[data-kleur="oranje"] {
+  --toast-kleur: var(--intent-warning-solid);
+}
+.toast-card[data-kleur="rood"] {
+  --toast-kleur: var(--intent-danger-solid);
+}
+.toast-stip {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background-color: var(--toast-kleur);
+}
+.toast-tekst {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.toast-titel {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.toast-titel-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.toast-alles {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--text-tertiary);
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+.toast-alles:hover {
+  color: var(--text-primary);
+}
+.toast-sluit {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  transition: color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+.toast-sluit:hover {
+  color: var(--text-primary);
+  background-color: var(--interactive-hover);
 }
 .toast-progress {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
   height: 2px;
+  opacity: 0.6;
+  background-color: var(--toast-kleur);
   transform-origin: left;
   animation-name: toast-progress;
   animation-timing-function: linear;
@@ -2937,11 +3021,11 @@ textarea.field {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateX(1rem);
+    transform: translateY(0.5rem);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 @keyframes toast-out {
@@ -2960,19 +3044,93 @@ textarea.field {
     transform: scaleX(0);
   }
 }
-/* Op een telefoon komt de melding van onderen: daar is de duim, en de
-   bovenkant is bezet door de browserbalk. */
-@media (max-width: 639px) {
-  @keyframes toast-in {
-    from {
-      opacity: 0;
-      transform: translateY(1rem);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+
+/* ── De lijst met notificaties ──────────────────────────────────────────────
+   Dezelfde lade als elders (`.drawer`), maar een kwart van het scherm breed
+   op een groot scherm, met 380px als ondergrens: smaller dan dat breekt een
+   titel van één regel al af bij een gewone paginanaam. Op de telefoon is het
+   het gewone blad van onderen. */
+@media (min-width: 768px) {
+  .drawer.drawer-kwart {
+    width: max(380px, 25vw);
   }
+}
+.notificatie-lijst {
+  display: flex;
+  flex-direction: column;
+  margin: -8px -12px;
+}
+.notificatie-rij {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-xl);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+a.notificatie-rij:hover {
+  background-color: var(--interactive-hover);
+}
+.notificatie-rij .toast-stip {
+  margin-top: 6px;
+}
+.notificatie-rij-tekst {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+.notificatie-rij-titel {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--text-primary);
+}
+.notificatie-rij[data-nieuw] .notificatie-rij-titel {
+  font-weight: 500;
+}
+.notificatie-rij-tijd {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--text-tertiary);
+}
+.notificatie-rij[data-kleur="groen"] {
+  --toast-kleur: var(--intent-success-solid);
+}
+.notificatie-rij[data-kleur="oranje"] {
+  --toast-kleur: var(--intent-warning-solid);
+}
+.notificatie-rij[data-kleur="rood"] {
+  --toast-kleur: var(--intent-danger-solid);
+}
+/* Het belletje: dezelfde vorm als de teller van openstaande vragen ernaast. */
+.notificatie-knop {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  transition: background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+.notificatie-knop:hover {
+  background-color: var(--interactive-hover);
+  color: var(--text-primary);
+}
+.notificatie-teller {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background-color: var(--intent-danger-solid);
+  color: var(--intent-danger-on-solid);
+  font-size: 0.6875rem;
+  line-height: 18px;
+  font-weight: 600;
+  text-align: center;
 }
 
 /* ── Dialoog ────────────────────────────────────────────────────────────────

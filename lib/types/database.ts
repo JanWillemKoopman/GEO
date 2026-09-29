@@ -277,10 +277,11 @@ export interface Analysis {
    * Wanneer de uitslag van de laatste meetronde aan de gebruiker gemeld is
    * (migratie 0107). Leeg = nog te melden.
    *
-   * Sinds het clusterresultaat geen eigen scherm meer heeft, is dit het enige
-   * geheugen dat voorkomt dat dezelfde uitslag bij elke schermopening opnieuw
-   * als melding verschijnt. `enqueueMeasurement()` leegt hem zodra er een
-   * nieuwe ronde ingepland wordt. Zie `lib/cluster-melding.ts`.
+   * Was van 22 tot 29 september 2026 het geheugen dat voorkomt dat dezelfde
+   * uitslag bij elke schermopening opnieuw als melding verschijnt.
+   * `enqueueMeasurement()` leegt hem nog, maar niets leest hem meer: de
+   * melding "meting klaar" komt sindsdien uit `notificaties` (migratie 0131),
+   * dat per gebeurtenis één rij heeft en dus geen vinkje nodig heeft.
    */
   resultaat_gezien_at: string | null;
   created_at: string;

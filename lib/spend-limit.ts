@@ -123,19 +123,49 @@ export async function checkBudget(accountId: string | null): Promise<SpendVerdic
     const totaalUsd = await sumCostUsd(admin, sindsVandaag, null);
     const totaal = spendVerdict("totaal", totaalUsd, totaalLimiet);
 
-    if (!accountId) return totaal;
+    if (!accountId) return await meldAlsOp(admin, totaal, null);
 
     const [accountUsd, accountLimiet] = await Promise.all([
       sumCostUsd(admin, sindsVandaag, accountId),
       accountDailyLimitEur(admin, accountId),
     ]);
-    return combinedVerdict(totaal, spendVerdict("account", accountUsd, accountLimiet));
+    return await meldAlsOp(admin, combinedVerdict(totaal, spendVerdict("account", accountUsd, accountLimiet)), accountId);
   } catch (err) {
     // Zie de kop van dit bestand: doorlaten, maar hoorbaar. Zonder deze regel
     // zou een kapotte rem niet van een werkende te onderscheiden zijn.
     console.error("Budgetcontrole mislukt, handeling gaat door zonder rem:", err);
     return { ok: true, scope: null, message: null, spentEur: 0, limitEur: totaalLimiet };
   }
+}
+
+/**
+ * Een beheerdersmelding zodra de rem erop gaat (migratie 0131). Eén per dag per
+ * account: `notificatie_meld` voegt binnen 24 uur samen, want wie drie keer op
+ * een geblokkeerde knop drukt heeft niets aan drie meldingen.
+ *
+ * Een mislukte melding verandert het oordeel nooit: het budget is de rem, de
+ * melding is alleen het lampje.
+ */
+async function meldAlsOp(
+  admin: ReturnType<typeof createAdminClient>,
+  oordeel: SpendVerdict,
+  accountId: string | null,
+): Promise<SpendVerdict> {
+  if (oordeel.ok) return oordeel;
+  try {
+    await admin.rpc("notificatie_meld", {
+      p_profile: null,
+      p_account: oordeel.scope === "account" ? accountId : null,
+      p_soort: "budget_op",
+      p_object: null,
+      p_gegevens: { scope: oordeel.scope },
+      p_alleen_beheer: true,
+      p_samenvoegen_minuten: 1440,
+    });
+  } catch (err) {
+    console.error("Melding over het dagbudget niet vastgelegd:", err);
+  }
+  return oordeel;
 }
 
 /**

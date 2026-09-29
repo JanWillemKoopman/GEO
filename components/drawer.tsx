@@ -37,6 +37,7 @@ export function Drawer({
   onSluit,
   voet,
   kant = "rechts",
+  breed = false,
   children,
 }: {
   open: boolean;
@@ -51,6 +52,8 @@ export function Drawer({
    * zijbalk staat, zodat het dezelfde plek blijft in het hoofd van de gebruiker.
    */
   kant?: "rechts" | "links";
+  /** Een kwart van het scherm in plaats van 420px (de notificatielijst). */
+  breed?: boolean;
   children: React.ReactNode;
 }) {
   const paneel = useRef<HTMLDivElement>(null);
@@ -96,7 +99,7 @@ export function Drawer({
         role="dialog"
         aria-modal="true"
         aria-label={titel}
-        className={kant === "links" ? "drawer drawer-links" : "drawer"}
+        className={`drawer${kant === "links" ? " drawer-links" : ""}${breed ? " drawer-kwart" : ""}`}
       >
         {/* Alleen zichtbaar op een telefoon; zie het blok in globals.css. */}
         <span className="drawer-greep" aria-hidden />

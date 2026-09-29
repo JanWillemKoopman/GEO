@@ -13167,3 +13167,50 @@ Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
 tegen productie (conventie 10): de velden van de organische resultaten en van "Andere mensen vroegen
 ook" komen uit de documentatie van DataForSEO en zijn nog niet tegen een echte respons gecontroleerd,
 en of de teksten er beter van worden is nog niet gemeten. Zie `docs/tasks/paginasoorten-en-zoekresultaten.md`.
+
+## 29 september 2026 (4): notificaties, klein rechtsonder en een lijst achter een belletje
+
+De eigenaar vond het meldingsblok rechtsboven te groot (minstens 451 pixels breed, titel plus
+omschrijving) en wilde weten wat er op de achtergrond gebeurt. Dat laatste wist de app niet te
+zeggen: van de 84 schrijftaken, 16 metingen en 10 technische controles in de 30 dagen ervoor gaf
+alleen een klaar of mislukte clustermeting een melding. Een pagina die klaar stond om te lezen, of
+die na publicatie niet op de site teruggevonden werd, ging ongemerkt voorbij.
+
+Gebouwd, na een genummerde lijst van 50 momenten waarvan de eigenaar alles akkoord gaf:
+
+- **Migratie 0131**: tabel `notificaties`, gevuld door dertien triggers op de plek waar een
+  gebeurtenis zichtbaar wordt, en `notificaties_gezien` met één tijdstip per gebruiker. Triggers en
+  niet de code, omdat bijvoorbeeld `content_pieces.status` op vier plekken op `ready` gaat; een
+  trigger mist er geen. Elke trigger vangt zijn eigen fout af. Vragen, beantwoorde vragen en
+  kenniswijzigingen worden binnen een uur samengevoegd tot één regel met een aantal (1.466 verwerkte
+  kenniswijzigingen in 30 dagen zouden anders even zoveel meldingen zijn).
+- **`lib/notificaties.ts`**: per soort de zin, de kleur en de link, puur en getest. Drie kleuren:
+  groen gelukt, oranje goed om te weten, rood mis of actie nodig. Een dalende zichtbaarheid is oranje
+  en niet rood (`designsystem.md` §2.6). De drempel voor "flink gestegen of gedaald" is 15 punten:
+  de standaardfout van een clusterscore was op productie 7,6 (mediaan van 14), een verschil tussen
+  twee rondes dus ongeveer 10,7, en bij 10 punten zou ruim een op de drie weken toevallig een melding
+  geven.
+- **De kleine melding** (`components/toast.tsx`): 340 pixels, 12 pixels rond, rechtsonder en op de
+  telefoon boven de onderbalk. Eén regel, klikbaar naar de pagina zelf, met "Bekijk alle
+  notificaties" eronder. Verdwijnt altijd vanzelf (4,5 seconden, rood 8), de muis erop zet de klok
+  stil. De omschrijving die ruim zestig bestaande aanroepen meegeven staat niet meer in beeld maar bij
+  het aanwijzen en voor een schermlezer.
+- **Het belletje en de lijst** (`components/notificaties.tsx`): rechtsboven, op de telefoon naast het
+  profiel, met een rode teller. De lijst is een lade van rechts, een kwart van het scherm breed
+  (minimaal 380 pixels), dicht via het kruisje, Escape of een klik ernaast. Openen zet alles op
+  gelezen. Als kleine melding springt alleen in beeld wat er ná het openen van de app bijkomt, hooguit
+  drie tegelijk; wat er gebeurde terwijl je weg was staat in de lijst en op de teller.
+- **Weg**: de clustermelder, `lib/cluster-melding.ts` en de route `clusters/melding`. "Meting klaar"
+  is nu een van de soorten. De drie cijfers die de clustermelder noemde staan niet meer in de
+  melding, want die is één regel; ze staan op Analytics, waar de link naartoe gaat.
+
+Drie afwijkingen van de lijst, bewust: de meldingen die een knop zelf geeft ("Opgeslagen") staan
+niet in de lijst, zoals voorgesteld, want die bevestigen alleen je eigen klik. Concurrentie-onderzoek
+(punt 9) en weekoverzicht (punt 18) hebben geen eigen melding: beide lopen elke week mee in een
+clustermeting en zouden "meting klaar" alleen herhalen. En het dagbudget meldt zich alleen als het
+op is, niet als het bijna op is: "bijna" vraagt een drempel die nog niemand gekozen heeft.
+
+Getest: `tsc --noEmit`, `test:unit` (5121, met drie nieuwe groepen), `test:chain` (838) en `build`
+groen. De triggers zijn op productie nagerekend in een teruggedraaide transactie. ⚠️ Niet nagerekend
+(conventie 10): de schermen zelf zijn niet in een ingelogde browser bekeken, en van de meeste soorten
+is nog geen echte melding op productie ontstaan.
