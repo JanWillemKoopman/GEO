@@ -4,11 +4,12 @@
 (B33, B34, B35), het waarom met de cijfers in `docs/logbook.md` (29 september 2026 (3)). Dit bestand
 bevat alleen wat nog moet gebeuren; het verdwijnt als alles hieronder af is.
 
-## 1. De schakelaar op productie
+## 1. Naar `main`
 
-De zoekresultaten gaan pas mee als `BRIEF_ZOEKRESULTATEN_ENABLED=true` in Vercel staat, naast de
-bestaande `DATAFORSEO_LOGIN` en `DATAFORSEO_PASSWORD`. Uit betekent: de brief werkt zoals vóór 29
-september 2026. Klaar als de variabele op productie staat en de code op `main` is.
+`BRIEF_ZOEKRESULTATEN_ENABLED=true` staat sinds 29 september 2026 in Vercel (productie), naast de
+bestaande `DATAFORSEO_LOGIN` en `DATAFORSEO_PASSWORD`. De code staat op de branch
+`feature/paginasoorten-en-zoekresultaten`; zodra die op `main` staat, werkt het. Migratie 0130 is al
+op productie toegepast. Een preview heeft de schakelaar niet, en draait dus zonder zoekresultaten.
 
 ## 2. De vorm van de respons controleren (conventie 10)
 
