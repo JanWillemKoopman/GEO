@@ -1,0 +1,184 @@
+[
+  {
+    "factId": "4582d613-dc11-4132-a24b-3a7113f57214",
+    "pagina": "Keuze zelf, uitbesteden, combineren",
+    "soort": "open vraag",
+    "rijkheid": "gemiddeld",
+    "answer": "Veel zzp'ers beginnen zelf en merken na een jaar dat het meer tijd kost dan gedacht. Bij ons hoef je dan niet over te stappen naar een ander programma: je kunt zelf blijven boeken en later je boekhouding aan een vaste boekhouder geven, of een tussenvorm kiezen. Wie weinig facturen heeft en het niet erg vindt, kan het prima zelf."
+  },
+  {
+    "factId": "1909a200-3b41-4f87-a334-1dfef6949a3b",
+    "pagina": "Keuze zelf, uitbesteden, combineren",
+    "soort": "praktijk",
+    "rijkheid": "gemiddeld",
+    "answer": "Zelf boeken raad ik aan bij een starter met een paar facturen per maand, weinig kosten en geen btw-vrijstellingen of buitenlandse klanten. Uitbesteden raad ik aan bij iemand met veel bonnetjes, klanten in het buitenland of een partner met een eigen inkomen, want dan wordt de aangifte lastiger. Meestal geeft de tijd de doorslag: wie er elke maand een avond mee bezig is, is beter af met een boekhouder."
+  },
+  {
+    "factId": "edc4674f-a92a-4079-83ea-cf544b51c7ad",
+    "pagina": "Keuze zelf, uitbesteden, combineren; all-in prijs",
+    "soort": "werkwijze",
+    "rijkheid": "gemiddeld",
+    "answer": "De klant verstuurt zelf zijn facturen vanuit het programma en boekt zijn kosten. De boekhouder kijkt mee, doet de correcties en de handmatige boekingen, en verzorgt de jaarafsluiting. De aangiften dienen wij in."
+  },
+  {
+    "factId": "7c3043ad-0af7-4a7e-9e8b-d91940c7f0e1",
+    "pagina": "meerdere",
+    "soort": "prijs (deels van de site)",
+    "rijkheid": "gemiddeld",
+    "answer": "Volledig uitbesteden kost vanaf 69,95 euro per maand, all-in, met btw-aangifte, inkomstenbelasting en advies. Zelf boekhouden met de software kan vanaf 10 euro per maand. Voor de tussenvorm, zelf boeken met hulp van een boekhouder, spreken we de prijs af in het kennismakingsgesprek, omdat het afhangt van hoeveel je zelf doet."
+  },
+  {
+    "factId": "68b8dee6-850d-4373-a796-e8a5082b151a",
+    "pagina": "meerdere",
+    "soort": "voor wie niet",
+    "rijkheid": "summier",
+    "answer": "Het zzp-tarief is voor eenmanszaken zonder personeel. Heb je personeel of een bv, dan bespreken we eerst wat er nodig is."
+  },
+  {
+    "factId": "8666e7d9-ad38-41a7-b54d-fbace26b26ca",
+    "pagina": "Keuze zelf, uitbesteden, combineren",
+    "soort": "praktijk",
+    "rijkheid": "overgeslagen",
+    "skip": true,
+    "reden": "Vraagt om een klantverhaal; een klant met profiel B geeft dat niet (ook geen verhalen in het gesprek)."
+  },
+  {
+    "factId": "b1aba51a-73f5-48d6-b7ea-36a9b9636803",
+    "pagina": "Aangiftehulp; prijs aangiftehulp",
+    "soort": "werkwijze",
+    "rijkheid": "gemiddeld",
+    "answer": "Je laat je gegevens achter en een boekhouder neemt binnen een werkdag contact op. Heb je je boekhouding bij ons, dan staan je zakelijke cijfers al klaar. Voor het privédeel vragen we je jaaropgaven, je hypotheekgegevens als je een koophuis hebt, en de gegevens van je fiscale partner. De boekhouder maakt de aangifte, jij kijkt hem na en daarna dienen wij hem in."
+  },
+  {
+    "factId": "791a6cf5-9411-456f-be1f-7b816fe5f775",
+    "pagina": "Aangiftehulp; prijs aangiftehulp",
+    "soort": "voor wie niet",
+    "rijkheid": "summier",
+    "answer": "De aangifte inkomstenbelasting doen we voor klanten van de boekhoudservice. Alleen een losse aangifte doen we niet."
+  },
+  {
+    "factId": "080cfb54-8fad-4186-9b38-e7270c9c0bfd",
+    "pagina": "meerdere",
+    "soort": "termijn",
+    "rijkheid": "overgeslagen",
+    "skip": true,
+    "reden": "Alleen te beantwoorden met een verzonnen uiterste datum en verwerkingstermijn."
+  },
+  {
+    "factId": "23043ef6-7c2e-4194-bfee-01a38e46801f",
+    "pagina": "Aangiftehulp",
+    "soort": "praktijk",
+    "rijkheid": "overgeslagen",
+    "skip": true,
+    "reden": "Vraagt om een klantvoorbeeld; past niet bij profiel B."
+  },
+  {
+    "factId": "63455416-99fb-45e3-acb4-83a74bb728c7",
+    "pagina": "All-in prijs; volledig uitbesteden",
+    "soort": "praktijk",
+    "rijkheid": "summier",
+    "answer": "De klant stuurt zijn inkoopfacturen door naar zijn eigen mailbox bij ons en scant bonnetjes met de app. De boekhouder verwerkt alles, doet elk kwartaal de btw-aangifte en in het voorjaar de inkomstenbelasting."
+  },
+  {
+    "factId": "401c9f7e-f2be-4b14-9736-d86528a90b5f",
+    "pagina": "meerdere",
+    "soort": "werkwijze",
+    "rijkheid": "gemiddeld",
+    "answer": "Bij het zzp-tarief van 69,95 euro verwerkt de boekhouder de administratie volledig. Wil je zelf een deel doen, zoals je kosten boeken, dan is dat de tussenvorm. Die spreken we apart af."
+  },
+  {
+    "factId": "6af30a48-59d1-4c09-ad4e-5b86cb87868e",
+    "pagina": "All-in prijs",
+    "soort": "voorwaarden actie",
+    "rijkheid": "overgeslagen",
+    "skip": true,
+    "reden": "Voorwaarden van een lopende actie; niet te beantwoorden zonder iets te verzinnen dat als echt kan doorgaan."
+  },
+  {
+    "factId": "9c308923-be04-4410-a9a1-489f2aba1bd8",
+    "pagina": "Prijs aangiftehulp",
+    "soort": "prijs",
+    "rijkheid": "overgeslagen",
+    "skip": true,
+    "reden": "Vraagt een bedrag dat niet op de site staat."
+  },
+  {
+    "factId": "1485168c-fa81-4674-bd7b-993fee4e043f",
+    "pagina": "Prijs aangiftehulp; volledig uitbesteden",
+    "soort": "inhoud prijs",
+    "rijkheid": "summier",
+    "answer": "De jaarafsluiting en de aangifte inkomstenbelasting zitten in het all-in tarief, ook het ondernemersdeel. Is de administratie niet bijgewerkt of is er iets bijzonders, dan bespreken we dat voordat we beginnen."
+  },
+  {
+    "factId": "7093e8d7-42be-4ad1-b919-4a22e4516e5a",
+    "pagina": "Prijs aangiftehulp",
+    "soort": "praktijk",
+    "rijkheid": "overgeslagen",
+    "skip": true,
+    "reden": "Vraagt om een klantvoorbeeld; past niet bij profiel B."
+  },
+  {
+    "factId": "750e6646-9a4e-4106-8990-c834b07214b4",
+    "pagina": "Volledig uitbesteden",
+    "soort": "werkwijze",
+    "rijkheid": "summier",
+    "answer": "Na het kennismakingsgesprek zetten we je administratie over en neemt je vaste boekhouder het over. Een lopend boekjaar nemen we mee. Is er een achterstand, dan bespreken we eerst wat er nog moet gebeuren."
+  },
+  {
+    "factId": "31013d6c-76ec-4897-8ffd-c4965bb7bae3",
+    "pagina": "Volledig uitbesteden",
+    "soort": "inhoud",
+    "rijkheid": "summier",
+    "answer": "Je krijgt je jaarcijfers en wij doen op basis daarvan de aangifte inkomstenbelasting. Zelf hoef je alleen je privégegevens aan te leveren en de aangifte na te kijken."
+  },
+  {
+    "factId": "1d5020fd-c3d9-42f9-87d6-b9c786c60dcc",
+    "pagina": "Aangiftehulp",
+    "soort": "open vraag",
+    "rijkheid": "gemiddeld",
+    "answer": "De aangifte doen we voor klanten die hun boekhouding bij ons hebben. Het voordeel is dat je boekhouder je cijfers al kent, dus je hoeft niet alles opnieuw uit te leggen. Van februari tot april is het druk; hoe eerder je je privégegevens aanlevert, hoe rustiger het voor iedereen is."
+  },
+  {
+    "factId": "2974a30f-d7a9-4c73-afca-4aa0281c8dc4",
+    "pagina": "All-in prijs",
+    "soort": "open vraag",
+    "rijkheid": "gemiddeld",
+    "answer": "Het belangrijkste: één vast bedrag per maand, vanaf 69,95 euro, en daar zitten de btw-aangiften, de inkomstenbelasting en advies in. Geen losse rekening per aangifte en geen uurtje-factuurtje als je een vraag stelt."
+  },
+  {
+    "factId": "8eb9d604-e904-4863-9abe-abd3cc89132b",
+    "pagina": "Prijs aangiftehulp",
+    "soort": "open vraag",
+    "rijkheid": "summier",
+    "answer": "De aangifte zit in ons all-in tarief, je betaalt er niet apart voor."
+  },
+  {
+    "factId": "f2ec0e43-8022-45e3-b496-802e64b296bc",
+    "pagina": "Volledig uitbesteden",
+    "soort": "open vraag",
+    "rijkheid": "gemiddeld",
+    "answer": "Volledig uitbesteden betekent: jij levert je bonnetjes en facturen digitaal aan, je vaste boekhouder doet de rest, van inboeken tot de aangiften. Je kunt wel altijd zelf meekijken in de app, zodat je weet hoe je ervoor staat."
+  },
+  {
+    "factId": "9a6222b1-f453-440b-99b6-faae0e3d8434",
+    "pagina": "Vergelijk zelf boekhouden met uitbesteden",
+    "soort": "open vraag",
+    "rijkheid": "summier",
+    "answer": "Het is niet of het een of het ander: bij ons kun je beginnen met zelf boeken en later overstappen naar je eigen boekhouder, in hetzelfde programma."
+  },
+  {
+    "factId": "932c5e9f-252c-4f37-a24f-285e259a17d7",
+    "pagina": "Vergelijk zelf boekhouden met uitbesteden",
+    "soort": "praktijk",
+    "rijkheid": "overgeslagen",
+    "skip": true,
+    "reden": "Vraagt om een klantvoorbeeld met tijdsbesteding; past niet bij profiel B."
+  },
+  {
+    "factId": "816389ea-d187-4cb3-a681-ad47b4b2a621",
+    "pagina": "Vergelijk zelf boekhouden met uitbesteden",
+    "soort": "advies",
+    "rijkheid": "gemiddeld",
+    "answer": "Heb je maar een paar facturen per maand en vind je het niet erg om er zelf mee bezig te zijn, dan raad ik de software aan en niet het vaste maandtarief. Zodra je meer tijd kwijt bent aan je administratie dan je lief is, of je aangifte ingewikkelder wordt, loont uitbesteden."
+  }
+]

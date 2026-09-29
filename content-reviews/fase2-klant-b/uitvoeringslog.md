@@ -78,3 +78,83 @@ Uitgezet:
 
 Zelfde waarneming als bij klant A: een bezwaar uit het gesprek komt in de meetvragen te vaak terug
 (hier "te laat aanleveren", vijf keer in 90 vragen).
+
+## 5. Meting en rapporten
+
+Gemeten van 05:39 tot 06:53 (samen met klant C, de clusters na elkaar). Eén meettaak bleef na vier
+pogingen mislukt (cluster 2); de rapporten kwamen er toch.
+
+| Cluster | Score (marge) | Vragen zonder enige aanbieder | Aanbevelingen |
+|---|---|---|---|
+| 1, boekhouder met vaste prijs | 22 (8) | 2 | 4 |
+| 2, zelf of uitbesteden | 9 (7) | 3 | 3 |
+| 3, aangifte inkomstenbelasting | 23 (13) | 16 | 4 |
+
+## 6. Het contentplan (tweede bewuste stop)
+
+| Tijd (UTC) | Stap | Resultaat |
+|---|---|---|
+| 29-09 07:02 | Plan opgesteld | Negen pagina's in oktober. |
+| 29-09 07:02 | Drie terug naar de voorraad | "Vergelijk zelf boekhouden met boekhouding uitbesteden" (cluster 3, prioriteit 3), "Aangiftehulp in februari tot april" (cluster 3, prioriteit 4), "Wat een persoonlijke boekhouder voor je doet" (cluster 1, prioriteit 4). |
+| 29-09 07:02 | Oktober vrijgegeven | Zes pagina's in voorbereiding. |
+
+| # | Pagina | Cluster | Keuze | Soort |
+|---|---|---|---|---|
+| 1 | Maak de vaste all-in prijs en inbegrepen aangiften direct duidelijk (`/prijzen/`) | 1 | prioriteit 1 | verbeteren |
+| 2 | Vergelijk zelf boekhouden met uitbesteden | 1 | prioriteit 2 | nieuw |
+| 3 | Maak de keuze tussen zelf doen, uitbesteden en combineren concreet | 2 | prioriteit 1 | nieuw |
+| 4 | Leg helder uit wat volledig uitbesteden bij Myfinance inhoudt (`/online-boekhouder/`) | 2 | prioriteit 2 | verbeteren |
+| 5 | Maak de pagina over aangiftehulp concreet en herkenbaar (kennisbankartikel) | 3 | prioriteit 1 | verbeteren |
+| 6 | Leg prijs en inbegrepen hulp bij aangifte duidelijk uit | 3 | prioriteit 2 | nieuw |
+
+⚠️ **Pagina 2 en 3 gaan over bijna hetzelfde** (zelf boekhouden of uitbesteden), elk uit een ander
+cluster. De rapporten controleren niet op overlap met een ander cluster, en cluster 1 en 2 lagen
+inhoudelijk dicht bij elkaar (een keuze bij het opzetten van deze ronde). Een consultant zou er in
+de praktijk één laten vallen; de methode schrijft hier "de twee hoogst geprioriteerde, geen
+handmatige selectie op iets anders" voor, dus beide staan erin. Dat maakt ook zichtbaar of de
+schrijver twee pagina's over hetzelfde onderwerp van elkaar weet te onderscheiden.
+
+Ook opvallend: de dunne pagina die ik voor cluster 3 in gedachten had (`/functies/jaarafsluiting-en-aangifte/`)
+werd niet aanbevolen; het rapport koos een kennisbankartikel over hetzelfde onderwerp. Er zit dus
+wel een verbeterpagina in cluster 3, alleen een andere dan verwacht.
+
+## 7. De brief-vragen (§3 stap 6, §3.1)
+
+Zes briefs tussen 07:02 en ongeveer 07:11. 25 unieke vragen (een deel geldt voor meerdere pagina's),
+18 beantwoord, 7 overgeslagen, alle via `PATCH /api/profiles/<id>/facts` (HTTP 200). Rijkheid:
+10 gemiddeld, 7 overgeslagen, 8 summier. De volledige tekst staat in `payloads/11-antwoorden.json`.
+
+Beantwoord zoals een klant met profiel B dat doet: de werkwijze en de prijzen die op de site staan
+(€69,95 all-in, software vanaf €10), zonder klantverhalen. Overgeslagen: vier vragen om een
+klantvoorbeeld (profiel B gaf ook geen verhalen in het gesprek), een vraag naar een uiterste
+aanlevertermijn, een vraag naar een prijs voor losse aangiftehulp die niet op de site staat, en een
+vraag naar de voorwaarden van een lopende actie. Verzonnen bedrijfsregels die als echt kunnen
+doorgaan: "een losse aangifte doen we niet", "het zzp-tarief is voor eenmanszaken zonder
+personeel", "de tussenvorm prijzen we in het kennismakingsgesprek".
+
+Alle twaalf pagina's (B en C) om 07:12 naar het schrijven: de twee met een publicatiedatum binnen tien
+dagen vanzelf, de rest via `actie: schrijf_nu`.
+
+## 8. Het schrijven
+
+Alle zes klaar om 07:19. Vier herschreven en de herschrijving behouden (prijzenpagina, "zelf
+boekhouden of uitbesteden", "zelf, combineren of uitbesteden", prijs van aangiftehulp); twee in één
+keer goed (volledig uitbesteden, aangiftehulp). Twee pagina's hebben één zin die de klant nog moet
+bevestigen. Nagerekend: de tekst in de app is bij alle zes byte voor byte gelijk aan de versie in
+het klantdocument; niets gepubliceerd, niets als geplaatst gemarkeerd.
+
+## 9. Kosten, nagerekend op `ai_calls`
+
+| Post | Aanroepen | Werkelijk |
+|---|---|---|
+| Merkonderzoek | 18 | $0,14 |
+| Drie clusters: vragen, meting, rapporten | 832 | $2,91 |
+| Zes briefs | 6 | $0,37 |
+| Schrijven, controle, herschrijven | 16 | $0,48 |
+| **Samen** | 872 | **$3,90** |
+
+## 10. Het klantdocument
+
+`klantdocument-myfinance.md`, gebouwd met sjabloonversie 2 uit `data.json`. Leesdeel 8.642 woorden,
+met eerdere versies van vier pagina's in de bijlage. Volgorde per cluster (prijs, zelf of
+uitbesteden twee keer, volledig uitbesteden, aangifte twee keer).
