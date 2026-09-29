@@ -1,0 +1,41 @@
+{
+  "bron": "gesprek",
+  "pronoun_preference": "je",
+  "priority_offerings": [
+    "Online boekhouder voor zzp'ers met een vast all-in tarief",
+    "Aangifte inkomstenbelasting en jaarafsluiting",
+    "Btw-aangifte laten verzorgen"
+  ],
+  "deprioritised_offerings": [
+    "Prognoses opstellen (klein, geen groeimarkt)"
+  ],
+  "target_segments": [
+    "Zzp'ers zonder personeel die hun boekhouding uit handen willen geven",
+    "Startende ondernemers in hun eerste of tweede jaar",
+    "Zzp'ers die nu zelf boekhouden en er te veel tijd aan kwijt zijn"
+  ],
+  "deal_value_band": "klein",
+  "seasonality": "Het drukst van februari tot en met april, rond de aangifte inkomstenbelasting. Rond de btw-deadlines per kwartaal komen er ook meer aanvragen.",
+  "sales_objections": [
+    "Een online boekhouder is onpersoonlijk, ik wil iemand die mijn situatie kent",
+    "Zelf boekhouden met een programma is toch goedkoper",
+    "Wat als ik te laat aanlever, betaal ik dan extra?"
+  ],
+  "forbidden_topics": [
+    "Belastingadvies over constructies om belasting te ontwijken",
+    "Beloftes over hoeveel belasting iemand terugkrijgt"
+  ],
+  "offline_proof": [
+    "Onze boekhouders werken zelf dagelijks met het eigen programma",
+    "Geen externe of buitenlandse investeerders"
+  ],
+  "name_exclusions": [],
+  "respect_site_structure": true,
+  "goal_12m": "Over een jaar kiezen zzp'ers die hun boekhouding willen uitbesteden vaker voor ons dan voor een lokaal administratiekantoor.",
+  "taboo_phrases": [
+    "gegarandeerd belasting terug",
+    "goedkoopste boekhouder van Nederland"
+  ],
+  "verhalen": "We merken dat veel zzp'ers bij ons komen nadat ze een jaar zelf hebben geboekt en in april in de stress schieten. Die willen vooral rust en één vast aanspreekpunt.",
+  "stem_voorbeelden": []
+}
