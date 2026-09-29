@@ -54,6 +54,9 @@ import type {
 /** Hoeveel feiten we hoogstens overnemen. Meer is geen kaart maar een export. */
 const MAX_FACTS = 25;
 
+/** V9: hooguit zoveel klussen van de site. Genoeg voor een voorbeeld per pagina. */
+const MAX_KLUSSEN = 10;
+
 /**
  * Wat de synthese minimaal aan budget nodig heeft. De contenttier op ~50k
  * invoer en 8k uitvoer komt op ~$0,20; met marge erboven, want een te krappe
@@ -143,7 +146,7 @@ export async function synthesiseProfile(
     `Je vat een klantprofiel samen voor een GEO-adviesbureau. Je krijgt alles wat er over dit ` +
     `bedrijf is verzameld: de sitestructuur, het aanbod, het merkonderzoek en wat AI-assistenten ` +
     `er al over zeggen.\n\n` +
-    `LEVER DRIE DINGEN:\n\n` +
+    `LEVER VIER DINGEN:\n\n` +
     `1. DOSSIER: vier tot acht zinnen, voor een ondernemer zonder vakjargon. Wat doet dit ` +
     `bedrijf, voor wie, wat onderscheidt het, en waar staat het nu.\n\n` +
     `2. GAPS: wat je NIET kon vaststellen maar wel had willen weten. Dit wordt de agenda van ` +
@@ -160,6 +163,10 @@ export async function synthesiseProfile(
     `vindplaats zetten wij er zelf bij. Deze feiten gaan letterlijk de pagina's van de klant op, ` +
     `en een site die over zichzelf in de derde persoon praat leest als een rapport.\n` +
     `   - Liever tien scherpe dan veertig vage.\n\n` +
+    `4. KLUSSEN: concrete klussen of projecten die de site zelf beschrijft (recente werkzaamheden, ` +
+    `projecten, cases, een nieuwsbericht over een klus). Per klus in één of twee zinnen wat er ` +
+    `gebeurde, de plaats als die er staat (anders null), de pagina en een citaat dat LETTERLIJK op ` +
+    `die pagina staat. Hooguit ${MAX_KLUSSEN}. Een algemene omschrijving van een dienst is geen klus.\n\n` +
     `Antwoord in het Nederlands.`;
 
   const facetBlok = facets
@@ -215,6 +222,14 @@ export async function synthesiseProfile(
     })
     .slice(0, MAX_FACTS);
 
+  // V9: dezelfde regel voor de klussen van de site.
+  const klussen = (parsed.klussen ?? [])
+    .filter((k) => {
+      const bron = tekstPerUrl.get(k.sourceUrl);
+      return bron !== undefined && quoteOnPage(k.quote, bron);
+    })
+    .slice(0, MAX_KLUSSEN);
+
   const verworpen = parsed.facts.length - geldig.length;
   if (verworpen > 0) {
     console.info(
@@ -232,6 +247,7 @@ export async function synthesiseProfile(
         ...(result.raw as object),
         gaps: parsed.gaps,
         rejectedFacts: verworpen,
+        klussen: klussen.length,
       } as never,
       // De zekerheid is het aandeel feiten dat de verificatie overleefde. Haalt
       // de helft dat niet, dan is er iets mis met het materiaal en hoort dat
@@ -258,7 +274,7 @@ export async function synthesiseProfile(
   // herkent `legVast()` aan zijn sleutel.
   const facetId = (facetRij as { id: string } | null)?.id ?? null;
   const telling = facetId
-    ? await legOnderzoekVast(admin, profileId, kennisUitSynthese(facetId, geldig), "profile_synthesis")
+    ? await legOnderzoekVast(admin, profileId, kennisUitSynthese(facetId, geldig, klussen), "profile_synthesis")
     : null;
   if (!facetId) console.error(`Profiel ${profileId}: het verslag van de samenvatting is niet opgeslagen; de feiten gaan niet de kennislaag in.`);
   const bewaard = telling?.vastgelegd ?? 0;

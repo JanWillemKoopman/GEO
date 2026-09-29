@@ -169,7 +169,9 @@ import {
 import { kiesDoelKans, openKansenBlok, rustOpEenVraag, telBewijsOp } from "@/lib/kansen/samenvoegen";
 import { kaartZin } from "@/lib/kansen/kaart";
 import { verdwenenGegevens } from "@/lib/pagina/verdwenen-gegevens";
-import { dubbelMetAndereClusters, vraagSleutel } from "@/lib/pipeline/prompt-dedupe";
+import { vraagUitNotitie } from "@/lib/pagina/notitie-vraag";
+import { isStreek, werkgebiedPunten } from "@/lib/kennis/overzicht";
+import { dubbelMetAndereClusters, raaktBezwaar, tweedeBezwaarvraag, vraagSleutel } from "@/lib/pipeline/prompt-dedupe";
 import { lijktOp as clusterLijktOp } from "@/lib/cluster-overlap";
 
 
@@ -21211,7 +21213,7 @@ group("Kleine punten uit de doorlichting, deel 2 (verbeterronde blok F, punt 8, 
   ok("ook met 'in de buurt' en de provincie", vraagZonderPlaats("Welke installateur bij mij in de buurt vervangt een cv-ketel?", plaatsen) === vraagZonderPlaats("Welke installateur in Brabant vervangt een cv-ketel?", plaatsen));
   const prompts = leesBestand("lib/pipeline/prompts.ts");
   ok("de generator gebruikt de sleutel", prompts.includes("vraagZonderPlaats(tekst, regios)"));
-  ok("en de bezwaren uit het gesprek", prompts.includes("DE TWIJFELS DIE KOPERS IN DEZE MARKT HEBBEN"));
+  ok("en de bezwaren uit het gesprek", prompts.includes("DE TWIJFELS DIE KOPERS VAN DIT BEDRIJF HEBBEN"));
 
   // Punt 9: de echte citaten van de installateur en de rijschool.
   ok("een advies is geen dienst", isAdviesCitaat("Het ventilatiesysteem moet regelmatig worden schoongemaakt."));
@@ -21982,6 +21984,48 @@ group("V21 punt 3: harde gegevens die van de huidige pagina verdwijnen (besluit 
   eq("een verdwenen telefoonnummer", verdwenenGegevens("Bel +31 6 12345678.", "Bel ons gerust.").join(","), "+31 6 12345678");
   eq("zonder huidige tekst niets", String(verdwenenGegevens(null, "x").length), "0");
   ok("hooguit tien", verdwenenGegevens(Array.from({ length: 15 }, (_, i) => `Het kost € ${i + 10}.`).join(" "), "").length === 10);
+});
+
+group("V11: hooguit één bezwaarvraag per cluster, en alleen een passend bezwaar", () => {
+  const bezwaren = ["Te laat aanleveren van de administratie", "Te duur"];
+  ok("een vraag over het bezwaar", raaktBezwaar("Wat als ik mijn administratie te laat aanlever bij een boekhouder?", bezwaren[0]));
+  ok("een kort bezwaar met al zijn woorden", raaktBezwaar("Is een online boekhouder niet te duur?", bezwaren[1]));
+  ok("een gewone vraag raakt geen bezwaar", !raaktBezwaar("Welke boekhouder in Breda doet ook de aangifte?", bezwaren[0]));
+  ok("de eerste bezwaarvraag mag", !tweedeBezwaarvraag("Is een online boekhouder niet te duur?", bezwaren, ["Welke boekhouder in Breda?"]));
+  ok("een tweede niet, ook over een ander bezwaar", tweedeBezwaarvraag("Wat als ik mijn administratie te laat aanlever?", bezwaren, ["Is een online boekhouder niet te duur?"]));
+  const prompts = leesBestand("lib/pipeline/prompts.ts");
+  ok("alleen in de overweging", prompts.includes('category === "Overweging" ? (brand.salesObjections'));
+  ok("hooguit één, en alleen als het bij het onderwerp past", prompts.includes("laat dan hooguit één vraag daarover gaan") && !prompts.includes("minstens één vraag over zo'n twijfel"));
+});
+
+group("V16: de notitie van de schrijver wordt een vraag", () => {
+  eq("een gewone notitie", vraagUitNotitie("  Hoe lang duurt\n een montage? ") ?? "", "Hoe lang duurt een montage?");
+  eq("niets bruikbaars", String(vraagUitNotitie("null")), "null");
+  eq("leeg", String(vraagUitNotitie(null)), "null");
+  eq("te lang is geen vraag", String(vraagUitNotitie("x".repeat(501))), "null");
+  ok("de schrijftaak maakt er een vraag van", leesBestand("lib/pagina/taken.ts").includes("await notitieAlsVraag(admin, basis, uitvoer.notitie_voor_ondernemer)"));
+});
+
+group("V10: werkgebied in plaatsen, niet in streken", () => {
+  ok("een streek", isStreek("Alblasserwaard") && isStreek("regio Gouda") && isStreek("Utrecht en omstreken") && isStreek("Noord-Brabant"));
+  ok("een plaats is geen streek", !isStreek("Heerhugowaard") && !isStreek("Gouda") && !isStreek("Streefkerk"));
+  ok("een stad met de naam van een provincie is een plaats", !isStreek("Utrecht") && !isStreek("Groningen") && isStreek("provincie Utrecht"));
+  const punten = werkgebiedPunten({ service_scope: "lokaal", service_regions: ["Alblasserwaard", "Gouda", "regio Gouda"], business_model: "dienstverlener" });
+  eq("de streken worden één open punt", punten.map((p) => p.punt).join("|"), "Welke plaatsen vallen precies onder Alblasserwaard en regio Gouda? Daar zoeken klanten op.");
+  eq("alleen plaatsen: geen punt", String(werkgebiedPunten({ service_scope: "lokaal", service_regions: ["Gouda"], business_model: "dienstverlener" }).length), "0");
+  eq("landelijk: geen werkgebiedpunt", String(werkgebiedPunten({ service_scope: "landelijk", service_regions: ["Randstad"], business_model: "retailer" }).length), "0");
+  ok("een onbekend bedrijfsmodel is een open punt", werkgebiedPunten({ service_scope: null, service_regions: [], business_model: null }).some((p) => p.punt.startsWith("Wat voor bedrijf")));
+  ok("de onderzoeksopdracht vraagt plaatsen", leesBestand("lib/pipeline/profile-research.ts").includes("zet je in serviceRegions de PLAATSEN"));
+  ok("het kennisoverzicht toont ze eerst", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("...werkgebiedPunten("));
+});
+
+group("V9: klussen van de site worden verhalen", () => {
+  const items = kennisUitSynthese("f1", [], [
+    { text: "Een wespennest in een bootje in Streefkerk.", plaats: "Streefkerk", sourceUrl: "https://dewaard.nl/werk", quote: "wespennest in een bootje" },
+    { text: "", plaats: null, sourceUrl: "https://dewaard.nl/werk", quote: "x" },
+  ]);
+  eq("één klus, als verhaal, waargenomen, voor content", items.map((i) => `${i.domein}/${i.soort}/${i.status}/${i.gebruik}`).join(","), "verhaal/klus/waargenomen/content");
+  ok("de synthese vraagt om klussen met een letterlijk citaat", leesBestand("lib/pipeline/synthesis.ts").includes("4. KLUSSEN") && leesBestand("lib/pipeline/synthesis.ts").includes("quoteOnPage(k.quote, bron)"));
 });
 
 group("V18: meetvragen en clusters over het hele merk", () => {
@@ -23769,9 +23813,10 @@ group("A3: één bron van vragen (besluit V3)", () => {
     .filter((p) => !p.startsWith("scripts/"))
     .filter((p) => /from\(\s*["'`]fact_requests["'`]\s*\)\s*\.\s*(insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));
   eq(
-    "vragen aan de klant komen alleen nog uit de voorbereiding van een pagina, de open vraag en het merkdossier",
+    // V16 (29 september 2026): de notitie van de schrijver na het schrijven is de vierde bron.
+    "vragen aan de klant komen alleen nog uit de voorbereiding van een pagina, de open vraag, het merkdossier en de notitie van de schrijver",
     vraagSchrijvers.sort().join(", "),
-    "app/api/profiles/[id]/dossier/route.ts, lib/pagina/brief.ts, lib/pagina/open-vraag.ts",
+    "app/api/profiles/[id]/dossier/route.ts, lib/pagina/brief.ts, lib/pagina/open-vraag.ts, lib/pagina/taken.ts",
   );
 });
 

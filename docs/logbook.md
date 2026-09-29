@@ -13095,3 +13095,17 @@ wat B26 wilde voorkomen. Een verboden woord blijft een reden om te herschrijven.
 verbeterpagina ziet de ondernemer welke bedragen, termijnen, telefoonnummers en keurmerken van zijn
 huidige pagina niet in de nieuwe tekst staan (V21 punt 3, B-h). Nog niet tegen productie nagerekend.
 
+## 29 september 2026: pijplijnanalyse contentketen, fase 5 (onderzoek en meting) gebouwd
+
+De samenvatting van het onderzoek haalt ook de concrete klussen van de site op, elk met een citaat
+dat de code letterlijk op de pagina terugvindt; ze worden verhalen in de kennislaag, naast de klussen
+uit het gesprek (V9). De onderzoeksopdracht vraagt het werkgebied in plaatsen; een streek of een
+onbekend bedrijfsmodel wordt het eerste open punt op het kennisoverzicht (V10). Een lijst van de
+grootste plaatsen per regio, zoals het plan voorstelde, is niet gebouwd: daar is geen bron voor in de
+app, en een gok is slechter dan een vraag in het gesprek. De meetvragen van een cluster hebben
+hooguit één vraag over een bezwaar uit het verkoopgesprek, alleen in de overwegingsfase en alleen als
+het bij het onderwerp past; de code haalt een tweede eruit (V11; in ronde 1 kwam één bezwaar vijf
+keer terug in 90 vragen). Wat de schrijver nog had willen weten, wordt een open vraag bij de pagina,
+ontdubbeld tegen de vragen die het merk al kreeg (V16); dat is sinds besluit V3 de vierde plek die
+vragen aan de klant maakt. Nog niet tegen productie nagerekend.
+

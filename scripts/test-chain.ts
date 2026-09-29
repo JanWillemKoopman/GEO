@@ -5533,7 +5533,8 @@ async function main(): Promise<void> {
                     ? tekstTwee
                     : tekstEen,
             faq: [],
-            notitie_voor_ondernemer: null,
+            // V16: de schrijver van de onderhoudspagina had nog iets willen weten.
+            notitie_voor_ondernemer: isOnderhoud && !herschrijf && !klant ? "Hoe vaak per jaar komen jullie langs voor onderhoud?" : null,
           };
         } else if (opts.schemaName === "pagina_controle") {
           antwoord = isOnderhoud
@@ -5666,6 +5667,14 @@ async function main(): Promise<void> {
       ok("een antwoord uit een ander cluster niet naar de schrijver", !aanroepen.some((a) => a.schema === "pagina" && a.user.includes("kleine vijvers")));
       ok("wel naar de brief, als eerder antwoord (V17)", aanroepen.some((a) => a.schema === "content_brief" && a.user.includes("kleine vijvers")));
       ok("de controle is ingepland", (await wachtrij("pagina_controle")).length === 2);
+      const { rows: notitieVraag } = await db.client.query(
+        "select status, scope, analysis_id, content_piece_ids, raw_json from public.fact_requests where question = 'Hoe vaak per jaar komen jullie langs voor onderhoud?'",
+      );
+      ok(
+        "V16: de notitie van de schrijver is een open vraag bij de pagina, in zijn cluster",
+        notitieVraag.length === 1 && notitieVraag[0].status === "open" && notitieVraag[0].content_piece_ids.includes(onderhoud) && notitieVraag[0].analysis_id === cluster && notitieVraag[0].raw_json?.bron === "notitie_schrijver",
+        JSON.stringify(notitieVraag),
+      );
 
       // ── Controle en hooguit één herschrijving ─────────────────────────────
       await draai("pagina_controle");
@@ -8745,7 +8754,9 @@ async function main(): Promise<void> {
          ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten',
           'Wij zitten in Amersfoort. Hardloopklachten behandelen wij met dry needling en oefentherapie.'),
          ($1, 'https://fysi-unique.nl/dry-needling', 'Dry needling',
-          'Dry needling voor sporters kost € 65 per behandeling van een half uur.')`,
+          'Dry needling voor sporters kost € 65 per behandeling van een half uur.'),
+         ($1, 'https://fysi-unique.nl/nieuws/marathon', 'Weer op weg',
+          'Vorige maand hielpen we een marathonloper uit Leusden weer op weg na een achillespeesblessure.')`,
         [merk],
       );
       const kennis = async (taak: string) =>
@@ -8794,7 +8805,14 @@ async function main(): Promise<void> {
       await db.client.query("update public.profiles set onboarding_budget_usd = 2.15 where id = $1", [merk]);
 
       await synthesiseProfile(merk);
-      const synthese = await kennis("profile_synthesis");
+      const alleSynthese = await kennis("profile_synthesis");
+      const synthese = alleSynthese.filter((r) => r.soort !== "klus");
+      // V9: de klus van de site is een verhaal, waargenomen; de klus zonder letterlijk citaat valt weg.
+      eqc(
+        "V9: één klus van de site in de kennislaag, met het gevonden citaat",
+        alleSynthese.filter((r) => r.soort === "klus").map((r) => `${r.domein}/${r.status}/${r.gebruik}/${r.citaat}`).join(","),
+        "verhaal/waargenomen/content/hielpen we een marathonloper uit Leusden weer op weg",
+      );
       const { rows: feit } = await db.client.query("select id from public.profile_facets where profile_id = $1 and facet = 'synthese'", [merk]);
       eqc("scenario 21: het sitefeit is waargenomen, met het gevonden citaat", synthese.map((r) => `${r.bewering}/${r.status}/${r.citaat}/${r.gebruik}`).join(","), "De praktijk zit in Amersfoort./waargenomen/Wij zitten in Amersfoort./content");
       eqc("scenario 21: en verwijst naar het verslag van de samenvatting (sinds K8 deel 2)", `${synthese[0]?.herkomst_tabel}/${synthese[0]?.herkomst_id}`, `profile_facets/${feit[0]?.id}`);

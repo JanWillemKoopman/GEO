@@ -40,6 +40,8 @@ import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
 import { planBriefs, probeerTeSchrijven } from "@/lib/pagina/start";
 import { siteTeksten } from "@/lib/pagina/context";
 import { verdwenenGegevens } from "@/lib/pagina/verdwenen-gegevens";
+import { vraagUitNotitie } from "@/lib/pagina/notitie-vraag";
+import { normaliseerVraag } from "@/lib/pagina/brief-regels";
 import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 
 type Admin = SupabaseClient;
@@ -267,6 +269,58 @@ export async function voerSchrijvenUit(admin: Admin, job: Job, payload: Achtergr
     kennisIds: kolommen.gebruikte_kennis as string[],
   });
   await planControle(admin, basis);
+  await notitieAlsVraag(admin, basis, uitvoer.notitie_voor_ondernemer);
+}
+
+/**
+ * V16: de notitie van de schrijver als open vraag bij deze pagina. Stond
+ * dezelfde vraag al bij het merk (de unieke index op merk en vraagtekst uit
+ * migratie 0019), dan hangt de pagina aan die vraag in plaats van een tweede.
+ * Gooit nooit: een mislukte vraag mag de geschreven pagina niet tegenhouden.
+ */
+async function notitieAlsVraag(admin: Admin, basis: Schrijfbasis, notitie: string | null): Promise<void> {
+  const vraag = vraagUitNotitie(notitie);
+  if (!vraag) return;
+  try {
+    // Zelfde ontdubbeling als de brief (`normaliseerVraag`): hoofdletters,
+    // accenten en leestekens tellen niet.
+    const { data: rijen } = await admin
+      .from("fact_requests")
+      .select("id, question, content_piece_ids")
+      .eq("profile_id", basis.pagina.profileId);
+    const sleutel = normaliseerVraag(vraag);
+    const bestaand = ((rijen ?? []) as { id: string; question: string; content_piece_ids: string[] | null }[]).find(
+      (r) => normaliseerVraag(r.question) === sleutel,
+    );
+    if (bestaand) {
+      if ((bestaand.content_piece_ids ?? []).includes(basis.pagina.pieceId)) return;
+      await admin
+        .from("fact_requests")
+        .update({ content_piece_ids: [...(bestaand.content_piece_ids ?? []), basis.pagina.pieceId] })
+        .eq("id", bestaand.id);
+      return;
+    }
+    const { error } = await admin.from("fact_requests").insert({
+      profile_id: basis.pagina.profileId,
+      analysis_id: basis.pagina.analysisId,
+      question: vraag,
+      reason: "De schrijver van deze pagina had dit nog willen weten. Met je antwoord kun je om een aanpassing vragen.",
+      status: "open",
+      scope: "pagina",
+      kind: "aanvulling",
+      answer_type: "tekst_lang",
+      options: [],
+      required: false,
+      content_piece_ids: [basis.pagina.pieceId],
+      raw_json: { bron: "notitie_schrijver" },
+    });
+    // 23505: een gelijktijdige schrijver was ons voor; dan bestaat hij al.
+    if (error && (error as { code?: string }).code !== "23505") {
+      console.error(`Notitie van pagina ${basis.pagina.pieceId} als vraag bewaren mislukte: ${error.message}`);
+    }
+  } catch (err) {
+    console.error(`Notitie van pagina ${basis.pagina.pieceId} als vraag bewaren mislukte:`, err);
+  }
 }
 
 /**

@@ -44,6 +44,23 @@ export const ProfileSynthesis = z.object({
       quote: z.string(),
     }),
   ),
+  /**
+   * V9 van `docs/tasks/pijplijnanalyse-contentketen.md`: de concrete klussen
+   * die de site zelf beschrijft (projecten, recente werkzaamheden, cases). In
+   * ronde 1 had de site van een klant een hele reeks, en stonden er twee in de
+   * kennislaag. Zelfde vangnet als `facts`: het citaat moet letterlijk op de
+   * pagina staan.
+   */
+  klussen: z.array(
+    z.object({
+      /** Wat er gebeurde, in één of twee zinnen. */
+      text: z.string(),
+      /** De plaats als de site die noemt, anders null. */
+      plaats: z.string().nullable(),
+      sourceUrl: z.string(),
+      quote: z.string(),
+    }),
+  ),
 });
 
 export type ProfileSynthesis = z.infer<typeof ProfileSynthesis>;

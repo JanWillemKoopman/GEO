@@ -269,9 +269,14 @@ voeren op basis van wat de app gevonden heeft.
   Het oordeel (bekend, klopt, genoemd) velt de app zelf, nooit de AI over zichzelf. "ChatGPT denkt
   dat je in Eindhoven zit" is voor een ondernemer vaak de meest alarmerende uitkomst.
 - **Alles samenbrengen.** Het sterkste model maakt er één dossier van: vier tot acht zinnen zonder
-  vakjargon, een lijst citeerbare feiten (elk met een bronpagina en een letterlijk citaat), en open
-  punten die in dertig seconden te beantwoorden zijn. Een feit waarvan het citaat niet letterlijk
-  op de bronpagina staat, gooit de app weg.
+  vakjargon, een lijst citeerbare feiten (elk met een bronpagina en een letterlijk citaat), de
+  concrete klussen die de site zelf beschrijft (projecten, recente werkzaamheden), en open punten
+  die in dertig seconden te beantwoorden zijn. Een feit of klus waarvan het citaat niet letterlijk
+  op de bronpagina staat, gooit de app weg. Een klus wordt een verhaal voor de schrijver, naast de
+  verhalen uit het gesprek.
+- Het werkgebied hoort in plaatsen te staan, niet in streken, want klanten zoeken op hun dorp.
+  Staat er toch een streek ("Alblasserwaard"), of is het soort bedrijf onbekend, dan staat dat
+  bovenaan de open punten voor het gesprek.
 - Het merk springt naar **"Klaar voor het gesprek"**. Een stap die niets vond, toont een
   waarschuwing in plaats van een groen vinkje.
 
@@ -350,8 +355,10 @@ gemeten nadat iemand ze heeft goedgekeurd.
 
   De harde regel: nooit de eigen merknaam en nooit een concurrent bij naam, want de meting moet
   laten zien of het merk vanzelf genoemd wordt. Werkt het bedrijf lokaal, dan bevat elke vraag een
-  plaats uit het werkgebied, en wel zo dat de vraag echt lokaal wordt. Minstens één vraag gaat over
-  een twijfel die klanten in het verkoopgesprek hebben.
+  plaats uit het werkgebied, en wel zo dat de vraag echt lokaal wordt. Hooguit één vraag per
+  cluster gaat over een twijfel die klanten in het verkoopgesprek hebben, en alleen als die twijfel
+  bij het onderwerp past; een tweede vraag over een twijfel haalt de app eruit. Zo meet de meting
+  de markt en niet het eigen verkoopverhaal.
 - De app haalt dubbele vragen eruit (ook als ze alleen in de plaatsnaam verschillen), en laat de AI
   aanvullen als er te weinig vragen, te weinig lokale vragen of te weinig vragen over een
   groeiregio zijn.
@@ -611,7 +618,8 @@ is de enige maatstaf die telt. Na goedkeuring krijgt de klant alles wat nodig is
 op de site te zetten.
 
 - De klant leest de tekst opgemaakt, met koppen en lijsten. Bovenaan staat, als die er is, wat de
-  schrijver nog had willen weten.
+  schrijver nog had willen weten. Dat staat ook als open vraag bij de pagina: het antwoord gaat de
+  kennislaag in, en daarmee kan de klant om een aanpassing vragen.
 - De gele zinnen staan geel in de tekst, met per zin **"Klopt"** en **"Pas aan"**.
 - De klant kan de tekst ook zelf bewerken. Een gele zin die daarna niet meer in de tekst staat,
   hoeft niet meer bevestigd te worden.

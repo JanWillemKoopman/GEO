@@ -39,6 +39,7 @@ import {
   REGIO_DREMPEL,
 } from "@/lib/pipeline/geo-share";
 import { growthRegionsRule } from "@/lib/pipeline/commercial-context";
+import { tweedeBezwaarvraag } from "@/lib/pipeline/prompt-dedupe";
 
 /**
  * Vaste ijkpunten voor elke zoekvolumeschatting, in deze stap én in de
@@ -354,14 +355,22 @@ async function generateForFunnelStage(args: {
     `Schrijf natuurlijke, gesproken vragen, geen losse zoekwoorden. Varieer in toon en specificiteit. Nederlands. ` +
     neutralityRule;
 
-  // Punt 8: de bezwaren uit het gesprek als bron, alleen in de fasen waarin
-  // iemand nog twijfelt. In de beslisfase kiest hij al een aanbieder.
-  const bezwaren = (brand.salesObjections ?? []).map((b) => b.trim()).filter(Boolean);
+  // Punt 8: de bezwaren uit het gesprek als bron.
+  // ⚠️ V11 (29 september 2026): tot dan "minstens één" in zowel de oriëntatie
+  // als de overweging, en dat per cluster: drie clusters maal twee fasen is zes
+  // keer, ook als het bezwaar niet bij het onderwerp past. Nu alleen in de
+  // overweging (de fase van de twijfel; de drie fasen lopen parallel, dus één
+  // fase is de enige manier om er één per cluster van te maken), hooguit één
+  // vraag, en alleen als een bezwaar echt over dit onderwerp gaat. Het vangnet
+  // eronder (`tweedeBezwaarvraag`) houdt het bij één.
+  const bezwaren =
+    category === "Overweging" ? (brand.salesObjections ?? []).map((b) => b.trim()).filter(Boolean) : [];
   const bezwaarRegel =
-    bezwaren.length > 0 && (category === "Oriëntatie" || category === "Overweging")
-      ? `DE TWIJFELS DIE KOPERS IN DEZE MARKT HEBBEN (uit het verkoopgesprek): ${bezwaren.join(" · ")}. ` +
-        `Laat minstens één vraag over zo'n twijfel gaan, gesteld zoals een koper hem aan een ` +
-        `AI-assistent stelt.\n`
+    bezwaren.length > 0
+      ? `DE TWIJFELS DIE KOPERS VAN DIT BEDRIJF HEBBEN (uit het verkoopgesprek): ${bezwaren.join(" · ")}. ` +
+        `Gaat een van deze twijfels echt over "${topic}", laat dan hooguit één vraag daarover gaan, gesteld ` +
+        `zoals een koper hem aan een AI-assistent stelt. Past geen van deze twijfels bij het onderwerp, stel ` +
+        `er dan geen vraag over.\n`
       : "";
 
   // V18 (besluit B-i): een vraag die al in een ander cluster van dit merk
@@ -432,6 +441,7 @@ async function generateForFunnelStage(args: {
       if (collected.length >= count) break;
       if (containsForbidden(p.text, tokens)) continue;
       if (!nieuweVraag(p.text, collected.map((c) => c.text))) continue;
+      if (tweedeBezwaarvraag(p.text, bezwaren, collected.map((c) => c.text))) continue;
       collected.push(p);
     }
   }
