@@ -144,6 +144,7 @@ export function ZoekverkeerPaginas({ rows }: { rows: OnzePaginaRij[] }) {
         <AnalyticsTable
           rows={zichtbareRijen}
           rowKey={(r) => r.page}
+          wit
           defaultSortKey="klikken"
           defaultSortDir="desc"
           columns={kolommen}

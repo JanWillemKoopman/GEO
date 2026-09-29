@@ -26,19 +26,15 @@ import { Icon } from "@/components/icon";
 export function MobileTopbar({
   titel,
   actie,
-  salesContext = false,
 }: {
   titel: string;
   /** De ene knop rechts. `null` laat de plek leeg in plaats van een lege knop. */
   actie?: React.ReactNode;
-  /** Sales-routes krijgen een 2px `--intent-warning-solid` streep onder de
-   *  balk (§8.7): dezelfde interne-scherm-markering als op desktop. */
-  salesContext?: boolean;
 }) {
   const router = useRouter();
 
   return (
-    <header className={`topbar-mobiel no-print${salesContext ? " topbar-sales" : ""}`}>
+    <header className={`topbar-mobiel no-print$`}>
       <button
         type="button"
         onClick={() => router.back()}

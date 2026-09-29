@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Antwoordveld } from "@/components/antwoordveld";
 import { Icon } from "@/components/icon";
-import { OPEN_VRAAG_MAX, OPEN_VRAAG_VOORBEELDEN } from "@/lib/pagina/open-vraag-tekst";
+import { OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 import { VERPLICHT_UITLEG } from "@/lib/feitenvraag";
 
 /**
@@ -205,7 +205,6 @@ export function Vraagkaart({
             value={waarde}
             disabled={bezig}
             onChange={(e) => setWaarde(e.target.value)}
-            placeholder={OPEN_VRAAG_VOORBEELDEN.join("\n\n")}
           />
           <span className="type-caption text-muted tabular self-end">
             {waarde.length} van {OPEN_VRAAG_MAX} tekens

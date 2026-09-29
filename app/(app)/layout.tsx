@@ -5,7 +5,6 @@ import { DeploymentBanner } from "@/components/deployment-banner";
 import { ClusterMelder } from "@/components/cluster-melder";
 import { loadWorkspace } from "@/lib/workspace";
 import { isStaff, isStaffAccount } from "@/lib/staff";
-import { isSales } from "@/lib/sales/access";
 import { createClient } from "@/lib/supabase/server";
 import { countOpenQuestionsForBrand } from "@/lib/open-questions";
 
@@ -27,8 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // ── ⚠️ ALLES WAT TEGELIJK KAN, GAAT TEGELIJK (28 AUGUSTUS 2026) ──────────
   //
   // Deze vier stonden onder elkaar, elk met een eigen `await`. Ze weten niets
-  // van elkaar: de werkruimte komt uit `profiles`, de rechten uit `staff_users`
-  // en `sales_users`. Achter elkaar afwachten kostte vier netwerkrondes vóór er
+  // van elkaar: de werkruimte komt uit `profiles`, de rechten uit `staff_users`. Achter elkaar afwachten kostte vier netwerkrondes vóór er
   // één byte HTML de deur uit kon, en deze layout draait onder élk scherm van
   // de app. `isStaff` en `isStaffAccount` delen hun query via `cache()`, dus
   // parallel starten levert er ook geen extra op.
@@ -42,13 +40,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // die gebruiken we alleen om de wisselknop zelf te tonen, want anders kan een
   // beheerder die net op de klantweergave heeft geklikt niet meer terug.
   //
-  // `sales` is gememoïseerd (`lib/sales/access.ts`) en kost bij een beheerder
-  // helemaal geen query: die is per definitie ook sales (plan §4.2).
-  const [workspace, staff, staffAccount, sales] = await Promise.all([
+  const [workspace, staff, staffAccount] = await Promise.all([
     loadWorkspace(user.id),
     isStaff(user.id),
     isStaffAccount(user.id),
-    isSales(user.id),
   ]);
 
   // ── De teller in de bovenbalk (28 augustus 2026) ─────────────────────────
@@ -76,7 +71,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         workspace={workspace}
         staff={staff}
         staffAccount={staffAccount}
-        sales={sales}
         openVragen={openVragen}
       >
         {children}

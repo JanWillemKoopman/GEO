@@ -40,7 +40,7 @@ export function MeerBlad({
 }: {
   open: boolean;
   onSluit: () => void;
-  /** De volledige, platte navigatielijst: brandNav + generalNav + salesNav. */
+  /** De volledige, platte navigatielijst: brandNav + generalNav. */
   alles: NavItem[];
   /** De hrefs die al op de onderbalk staan, dus hier verborgen: geen bestemming twee keer. */
   primaireHrefs: string[];

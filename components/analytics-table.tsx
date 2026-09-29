@@ -45,6 +45,7 @@ export function AnalyticsTable<T>({
   defaultSortDir = "asc",
   emptyLabel = "Niets te tonen bij deze filters.",
   stickyOffset = "var(--header-h)",
+  wit = false,
 }: {
   columns: AnalyticsColumn<T>[];
   rows: T[];
@@ -64,6 +65,13 @@ export function AnalyticsTable<T>({
   emptyLabel?: string;
   /** Waarop de kop plakt: standaard de bovenbalk, of erbij op als er een filterbalk boven staat. */
   stickyOffset?: string;
+  /**
+   * De tabel staat in een wit vlak (`.card`) en niet op de pagina zelf. De
+   * plakkende kop heeft een dekkende achtergrond nodig en nam die van de pagina
+   * (`--bg-base`, lichtgrijs), waardoor hij als grijze balk in een wit vlak
+   * stond. Met `wit` neemt hij de kleur van het vlak (`--bg-surface`).
+   */
+  wit?: boolean;
 }) {
   const [sortKey, setSortKey] = useState<string | undefined>(defaultSortKey);
   const [sortDir, setSortDir] = useState<"asc" | "desc">(defaultSortDir);
@@ -127,7 +135,7 @@ export function AnalyticsTable<T>({
       <table className={`tabel tabel-dicht${onRowClick ? " tabel-klikbaar" : ""}`}>
         <thead>
           <tr
-            className="sticky z-10 border-b border-[var(--line-muted)] bg-[var(--bg-base)]"
+            className={`sticky z-10 border-b border-[var(--line-muted)] ${wit ? "bg-[var(--bg-surface)]" : "bg-[var(--bg-base)]"}`}
             style={{ top: stickyOffset }}
           >
             {columns.map((col) => (

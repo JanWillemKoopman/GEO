@@ -95,19 +95,6 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   // merk, dus ze zouden hier sowieso niet langskomen. Dat `null` is het tweede
   // slot: ook als iemand de filtering ooit verandert, blijft er niets van te
   // zien.
-  sales_market_discover: null,
-  sales_market_verify: null,
-  sales_market_suppress: null,
-  sales_company_enrich: null,
-  sales_market_intents: null,
-  sales_market_questions: null,
-  sales_measure_question: null,
-  sales_market_aggregate: null,
-  sales_detect_opportunities: null,
-  sales_opportunity_explain: null,
-  sales_contact_find: null,
-  sales_outreach_draft: null,
-  sales_market_report: null,
   crawl_inventory: "meer pagina's van je website gelezen",
 
   // Interne infrastructuur (G1): de klant ziet nooit welke gebeurtenis er

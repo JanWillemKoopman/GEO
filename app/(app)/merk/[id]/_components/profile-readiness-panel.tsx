@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
+import { assessReadiness, type Readiness } from "@/lib/pipeline/profile-readiness";
 import {
-  assessReadiness,
-  readinessHeadline,
-  type Readiness,
-  type ReadinessRow,
-} from "@/lib/pipeline/profile-readiness";
+  buildOnboardingStatus,
+  statusZin,
+  type OnboardingStatus,
+  type StatusRegel,
+} from "@/lib/pipeline/onboarding-status";
 import type { ResearchStep } from "@/lib/pipeline/research-steps";
 import { Icon } from "@/components/icon";
 
@@ -39,6 +40,7 @@ interface StatusPayload {
   steps?: ResearchStep[];
   etaText: string | null;
   pendingJobs: number;
+  failedJobs?: number;
   counts?: {
     profileId: string;
     pages: number;
@@ -135,93 +137,58 @@ export function ProfileReadinessPanel({
 
   if (steps.length === 0) return null;
 
-  // ── Loopt nog ────────────────────────────────────────────────────────────
-  if (loopt) {
-    const gedaan = steps.filter(
-      (s) => s.state === "klaar" || s.state === "overgeslagen",
-    ).length;
-    return (
-      <div className="card flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="live-dot" aria-hidden />
-            <span className="mono-label">ORBIT ENGINE onderzoekt · live</span>
-          </div>
-          {data?.etaText && (
-            <span className="mono-label">{data.etaText}</span>
-          )}
-        </div>
-
-        <Balk gedaan={gedaan} totaal={steps.length} />
-
-        <p className="text-sm text-secondary">
-          Je merkdossier staat er al. De rest komt hieronder binnen. Je kunt dit
-          scherm sluiten, ORBIT ENGINE werkt door en meldt zich als het klaar is.
-        </p>
-
-        <ol className="flex flex-col gap-2">
-          {steps.map((s) => (
-            <li key={s.job} className="flex flex-wrap items-baseline gap-2 text-sm">
-              <span
-                className={
-                  s.state === "klaar"
-                    ? "chip chip-success"
-                    : s.state === "bezig"
-                      ? "chip chip-success"
-                      : s.state === "overgeslagen"
-                        ? "chip chip-warning"
-                        : "chip chip-neutral"
-                }
-              >
-                {s.state === "klaar"
-                  ? "klaar"
-                  : s.state === "bezig"
-                    ? "bezig"
-                    : s.state === "overgeslagen"
-                      ? "niets gevonden"
-                      : "wacht"}
-              </span>
-              <span className={s.state === "wacht" ? "text-muted" : ""}>
-                {s.label}
-              </span>
-              {s.result && <span className="text-secondary">· {s.result}</span>}
-            </li>
-          ))}
-        </ol>
-      </div>
-    );
-  }
-
   if (!readiness) return null;
 
-  // ── Klaar ────────────────────────────────────────────────────────────────
+  // ── Eén overzicht, ook als het nog loopt ────────────────────────────────
   //
-  // Blijft staan, ook bij een later bezoek. Dit is niet het nieuws van het
-  // moment maar de stand van het dossier, en dat is precies wat je wilt zien
-  // voordat je het scherm deelt.
+  // Voor 30 september 2026 waren dit twee blokken (een lijst tijdens het
+  // onderzoek, een andere erna) met een teller die alleen de blokkerende regels
+  // telde. Nu staat er altijd dezelfde lijst, en de balk, de zin en de getallen
+  // per groep komen uit dezelfde regels (`lib/pipeline/onboarding-status.ts`).
+  const status = buildOnboardingStatus(steps, readiness);
+  const toon = status.allesKlaar ? "card-success" : status.nodigOpen.length > 0 && !loopt ? "card-warning" : "";
+
   return (
-    <div
-      className={`card flex flex-col gap-3 ${readiness.compleet ? "card-success" : "card-warning"}`}
-      role="status"
-    >
+    <div className={`card flex flex-col gap-4 ${toon}`} role="status">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="mono-label">
-          {readiness.compleet ? "Dossier compleet" : "Dossier niet compleet"}
+        <span className="flex items-center gap-2">
+          {loopt && <span className="live-dot" aria-hidden />}
+          <span className="mono-label">
+            {loopt ? "ORBIT ENGINE onderzoekt · live" : "Status van de onboarding"}
+          </span>
         </span>
         <span className="mono-label">
-          {readiness.klaarAantal} van de {readiness.nodigAantal}
+          {loopt && data?.etaText ? `${data.etaText} · ` : ""}
+          {status.klaar} van de {status.totaal}
         </span>
       </div>
 
-      <Balk gedaan={readiness.klaarAantal} totaal={readiness.nodigAantal} />
+      <Balk gedaan={status.klaar} totaal={status.totaal} />
 
-      <p className="text-secondary">{readinessHeadline(readiness, brandName)}</p>
+      <p className="text-secondary">{statusZin(status, brandName)}</p>
 
-      <ul className="flex flex-col gap-1.5">
-        {readiness.rows.map((r) => (
-          <Regel key={r.label} row={r} />
-        ))}
-      </ul>
+      {(data?.failedJobs ?? 0) > 0 && !loopt && (
+        <p className="text-sm" style={{ color: "var(--intent-warning-content)" }}>
+          Een onderdeel van het onderzoek is vastgelopen. Draai het onderzoek opnieuw.
+        </p>
+      )}
+
+      {status.groepen.map((g) => (
+        <section key={g.sleutel} className="flex flex-col gap-2" aria-label={g.titel}>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <span className="type-body-emphasis">{g.titel}</span>
+            <span className="mono-label">
+              {g.klaar} van de {g.totaal}
+            </span>
+          </div>
+          <p className="text-sm text-muted">{g.uitleg}</p>
+          <ul className="flex flex-col gap-1.5">
+            {g.regels.map((r) => (
+              <Regel key={r.label} regel={r} />
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }
@@ -252,30 +219,45 @@ function Balk({ gedaan, totaal }: { gedaan: number; totaal: number }) {
   );
 }
 
-function Regel({ row }: { row: ReadinessRow }) {
+const STAND_TEKST: Record<StatusRegel["stand"], string> = {
+  klaar: "klaar",
+  bezig: "bezig",
+  wacht: "wacht",
+  leeg: "ontbreekt",
+  open: "open",
+};
+
+function Regel({ regel }: { regel: StatusRegel }) {
   const icoon =
-    row.state === "klaar" ? "klaar" : row.state === "loopt" ? "loopt" : "open";
+    regel.stand === "klaar" ? "klaar" : regel.stand === "bezig" || regel.stand === "wacht" ? "loopt" : "open";
   const kleur =
-    row.state === "klaar"
+    regel.stand === "klaar"
       ? "var(--trend-up-text)"
-      : row.state === "loopt"
+      : regel.stand === "bezig" || regel.stand === "wacht"
         ? "var(--text-tertiary)"
-        : row.nodig
+        : regel.nodig
           ? "var(--intent-warning-content)"
           : "var(--text-tertiary)";
+  // Een stap die draaide en niets vond is geen fout maar wel iets om te weten:
+  // "0 gevonden" mag nooit lezen als een geslaagde stap (`buildSteps()`).
+  const tekst = regel.stand === "leeg" && !regel.nodig ? "niets gevonden" : STAND_TEKST[regel.stand];
 
   return (
     <li className="flex flex-wrap items-baseline gap-2 text-sm">
       <span style={{ color: kleur }}>
         <Icon naam={icoon} size={14} />
       </span>
-      <a href={row.anchor} className="hover:underline">
-        {row.label}
-      </a>
-      {row.detail && <span className="text-muted">· {row.detail}</span>}
-      {row.state !== "klaar" && (
+      {regel.anchor ? (
+        <a href={regel.anchor} className="hover:underline">
+          {regel.label}
+        </a>
+      ) : (
+        <span>{regel.label}</span>
+      )}
+      {regel.detail && <span className="text-muted">· {regel.detail}</span>}
+      {regel.stand !== "klaar" && (
         <span className="mono-label" style={{ color: kleur }}>
-          {row.state === "loopt" ? "loopt" : row.nodig ? "ontbreekt" : "open"}
+          {tekst}
         </span>
       )}
     </li>

@@ -59,7 +59,6 @@ export async function updateSession(request: NextRequest, requestHeaders?: Heade
     "/merk",
     "/instellingen",
     "/beheer",
-    "/sales",
     "/solliciteren",
   ].some((p) => path === p || path.startsWith(`${p}/`));
   const isAuthPage = path === "/login" || path === "/register";

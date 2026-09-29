@@ -580,7 +580,7 @@ export default async function ReputatiePage({
               {laatste.market_rivals.slice(0, 5).join(", ")}
               {laatste.market_rivals.length > 5 && ` en ${laatste.market_rivals.length - 5} andere`}
               .{" "}
-              <Link href={`/merk/${id}/analytics/concurrenten`} className="link">
+              <Link href={`/merk/${id}/analytics?tabel=concurrenten`} className="link">
                 Bekijk je concurrenten
               </Link>
               .

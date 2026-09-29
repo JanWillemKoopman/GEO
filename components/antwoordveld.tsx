@@ -30,7 +30,7 @@ export function Antwoordveld({
   zetWaarde: (waarde: string) => void;
   uitgeschakeld?: boolean;
 }) {
-  const { vorm, keuzes, hint } = vraagVorm(vraag);
+  const { vorm, keuzes } = vraagVorm(vraag);
 
   if (vorm === "keuze") {
     return (
@@ -66,7 +66,6 @@ export function Antwoordveld({
           maxLength={GERICHT_ANTWOORD_MAX}
           disabled={uitgeschakeld}
           onChange={(e) => zetWaarde(e.target.value)}
-          placeholder={hint}
         />
         <p className="mt-1 type-caption text-muted tabular">
           {waarde.length} van {GERICHT_ANTWOORD_MAX} tekens
@@ -88,7 +87,6 @@ export function Antwoordveld({
         maxLength={GERICHT_ANTWOORD_MAX}
         disabled={uitgeschakeld}
         onChange={(e) => zetWaarde(e.target.value)}
-        placeholder={hint}
       />
     </div>
   );
