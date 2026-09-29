@@ -30,7 +30,7 @@ export function Antwoordveld({
   zetWaarde: (waarde: string) => void;
   uitgeschakeld?: boolean;
 }) {
-  const { vorm, keuzes, hint } = vraagVorm(vraag);
+  const { vorm, keuzes } = vraagVorm(vraag);
 
   if (vorm === "keuze") {
     return (
@@ -64,7 +64,6 @@ export function Antwoordveld({
         value={waarde}
         disabled={uitgeschakeld}
         onChange={(e) => zetWaarde(e.target.value)}
-        placeholder={hint}
       />
     );
   }
@@ -81,7 +80,6 @@ export function Antwoordveld({
         value={waarde}
         disabled={uitgeschakeld}
         onChange={(e) => zetWaarde(e.target.value)}
-        placeholder={hint}
       />
     </div>
   );
