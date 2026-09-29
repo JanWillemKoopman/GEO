@@ -289,3 +289,11 @@ copywriter.
    één vreemde toevoegde ("Zijn €141 en €171 ook de prijzen voor een noodopening?"), en dat er
    defensieve zinnen bij kwamen ("geen aankomsttijd die we kunnen toezeggen zonder je te spreken").
    Of dat de copywriter ook opvalt, is precies wat de ronde moet uitwijzen.
+
+## 11. Sjabloon versie 2 (29 september 2026)
+
+Na overleg met de eigenaar zijn de voorstellen uit `beoordeling-sjabloon-en-rubriek.md` verwerkt in
+§4 van de methode (versie 2), plus de regel voor clusters met minder dan twee aanbevelingen in §2.3.
+Het klantdocument is met versie 2 opnieuw opgebouwd uit hetzelfde `data.json`, zonder nieuwe
+AI-aanroepen: leesdeel 13.013 woorden (was 17.251), eerdere versies van vier pagina's in een
+bijlage. Het script staat nu op `content-reviews/maak_klantdocument.py`, gedeeld met klant B en C.

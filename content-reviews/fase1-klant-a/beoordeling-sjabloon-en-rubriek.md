@@ -1,5 +1,8 @@
 # Fase 1: werken het sjabloon en de rubriek?
 
+> **Verwerkt op 29 september 2026** in versie 2 van §4 van de methode, samen met de eigenaar. Het
+> klantdocument is daarmee opnieuw opgebouwd; "Hoe ingevuld" onderaan geldt voor versie 1.
+
 Eigen oordeel van Claude Code na het opstellen van het klantdocument voor Slotenspecialist van
 Kessel, 29 september 2026. Beantwoordt de drie vragen uit `docs/contentkwaliteit-testmethode.md`
 §2 (fase 1). Het sjabloon zelf is **niet** gewijzigd; dit zijn voorstellen om samen door te lopen.

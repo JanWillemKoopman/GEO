@@ -155,6 +155,14 @@ Beide uit hetzelfde rapport, in dezelfde maand vrijgegeven, zodat ze na elkaar v
 (hoofdstuk 13: "de pagina's van een maand worden na elkaar voorbereid"). Dat test specifiek of het
 tweede artikel niet op het eerste gaat lijken, wat een bekend risico is.
 
+**Minder dan twee aanbevelingen in een cluster** (besloten 29 september 2026, na fase 1). Scoort een
+merk in een cluster al goed, dan levert het rapport soms maar één aanbeveling op; bij klant A
+gebeurde dat in het cluster over slimme sloten. Verzin dan niets, maar vul aan met een aanbeveling
+uit een ander cluster van hetzelfde merk. Kies daarbij bij voorkeur het pad dat nog ontbreekt in de
+matrix van deze klant (een nieuwe pagina of een verbeterpagina, §2.2 punt 3), en anders de
+eerstvolgende op prioriteit. Noteer de aanvulling in het log; de toets "lijkt het tweede artikel op
+het eerste" vervalt dan voor dat cluster.
+
 ---
 
 ## 3. Hoe een ronde in de app wordt uitgevoerd, volledig door Claude Code
@@ -190,8 +198,10 @@ Volgorde per klant:
    concreet, bij klant C kort en met bewust overgeslagen vragen waar de klant het antwoord niet zou
    weten. Nooit een cijfer of feit verzinnen dat niet in het profiel staat; een overgeslagen vraag is
    een geldig resultaat.
-7. Laten schrijven, de eerste versie en (als die er is) de herschreven versie bewaren vóór ze in het
-   goedkeuringsscherm verdwijnen (§4 heeft ze allebei nodig).
+7. Laten schrijven. De herschrijving overschrijft de eerste versie in de app, maar beide blijven
+   volledig bewaard in de AI-registratie en zijn op te halen via `GET /api/beheer/spoor/<profiel>`
+   (§4 en §6 hebben ze allebei nodig). Liggen publicatiedata verder dan tien dagen weg, gebruik dan
+   "Nu laten schrijven" (`actie: schrijf_nu`); die slaat alleen de datum over, nooit de vragen.
 8. Elke stap loggen (welk merk, welk cluster, welke keuze, met tijdstip, en de inputrijkheid per
    antwoord uit §2.1), net als in `docs/tasks/benchmarkronde-twee-klanten.md` §7, zodat achteraf te
    zien is wat er gebeurd is en waarom.
@@ -215,21 +225,27 @@ Volgorde per klant:
   prijs), wordt overgeslagen. Dat is bovendien realistischer: een echte klant slaat zulke vragen ook
   wel eens over.
 
-⚠️ **Kosten en dagplafond.** Drie klanten op één dag onder één account loopt tegen het plafond van
-€20 per klantaccount aan. Spreid over meerdere accounts of meerdere dagen, en met de fase-opzet uit
-§2 vallen fase 1 en fase 2 vanzelf op verschillende momenten. Ruwe schatting op basis van de tarieven
-in hoofdstuk 25 en de werkelijke uitkomst van de vorige benchmarkronde (die met 12 pagina's op
-ongeveer €11 uitkwam, hoger dan de theoretische €0,10 tot €0,17 per pagina door reparatierondes):
+⚠️ **Kosten en dagplafond.** Er is een plafond van €20 per klantaccount en €50 over alle accounts
+per dag. De schatting hieronder is sinds 29 september 2026 gebaseerd op wat fase 1 werkelijk kostte,
+nagerekend op `ai_calls` (klant A: $4,34 voor merk, drie clusters en zes pagina's). De eerdere
+schatting van $0,90 per pagina kwam uit de benchmarkronde met de oude contentketen en zijn
+reparatierondes; de huidige keten (hooguit één herschrijving) kost ongeveer $0,20 per pagina.
 
-| Post | Ongeveer | Aantal | Totaal |
+| Post | Werkelijk bij klant A | Aantal in de volle matrix | Totaal |
 |---|---|---|---|
-| Merkonderzoek | $0,25 | 3 | $0,75 |
-| Meetronde per cluster | $0,82 | 9 | $7,38 |
-| Pagina schrijven, controleren, eventueel herschrijven | $0,90 (realistisch, zie boven) | 18 | $16,20 |
-| **Samen** | | | **ongeveer $24, zo'n €22** |
+| Merkonderzoek | $0,13 (kleine site; reken op $0,15 tot $0,25) | 3 | ongeveer $0,60 |
+| Meetronde per cluster, met Google AI Overview en herkansingen | ongeveer $1,00 | 9 | ongeveer $9 |
+| Pagina: brief, schrijven, controle, eventueel herschrijven | ongeveer $0,20 | 18 | ongeveer $3,60 |
+| **Samen** | | | **ongeveer $13, zo'n €12** |
 
-Fase 1 (klant A) is daarvan ongeveer een derde: rond de €7 à €8. Dat past ruim, en geeft budget over
-voor een tweede sjabloonpoging als fase 1 daar aanleiding toe geeft.
+Twee klanten (fase 2) komen daarmee op ongeveer $9, zo'n €8. Dat past onder één account op één dag,
+met ruimte voor een herkansing. De meting is nu verreweg de grootste post (ongeveer 70 procent).
+
+**Doorlooptijd in de app bij klant A**: 76 minuten van merk aanmaken tot zes pagina's klaar, waarvan
+46 minuten meting (de clusters worden na elkaar gemeten, ongeveer tien minuten per cluster plus
+herkansingen). Het handwerk eromheen (bedrijf kiezen, gesprek en antwoorden verzinnen, meetvragen
+nalezen) kost meer tijd dan de app. **De tijd van de copywriter** is de grootste kostenpost van een
+ronde: reken op een paar uur per klantdocument (zes pagina's, eerdere versies in een bijlage).
 
 ---
 
@@ -237,6 +253,14 @@ voor een tweede sjabloonpoging als fase 1 daar aanleiding toe geeft.
 
 Eén Markdown-bestand per klant, zelfstandig leesbaar, letterlijk door te sturen zonder verdere
 toelichting. Het bevat de beoordelingsinstructie zelf, zodat de copywriter niets anders nodig heeft.
+Het document wordt gebouwd met `content-reviews/maak_klantdocument.py` uit één databestand, zodat
+elke klant precies hetzelfde sjabloon krijgt.
+
+**Versie 2 (29 september 2026).** Bijgewerkt na fase 1 met klant A; de wijzigingen staan in §9. In het
+kort: de koppen noemen geen interne stappen meer, de copywriter beoordeelt alleen de definitieve
+versie (de eerste staat in een bijlage), bij een verbeterpagina staat de huidige pagina erbij, de toon
+komt uit de stemvoorbeelden, en de rubriek zegt hoe met feiten om te gaan en wanneer een schets
+gevraagd wordt.
 
 Sjabloon (met `[...]` als plek om in te vullen):
 
@@ -256,12 +280,22 @@ pagina, en wie leest hem? Vind je daarna alles wat je zou verwachten, of mis je 
 had moeten staan, ook als dat niet met zoveel woorden gevraagd werd? En is het geschreven op het
 niveau dat jij als copywriter zou opleveren?
 
+**Wat je per pagina krijgt.** Waarvoor de pagina bedoeld is en voor wie, wat het bedrijf zelf heeft
+aangeleverd, en de tekst zoals hij op de site zou komen, inclusief de veelgestelde vragen en de titel
+en omschrijving voor zoekmachines. Is het een bestaande pagina die herschreven is, dan staat het adres
+van de huidige pagina erbij, zodat je kunt vergelijken. Achteraan staat een bijlage met eerdere
+versies; die hoef je niet te lezen.
+
+**Over de feiten.** Ga ervan uit dat klopt wat het bedrijf zelf heeft aangeleverd (prijzen,
+werkwijze, voorbeelden). Let wel op of de tekst iets beweert wat daar niet uit volgt, of wat je als
+copywriter niet zou durven publiceren zonder het na te vragen.
+
 **Wat we vragen.** Beoordeel elke pagina op de punten onder aan die pagina. Vul een cijfer van 1
 (helemaal niet) tot 5 (helemaal wel) in, met een korte reden. Een paar zinnen per punt is genoeg;
 wat je zou aanpassen of toevoegen is waardevoller dan het cijfer zelf.
 
-Bij de laagst scorende pagina's van dit bedrijf vragen we je iets extra's: een paar zinnen over wat
-jij daar zelf anders zou schrijven of toevoegen. Geen volledige herschrijving, alleen een schets
+Bij elke pagina die je niet "ja, zo" zou publiceren, vragen we je iets extra's: een paar zinnen over
+wat jij daar zelf anders zou schrijven of toevoegen. Geen volledige herschrijving, alleen een schets
 waar wij mee verder kunnen.
 
 Onderaan dit document staat ruimte voor een algemene indruk over alle [n] pagina's van dit
@@ -274,24 +308,26 @@ Stuur dit document na het invullen gewoon terug, met je opmerkingen erin.
 ## Over dit bedrijf
 - Sector: [...]
 - Werkgebied: [...]
-- Voor wie: [doelgroepen uit target_segments]
-- Toon: [samenvatting van tone_of_voice]
+- Voor wie: [de klantgroepen uit het gesprek]
+- Toon: [één zin samenvatting, met de adressen van de stemvoorbeelden: "zoals op ..."; zonder
+  stemvoorbeelden: de homepage]
 
 ---
 
-## Pagina 1: [titel]
+## Pagina 1: [titel van de geschreven pagina, niet de titel van de aanbeveling]
 
-**Waarvoor deze pagina bedoeld is:** [zoekintentie, in gewone taal]
-**Voor wie:** [de één-zin-doelgroep uit het rapport]
+**Waarvoor deze pagina bedoeld is:** [wat de pagina moet bereiken, in gewone taal; geen opdrachtvorm]
+**Voor wie:** [de één-zin-lezer uit het rapport]
+**Huidige pagina:** [adres van de bestaande pagina die deze tekst vervangt, of: "nieuwe pagina, bestaat
+nog niet op de site"]
 
 ### Wat het bedrijf zelf heeft aangeleverd
-[het antwoord op de open vraag, letterlijk, plus de antwoorden op de gerichte vragen]
+[het antwoord op de open vraag, letterlijk, plus de gerichte vragen met de antwoorden; een
+overgeslagen vraag als "niet beantwoord"]
 
-### De tekst (eerste versie)
-[eerste schrijfversie]
-
-### De tekst (na controle en eventuele herschrijving, dit is de definitieve versie)
-[definitieve versie, of "gelijk aan de eerste versie, geen herschrijving nodig"]
+### De tekst
+[de definitieve versie: tekst, veelgestelde vragen, titel en omschrijving voor zoekmachines; koppen
+in de tekst drie niveaus lager dan in het origineel, zodat ze onder deze kop blijven]
 
 ### Jouw beoordeling
 | Punt | Cijfer (1-5) | Toelichting |
@@ -300,7 +336,7 @@ Stuur dit document na het invullen gewoon terug, met je opmerkingen erin.
 | Is de pagina compleet? Mis je iets dat op een goede pagina over dit onderwerp had moeten staan, ook als daar niet letterlijk naar gevraagd werd? Wat dan? | | |
 | Vindt een bezoeker met dit doel op deze pagina wat hij zoekt, en snel? | | |
 | Leest het lekker: prettige opbouw, geen rommelige zinnen, geen herhaling? | | |
-| Klopt het, staat er niets wat feitelijk onjuist aanvoelt? | | |
+| Klopt het: staat er niets in wat niet volgt uit wat het bedrijf aanleverde, of wat feitelijk onjuist aanvoelt? | | |
 | Klinkt het als dit specifieke bedrijf, niet als een generieke tekst die op elk bedrijf in de branche past? | | |
 
 **Zou je dit publiceren op de website van dit bedrijf?**
@@ -308,8 +344,7 @@ Stuur dit document na het invullen gewoon terug, met je opmerkingen erin.
 - [ ] Nee, maar met wat bijschaven en finetuning kan het wel
 - [ ] Nee, dit zit onder de maat en ik zou opnieuw beginnen
 
-*(bij een pagina die laag scoort: voeg hier je korte schets toe van wat jij zelf zou schrijven of
-toevoegen)*
+*(niet "ja, zo"? Schets hier in een paar zinnen wat jij zelf zou schrijven of toevoegen)*
 
 *(herhaal dit blok per pagina)*
 
@@ -317,12 +352,26 @@ toevoegen)*
 
 ## Algemene indruk over alle pagina's van [bedrijfsnaam] samen
 [open vraag: wat valt op, wat komt vaker terug, wat zou je als eerste aanpakken]
+
+---
+
+## Bijlage: eerdere versies
+Alleen ter vergelijking, je hoeft dit niet te lezen of te beoordelen.
+
+### Pagina 1: eerdere versie
+[de eerste versie, alleen als die afwijkt van de tekst hierboven]
 ```
 
 ⚠️ Geef de copywriter geen inzage in de interne stapnamen ("brief", "controle", "herschrijving") of
 in het feit dat dit AI-gegenereerd is, tenzij dat voor de opdracht nodig is. Hij moet oordelen als een
 lezer of als de ondernemer, niet als tester van een AI-systeem. Noem het "automatisch opgesteld" en
-niet meer dan dat.
+niet meer dan dat. De gerichte vragen staan erbij zoals het bedrijf ze kreeg; dat daarin soms "de
+schrijver" staat, is aanvaard (fase 1), het verandert het oordeel niet.
+
+**Waarom de eerste versie toch bewaard wordt.** De copywriter beoordeelt hem niet, maar voor het
+patronen-document (§6) is het verschil tussen de eerste en de definitieve versie wel nodig: het laat
+zien wat de herschrijving deed. De herschrijving overschrijft de tekst in de app, maar elke aanroep
+bewaart zijn volledige uitvoer; beide versies zijn op te halen via `GET /api/beheer/spoor/<profiel>`.
 
 ---
 
@@ -433,5 +482,5 @@ aangepakt.
 
 | Ronde | Datum | Wat getest werd | Sjabloonversie of -wijziging | Belangrijkste patronen | Uitkomst |
 |---|---|---|---|---|---|
-| 1 (fase 1, pilot) | Nog te doen | Klant A, 3 clusters, 6 pagina's | Eerste versie van §4 | | |
-| 2 (fase 2) | Nog te doen | Klant B en C, 3 clusters elk, 12 pagina's | | | |
+| 1 (fase 1, pilot) | 28 en 29 september 2026 | Klant A (Slotenspecialist van Kessel, Houten), 3 clusters, 6 pagina's, $4,34; uitvoering en log in `content-reviews/fase1-klant-a/` | Opgesteld met versie 1. Daarna versie 2 van §4: koppen zonder interne stapnamen, alleen de definitieve versie beoordelen (eerdere in een bijlage), regel "Huidige pagina" bij verbeterpagina's, toon uit de stemvoorbeelden, zin over feiten in de rubriek, schets bij elke pagina die niet "ja, zo" is. Het document van klant A is met versie 2 opnieuw opgebouwd vóór het versturen. Ook §2.3 aangevuld (minder dan twee aanbevelingen) en de kostenschatting in §3 bijgewerkt | Wacht op de copywriter | Wacht op de copywriter |
+| 2 (fase 2) | Nog te doen | Klant B en C, 3 clusters elk, 12 pagina's | Versie 2 van §4 | | |

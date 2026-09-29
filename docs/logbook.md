@@ -13014,3 +13014,19 @@ boven de volledigheidsmeter, met een link naar elk zwak veld. Blokkeert niets (c
 maakt alleen zichtbaar wat een pagina eerder zonder enig signaal liet doorschrijven. Eenheidstests
 voor de vier gevallen (leeg, goed gevuld, een te kort verhaal, een stemvoorbeeld dat niet is
 opgehaald).
+
+## 29 september 2026: contentkwaliteit fase 1 gedraaid, sjabloon naar versie 2
+
+Klant A van `docs/contentkwaliteit-testmethode.md` (Slotenspecialist van Kessel, Houten) is via de
+gewone routes doorlopen: merk, gesprek, drie clusters, zes pagina's, $4,34 volgens `ai_calls`
+(geschat €7 à €8). Bij het opstellen van het klantdocument bleek het sjabloon uit §4 op vier punten
+niet te kloppen: de koppen noemden de interne stappen die het sjabloon zelf verbiedt, er stond niet
+bij welke van de twee versies beoordeeld wordt (het document telde ruim 17.000 woorden), een
+verbeterpagina (vijf van de zes) kwam zonder de huidige pagina, en de toon moest uit een veld komen
+dat sinds 25 september leeg is. Samen met de eigenaar vastgelegd als versie 2 van §4: alleen de
+definitieve versie beoordelen (eerdere in een bijlage, leesdeel naar 13.000 woorden), een regel
+"Huidige pagina", toon uit de stemvoorbeelden, en in de rubriek dat de aangeleverde feiten als waar
+gelden. Ook besloten: levert een cluster minder dan twee aanbevelingen, dan aanvullen uit een ander
+cluster van hetzelfde merk, bij voorkeur met het pad (nieuw of verbeteren) dat nog ontbreekt (§2.3).
+De schatting per pagina gaat van $0,90 naar ongeveer $0,20: de $0,90 kwam uit de oude keten met
+reparatierondes. Uitvoering, log en document: `content-reviews/fase1-klant-a/`.
