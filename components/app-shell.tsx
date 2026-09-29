@@ -72,7 +72,9 @@ export async function AppShell({
           href={workspace.active ? `/merk/${workspace.active.id}` : "/merk"}
           className="text-[1.375rem] leading-none"
         >
-          <span className="brand-logo">ORBIT</span>
+          <span className="brand-logo">
+            <span className="brand-logo-o">O</span>RBIT
+          </span>
         </Link>
       }
       // Alleen een echte beheerder ziet deze knop, ook terwijl hij zelf op de
