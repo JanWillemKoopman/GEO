@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { OnboardingSession } from "../../_components/onboarding-session";
 import { parseContextFactors } from "@/lib/pipeline/context-factors";
@@ -29,13 +30,11 @@ export const metadata = { title: "Onboardinggesprek" };
  * `onboarding-session.tsx` en wordt door een test bewaakt: geen taaknamen, geen
  * bedragen, geen foutcodes.
  *
- * ── DE SCHEIDING MET DIAGNOSE ───────────────────────────────────────────────
+ * ── DIAGNOSE IS HIER OPGEGAAN (30 september 2026) ──────────────────────────
  *
- *   Onboarding = het werk mét de klant.
- *   Diagnose   = wat er technisch gebeurde, alleen voor jou.
- *
- * Daarom zijn de volledigheidsmeter en het gespreksblok van `admin/page.tsx`
- * hierheen verhuisd: dat is werk en geen diagnose.
+ * Het scherm Diagnose is verwijderd. De onboardingtaken staan nu als één
+ * statusoverzicht in het blok Voorbereiding, zonder taaknamen, kosten of
+ * foutcodes: dit scherm wordt gedeeld met de klant.
  */
 export default async function OnboardingSessiePagina({
   params,
@@ -165,6 +164,18 @@ export default async function OnboardingSessiePagina({
         title="Onboardinggesprek"
         description={`Samen nalopen wat ORBIT ENGINE over ${merknaam} heeft gevonden, aanvullen wat een website niet kan vertellen, en vastleggen wat we afspreken. Alles wat je hier invult wordt meteen bewaard.`}
       />
+
+      {/* De twee schermen die op Diagnose hingen (verdwenen op 30 september
+          2026). Een open tegenstrijdigheid houdt een pagina tegen, dus hier
+          blijven ze één klik weg. */}
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+        <Link href={`/merk/${id}/admin/feiten`} className="link">
+          Tegenstrijdige feiten
+        </Link>
+        <Link href={`/merk/${id}/admin/kennis`} className="link">
+          Kennisoverzicht
+        </Link>
+      </div>
 
       <OnboardingSession
         profileId={id}

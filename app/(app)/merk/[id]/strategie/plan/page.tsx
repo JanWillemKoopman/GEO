@@ -118,7 +118,7 @@ export default async function PlanPage({
         title="Contentplan"
         description={
           modus === "plannen"
-            ? "Sleep content naar de maand waarin het geschreven moet worden. Elke maand geef je apart vrij."
+            ? undefined
             : modus === "kalender"
               ? "Het hele jaar in één oogopslag: waar zit alles gepland, en waar valt een gat."
               : "Wat ORBIT ENGINE deze maand en volgende maand voor je schrijft, en wanneer het live moet."

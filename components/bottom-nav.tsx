@@ -20,19 +20,10 @@ import type { BrandOption } from "@/lib/workspace";
  * technische grens: dit zijn de vier waarvan een klant het langst op zijn
  * telefoon zit (`docs/ux-design.md` §1 voor de brede versie van diezelfde
  * afweging), de rest staat achter "Meer" in `MeerBlad`.
- *
- * ── WAAROM DE SET VERSCHUIFT MET HET PAD EN NIET MET DE ROL ─────────────────
- *
- * Een salesmedewerker kan ook een merk bekijken (staff ziet alles), en dan is
- * "waar sta ik nu" een betere leidraad dan "wat ben ik meestal". Vandaar
- * `pathname.startsWith("/sales")` in plaats van een vast `sales`-onderscheid:
- * de balk volgt waar je bent, precies zoals de zijbalk dat met `navActief`
- * ook al deed.
  */
 export function BottomNav({
   activeBrand,
   brands,
-  sales,
   previewToggle,
   openVragen,
   alles,
@@ -41,7 +32,6 @@ export function BottomNav({
 }: {
   activeBrand: BrandOption | null;
   brands: BrandOption[];
-  sales: boolean;
   previewToggle?: React.ReactNode;
   openVragen: number;
   /** De volledige, platte navigatielijst. `WorkspaceChrome` berekent hem één
@@ -54,28 +44,19 @@ export function BottomNav({
   const pathname = usePathname();
   const [meerOpen, setMeerOpen] = useState(false);
 
-  const inSalesContext = sales && pathname.startsWith("/sales");
-
   type Positie = { href: string; label: string; icoon: IcoonNaam };
 
   // ⚠️ De labels hier zijn KORTER dan in de zijbalk ("Zichtbaar" niet
   // "Zichtbaarheid in AI"): een kolom van een vijfde balkbreedte met 10px
   // tekst breekt af bij het volledige woord. Dezelfde bestemming, een ander
   // label voor een andere ruimte; de href is wat telt voor `aria-current`.
-  const primair: Positie[] = inSalesContext
-    ? [
-        { href: "/sales", label: "Overzicht", icoon: "sales" },
-        { href: "/sales/markten", label: "Markten", icoon: "markten" },
-        { href: "/sales/prospects", label: "Bedrijven", icoon: "bedrijven" },
-        { href: "/sales/outreach", label: "Verstuurd", icoon: "verstuurd" },
-      ]
-    : activeBrand
+  const primair: Positie[] = activeBrand
       ? [
           // UX-audit 23 september 2026 (P2.5): dezelfde woorden als de zijbalk,
           // alleen ingekort waar vijf vakjes op 375 pixels het vragen. Clusters
           // ontbrak; Analytics staat nu onder Meer, want het hoofdcijfer staat
           // al op Overzicht.
-          { href: `/merk/${activeBrand.id}`, label: "Overzicht", icoon: "overzicht" },
+          { href: `/merk/${activeBrand.id}`, label: "Taken", icoon: "taken" },
           { href: `/merk/${activeBrand.id}/strategie/clusters`, label: "Clusters", icoon: "clusters" },
           { href: `/merk/${activeBrand.id}/strategie/plan`, label: "Contentplan", icoon: "plannen" },
           { href: `/merk/${activeBrand.id}/strategie/vragen`, label: "Vragen", icoon: "feit" },

@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BottomNav } from "@/components/bottom-nav";
 import { MobileTopbar } from "@/components/mobile-topbar";
 import { NavLade } from "@/components/nav-lade";
-import { brandNav, generalNav, salesNav, titelVoorPad, type NavItem } from "@/lib/nav";
+import { brandNav, generalNav, titelVoorPad, type NavItem } from "@/lib/nav";
 import type { BrandOption } from "@/lib/workspace";
 
 /**
@@ -39,7 +39,6 @@ export function WorkspaceChrome({
   brands,
   activeBrand,
   staff,
-  sales,
   openVragen,
   telefoon,
   onSelectBrand,
@@ -54,8 +53,6 @@ export function WorkspaceChrome({
   activeBrand: BrandOption | null;
   /** Beheerder? Dan komt het CSM-paneel in de zijbalk (fase 8). */
   staff: boolean;
-  /** Salesmedewerker? Dan komt de Sales-sectie in de zijbalk (plan §4.1). */
-  sales: boolean;
   /** Hoeveel vragen er open staan. Zet het bolletje in de zijbalk aan. */
   openVragen: number;
   /** `isTelefoon()`, bepaald op de server (`lib/apparaat.ts`, stap 5). Beslist
@@ -86,19 +83,14 @@ export function WorkspaceChrome({
   const alles: NavItem[] = [
     ...(activeBrand ? brandNav(activeBrand.id, staff) : []),
     ...generalNav(staff),
-    ...salesNav(sales),
   ];
   const titel = telefoon ? (titelVoorPad(pathname, alles) ?? activeBrand?.name ?? "ORBIT ENGINE") : "";
 
-  // Zelfde regel als `BottomNav` gebruikt om van Sales-context te wisselen:
-  // het pad beslist, niet de rol, want een salesmedewerker kan ook een merk
-  // bekijken. §8.7's interne-scherm-streep gebruikt dezelfde voorwaarde.
-  const inSalesContext = pathname.startsWith("/sales");
 
   if (telefoon) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <MobileTopbar titel={titel} actie={accountMenu} salesContext={inSalesContext} />
+        <MobileTopbar titel={titel} actie={accountMenu} />
 
         {/* 56px onderbalk plus zijn veilige zone: de inhoud moet daar nooit
             onder verdwijnen. `.stand` regelt zijn eigen zijmarge en bovenmarge
@@ -111,7 +103,6 @@ export function WorkspaceChrome({
         <BottomNav
           activeBrand={activeBrand}
           brands={brands}
-          sales={sales}
           previewToggle={previewToggle}
           openVragen={openVragen}
           alles={alles}
@@ -129,12 +120,12 @@ export function WorkspaceChrome({
           inhoud, want de hoofdstuktabs van een cluster plakken er met
           `top: var(--header-h)` exact onder. Lopen die twee uit elkaar, dan
           ontstaat er een kier waar de pagina-inhoud doorheen schuift. */}
-      <header className={`topbar no-print${inSalesContext ? " topbar-sales" : ""}`}>
+      <header className={`topbar no-print`}>
         <div className="flex h-full items-center justify-between gap-3 px-4 md:px-5 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
             {/* Onder 1024 pixels staat de zijbalk er niet; deze knop opent hem
                 als lade (UX-audit 23 september 2026, P0.1). */}
-            <NavLade activeBrand={activeBrand} staff={staff} sales={sales} openVragen={openVragen} />
+            <NavLade activeBrand={activeBrand} staff={staff} openVragen={openVragen} />
             {logo}
             <span className="hidden text-muted sm:inline" aria-hidden>
               /
@@ -177,7 +168,7 @@ export function WorkspaceChrome({
         {/* Vaste zijbalk vanaf lg. Sticky onder de bovenbalk, met een eigen
             scrollbaan zodat een lange merknaam de pagina niet meeneemt. */}
         <aside className="no-print sticky top-[var(--header-h)] hidden h-[calc(100dvh-var(--header-h))] shrink-0 self-start overflow-y-auto border-r border-[var(--line-muted)] lg:block">
-          <Sidebar activeBrand={activeBrand} staff={staff} sales={sales} openVragen={openVragen} />
+          <Sidebar activeBrand={activeBrand} staff={staff} openVragen={openVragen} />
         </aside>
 
         {/* `min-w-0` is hier geen sier: dit is een flex-kind, en zonder deze

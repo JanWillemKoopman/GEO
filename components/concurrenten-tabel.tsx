@@ -1,10 +1,5 @@
-import { notFound } from "next/navigation";
-import { getProfile } from "@/lib/profiles";
-import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/page-header";
 import { InfoHint } from "@/components/info-hint";
-import { AnalyticsFilters } from "@/components/analytics-filters";
 import { ConcurrentenAnalyse, type BronRij, type ClusterVermelding } from "@/components/concurrenten-analyse";
 import { activeOnly } from "@/lib/archive";
 import { buildBrandRankings, ownMentionCount } from "@/lib/pipeline/brand-rankings";
@@ -25,15 +20,13 @@ import type {
   VisibilityScore,
 } from "@/lib/types/database";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Concurrenten" };
-
 /**
- * CONCURRENTEN: wie er nog meer in de antwoorden staat, over al je clusters heen.
+ * DE CONCURRENTENTABEL, onder "Zichtbaarheid in AI".
  *
- * Verhuisde op 17 augustus 2026 van het merkdossier naar Analytics. De reden is
- * de vraag die het scherm beantwoordt: dit gaat niet over wie het merk ís maar
- * over hoe het zich verhoudt tot anderen, en dat is een cijfervraag.
+ * Tot 30 september 2026 was dit een eigen scherm (Analytics > Concurrenten). Het
+ * staat nu naast de tabel met AI-vragen, achter een keuzeknop, zodat het
+ * hoofdcijfer en wie er naast jou genoemd wordt op één plek staan. De rekenregels
+ * zijn ongewijzigd verhuisd.
  *
  * ⚠️ **DE NOEMER IS HIER AL EEN KEER MISGEGAAN.** De balk van "Jij" toonde het
  * percentage van de hoofdscore en de concurrenten dat van álle gemeten vragen,
@@ -46,19 +39,17 @@ export const metadata = { title: "Concurrenten" };
  * geven samen geen 30%. Daarom worden hier eerst de vermeldingen en de gestelde
  * vragen opgeteld, en pas dáárna gaat er één keer een percentage overheen.
  */
-export default async function ConcurrentenPage({
-  params,
-  searchParams,
+export async function ConcurrentenTabel({
+  id,
+  periodeUitAdres,
+  labelUitAdres,
+  clusterUitAdres,
 }: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ periode?: string; label?: string; cluster?: string }>;
+  id: string;
+  periodeUitAdres?: string;
+  labelUitAdres?: string;
+  clusterUitAdres?: string;
 }) {
-  const { id } = await params;
-  const { periode: periodeUitAdres, label: labelUitAdres, cluster: clusterUitAdres } = await searchParams;
-  const profile = await getProfile(id);
-  if (!profile) notFound();
-  await requireUser();
-
   const supabase = await createClient();
   const [{ data: entityRows }, { data: analysisRows }, { data: labelRows }] = await Promise.all([
     supabase.from("entities").select("*").eq("profile_id", id).order("canonical_name"),
@@ -224,23 +215,7 @@ export default async function ConcurrentenPage({
   }
 
   return (
-    // `wil-data`: brede tabel, zie de toelichting in analytics/page.tsx.
-    <div className="flex flex-col gap-6 wil-data">
-      <PageHeader
-        eyebrow="Analytics"
-        title="Concurrenten"
-        description="Wie er nog meer genoemd wordt als je klanten een AI-assistent iets vragen."
-      />
-
-      <AnalyticsFilters
-        periodes={periodes}
-        labels={labels}
-        clustersBijLabel={clustersBijLabel}
-        periodefilter={periodefilter}
-        labelfilter={labelfilter}
-        clusterfilter={clusterfilter}
-      />
-
+    <div className="flex flex-col gap-6">
       {/* ── 1. Ranglijst ───────────────────────────────────────────────────── */}
       {rankings === null || rankings.fragmented ? (
         <div className="card flex flex-col gap-1">

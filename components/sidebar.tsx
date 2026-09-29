@@ -9,7 +9,6 @@ import {
   generalNav,
   hoofdstukken,
   navActief,
-  salesNav,
   type NavHoofdstuk,
   type NavItem,
 } from "@/lib/nav";
@@ -55,8 +54,7 @@ import type { BrandOption } from "@/lib/workspace";
  * en dat verschil verdwijnt zodra beide er een dragen.
  *
  * Hoeveel koppen je ziet hangt af van wie je bent: een klant vier, Outer Orbit
- * daar Admin bovenop, en wie de salesrol heeft ook Sales. Sales is de enige kop
- * die aan een rol hangt en niet aan een merk (plan §4.1).
+ * daar Admin bovenop.
  *
  * ── DE VORMGEVING VAN 24 AUGUSTUS 2026 ──────────────────────────────────────
  *
@@ -102,15 +100,12 @@ const OPSLAG = "orbit_engine_zijbalk_ingeklapt";
 export function Sidebar({
   activeBrand,
   staff = false,
-  sales = false,
   openVragen = 0,
   onMobileClose,
 }: {
   activeBrand: BrandOption | null;
   /** Beheerder? Dan staan de Admin-bestemmingen erbij. */
   staff?: boolean;
-  /** Salesmedewerker? Dan staat de Sales-sectie erbij (plan §4.1). */
-  sales?: boolean;
   /**
    * Hoeveel vragen er op de klant wachten. Zet het groene bolletje achter
    * "Openstaande vragen" aan. Bewust zonder getal: dat staat al in de
@@ -142,12 +137,9 @@ export function Sidebar({
   // Merk- en app-bestemmingen gaan door dezelfde groepering heen, zodat
   // Instellingen en Admin op hun eigen plek in de volgorde landen en niet in
   // een tweede lijst eronder.
-  // Sales hangt niet aan een merk (een prospect ís nog geen merk), dus die
-  // groep staat er ook als er geen merk gekozen is.
   const alles = [
     ...(activeBrand ? brandNav(activeBrand.id, staff) : []),
     ...generalNav(staff),
-    ...salesNav(sales),
   ];
   const koppen = hoofdstukken(alles);
 
@@ -264,7 +256,10 @@ function Hoofdstuk({
   // elk maar één. Een kop met één kind eronder is twee regels lezen voor één
   // klik, en de kop zelf is geen link. Nu is het één regel: het icoon van het
   // hoofdstuk met de naam van de bestemming.
-  if (kop.items.length === 1 && !kop.afgeschermd) {
+  // Merkdossier is de uitzondering (30 september 2026): het is een kop met
+  // "Mijn bedrijf" eronder, net als Clusters, Strategie en Analytics, zodat er
+  // later dossieronderdelen bij kunnen zonder dat de balk van vorm verandert.
+  if (kop.items.length === 1 && !kop.afgeschermd && kop.naam !== "Merkdossier") {
     const item = kop.items[0];
     return (
       <div className={eerste ? "" : "mt-4"}>

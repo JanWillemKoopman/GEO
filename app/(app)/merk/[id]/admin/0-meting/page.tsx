@@ -181,7 +181,7 @@ export default async function NulmetingPage({
               </ul>
               <p className="text-sm text-muted">
                 Welke van deze merken meetellen in het aandeel bepaal je bij{" "}
-                <Link href={`/merk/${id}/analytics/concurrenten`} className="link">
+                <Link href={`/merk/${id}/analytics?tabel=concurrenten`} className="link">
                   Analytics
                 </Link>
                 .

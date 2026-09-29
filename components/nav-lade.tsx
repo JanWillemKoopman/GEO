@@ -26,12 +26,10 @@ import type { BrandOption } from "@/lib/workspace";
 export function NavLade({
   activeBrand,
   staff,
-  sales,
   openVragen,
 }: {
   activeBrand: BrandOption | null;
   staff: boolean;
-  sales: boolean;
   openVragen: number;
 }) {
   const [open, setOpen] = useState(false);
@@ -57,7 +55,6 @@ export function NavLade({
         <Sidebar
           activeBrand={activeBrand}
           staff={staff}
-          sales={sales}
           openVragen={openVragen}
           onMobileClose={() => setOpen(false)}
         />

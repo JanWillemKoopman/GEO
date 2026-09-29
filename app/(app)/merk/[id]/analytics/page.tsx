@@ -9,6 +9,8 @@ import { SectionHeading } from "@/components/section-heading";
 import { AnalyticsFilters } from "@/components/analytics-filters";
 import { AnalyticsClusterTable } from "@/components/analytics-cluster-table";
 import { AnalyticsPromptTable } from "@/components/analytics-prompt-table";
+import { ConcurrentenTabel } from "@/components/concurrenten-tabel";
+import { TabelKeuze } from "@/components/tabel-keuze";
 import { ClusterVisibilityGrid } from "@/components/cluster-visibility-grid";
 import { loadPromptVisibility } from "@/lib/pipeline/prompt-visibility";
 import { activeOnly } from "@/lib/archive";
@@ -72,7 +74,7 @@ export default async function AnalyticsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ periode?: string; label?: string; cluster?: string; bron?: string; funnel?: string }>;
+  searchParams: Promise<{ periode?: string; label?: string; cluster?: string; bron?: string; funnel?: string; tabel?: string }>;
 }) {
   const { id } = await params;
   const {
@@ -81,7 +83,9 @@ export default async function AnalyticsPage({
     cluster: clusterUitAdres,
     bron: bronUitAdres,
     funnel: funnelUitAdres,
+    tabel: tabelUitAdres,
   } = await searchParams;
+  const tabel = tabelUitAdres === "concurrenten" ? "concurrenten" : "ai-vragen";
   const profile = await getProfile(id);
   if (!profile) notFound();
   await requireUser();
@@ -445,16 +449,28 @@ export default async function AnalyticsPage({
       )}
 
       {/* ── 4. Per prompt: elke gemeten vraag, sterkste zichtbaarheid boven ── */}
-      {promptVisibility.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SectionHeading title="AI-vragen" />
-          <AnalyticsPromptTable
-            rows={promptVisibilityGefilterd}
-            merkId={id}
-            ownTerms={[profile.brand_name, ...(profile.aliases ?? [])].filter(
-              (t): t is string => Boolean(t && t.trim()),
-            )}
-          />
+      {(promptVisibility.length > 0 || tabel === "concurrenten") && (
+        <div className="flex flex-col gap-3">
+          {/* De concurrenten staan hier sinds 30 september 2026 en niet meer op
+              een eigen scherm. Standaard de AI-vragen, zoals het was. */}
+          <SectionHeading title={tabel === "concurrenten" ? "Concurrenten" : "AI-vragen"} />
+          <TabelKeuze gekozen={tabel} />
+          {tabel === "concurrenten" ? (
+            <ConcurrentenTabel
+              id={id}
+              periodeUitAdres={periodeUitAdres}
+              labelUitAdres={labelUitAdres}
+              clusterUitAdres={clusterUitAdres}
+            />
+          ) : (
+            <AnalyticsPromptTable
+              rows={promptVisibilityGefilterd}
+              merkId={id}
+              ownTerms={[profile.brand_name, ...(profile.aliases ?? [])].filter(
+                (t): t is string => Boolean(t && t.trim()),
+              )}
+            />
+          )}
         </div>
       )}
       {/* ── Wat het in Google opleverde (UX-audit 23 september 2026, P1.7) ──
