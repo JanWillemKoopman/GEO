@@ -101,7 +101,7 @@ export const DOORVERWIJZINGEN: Doorverwijzing[] = [
   { source: "/profielen/:id/techniek", destination: "/merk/:id/analytics", permanent: true },
   {
     source: "/profielen/:id/concurrenten",
-    destination: "/merk/:id/analytics/concurrenten",
+    destination: "/merk/:id/analytics?tabel=concurrenten",
     permanent: true,
   },
   {

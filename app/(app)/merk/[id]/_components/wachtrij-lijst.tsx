@@ -79,7 +79,7 @@ export function WachtrijLijst({
                 <SectieKop sectie={sectie} />
                 <div className="flex min-w-0 flex-col gap-5">
                   {subkoppen.map((sub) => (
-                    <SubkopBlok key={sub.subkop} sub={sub} eersteId={eersteId} />
+                    <SubkopBlok key={sub.subkop} sub={sub} />
                   ))}
                   {/* Meer dan vier taken in dit blok: de rest staat in het
                       hoofdstuk zelf (`beperkSectie()` in `lib/wachtrij.ts`). */}
@@ -125,14 +125,14 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
   );
 }
 
-function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId?: string }) {
+function SubkopBlok({ sub }: { sub: WachtrijSubkop }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="mono-label">{sub.subkop}</span>
       <ul className="vlak flex flex-col divide-y divide-[var(--line-muted)] overflow-hidden p-0">
         {sub.items.map((item) => (
           <li key={item.id}>
-            <TaakRegel item={item} primair={item.id === eersteId} />
+            <TaakRegel item={item} />
           </li>
         ))}
       </ul>
@@ -140,7 +140,7 @@ function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId?: string 
   );
 }
 
-function TaakRegel({ item, primair }: { item: WorkItem; primair: boolean }) {
+function TaakRegel({ item }: { item: WorkItem }) {
   const { titel, cluster } = wachtrijRegel(item);
   return (
     <Link
@@ -157,11 +157,25 @@ function TaakRegel({ item, primair }: { item: WorkItem; primair: boolean }) {
         <span className="font-medium">{titel}</span>
         <span className="text-sm text-secondary">{item.why}</span>
       </div>
-      <span className={`${primair ? "btn-primary" : "btn-outline"} btn-sm shrink-0`}>
-        {item.actionLabel ?? "Bekijken"}
-        <Icon naam="naar" size={14} />
-      </span>
+      <ActiePijl label={item.actionLabel ?? "Bekijken"} />
     </Link>
+  );
+}
+
+/**
+ * De actie rechts op een regel, als icoon en niet als knop.
+ *
+ * Er stonden er op het overzicht soms tien onder elkaar, elk met een omlijnde
+ * knop, en dan is er geen knop meer die iets betekent. De hele regel is al de
+ * link; het pijltje laat zien dat er iets opent, en de tekst van de actie staat
+ * in de tooltip en voor schermlezers.
+ */
+function ActiePijl({ label }: { label: string }) {
+  return (
+    <span className="shrink-0 text-secondary" title={label}>
+      <Icon naam="naar" size={18} />
+      <span className="sr-only">{label}</span>
+    </span>
   );
 }
 
@@ -193,10 +207,7 @@ function WachtrijKaart({ item }: { item: WorkItem }) {
         <span className="text-sm text-secondary">{item.why}</span>
         {item.meta && <span className="mono-label">{item.meta}</span>}
       </div>
-      <span className="btn-outline btn-sm shrink-0">
-        {item.actionLabel ?? "Bekijken"}
-        <Icon naam="naar" size={14} />
-      </span>
+      <ActiePijl label={item.actionLabel ?? "Bekijken"} />
     </Link>
   );
 }

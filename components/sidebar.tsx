@@ -256,7 +256,10 @@ function Hoofdstuk({
   // elk maar één. Een kop met één kind eronder is twee regels lezen voor één
   // klik, en de kop zelf is geen link. Nu is het één regel: het icoon van het
   // hoofdstuk met de naam van de bestemming.
-  if (kop.items.length === 1 && !kop.afgeschermd) {
+  // Merkdossier is de uitzondering (30 september 2026): het is een kop met
+  // "Mijn bedrijf" eronder, net als Clusters, Strategie en Analytics, zodat er
+  // later dossieronderdelen bij kunnen zonder dat de balk van vorm verandert.
+  if (kop.items.length === 1 && !kop.afgeschermd && kop.naam !== "Merkdossier") {
     const item = kop.items[0];
     return (
       <div className={eerste ? "" : "mt-4"}>

@@ -13,21 +13,18 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeading } from "@/components/section-heading";
-import { InsightLines } from "@/components/loop-blocks";
 import { SectionErrorBoundary } from "@/components/section-error-boundary";
 import { ProfileProgress } from "./_components/profile-progress";
-import { loadContentTotalen, loadMaandBronnen } from "@/lib/overview-data";
+import { loadMaandBronnen } from "@/lib/overview-data";
 import { loadLoop } from "@/lib/insights-data";
 import { loadBrandWork, sortWork } from "@/lib/work";
 import { groepeerPerSectie } from "@/lib/wachtrij";
 import { WachtrijLijst } from "./_components/wachtrij-lijst";
 import { enkelOfMeervoud } from "@/lib/format";
-import { totalenZin, versheidsregel } from "@/lib/overview";
+import { versheidsregel } from "@/lib/overview";
 import { Icon } from "@/components/icon";
 import { ronde } from "@/lib/ronde";
 import { RondeBalk } from "./_components/ronde-balk";
-import { confidenceBand, changeIsMeaningful } from "@/lib/stats/uncertainty";
-import { poolRecent, describePooled } from "@/lib/stats/pooling";
 
 export const dynamic = "force-dynamic";
 
@@ -135,9 +132,8 @@ export default async function OverzichtPage({
   const supabase = await createClient();
   const admin = createAdminClient();
 
-  const [{ analyses, work }, contentTotalen, lus, { data: planRow }] = await Promise.all([
+  const [{ analyses, work }, lus, { data: planRow }] = await Promise.all([
     loadBrandWork(supabase, user.id, id),
-    loadContentTotalen(admin, id),
     loadLoop(admin, id),
     admin
       .from("content_plans")
@@ -188,16 +184,6 @@ export default async function OverzichtPage({
   const periodes = lus.periods;
   const laatste = periodes.length > 0 ? periodes[periodes.length - 1] : null;
 
-  // ⚠️ Hier stond tot de UX-audit van 23 september 2026 (P1.1) een rij van vier
-  // grote tellingen. Het zijn nu dezelfde vier getallen in één zin, zie
-  // `totalenZin()` in `lib/overview.ts` voor het waarom.
-  const totalen = totalenZin({
-    clusters: eigenClusters.length,
-    geschreven: contentTotalen.geschreven,
-    geoptimaliseerd: contentTotalen.geoptimaliseerd,
-    gepubliceerd: contentTotalen.gepubliceerd,
-  });
-
   // ── De wachtrij, alleen wat op de klant wacht, ingedeeld in de vaste
   //    secties Cluster, Contentplan, Openstaande vragen en Bibliotheek ──────
   const eigenAlleWerk = work;
@@ -242,28 +228,6 @@ export default async function OverzichtPage({
     kansen: lus.opportunities.length,
     ...maandBronnen,
   });
-
-  // ⚠️ Het hoofdgetal stond tot 26 augustus 2026 hier en verhuisde toen naar
-  // Analytics. Daarmee opende een meetproduct met vier productietellingen, en
-  // moest de klant een klik verder voor het enige cijfer waarvoor hij betaalt.
-  // Het staat nu weer bovenaan, met de marge erbij en met dezelfde
-  // terughoudendheid als overal: een verschil binnen de marge is geen verschil.
-  const vorige = periodes.length > 1 ? periodes[periodes.length - 2] : null;
-  // ⚠️ Het hoofdgetal komt uit de laatste DRIE rondes samen, niet uit de laatste
-  // alleen (20 september 2026). Eén ronde is een steekproef met een band van
-  // ±16 punten bij 30 vragen, en die band is groter dan het verschil dat een
-  // klant als vooruitgang of verval leest. `poolRecent()` stopt met samenvoegen
-  // zodra een oudere ronde betekenisvol afwijkt, dus een échte stijging wordt
-  // nooit uitgesmeerd; zie lib/stats/pooling.ts.
-  const samengevoegd = poolRecent(periodes);
-  const band = samengevoegd ? confidenceBand(samengevoegd.score, samengevoegd.stderr) : null;
-  const verschil =
-    laatste && vorige
-      ? changeIsMeaningful(
-          { score: laatste.score, stderr: laatste.stderr },
-          { score: vorige.score, stderr: vorige.stderr },
-        )
-      : null;
 
   const merknaam = profile.brand_name ?? profile.name;
 
@@ -323,7 +287,14 @@ export default async function OverzichtPage({
         </div>
       )}
 
-      {/* ── 1. Wat er nu op jou wacht ─────────────────────────────────────
+      {/* ── 1. Deze maand ──────────────────────────────────────────────────
+          De vijf stappen van de ronde, met wie er aan zet is. Zie
+          `lib/ronde.ts`. Onderaan sinds de UX-audit (zie de volgorde hierboven). */}
+      <SectionErrorBoundary label="Deze maand">
+        <RondeBalk ronde={maand} />
+      </SectionErrorBoundary>
+
+      {/* ── 2. Wat er nu op jou wacht ─────────────────────────────────────
           Alleen als er iets is. Ingedeeld naar Cluster, Contentplan,
           Openstaande vragen en Bibliotheek, zie `lib/wachtrij.ts`. De ene
           primaire knop van het scherm staat op de dringendste regel. */}
@@ -346,77 +317,7 @@ export default async function OverzichtPage({
         </SectionErrorBoundary>
       )}
 
-      {/* ── 2. Hoe het ervoor staat ────────────────────────────────────────
-          Het hoofdgetal met zijn marge, de duiding in drie zinnen, en de
-          totalen van het programma in één zin eronder. De stang links is
-          altijd groen (`.card-rail-success`, sinds 21 september 2026). */}
-      <SectionErrorBoundary label="Je programma">
-        <div className="card card-rail card-rail-success flex flex-col gap-5">
-          {laatste && band && samengevoegd && (
-            <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="mono-label">Zichtbaarheid in AI</span>
-                <span className="stat-value text-5xl">{samengevoegd.score}%</span>
-                <span className="text-sm text-muted">
-                  AI-antwoorden waarin je merk voorkomt
-                </span>
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-1 pb-1">
-                <span className="flex flex-wrap items-center gap-2">
-                  {/* Een verandering binnen de onzekerheidsmarge is geen
-                      verandering. Zelfde regel als op Analytics. */}
-                  {verschil?.changed ? (
-                    <span className={verschil.delta > 0 ? "chip chip-stijging" : "chip chip-daling"}>
-                      <Icon naam={verschil.delta > 0 ? "stijging" : "daling"} size={12} />
-                      {Math.abs(Math.round(verschil.delta))} sinds de vorige meting
-                    </span>
-                  ) : (
-                    <span className="chip chip-neutral">
-                      {vorige === null ? "eerste meting" : "gelijk gebleven"}
-                    </span>
-                  )}
-                  {laatste.vragen > 0 && (
-                    <span className="mono-label">over {laatste.vragen} AI-vragen</span>
-                  )}
-                </span>
-                {band.margin > 0 && (
-                  <span className="text-sm text-muted">
-                    Met een marge van {band.low}% tot {band.high}%. {describePooled(samengevoegd)}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-start justify-between gap-4 border-t border-[var(--border-subtle)] pt-4">
-            <div className="flex min-w-0 flex-1 flex-col gap-3">
-              <InsightLines insights={lus.insights} />
-              <p className="text-sm text-muted">{totalen}</p>
-              {eigenWerk.length === 0 && <p className="text-sm text-secondary">{rustRegel}</p>}
-            </div>
-            <Link
-              href={
-                laatste === null
-                  ? `/merk/${id}/strategie/clusters`
-                  : `/merk/${id}/analytics`
-              }
-              className="btn-outline shrink-0"
-            >
-              {/* Het icoon van het hoofdstuk waar de knop heen gaat, dezelfde
-                  tekening als in de zijbalk. */}
-              <Icon naam={laatste === null ? "clusters" : "analytics"} size={18} />
-              {laatste === null ? "Naar je clusters" : "Bekijk je zichtbaarheid"}
-            </Link>
-          </div>
-        </div>
-      </SectionErrorBoundary>
-
-      {/* ── 3. Deze maand ──────────────────────────────────────────────────
-          De vijf stappen van de ronde, met wie er aan zet is. Zie
-          `lib/ronde.ts`. Onderaan sinds de UX-audit (zie de volgorde hierboven). */}
-      <SectionErrorBoundary label="Deze maand">
-        <RondeBalk ronde={maand} />
-      </SectionErrorBoundary>
+      {eigenWerk.length === 0 && <p className="text-sm text-secondary">{rustRegel}</p>}
     </div>
   );
 }
