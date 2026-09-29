@@ -141,6 +141,8 @@ bestaande stap, of met de conclusie dat er geen overtuigend patroon is.
 
 ### Stap 5. Verbeteren (Claude Code, na akkoord van de eigenaar, §7 van de methode)
 
+De verbeterpunten staan in §7 hieronder (K1 tot en met K5), met de volgorde en de toetsen.
+
 - [ ] Per patroon eerst nalezen hoe de betrokken stap nu is ingericht (instructie, prompt,
   controle, bestand), en een wijziging voorstellen **binnen** die stap: geen nieuwe stap, geen
   nieuwe AI-aanroep, geen score op de tekst, geen extra controlelaag (§0 en §7).
@@ -270,3 +272,173 @@ methode.
 
 De meting was ruim driekwart van de kosten van de eerste ronde. Kan de verificatie zonder nieuwe
 meting (de open vraag in stap 6), dan is een verificatieronde veel goedkoper dan de eerste ronde.
+
+---
+
+## 7. De verbeterpunten uit de vijf patronen (29 september 2026, na de feedback)
+
+> Samengesteld uit de vijf patronen in `content-reviews/ronde-1-patronen.md`, de vijf voorstellen
+> uit het concept daarvan (V1 tot en met V5), de waarnemingen in §3 hierboven en de
+> methodevoorstellen in §4. Wat hetzelfde probleem raakt, is samengevoegd tot één verbeterpunt.
+> Dit is de enige lijst: het patronen-document verwijst hiernaar. Nog geen besluit; na akkoord
+> volgt stap 5.
+>
+> **Uitgangspunt** (§0 en §7 van de methode): geen nieuwe stap, geen nieuwe AI-aanroep, geen score
+> op de tekst. Liever een bestaande stap strakker of eenvoudiger maken, en liever iets weghalen dan
+> iets toevoegen. De schrijf- en controleopdrachten bevatten al "herhaal niets", "vakkennis als
+> algemene uitleg" en "weet je iets niet, laat het weg". Nog meer regels erbij is dus waarschijnlijk
+> niet de oplossing; eerder moet iets weg dat de andere kant op trekt.
+
+### 7.1 Een correctie op het concept
+
+In het concept stond dat de prijs van €79,95 bij Myfinance (B1) nergens vandaan kwam. Dat klopt
+niet. De pagina `myfinance.nl/online-boekhouder/boekhouder-zzp/` zegt letterlijk "Vanaf € 69,95 per
+maand excl. btw · excl. Compleet pakket (€ 10,- p/m)". Het verzonnen klantantwoord uit deze test
+("€69,95 all-in") sprak de site tegen. Wat er echt misging:
+- het webonderzoek van de **brief** zette een bedrijfsspecifiek bedrag in zijn vakkennis ("Bij
+  Myfinance noemt de zzp-dienstpagina € 69,95 ... samen € 79,95"), buiten de kennislaag om, waar
+  tegenstrijdige feiten normaal worden tegengehouden tot de consultant kiest;
+- de **controle in code** telt die vakkennis mee als bron (`lib/pagina/harde-beweringen.ts`: "alle
+  tekst van blok A, B en de vakkennis van C"), dus het bedrag gold als gedekt;
+- de **beoordeling** gaf het verbeterpunt "geef direct de bijbehorende totaalprijzen", en de
+  **herschrijving** maakte van een voorbehoud een stellig totaal.
+
+Patroon 1 blijft dus staan, maar de oorzaak is een lek in de feitenstroom, niet een verzonnen
+bedrag.
+
+### 7.2 Hoe de bronnen zijn samengevoegd
+
+| Bron | Gaat op in |
+|---|---|
+| Patroon 1 (harde bewering buiten de bedrijfsinput), V1, V2 (deels), de €79,95 | K1 en K4 |
+| Patroon 2 (herhaling, defensieve zinnen), V2, V3 (deels), waarneming 1.1 (herschrijving maakt het soms slechter) | K4 en K3 |
+| Patroon 3 (overlap in de set), V4, waarneming 1.4, methodevoorstellen M1 en M2 | K2 |
+| Patroon 4 (pagina rond ontbrekende informatie), V5, waarneming 1.2 (app-taal in de tekst) en 1.3 | K3 |
+| Patroon 5 (veel algemene vakkennis), V3 (deels) | K1 en K3 |
+| De toets van het sjabloon (§1b van het patronen-document) | K5 |
+| Waarneming 1.5, 1.6, 1.7 en groep 2 | Niet uit de patronen; blijven in §3 en gaan mee in de pijplijnanalyse (§8) |
+| De klantclaim "agressiever dan een gewone wesp" (C2) | Geen verbeterpunt: de klant is leidend en keurt de tekst zelf goed |
+
+### 7.3 De verbeterpunten, in de volgorde van de keten
+
+#### K1. Bedrijfsfeiten komen alleen uit de kennislaag (de brief en de controle in code)
+*Patronen 1 en 5. Vereenvoudigt: één route voor bedrijfsfeiten in plaats van twee.*
+
+- **Wat er nu gebeurt:** de brief zoekt op het web en levert vakkennis met een bronadres. Die
+  vakkennis mag ook over het bedrijf zelf gaan (een prijs van de eigen site), en de controle in
+  code telt alle vakkennis mee als bron voor zinnen over het bedrijf. Zo komt een bedrijfsfeit
+  binnen zonder de kennislaag, en dus zonder de controle op tegenstrijdigheden.
+- **Wat beter kan, binnen de bestaande stappen:**
+  1. In de opschoning na de brief (`lib/pagina/brief-regels.ts`, waar vakkennis zonder bron al
+     wegvalt): vakkennis waarvan het bronadres op het eigen domein van het merk staat, of die het
+     merk bij naam noemt, valt weg. Wat het bedrijf zelf zegt, hoort in de kennislaag, waar het
+     onderzoek het al vandaan haalt. Deterministisch, conventie 1.
+  2. In de controle in code (`lib/pagina/harde-beweringen.ts`): voor een zin **over het bedrijf**
+     tellen alleen de bedrijfskennis en wat de ondernemer vertelde als bron (blok A en B), niet de
+     vakkennis. Algemene uitleg met een getal (de "3 mm" bij A3) blijft mogen, want die zin gaat
+     niet over het bedrijf.
+- **Wat het oplost:** de €79,95 was dan geel geworden en de tegenspraak met het klantantwoord was
+  zichtbaar geweest. De "3 mm" wordt niet verboden, maar valt niet meer samen met een bedrijfsclaim.
+- **Raakt contentketen-opnieuw §3?** Nee: harde feiten, controle in code, bestaande filters.
+
+#### K2. De aanbevelingen van een merk als één set bekijken (het rapport en het contentplan)
+*Patroon 3. Geen nieuwe stap; een bestaande regel ("overlapt niet met een andere") geldt voortaan
+over alle clusters van het merk.*
+
+- **Wat er nu gebeurt:** elk rapport kijkt alleen naar zijn eigen cluster. Daardoor kwamen bij A
+  twee plaatspagina's (Zeist, Nieuwegein) uit twee rapporten tegelijk, bij B twee pagina's over
+  "zelf boekhouden of uitbesteden", en binnen één rapport ook pagina's die elkaars doel delen (B5 met
+  B6, C4 met C5 en C6).
+- **Wat beter kan:**
+  1. Het rapport krijgt de titels en doelen van de open aanbevelingen van hetzelfde merk mee als
+     invoer, in dezelfde aanroep, met de bestaande regel dat een nieuwe aanbeveling daar niet mee
+     mag overlappen. Geen extra aanroep.
+  2. In code, bij het vastleggen van de kansen: twee kansen die dezelfde bestaande pagina willen
+     verbeteren, worden één kans met het bewijs van beide clusters. Deterministisch.
+  3. Voor de testmethode (M2 in §4): bij de tweede bewuste stop mag de consultant een aanbeveling
+     vervangen die overlapt met een al gekozen pagina, en noteert dat.
+- **Raakt §3?** Nee.
+
+#### K3. Schrijven met wat er is, niet rond wat ontbreekt (de schrijfopdracht)
+*Patronen 2, 4 en 5, waarnemingen 1.2 en 1.3. Liever iets weghalen uit de opdracht dan iets
+toevoegen.*
+
+- **Wat er nu gebeurt:** de opdracht zegt "wees inhoudelijk volledig" en "schrijf zo uitgebreid als
+  nodig is", en tegelijk "herhaal niets" en "weet je iets niet, laat het weg". In de praktijk wint
+  volledigheid: dezelfde kernboodschap drie keer, vakkennis als opvulling, en bij een open kernvraag
+  een pagina die uitlegt wat de lezer zelf moet navragen (C4, C1, B6). Bij C4 belandde zelfs de taal
+  van de app in de tekst ("geen tarief of richtprijs bevestigd").
+- **Wat beter kan, allemaal in de bestaande opdracht (`lib/pagina/schrijfopdracht.ts`):**
+  1. "Wees inhoudelijk volledig" vervangen door een maatstaf vanuit de lezer: zo kort als kan voor
+     wat deze bezoeker wil weten. Weghalen wat nu naar lengte trekt, in plaats van een extra regel
+     tegen herhaling.
+  2. Als de ondernemer de kernvraag van de pagina niet beantwoordde (de prijs op een prijspagina),
+     kiest de schrijver een titel en invalshoek die hij wel kan waarmaken, en schrijft hij geen
+     alinea's over wat de lezer zelf moet navragen of wat er niet bekend is. Nog uit te zoeken in de
+     pijplijnanalyse: of de schrijver nu kan zien welke vraag de kernvraag was en dat die
+     overgeslagen is.
+  3. Vakkennis alleen gebruiken waar die de keuze van de lezer helpt. Dit hoort samen met K1: minder
+     vakkennis die over het bedrijf gaat, dus minder om op te vullen.
+- **Raakt §3?** Nee, dit is stijl en invalshoek in de opdracht, geen controle in code. Alleen punt 2
+  raakt de vraag welke pagina's er komen; dat is voor de eigenaar als het verder gaat dan de titel.
+
+#### K4. De controle beoordeelt, maar voegt niets toe (de beoordeling en de herschrijving)
+*Patronen 1 en 2, waarneming 1.1. Vereenvoudigt; mogelijk ook minder aanroepen.*
+
+- **Wat er nu gebeurt:** de beoordeling vraagt onder meer "is er genoeg diepgang?" en geeft
+  verbeterpunten als "geef direct de totaalprijzen". De herschrijving voert die uit en voegt daarmee
+  voorbehouden en nieuwe beweringen toe. Vijf van de zes pagina's van A en vier van de zes van B
+  werden herschreven. Herschreven pagina's scoren gemiddeld lager op "leest lekker" (3,6 tegen 4,0)
+  en op kwaliteit (3,4 tegen 3,9). Dat is een aanwijzing, geen bewijs.
+- **Wat beter kan, in `lib/pagina/controle-regels.ts`:**
+  1. Een verbeterpunt mag iets schrappen, corrigeren of verplaatsen, maar niets laten toevoegen wat
+     niet in de informatie staat (geen nieuw bedrag, geen totaal, geen nieuwe belofte).
+  2. De vraag "is er genoeg diepgang?" weghalen uit de beoordeling: die trekt de tekst langer, en
+     volledigheid is al de taak van de schrijver.
+  3. **Voor besluit door de eigenaar:** alleen herschrijven bij een feitelijk probleem (verzonnen,
+     onbewezen of verboden zinnen), en bij alleen het oordeel "niet goed" de punten aan de
+     ondernemer laten zien in plaats van automatisch te herschrijven. Dat haalt een aanroep weg in
+     de meeste gevallen, maar wijzigt besluit §6.6 van `docs/tasks/contentketen-opnieuw.md` (de
+     beslisregel `moetHerschrijven`). Eerst toets T1 hieronder.
+- **Raakt §3?** Punt 1 en 2 niet. Punt 3 wel, daarom een besluit voor de eigenaar.
+
+#### K5. Sjabloonversie 3 voor een volgende ronde (de testmethode, geen pijplijn)
+*De toets van het sjabloon.*
+
+1. Eén keer per klant een kort blok "Wat de schrijver al over het bedrijf wist": de feiten van de
+   site en de kern van het gesprek. Anders meet "klopt het" vooral wat het document laat zien; in
+   deze ronde drukte dat de score van de rijkste klant.
+2. De publiceer-keuze als kolom in de beoordelingstabel, niet als losse vakjes (bij B niet ingevuld).
+3. Vragen om de bestede tijd per document.
+
+### 7.4 Eerst toetsen, dan bouwen
+
+| Toets | Wat | Kost | Beslist over |
+|---|---|---|---|
+| **T1** | Dezelfde beoordelaar krijgt voor A2, B1, B2, B3 en B6 de eerste en de herschreven versie naast elkaar, met hetzelfde formulier. De eerste versies staan al in de bijlagen. | Geen AI-kosten | K4 punt 3: is herschrijven op stijl een verbetering of een verslechtering? |
+| **T2** | Na het bouwen van K1 tot en met K4: dezelfde pagina's opnieuw laten schrijven met dezelfde brief en antwoorden, en voorleggen aan dezelfde beoordelaar (stap 6). | Rond $0,20 per pagina, als opnieuw schrijven kan (open vraag in stap 6) | Of de patronen weg zijn zonder dat een ander criterium zakt |
+
+⚠️ Hangt af van het antwoord op de vraag of de beoordeling door een mens of door een AI is gedaan
+(open punt in het patronen-document). Was het een AI, dan is T1 bij dezelfde AI goedkoop maar deelt
+hij de blinde vlek; een menselijke beoordelaar blijft dan nodig voor het eindoordeel.
+
+### 7.5 Volgorde en relatie met de pijplijnanalyse
+
+1. **Eerst de grondige pijplijnanalyse** (§8), op basis van de drie klanten, negen clusters en achttien
+   pagina's uit deze ronde. De verbeterpunten hierboven zijn daar de startlijst voor, geen
+   eindlijst: de analyse kan ze aanscherpen, samenvoegen of laten vallen.
+2. Daarna T1.
+3. Dan bouwen, in deze volgorde: K1 (feiten, grootste risico en deterministisch), K4 punt 1 en 2,
+   K2, K3. K4 punt 3 alleen na T1 en een besluit.
+4. Dan T2 en de verificatie van stap 6.
+
+## 8. Volgende stap na akkoord: de grondige pijplijnanalyse
+
+Na akkoord op §7 volgt een analyse van de hele keten, stap voor stap, op de echte gegevens van deze
+ronde: drie merken, negen clusters, achttien pagina's. Per stap de invoer en de uitvoer naast
+elkaar (alles staat in `ai_calls` en via `GET /api/beheer/spoor/<profiel>`), met de vraag: wat maakt
+deze stap beter, eenvoudiger of overbodig, zodat de pagina aan het eind ijzersterk is? Van merk
+aanmaken en het onderzoek, via het gesprek, de meetvragen, de meting en het rapport, tot de brief,
+het schrijven, de controle en de herschrijving. Dezelfde spelregels als hierboven: bestaande stappen
+verbeteren, geen stappen erbij. De opzet van die analyse wordt een eigen document zodra de eigenaar
+akkoord geeft.

@@ -83,7 +83,7 @@ nodig is; de winst zit in redactie en in de keuzes vooraf.
 | SKG-specificaties "vrij stellig" | A3, A5 | Deels site, deels vakkennis uit de brief | Deels terecht |
 | "We zien regelmatig zzp'ers die na een jaar overstappen" | B2 | Het gesprek ("Verhalen": zzp'ers die na een jaar zelf boeken in april in de stress schieten) | Geen verzinsel, wel een verbreding: "regelmatig" en "overstappen" staan er niet letterlijk |
 | Bezoek aan het kantoor in Hilversum op afspraak | B1 | Site van Myfinance ("waar je op afspraak welkom bent") | Geen fout |
-| **€69,95 + €10 software = "vanaf €79,95"** | B1 | **Nergens.** De klant zei "€69,95 all-in"; de site noemt beide bedragen apart | **Echte fout**, zie patroon 1 |
+| €69,95 + €10 software = "vanaf €79,95" | B1 | De site: "Vanaf € 69,95 per maand excl. btw · excl. Compleet pakket (€ 10,- p/m)" (`/online-boekhouder/boekhouder-zzp/`). Het verzonnen klantantwoord "€69,95 all-in" sprak de site tegen | Geen verzinsel, wel een onopgemerkte tegenspraak tussen klant en site, zie patroon 1 |
 | "Die beesten zijn agressiever dan een gewone wesp" | C2 | Letterlijk het antwoord van de klant | Terecht punt, maar de klant zei het; volgens de NVWA feitelijk te stellig |
 
 ---
@@ -92,8 +92,8 @@ nodig is; de winst zit in redactie en in de keuzes vooraf.
 
 ### Patroon 1: een harde bewering die niet uit de bedrijfsinput volgt
 - **Komt voor bij:** A (A3 stellige vakkennis), B (B1 de prijs, B2), C (C2, via de klant).
-  Na aftrek van wat wel van het bedrijf kwam (§1c) blijft één echte fout over (B1) en een groep
-  stellig gebrachte vakkennis (A3, A5, B2).
+  Na aftrek van wat wel van het bedrijf kwam (§1c) blijven over: een tegenspraak tussen klant en
+  site die niemand opmerkte (B1), en een groep stellig gebrachte vakkennis (A3, A5, B2).
 - **Ongeacht inputrijkheid:** ja; bij de rijke klant A net zo goed als bij B.
 - **Bewijs:**
   - "In de aangeleverde informatie is € 69,95 het all-in tarief voor volledig uitbesteden, terwijl
@@ -104,13 +104,13 @@ nodig is; de winst zit in redactie en in de keuzes vooraf.
     aangeleverd." (A3)
   - "Een model moet bij ontbrekende bedrijfsinformatie liever schrijven: 'Dat hangt af van het
     onderdeel.'" (A, algemeen)
-- **Vermoedelijke oorzaak, nagerekend voor B1:** de **controle** (hoofdstuk 16) gaf zelf het
-  verbeterpunt "geef direct de bijbehorende totaalprijzen", en de **herschrijving** voerde dat uit:
-  de eerste versie hield het nog als voorbehoud ("tel je dit pakket apart op, dan is de som..."),
-  de herschreven versie maakte er een stellig totaal van ("dat totaal bestaat uit"). De controle in
-  de code markeerde €83,45 als onbewezen, maar €79,95 niet. **Waarom niet, is nog niet uitgezocht.**
-  Voor A3 en A5: de schrijfopdracht (hoofdstuk 15) geeft vakkennis uit het onderzoek mee met de
-  waarschuwing dat het algemene kennis is, en de schrijver brengt het toch als stellige bewering.
+- **Oorzaak, nagerekend voor B1:** het webonderzoek van **de brief** zette een bedrijfsspecifiek
+  bedrag in de vakkennis ("Bij Myfinance ... samen € 79,95"), buiten de kennislaag om, waar een
+  tegenspraak met het klantantwoord normaal was opgevallen. **De controle in code** telt vakkennis
+  mee als bron, dus het bedrag gold als gedekt. **De beoordeling** gaf het punt "geef direct de
+  totaalprijzen", en **de herschrijving** maakte van een voorbehoud een stellig totaal. Voor A3 en
+  A5: de schrijfopdracht geeft vakkennis mee als algemene kennis, en de schrijver brengt die toch
+  stellig.
 - **Soort:** feitelijk (bedragen, termijnen, normen). Valt onder conventie 1: harde feiten krijgen
   een vangnet in code.
 
@@ -198,25 +198,9 @@ inputprobleem, geen pijplijnprobleem.
 
 ---
 
-## 3. Conclusie (concept, samen te bespreken)
+## 3. Conclusie
 
-Hooguit vijf voorstellen, elk bij één bestaande stap. Nog geen besluit; na akkoord volgt stap 5 van
-het plan (per voorstel eerst nalezen hoe de stap nu is ingericht).
-
-| # | Voorstel | Stap | Patroon | Aard |
-|---|---|---|---|---|
-| V1 | **Uitzoeken waarom €79,95 niet als onbewezen bedrag werd gemarkeerd**, en de controle in code zo maken dat een bedrag dat niet letterlijk in de input staat (ook een optelling van twee bedragen) altijd geel wordt. | De controle in code (hoofdstuk 16) | 1 | Feitelijk; conventie 1 |
-| V2 | **De beoordeling mag geen verbeterpunt geven dat een feit toevoegt** (een totaalprijs, een termijn) dat niet in de input staat; alleen verbeterpunten over wat er al is. | De beoordeling in de controle (hoofdstuk 16) | 1, 2 | Instructie in een bestaande opdracht |
-| V3 | **In de schrijf- en herschrijfopdracht:** een kernboodschap één keer goed zeggen in plaats van op elke plek; vakkennis alleen gebruiken als die de keuze van de lezer helpt, en nooit als stellige norm zonder bron van het bedrijf. | Het schrijven en herschrijven (hoofdstuk 15 en 16) | 2, 5, deels 1 | Instructie in een bestaande opdracht; geen code (contentketen-opnieuw §3) |
-| V4 | **Overlap binnen en tussen rapporten voorkomen**: een aanbeveling die hetzelfde doel dient als een andere aanbeveling van hetzelfde merk valt af of wordt samengevoegd. | Het rapport en de kansen (hoofdstuk 11) | 3 | Bestaande regel scherper, over clusters heen |
-| V5 | **Een pagina waarvan de kernvraag onbeantwoord blijft, niet schrijven met een titel die dat antwoord belooft.** Eerst uitzoeken of de brief die kernvraag als zodanig kan markeren en de schrijver dan een andere invalshoek kiest, zonder nieuwe stap. | De brief en het schrijven (hoofdstuk 13 en 15) | 4 | Nog uit te werken; mogelijk raakt dit de grens van contentketen-opnieuw §3, dan besluit de eigenaar |
-
-**Los daarvan, geen pijplijnwijziging:** sjabloonversie 3 voor een volgende ronde. Laat in het
-document zien wat de schrijver al over het bedrijf wist (de feiten van de site en uit het gesprek,
-kort, één keer per klant). Zet de publiceer-keuze in de beoordelingstabel in plaats van als losse
-vakjes. Vraag om de bestede tijd. Anders meet "klopt het" vooral wat het document laat zien.
-
-**Een goedkope eerste verificatie van patroon 2** (vóór er iets gebouwd wordt): de bijlage bevat al
-de eerdere versies van negen pagina's. Leg bij dezelfde beoordelaar voor B1, B2, B3, B6 en A2 de
-eerste en de herschreven versie naast elkaar, met hetzelfde formulier. Is de eerste versie beter,
-dan is dat direct bewijs voor V2 en V3, zonder nieuwe AI-kosten.
+De verbeterpunten staan, ontdubbeld en per bestaande stap, in §7 van
+`docs/tasks/contentkwaliteit-ronde-1-vervolg.md` (K1 tot en met K5, met de toetsen T1 en T2). Daar
+staat ook de correctie op de eerste versie van dit document over de €79,95. De vijf voorstellen die
+hier eerst stonden (V1 tot en met V5), zijn daarin opgegaan.
