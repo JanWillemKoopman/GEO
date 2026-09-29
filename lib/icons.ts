@@ -51,11 +51,9 @@
  *    zoekactie door 38 bestanden. Twee namen mogen dezelfde tekening delen als
  *    ze iets anders betekenen: `stijging` is een meting, `omhoog` is een
  *    handeling van de gebruiker, en die twee horen los te kunnen bewegen.
- * 4. **Alleen de zeven hoofdstukken van de zijbalk hebben er een, de bestemmingen
- *    eronder niet** (besluit 21 augustus 2026). Ze hebben ze een halve dag wél
- *    gehad, en toen bleek dat zestien tekeningen in een balk van zestien regels
- *    niets meer markeren. `lib/nav.ts` heeft daarom geen icoonveld op `NavItem`,
- *    en een test in `scripts/test-unit.ts` bewaakt dat het niet terugsluipt.
+ * 4. **Sinds 29 september 2026 hebben de bestemmingen in de zijbalk een icoon en
+ *    de koppen niet meer** (`lib/nav.ts`, `NavItem.icoon`). Daarvoor gold het
+ *    omgekeerde (besluit 21 augustus 2026): alleen de hoofdstukken hadden er een.
  *
  * Bewust ZONDER `server-only`: de zijbalk is client, de paginakoppen zijn
  * server, en beide lezen deze tabel.
@@ -79,6 +77,9 @@ import {
   Circle,
   CircleDashed,
   CircleHelp,
+  Compass,
+  LogOut,
+  Plug,
   ClipboardCheck,
   Copy,
   Download,
@@ -186,6 +187,10 @@ export type IcoonNaam =
   | "bibliotheek"
   | "concurrenten"
   | "reputatie"
+  // ── Zijbalk (29 september 2026) ─────────────────────────────────────────
+  | "ontdekken"
+  | "koppeling"
+  | "uitloggen"
   // ── De weergave van de app zelf ─────────────────────────────────────────
   | "licht"
   | "donker"
@@ -375,6 +380,14 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // Een spraakballon: Mijn reputatie gaat over wat een AI-assistent over je
   // ZEGT, niet over of je genoemd wordt.
   reputatie: MessageCircle,
+
+  // ── ZIJBALK (29 september 2026) ─────────────────────────────────────────
+  // Een kompas: op zoek naar clusters die je nog niet hebt.
+  ontdekken: Compass,
+  // Een stekker: een koppeling met een andere dienst (Search Console).
+  koppeling: Plug,
+  // De deur uit: de rij Uitloggen in het profielmenu.
+  uitloggen: LogOut,
 
   // De themaschakelaar. Het icoon toont waar je heen gaat en niet waar je bent:
   // sta je in de lichte stand, dan zie je de maan. Dat is de conventie in vrijwel

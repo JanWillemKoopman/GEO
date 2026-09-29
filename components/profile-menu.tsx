@@ -3,9 +3,21 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
+import { ThemeMenuItem } from "@/components/theme-toggle";
 
 /**
- * Het uitklapmenu achter het profiel-icoon, rechtsboven, op élk schermformaat.
+ * Het uitklapmenu van het profiel.
+ *
+ * ── ONDERAAN DE ZIJBALK (29 september 2026) ─────────────────────────────────
+ *
+ * Op desktop staat het profiel niet meer rechtsboven maar als laatste regel van
+ * de zijbalk (`plek="zijbalk"`): icoon plus voornaam, of het e-mailadres als er
+ * geen naam bekend is, met het menu naar boven open. Het menu telt nu vijf
+ * dingen: Mijn account, de weergave (licht of donker), Support en Uitloggen. De
+ * themaschakelaar en het Support-icoon zijn daarvoor uit de bovenbalk gehaald.
+ * Op een telefoon blijft het een icoon in de bovenbalk (`plek="topbalk"`).
+ *
+ * Hieronder de geschiedenis van het menu zoals het rechtsboven stond.
  *
  * ── WAAROM DIT GEEN FULL-SCREEN SHEET MEER IS (25 augustus 2026) ────────────
  *
@@ -30,14 +42,22 @@ import { Icon } from "@/components/icon";
  * donker vanzelf goed staan.
  */
 export function ProfileMenu({
+  naam,
   email,
   signOutAction,
+  plek = "topbalk",
 }: {
+  /** Voornaam als die bekend is, anders het e-mailadres (`lib/weergavenaam.ts`). */
+  naam: string;
   email: string;
   signOutAction: () => void | Promise<void>;
+  /** `zijbalk`: brede knop onderaan met het menu naar boven. `topbalk`: alleen
+   *  het icoon, met het menu naar beneden (telefoon). */
+  plek?: "zijbalk" | "topbalk";
 }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
+  const inZijbalk = plek === "zijbalk";
 
   useEffect(() => {
     if (!open) return;
@@ -58,22 +78,40 @@ export function ProfileMenu({
 
   return (
     <div ref={wrap} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label="Menu openen"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="icon-btn"
-      >
-        <Icon naam="profiel" size={18} />
-      </button>
+      {inZijbalk ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Profielmenu openen"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="nav-item w-full"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Icon naam="profiel" size={16} />
+            <span className="truncate">{naam}</span>
+          </span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Menu openen"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="icon-btn"
+        >
+          <Icon naam="profiel" size={18} />
+        </button>
+      )}
 
       {open && (
         <div
           role="menu"
           aria-label="Menu"
-          className="menu-surface absolute right-0 z-40 mt-1 w-56 overflow-hidden"
+          className={`menu-surface absolute z-40 overflow-hidden ${
+            inZijbalk ? "bottom-full left-0 mb-1 w-full min-w-56" : "right-0 mt-1 w-56"
+          }`}
         >
           <div className="menu-sectie">
             <span className="block truncate text-sm text-secondary">{email}</span>
@@ -87,18 +125,26 @@ export function ProfileMenu({
               onClick={() => setOpen(false)}
               className="menu-item"
             >
+              <Icon naam="profiel" size={16} />
               Mijn account
+            </Link>
+            <ThemeMenuItem />
+            <Link
+              href="/support"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="menu-item"
+            >
+              <Icon naam="help" size={16} />
+              Support
             </Link>
           </div>
 
           <span className="menu-scheiding" aria-hidden />
           <div>
             <form action={signOutAction}>
-              <button
-                type="submit"
-                role="menuitem"
-                className="menu-item"
-              >
+              <button type="submit" role="menuitem" className="menu-item">
+                <Icon naam="uitloggen" size={16} />
                 Uitloggen
               </button>
             </form>

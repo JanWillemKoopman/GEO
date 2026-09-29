@@ -85,7 +85,7 @@ export default async function SupportPage() {
                 className="flex scroll-mt-[calc(var(--header-h)+1.5rem)] items-center gap-2.5 border-b border-[var(--border-subtle)] pb-3"
               >
                 <span className="flex text-[var(--text-primary)]">
-                  <Icon naam={groep.icoon} size={20} />
+                  <Icon naam={ICOON_PER_HOOFDSTUK[groep.naam]} size={20} />
                 </span>
                 <h2 className="type-section">{groep.naam}</h2>
               </div>
@@ -96,7 +96,7 @@ export default async function SupportPage() {
                     key={item.href}
                     item={item}
                     brandId={brandId}
-                    icoon={ICOON_PER_LABEL[item.label] ?? groep.icoon}
+                    icoon={ICOON_PER_LABEL[item.label] ?? ICOON_PER_HOOFDSTUK[groep.naam]}
                   >
                     {CONTENT[groep.naam]?.[item.label]}
                   </Onderdeel>
@@ -317,7 +317,7 @@ function ZijNav({ groepen }: { groepen: NavHoofdstuk[] }) {
         <div key={groep.naam} className="flex flex-col gap-1">
           <span className="flex items-center gap-2 px-3 pb-1.5 text-[0.9375rem] font-medium text-[var(--text-primary)]">
             <span className="flex text-[var(--text-primary)]">
-              <Icon naam={groep.icoon} size={16} />
+              <Icon naam={ICOON_PER_HOOFDSTUK[groep.naam]} size={16} />
             </span>
             {groep.naam}
           </span>
@@ -347,7 +347,7 @@ function MobielNav({ groepen }: { groepen: NavHoofdstuk[] }) {
     >
       {groepen.map((groep) => (
         <a key={groep.naam} href={`#${slug(groep.naam)}`} className="chip chip-neutral shrink-0">
-          <Icon naam={groep.icoon} size={12} />
+          <Icon naam={ICOON_PER_HOOFDSTUK[groep.naam]} size={12} />
           {groep.naam}
         </a>
       ))}
@@ -454,6 +454,21 @@ function slug(label: string): string {
 }
 
 /** Eén icoon per bestemming. Vier lenen die van hun eigen hoofdstuk, de rest staat voor het eerst in `lib/icons.ts`. */
+/**
+ * Het icoon per hoofdstuk, alleen voor deze handleiding. De zijbalk geeft sinds
+ * 29 september 2026 geen icoon meer aan een kop (`lib/nav.ts`), maar de
+ * uitlegblokken hier hebben er wel een per groep, zodat een lange pagina niet
+ * leest als vier keer hetzelfde blok.
+ */
+const ICOON_PER_HOOFDSTUK: Record<Hoofdstuk, IcoonNaam> = {
+  Overzicht: "taken",
+  Clusters: "clusters",
+  Strategie: "strategie",
+  Analytics: "analytics",
+  Merkdossier: "merkprofiel",
+  Admin: "admin",
+};
+
 const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
   "Openstaande taken": "taken",
   "Mijn clusters": "meten",

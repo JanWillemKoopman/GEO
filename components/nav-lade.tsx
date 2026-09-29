@@ -25,10 +25,17 @@ import type { BrandOption } from "@/lib/workspace";
  */
 export function NavLade({
   activeBrand,
+  brands,
+  onSelectBrand,
+  profiel,
   staff,
   openVragen,
 }: {
   activeBrand: BrandOption | null;
+  brands: BrandOption[];
+  onSelectBrand: (brandId: string) => void;
+  /** Het profiel met zijn menu: ook in de lade staat het onderaan. */
+  profiel: React.ReactNode;
   staff: boolean;
   openVragen: number;
 }) {
@@ -54,6 +61,9 @@ export function NavLade({
       <Drawer open={open} titel="Menu" kant="links" onSluit={() => setOpen(false)}>
         <Sidebar
           activeBrand={activeBrand}
+          brands={brands}
+          onSelectBrand={onSelectBrand}
+          profiel={profiel}
           staff={staff}
           openVragen={openVragen}
           onMobileClose={() => setOpen(false)}

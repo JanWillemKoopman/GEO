@@ -320,14 +320,15 @@
      dan ontstaat er een kier waar de pagina-inhoud doorheen schuift. Wijzig hem
      dus nooit in een component maar altijd hier. */
   --header-h: 48px;
+  /* De hoogte van de bovenbalk zelf. `--header-h` is hoe ver plakkende
+     onderdelen van de bovenrand blijven (op desktop 0, zie `.werkruimte`);
+     dit is hoe hoog de balk is. */
+  --topbar-h: 48px;
 
   /* De zijbalk. 240 blijft: dat is bij OKX ook de breedte van hun eigen
-     navigatiekolom, en breder gaat ten koste van de tabel ernaast.
-
-     Ingeklapt van 64 naar 56: een pictogramknop is 32 pixels plus 8 lucht aan
-     weerszijden, en 64 liet daar een lege rand omheen staan. */
+     navigatiekolom, en breder gaat ten koste van de tabel ernaast. Sinds
+     29 september 2026 is er geen ingeklapte stand meer. */
   --sidebar-w: 240px;
-  --sidebar-w-collapsed: 56px;
 
   /* De drie standen voor de inhoudsbreedte, zie `.stand` verderop. */
   --stand-lezen: 720px;
@@ -1970,12 +1971,32 @@ textarea.field {
    `backdrop-filter`, en een doorschijnende balk boven een tabel die eronder
    doorschuift is precies waar dat effect onrustig wordt. */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  height: var(--header-h);
-  background-color: var(--bg-base);
-  border-bottom: var(--border-width-xs) solid var(--line-muted);
+  position: relative;
+  height: var(--topbar-h);
+  background-color: transparent;
+}
+/* ⚠️ Vanaf 29 september 2026 is de bovenbalk op desktop (vanaf lg) volledig
+   doorzichtig, zonder rand, en plakt hij niet meer: er staat alleen nog de
+   teller van openstaande vragen en de klantweergave in, en een doorzichtige
+   plakkende balk zou de tekst eronder dwars door die knoppen laten schuiven.
+   Omdat hij niet plakt, is er niets om onder te plakken: `.werkruimte` zet
+   `--header-h` op 0 en de tabs en filterbalken sluiten aan op de bovenrand.
+   Onder lg is er geen zijbalk en draagt deze balk de menuknop; dan moet hij
+   blijven staan bij scrollen, en dat kan alleen dekkend. */
+.werkruimte {
+  --header-h: 0px;
+}
+@media (max-width: 1023px) {
+  .werkruimte {
+    --header-h: var(--topbar-h);
+  }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: var(--bg-base);
+    border-bottom: var(--border-width-xs) solid var(--line-muted);
+  }
 }
 /* ── De contentpagina: drie zones (22 september 2026) ──────────────────────
    Zie `docs/tasks/herontwerp-contentpagina.md`. De tekst is de held, de
@@ -1989,11 +2010,11 @@ textarea.field {
 
      viewport - zijbalk - 2 × 24px marge van `.stand`
 
-   en die zijbalk is 240px uitgeklapt of 56px ingeklapt, door de gebruiker zelf
-   te bepalen. Op 1440px met een uitgeklapte zijbalk blijft 1152px over (past),
-   op 1280px blijft 992px over (past niet), en op 1280px mét een ingeklapte
-   zijbalk 1176px (past weer). Een `@media`-regel kent dat verschil niet en zou
-   dus in twee van de drie gevallen het verkeerde doen. */
+   en die zijbalk was 240px uitgeklapt of 56px ingeklapt (de ingeklapte stand
+   bestaat sinds 29 september 2026 niet meer). Op 1440px blijft 1152px over
+   (past), op 1280px blijft 992px over (past niet). De containerquery blijft
+   nauwkeuriger dan een `@media`-regel, want die kent de marges van `.stand`
+   en de zijbalk niet. */
 .content-zones {
   /* Eén plek voor de balkhoogte: de balk gebruikt hem voor zichzelf en de rail
      voor zijn `top`. Twee declaraties zouden stil uit elkaar kunnen lopen en
@@ -2340,12 +2361,7 @@ textarea.field {
   flex-direction: column;
   height: 100%;
   width: var(--sidebar-w);
-  padding: 8px;
   background-color: var(--bg-base);
-  transition: width var(--duration-slow) var(--ease-standard);
-}
-.sidebar-smal {
-  width: var(--sidebar-w-collapsed);
 }
 
 /* Een bestemming in de zijbalk.
@@ -2372,9 +2388,6 @@ textarea.field {
   font-weight: 400;
   line-height: 1.25rem;
   color: var(--text-tertiary);
-  /* Korter dan de balk breed is: zonder deze marge liep het actieve vlak door
-     tot de rand van de zijbalk, terwijl de tekst er middenin zwom. */
-  margin-right: 8px;
   transition:
     background-color var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard);
@@ -3279,15 +3292,18 @@ textarea.field {
    zette alleen nog de tekstkleur; op 23 september 2026 is hij weg, samen met
    de `--wordmark-*`-tokens. Het woordmerk is `.brand-logo` hieronder. */
 
-/* Het lettertype van het woordmerk, los van de tekstschaal in §3.1 van
-   designsystem.md (26 augustus 2026): Archivo Black, altijd hoofdletters, met
-   een krappe spatiëring van -0,07em. Een vet display-lettertype loopt van
-   zichzelf al ruim uit elkaar; zonder de negatieve spatiëring oogt "ORBIT
-   ENGINE" als twee losse woorden in plaats van één merknaam. */
+/* Het woordmerk, los van de tekstschaal in §3.1 van designsystem.md.
+
+   ⚠️ Sinds 29 september 2026 dun (Archivo 300) en ruim gespatieerd (0,2em) in
+   plaats van Archivo Black met -0,07em (26 augustus 2026): de eigenaar wil het
+   woordmerk van de referentie, een lichte letter waar de ruimte tussen de
+   tekens het merk draagt. Altijd hoofdletters. De grootte staat op de plek
+   zelf (in de zijbalk 22 pixels, 4 meer dan voorheen). */
 .brand-logo {
-  font-family: var(--font-logo), var(--font-sans);
+  font-family: var(--font-sans);
+  font-weight: 300;
   text-transform: uppercase;
-  letter-spacing: -0.07em;
+  letter-spacing: 0.2em;
 }
 
 /* ── De link in lopende tekst (23 september 2026) ───────────────────────────

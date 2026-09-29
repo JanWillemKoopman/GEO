@@ -8,7 +8,8 @@ type Stand = "light" | "dark";
 const SLEUTEL = "orbit-thema";
 
 /**
- * De schakelaar tussen de lichte en de donkere stand, rechtsboven in de balk.
+ * De schakelaar tussen de lichte en de donkere stand (op een telefoon nog als
+ * knop, op desktop als rij in het profielmenu: `ThemeMenuItem` onderaan).
  *
  * ── DRIE STANDEN, TWEE KNOPPEN ─────────────────────────────────────────────
  *
@@ -34,7 +35,12 @@ const SLEUTEL = "orbit-thema";
  * Het anti-flitsscript in `app/layout.tsx` leest dezelfde sleutel, vóór de
  * eerste tekening. Verander je de naam hier, verander hem daar dan mee.
  */
-export function ThemeToggle() {
+/**
+ * De stand en de wissel, los van welke knop hem aanroept. De knop rechtsboven
+ * (telefoon) en de rij in het profielmenu onderaan de zijbalk delen dezelfde
+ * logica: twee kopieën van het localStorage-gedrag lopen op termijn uit elkaar.
+ */
+function useThema() {
   const [stand, setStand] = useState<Stand | null>(null);
 
   useEffect(() => {
@@ -73,6 +79,12 @@ export function ThemeToggle() {
     }
   }
 
+  return { stand, wissel };
+}
+
+export function ThemeToggle() {
+  const { stand, wissel } = useThema();
+
   // Vóór de eerste meting weten we de stand niet. Een lege plek van dezelfde
   // maat is beter dan een knop die een halve tel het verkeerde icoon toont.
   if (stand === null) {
@@ -90,6 +102,27 @@ export function ThemeToggle() {
       title={naarDonker ? "Donkere weergave" : "Lichte weergave"}
     >
       <Icon naam={naarDonker ? "donker" : "licht"} size={18} />
+    </button>
+  );
+}
+
+/**
+ * Dezelfde schakelaar als rij in het profielmenu (29 september 2026): de knop
+ * rechtsboven in de balk is daarmee verhuisd. Het label toont waar je heen
+ * gaat, net als het icoon van `ThemeToggle`.
+ */
+export function ThemeMenuItem() {
+  const { stand, wissel } = useThema();
+
+  // Vóór de eerste meting een rij van dezelfde hoogte zonder tekst.
+  if (stand === null) return <div className="menu-item" aria-hidden />;
+
+  const naarDonker = stand === "light";
+
+  return (
+    <button type="button" role="menuitem" onClick={wissel} className="menu-item">
+      <Icon naam={naarDonker ? "donker" : "licht"} size={16} />
+      {naarDonker ? "Donkere weergave" : "Lichte weergave"}
     </button>
   );
 }

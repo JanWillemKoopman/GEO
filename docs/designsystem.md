@@ -469,8 +469,8 @@ even zware lijn oogt onbalans.
 
 **De zes regels van Nova blijven onverkort gelden** (ze gaan over gebruik, niet over de tekenstijl
 van een specifiek systeem): een icoon staat nooit alleen zonder label, één betekenis heeft één
-icoon, de naam in `lib/icons.ts` is de betekenis en niet de tekening, in de zijbalk draagt alleen de
-kop een icoon, een lijst krijgt er een zodra de soort van de regel verschilt, en een icoon in een
+icoon, de naam in `lib/icons.ts` is de betekenis en niet de tekening, in de zijbalk draagt elke
+bestemming een icoon en de kop niet (sinds 29 september 2026), een lijst krijgt er een zodra de soort van de regel verschilt, en een icoon in een
 lijstregel staat in de leeskleur, nooit in de accentkleur.
 
 ---
@@ -500,7 +500,7 @@ in plaats van in één keer om te klappen.
 |---|---|---|
 | Bovenbalk | 61px | **48px** |
 | Zijbalk uitgeklapt | 240px | 240px, ongewijzigd |
-| Zijbalk ingeklapt | 64px | **56px** |
+| Zijbalk ingeklapt | 64px | bestaat niet meer (29 september 2026) |
 | Zijmarge desktop / tablet / mobiel | 24px overal | **24px / 20px / 16px** |
 
 **Drie opmaakstanden, en elke route kiest er één** (`.stand` in `app/globals.css`, sinds stap 4):
@@ -512,10 +512,9 @@ data      geen    tabel, grafiek, vergelijking, alleen 24px marge
 ```
 
 ⚠️ **Een stand zegt hoe breed de pagina mag zijn, niet hoeveel ruimte hij écht heeft** (22 september
-2026). `.stand` staat binnen `<main>`, naast de zijbalk, en die is 240px uitgeklapt of 56px
-ingeklapt. De bruikbare breedte is dus `viewport - zijbalk - 2 × 24px`, en die laatste twee getallen
-verandert de gebruiker zelf. Op 1440px met een uitgeklapte zijbalk blijft 1152px over, op 1280px
-992px, en op 1280px mét een ingeklapte zijbalk weer 1176px.
+2026). `.stand` staat binnen `<main>`, naast de zijbalk van 240px. De bruikbare breedte is dus
+`viewport - zijbalk - 2 × 24px`. Op 1440px blijft 1152px over, op 1280px 992px. (Tot 29 september
+2026 kon de gebruiker de zijbalk inklappen tot 56px; die stand is weg.)
 
 Een indeling die pas past bóven een bepaalde breedte hoort daarom aan een **containerquery** te
 hangen en niet aan een `@media`-regel: die laatste kent het verschil tussen een in- en uitgeklapte
@@ -574,7 +573,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `EmptyState`, `ErrorState`, `ConfidenceChip` | Eén variant per patroon |
 | `DataCard` | Elk cijfer naast het ene hoofdgetal van een scherm: 24px (`.data-card-waarde`, ook los te gebruiken in een kaart). Het hoofdgetal zelf staat op `text-5xl` in de kaart met de stang. `verschil.oordeel` kleurt naar beter of slechter als lager beter is |
 | `FilterChip` (`.chip-select`), `Segment` (`.segment`) | Een filter is een filterchip, een wissel van weergave is een segment. Geen eigen schakelknoppen |
-| `ThemeToggle` | De schakelaar licht/donker, in `workspace-chrome.tsx` |
+| `ThemeToggle` / `ThemeMenuItem` | De schakelaar licht/donker: als knop op een telefoon, als rij in het profielmenu onderaan de zijbalk (`components/profile-menu.tsx`) |
 | `AnalyticsFilters`, `AnalyticsTable` | De filterbalk en de sorteerbare tabel van Analytics |
 
 ---
@@ -628,8 +627,8 @@ tweede omzetting. Dat stond ook al open ná de Nova-ronde en is niet opnieuw dic
 8. **Het accent is schaars.** Hooguit één hoofdactie per scherm, de actieve navigatie als streep, de
    eigen lijn in een grafiek. Nooit een kop, nooit meer dan ongeveer 1% van het oppervlak. Zie §2.4.
 9. **Een icoon komt uit `lib/icons.ts`.** Nooit een letterteken in de tekst, nooit een met de hand
-   getekende SVG, nooit een rechtstreekse import uit `lucide-react`. In de zijbalk draagt alleen de
-   kop er een. Zie §6.
+   getekende SVG, nooit een rechtstreekse import uit `lucide-react`. In de zijbalk draagt elke
+   bestemming er een en de kop niet. Zie §6.
 10. **Een eigen klasse staat in `@layer components`.** Buiten een laag wint CSS altijd van Tailwinds
     hulpklassen, en dan doet een `p-3` of `border-[...]` in een scherm stil niets. Tot 23 september
     2026 stond alles buiten een laag; 126 randkleuren en een handvol maten kwamen daardoor nooit door.

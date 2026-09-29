@@ -1,11 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
-import { BrandSwitcher } from "@/components/brand-switcher";
-import { Icon } from "@/components/icon";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { BottomNav } from "@/components/bottom-nav";
 import { MobileTopbar } from "@/components/mobile-topbar";
 import { NavLade } from "@/components/nav-lade";
@@ -47,6 +43,7 @@ export function WorkspaceChrome({
   openQuestions,
   previewToggle,
   accountMenu,
+  profiel,
   children,
 }: {
   brands: BrandOption[];
@@ -68,7 +65,10 @@ export function WorkspaceChrome({
   openQuestions?: React.ReactNode;
   /** De wisselknop naar de klantweergave, `null` voor wie dat recht niet heeft. */
   previewToggle?: React.ReactNode;
+  /** Het profielicoon in de bovenbalk van de telefoon. */
   accountMenu: React.ReactNode;
+  /** Het profiel met naam onderaan de zijbalk (en de lade), 29 september 2026. */
+  profiel: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -114,62 +114,54 @@ export function WorkspaceChrome({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      {/* De vorm staat in `.topbar` in globals.css: 48 pixels, dekkend, één rand
-          eronder. De hoogte staat daar vast op --header-h en volgt niet uit de
-          inhoud, want de hoofdstuktabs van een cluster plakken er met
-          `top: var(--header-h)` exact onder. Lopen die twee uit elkaar, dan
-          ontstaat er een kier waar de pagina-inhoud doorheen schuift. */}
-      <header className={`topbar no-print`}>
-        <div className="flex h-full items-center justify-between gap-3 px-4 md:px-5 lg:px-6">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* Onder 1024 pixels staat de zijbalk er niet; deze knop opent hem
-                als lade (UX-audit 23 september 2026, P0.1). */}
-            <NavLade activeBrand={activeBrand} staff={staff} openVragen={openVragen} />
-            {logo}
-            <span className="hidden text-muted sm:inline" aria-hidden>
-              /
-            </span>
-            <BrandSwitcher
-              brands={brands}
-              active={activeBrand}
-              onSelect={onSelectBrand}
-            />
+    // `.werkruimte` zet --header-h op 0 zolang de bovenbalk niet plakt (zie
+    // globals.css): de plakkende tabs en filterbalken sluiten dan aan op de
+    // bovenrand van het scherm in plaats van 48 pixels lager.
+    <div className="werkruimte flex min-h-dvh">
+      {/* ── DE ZIJBALK LOOPT VAN BOVEN TOT ONDER (29 september 2026) ─────────
+          Hij plakt aan de bovenrand van het scherm en is precies zo hoog als het
+          scherm, met een eigen scrollbaan in het menu (zie `Sidebar`). De
+          bovenbalk staat rechts ernaast en niet meer erboven. Vanaf lg; eronder
+          opent dezelfde zijbalk als lade (`NavLade`). */}
+      <aside className="no-print sticky top-0 hidden h-dvh shrink-0 self-start border-r border-[var(--line-muted)] lg:block">
+        <Sidebar
+          activeBrand={activeBrand}
+          brands={brands}
+          onSelectBrand={onSelectBrand}
+          logo={logo}
+          profiel={profiel}
+          staff={staff}
+          openVragen={openVragen}
+        />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* De vorm staat in `.topbar` in globals.css: volledig doorzichtig, geen
+            rand, en vanaf lg ook niet meer plakkend. Wat er nog in staat is wat
+            bij dít scherm hoort: de teller van openstaande vragen en de
+            klantweergave. De themaschakelaar, Support en het profiel zijn naar
+            de zijbalk verhuisd. Onder lg (geen zijbalk) staat hier de menuknop
+            met het woordmerk, en dan is de balk wél plakkend en dekkend. */}
+        <header className="topbar no-print">
+          <div className="flex h-full items-center gap-3 px-4 md:px-5 lg:px-6">
+            <div className="flex min-w-0 items-center gap-2 lg:hidden">
+              <NavLade
+                activeBrand={activeBrand}
+                brands={brands}
+                onSelectBrand={onSelectBrand}
+                profiel={profiel}
+                staff={staff}
+                openVragen={openVragen}
+              />
+              {logo}
+            </div>
+
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {openQuestions}
+              {previewToggle}
+            </div>
           </div>
-
-          {/* De themaschakelaar staat links van het accountmenu: allebei gaan ze
-              over jou en niet over dit merk, en het accountmenu blijft de
-              buitenste plek omdat daar het uitloggen achter zit. De
-              wisselknop staat er nog eens links van, want die gaat over wie je
-              nu bent en niet over hoe het scherm eruitziet.
-
-              ── HET HULP-ICOON (support-sectie) ─────────────────────────────
-              Rechts van de wisselknop en links van de themaschakelaar: dit
-              gaat, net als die twee, over jou en niet over dit merk. Een
-              gewone link en geen uitklapmenu, want de bestemming is één vaste
-              pagina en geen keuze. */}
-          <div className="flex shrink-0 items-center gap-1">
-            {openQuestions}
-            {previewToggle}
-            <Link
-              href="/support"
-              aria-label="Support: hoe ORBIT ENGINE werkt"
-              className="icon-btn"
-            >
-              <Icon naam="help" size={18} />
-            </Link>
-            <ThemeToggle />
-            {accountMenu}
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-1">
-        {/* Vaste zijbalk vanaf lg. Sticky onder de bovenbalk, met een eigen
-            scrollbaan zodat een lange merknaam de pagina niet meeneemt. */}
-        <aside className="no-print sticky top-[var(--header-h)] hidden h-[calc(100dvh-var(--header-h))] shrink-0 self-start overflow-y-auto border-r border-[var(--line-muted)] lg:block">
-          <Sidebar activeBrand={activeBrand} staff={staff} openVragen={openVragen} />
-        </aside>
+        </header>
 
         {/* `min-w-0` is hier geen sier: dit is een flex-kind, en zonder deze
             regel zet één lange URL diep in een kaart de minimale breedte van de
