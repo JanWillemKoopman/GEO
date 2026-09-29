@@ -24,7 +24,6 @@ import {
   raaktLabel,
   redenChip,
   redenUitleg,
-  backlogDurationLabel,
   LEGE_BACKLOG_FILTERS,
   type BacklogItem,
   type BacklogFilters,
@@ -186,7 +185,10 @@ export function PlanView({
           }
         : null,
     );
-    return besluit.schrijven ? null : writeBlockNotice(besluit.reden);
+    // "ORBIT ENGINE schrijft pas als deze maand is vrijgegeven" staat niet meer
+    // op het scherm (30 september 2026): de maandkop zegt al of hij is vrijgegeven.
+    if (besluit.schrijven || besluit.reden === "maand_niet_goedgekeurd") return null;
+    return writeBlockNotice(besluit.reden);
   }
 
   const echt = useMemo(() => pages.filter((p) => !p.is_buffer), [pages]);
@@ -533,14 +535,6 @@ export function PlanView({
               </>
             )}
           </span>
-          {/* Werkpakket C §5.2: geen kwaliteitsoordeel, alleen een rekensom die
-              laat zien wanneer "meer content" een gesprek wordt in plaats van
-              een getal in een tabel. */}
-          {backlogDurationLabel(backlog.length, plan.pages_per_month) && (
-            <span className="text-sm text-muted">
-              {backlogDurationLabel(backlog.length, plan.pages_per_month)}
-            </span>
-          )}
         </div>
         {/* Besluit 18: opnieuw opzetten raakt het hele jaar, dus alleen de
             beheerder. De klant ziet de knop niet, want hij zou een 403 geven. */}
@@ -698,37 +692,6 @@ export function PlanView({
               </ul>
             )}
           </section>
-
-          {/* Werkpakket C §5.1: het derde niveau, afgevallen kansen met reden.
-              Uitgeklapt inzichtelijk maar niet in het gezicht: dit is geen werk
-              dat wacht, het is de onderbouwing van wat er NIET in de voorraad
-              staat. Alleen voor het team: voor een klant is dit ruis over
-              aanbevelingen die hij nooit voorgesteld kreeg. */}
-          {staff && declined.length > 0 && (
-            <details className="card flex flex-col gap-2">
-              <summary className="mono-label cursor-pointer">
-                {declined.length} afgevallen kans{declined.length === 1 ? "" : "en"}
-              </summary>
-              <p className="text-sm text-secondary">
-                Gemeten gemissen die overwogen zijn maar geen aanbeveling werden, met de reden. Ziet
-                deze lijst er verkeerd uit, dan is dat een signaal om de kwaliteitstoets bij te stellen.
-              </p>
-              <ul className="flex flex-col gap-2">
-                {declined.map((item, i) => (
-                  <li
-                    key={i}
-                    className="vlak text-sm"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-secondary">{item.problem}</span>
-                      {item.cluster && <span className="chip chip-neutral shrink-0">{item.cluster}</span>}
-                    </div>
-                    <p className="text-muted">{item.reason}</p>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
         </div>
 
         {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
@@ -739,13 +702,6 @@ export function PlanView({
             // dropzones onder elkaar zijn twaalf keer dezelfde uitnodiging.
             const open = !(dicht[month.id] ?? (inhoud.length === 0 && !lopend));
             const overVol = inhoud.length > plan.pages_per_month;
-            // Blok A punt 1: alleen op de maand die om een beslissing vraagt,
-            // niet op elke lege verre conceptmaand. Die tonen al "leeg", en een
-            // tekortmelding op tien identieke lege maanden is ruis.
-            const tekort =
-              month.status === "ter_goedkeuring" &&
-              inhoud.length > 0 &&
-              inhoud.length < plan.pages_per_month;
             const isDoel = sleepDoel === month.id;
             // ⚠️ Een lege, dichtgeklapte maand krijgt géén kaartrand. Er staan er
             // tien onder elkaar zodra een plan net begint, en tien even zware
@@ -902,23 +858,6 @@ export function PlanView({
                     }}
                   >
                     {gedeeld}
-                  </p>
-                )}
-
-                {open && tekort && (
-                  <p
-                    className="border-t px-4 py-2 text-xs"
-                    style={{
-                      borderColor: "var(--border-subtle)",
-                      color: "var(--intent-warning-content)",
-                    }}
-                  >
-                    Nog{" "}
-                    {plan.pages_per_month - inhoud.length === 1
-                      ? "één pagina"
-                      : `${plan.pages_per_month - inhoud.length} pagina's`}{" "}
-                    nodig om je pakket van {plan.pages_per_month} te halen: er zijn nog niet genoeg
-                    gemeten kansen. Meet een cluster erbij, of wacht tot de volgende meetronde.
                   </p>
                 )}
 
@@ -1604,7 +1543,7 @@ function PageRij({
 
   return (
     <li
-      className="group flex items-center gap-2.5 border-t px-4 py-2 transition-colors hover:bg-[var(--bg-surface-raised)]"
+      className="group relative flex items-center gap-2.5 border-t px-4 py-2 transition-colors hover:bg-[var(--bg-surface-raised)]"
       style={{ borderColor: "var(--border-subtle)", ...(busy ? { opacity: 0.5 } : {}) }}
       draggable={magVerhuizen && !busy}
       onDragStart={onSleepStart}
@@ -1627,7 +1566,15 @@ function PageRij({
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex min-w-0 items-baseline gap-x-2">
           {href ? (
-            <Link href={href} className="truncate text-sm font-medium hover:underline" title={stand?.naam ?? page.title}>
+            // De hele regel is de link (30 september 2026): de knop rechts
+            // ("Keur goed") is weg, en een `::after` over de regel maakt hem
+            // klikbaar zonder een tweede `<a>`. De datum en het menu liggen
+            // erboven (`relative z-10`), zodat die hun eigen klik houden.
+            <Link
+              href={href}
+              className="truncate text-sm font-medium hover:underline after:absolute after:inset-0 after:content-['']"
+              title={stand?.handeling ? `${stand.handeling}: ${stand.naam ?? page.title}` : (stand?.naam ?? page.title)}
+            >
               {stand?.naam ?? page.title}
             </Link>
           ) : (
@@ -1672,7 +1619,7 @@ function PageRij({
                donkerdere tint. Een vinkje of een speldje naast de datum zou een
                nieuw symbool zijn op een regel waar het vinkje al "goedgekeurd" betekent,
                en dan leest de datum als een status. */
-            className={`shrink-0 text-xs hover:text-[var(--text-primary)] hover:underline disabled:opacity-40 ${
+            className={`relative z-10 shrink-0 text-xs hover:text-[var(--text-primary)] hover:underline disabled:opacity-40 ${
               page.scheduled_manual ? "text-secondary" : "text-muted"
             }`}
           >
@@ -1700,12 +1647,6 @@ function PageRij({
           de tekst te zien, en een live-knop die geen nameting startte, zijn
           precies de twee dingen die de ombouw rechtzette. De handeling zelf
           staat nu op het paginascherm, met de tekst en het adresveld erbij. */}
-      {stand?.handeling && href && (
-        <Link href={href} className="btn-primary btn-sm shrink-0">
-          {stand.handeling}
-        </Link>
-      )}
-
       {(magVerhuizen || page.status === "ter_goedkeuring") && (
         <RijMenu label={`Wat wil je met "${page.title}" doen?`} busy={busy}>
           {(sluit) => (

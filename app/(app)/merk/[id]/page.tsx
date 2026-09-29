@@ -279,7 +279,7 @@ export default async function OverzichtPage({
             <span className="text-sm text-secondary">{STAGE_NEXT[fase]}</span>
           </span>
           {fase !== "overgedragen" && (
-            <Link href={`/merk/${id}/admin/onboarding`} className="btn-outline btn-sm">
+            <Link href={`/merk/${id}/admin/onboarding`} className="link inline-flex items-center gap-1 text-sm">
               Naar de onboarding
               <Icon naam="naar" size={14} />
             </Link>
