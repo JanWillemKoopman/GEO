@@ -218,19 +218,27 @@ export function zoekBron(token: HardToken, zin: string, bronZinnen: string[]): b
 
 /**
  * De controle op een hele tekst: per zin met een harde bewering, welke tokens
- * geen bron hebben. `bronnen` is alle tekst van blok A, B en de vakkennis van C.
+ * geen bron hebben. `bronnen` is de bedrijfskennis (blok A, B en de
+ * stemvoorbeelden), `algemeen` de vakkennis van blok C.
+ *
+ * ⚠️ Sinds 29 september 2026 (V4 van `pijplijnanalyse-contentketen.md`) telt de
+ * vakkennis alleen nog als bron voor een zin die NIET over het bedrijf gaat. In
+ * ronde 1 stond een bedrag van Myfinance in de vakkennis van de brief, en gold
+ * een zin over de prijs van het bedrijf daardoor als gedekt. Algemene uitleg met
+ * een getal ("maximaal 3 mm") blijft gedekt door de vakkennis.
  */
 export function controleerHardeBeweringen(
   tekst: string,
   bronnen: string[],
   bedrijfsnamen: string[] = [],
+  algemeen: string[] = [],
 ): Zinsoordeel[] {
-  const bronZinnen = bronnen.flatMap((b) => splitsZinnen(b));
-  return vindHardeBeweringen(tekst, bedrijfsnamen).map(({ zin, tokens }) => ({
-    zin,
-    tokens,
-    ongedekt: tokens.filter((t) => !zoekBron(t, zin, bronZinnen)),
-  }));
+  const bedrijfZinnen = bronnen.flatMap((b) => splitsZinnen(b));
+  const alleZinnen = [...bedrijfZinnen, ...algemeen.flatMap((b) => splitsZinnen(b))];
+  return vindHardeBeweringen(tekst, bedrijfsnamen).map(({ zin, tokens }) => {
+    const bron = overHetBedrijf(zin, bedrijfsnamen) ? bedrijfZinnen : alleZinnen;
+    return { zin, tokens, ongedekt: tokens.filter((t) => !zoekBron(t, zin, bron)) };
+  });
 }
 
 /** Alleen de zinnen die geel worden. */

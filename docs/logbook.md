@@ -13048,3 +13048,17 @@ definitief uit). De gestructureerde gegevens dragen nu adres, telefoon, e-mail e
 lokaal dienstverlenend bedrijf is een `LocalBusiness`, en de publicatiedatum komt pas bij het live
 melden. Nieuw: `POST /api/beheer/paginas/[pieceId]/opnieuw-schrijven` (B27), om een wijziging van de
 keten met dezelfde invoer te toetsen. Nog niet tegen productie nagerekend (conventie 10).
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 2 (invoer) gebouwd
+
+Een gericht antwoord geldt voortaan voor de pagina en het cluster waar het gegeven is, en niet meer
+via de diensten of plaatsen van de kans (B32): in ronde 1 hing zo'n antwoord via plaatsen aan bijna
+elke pagina van een lokaal bedrijf. Kansen hangen alleen nog aan de plaatsen die ze noemen; de
+voorrang van de klant komt uit de tekst van de kans. De brief (versie 5) ziet eerdere vragen met hun
+antwoord en mag ook een beantwoorde vraag aan zijn pagina koppelen (V17), krijgt het kennisgat niet
+meer (V19, B21 teruggedraaid), verliest het veld `concurrentie` (B22), en vakkennis van de eigen site
+of met de naam van het bedrijf valt in code weg (V4); die vakkennis telt ook niet meer als bron voor
+een zin over het bedrijf. Vragen aan de klant zijn korter en vragen één ding (V22). Blok A heeft een
+vast contactblok, geen dubbelingen, antwoorden zonder de vraag voor de ondernemer, en bezwaren
+zonder antwoord onder een eigen kop (V3). Het gespreksscherm heeft de verhalen in vier vakken en
+bezwaren met antwoord (V5, migratie 0129). Nog niet tegen productie nagerekend.

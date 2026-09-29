@@ -64,6 +64,9 @@ import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 import { isOnleesbaarAntwoord } from "@/lib/openai/onleesbaar";
 import { metPublicatiedatum } from "@/lib/schema-jsonld";
 import { contactUitFeiten, contactBlok } from "@/lib/pagina/contact";
+import { controleerHardeBeweringen as controleerV4 } from "@/lib/pagina/harde-beweringen";
+import { alineas, planProfielveld as planVeldV5 } from "@/lib/kennis/terugvullen";
+import { regelVoorBlokA } from "@/lib/kennis/blok-a";
 import { openPuntenSql, foutenVan } from "@/lib/kennis/open-punten";
 import { kennisgatVan, kennisgatZin, behoeftenVoor, hoortBijKans, BEHOEFTE_LABEL, type KennisVoorGat, type KansVoorGat } from "@/lib/kansen/kennisgat";
 import { kennisrondeVoorMerk, BEHOEFTE_DOMEIN, type KennisrondeKans } from "@/lib/kansen/kennisronde";
@@ -6451,10 +6454,11 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // 51 sinds de contentketen opnieuw (25 september 2026, besluit B14): elf
   // stemvelden eruit, `stem_voorbeelden` en `verhalen` erbij.
   // 38 sinds K8 (27 september 2026, besluit V10): de twaalf lege velden en
-  // `proof_points` eruit.
+  // `proof_points` eruit. 43 sinds migratie 0129 (besluit B28): de verhalen in
+  // vier vakken en de bezwaren met antwoord.
   ok(
-    `het zijn er 38 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
-    BRAND_FIELDS.length === 38 && EDITABLE_PROFILE_FIELDS.length === 38,
+    `het zijn er 43 aan beide kanten (nu ${BRAND_FIELDS.length} en ${EDITABLE_PROFILE_FIELDS.length})`,
+    (BRAND_FIELDS.length as number) === 43 && (EDITABLE_PROFILE_FIELDS.length as number) === 43,
   );
 
   ok(
@@ -6474,9 +6478,9 @@ group("het merkprofiel als veldenlijst (brand-fields)", () => {
   // K8 (besluit V10): "merk" van 3 naar 1, "klant" van 5 naar 4, "woorden" van 3
   // naar 2, "bekend" van 5 naar 3, en de auteursstap met zijn 7 velden weg.
   ok(
-    `de verdeling is 11-1-4-1-2-3-13-3 (nu ${perStap})`,
+    `de verdeling is 11-1-4-1-2-3-18-3 (nu ${perStap}; strategie van 13 naar 18 in migratie 0129)`,
     perStap ===
-      "bedrijf:11 merk:1 klant:4 stem:1 woorden:2 bekend:3 strategie:13 contact:3",
+      "bedrijf:11 merk:1 klant:4 stem:1 woorden:2 bekend:3 strategie:18 contact:3",
   );
   ok(
     "elke stap heeft velden",
@@ -6633,7 +6637,7 @@ group("drie oppervlakken, één veldenlijst (onboarding 3.0 fase 1)", () => {
   const commercieel = BRAND_FIELDS.filter(
     (f) => f.step === "strategie" || f.step === "contact",
   );
-  ok("het zijn er zestien (met de verhalen)", commercieel.length === 16);
+  ok("het zijn er eenentwintig (met de verhalen in vakken, migratie 0129)", commercieel.length === 21);
   ok(
     "en geen enkele is af te leiden",
     commercieel.every((f) => !f.derivable),
@@ -6743,8 +6747,8 @@ group("microcopy, verplichtstelling en de negen blokken (onboarding ronde B)", (
     teveelB4.length === 0,
   );
   ok(
-    "samen zijn het er 38",
-    samenB4.length === 38 && samenB4.length === BRAND_FIELDS.length,
+    "samen zijn het er 43",
+    samenB4.length === 43 && samenB4.length === BRAND_FIELDS.length,
   );
   ok("zeven blokken met velden", SESSION_BLOCKS.length === 7);
   ok(
@@ -21818,7 +21822,6 @@ group("de content brief: wat code met de uitvoer doet (§6.1)", () => {
   const ruw: ContentBrief = {
     zoekintentie: "Een rijschool vinden — snel",
     deelvragen: [],
-    concurrentie: { goed: [], gaten: [] },
     vakkennis: [
       { uitleg: "Met bron", bron_url: "https://www.cbr.nl" },
       { uitleg: "Zonder bron", bron_url: "geen adres" },
@@ -21838,8 +21841,9 @@ group("de content brief: wat code met de uitvoer doet (§6.1)", () => {
   const eerdere = [
     { id: "a", question: "Iets open", status: "open" },
     { id: "b", question: "Wat kost een rijles", status: "beantwoord" },
+    { id: "d", question: "Iets overgeslagen", status: "overgeslagen" },
   ];
-  const uit = verwerkBrief(ruw, eerdere);
+  const uit = verwerkBrief({ ...ruw, ook_voor_deze_pagina: [...ruw.ook_voor_deze_pagina, "d"] }, eerdere);
   eq("vakkennis alleen met een webadres", String(uit.onderzoek.vakkennis.length), "1");
   ok("de schrijfregels gaan over de tekst", !uit.onderzoek.zoekintentie.includes("—"));
   ok("een vraag die het merk al kreeg valt weg", !uit.vragen.some((v) => v.vraag.startsWith("Wat kost")));
@@ -21848,7 +21852,14 @@ group("de content brief: wat code met de uitvoer doet (§6.1)", () => {
   eq("keuze met één optie wordt korte tekst", uit.vragen.find((v) => v.vraag === "Welke keuze?")?.antwoord_type ?? "", "tekst_kort");
   eq("keuze met twee opties blijft keuze", String(uit.vragen.find((v) => v.vraag === "Welke dag?")?.opties?.length), "2");
   eq("opties bij een gewone vraag vallen weg", String(uit.vragen.find((v) => v.vraag === "Een vraag")?.opties), "null");
-  eq("alleen open vragen van dit merk worden gekoppeld, één keer", uit.koppel.join(","), "a");
+  eq("open en beantwoorde vragen van dit merk worden gekoppeld (V17), één keer; overgeslagen niet", uit.koppel.join(","), "a,b");
+  const merk = { url: "myfinance.nl", namen: ["Myfinance"] };
+  const metBedrijf = verwerkBrief({ ...ruw, vakkennis: [
+    { uitleg: "Btw-aangifte doe je per kwartaal.", bron_url: "https://www.belastingdienst.nl/x" },
+    { uitleg: "Samen € 79,95 per maand.", bron_url: "https://www.myfinance.nl/prijzen/" },
+    { uitleg: "Bij Myfinance kost software € 10.", bron_url: "https://www.vergelijker.nl/x" },
+  ] }, eerdere, merk);
+  eq("V4: vakkennis van de eigen site of over het bedrijf valt weg", metBedrijf.onderzoek.vakkennis.map((v) => v.uitleg).join(" | "), "Btw-aangifte doe je per kwartaal.");
   eq("praktijk wordt praktisch", kindVoorSoort("praktijk"), "praktisch");
   eq("twijfel wordt grenzen", kindVoorSoort("twijfel"), "grenzen");
   eq("feit wordt aanvulling", kindVoorSoort("feit"), "aanvulling");
@@ -22011,7 +22022,7 @@ group("de schrijfopdracht, versie 3: bedrijfskennis en algemene kennis gescheide
   const invoer = schrijfInvoer({
     titel: "Tuinontwerp", paginasoort: "dienstpagina", handeling: "nieuw", bedrijf: "Bedrijf: Groen", stem: [],
     eigenVerhaal: null, antwoorden: [{ vraag: "Hoe begin je?", antwoord: "Met koffie." }], zoekintentie: null, doelvragen: [], andereTitels: [], huidigeTekst: null,
-    onderzoek: { deelvragen: [], concurrentie: { goed: [], gaten: [] }, vakkennis: [{ uitleg: "Afschot is meestal 1 procent.", bron_url: "https://x.nl" }], valkuilen: [] },
+    onderzoek: { deelvragen: [], vakkennis: [{ uitleg: "Afschot is meestal 1 procent.", bron_url: "https://x.nl" }], valkuilen: [] },
   });
   ok("blok A en B heten bedrijfskennis", invoer.includes("WAT WE ZEKER WETEN OVER HET BEDRIJF (bedrijfskennis)") && invoer.includes("WAT DE ONDERNEMER VERTELDE (bedrijfskennis)"));
   ok("blok C heet algemene kennis en zegt dat het niet over het bedrijf gaat", invoer.includes("(onderzoek, algemene kennis)") && invoer.includes("niet over dit bedrijf") && invoer.includes("Algemene vakkennis:"));
@@ -22994,30 +23005,29 @@ group("kansen: het rapport maakt kansen (N2)", () => {
     "true,true,false,false,false,true",
   );
 
-  // ── Commerciële waarde ──
-  const waarde = (diensten: string[], voorrang: string[], minder: string[]) => String(commercieleWaardeVan({ diensten, voorrang, minder }));
-  eq("een dienst met voorrang", waarde(["Rijles automaat"], ["rijles  automaat"], []), "voorrang");
-  eq("een dienst met minder voorrang", waarde(["Motorrijles"], ["Rijles"], ["Motorrijles"]), "minder");
-  eq("voorrang wint als het onderwerp beide raakt", waarde(["Rijles", "Motorrijles"], ["Rijles"], ["Motorrijles"]), "voorrang");
-  eq("wel prioriteiten, deze dienst niet: gewoon", waarde(["Theorie"], ["Rijles"], []), "gewoon");
-  eq("geen enkele opgave van het merk: onbekend, niet gewoon", waarde(["Rijles"], [], []), "null");
+  // ── Commerciële waarde (V19, besluit B32: op de tekst van de kans) ──
+  const waarde = (tekst: string, voorrang: string[], minder: string[]) => String(commercieleWaardeVan({ tekst, voorrang, minder }));
+  eq("een kans die een voorrangsdienst noemt", waarde("Rijles automaat in Best", ["rijles  automaat"], []), "voorrang");
+  eq("ook als het woord langer is (noodopeningspagina)", waarde("Maak de noodopeningspagina concreet", ["Noodopening"], []), "voorrang");
+  eq("een dienst met minder voorrang", waarde("Motorrijles voor beginners", ["Autorijles"], ["Motorrijles"]), "minder");
+  eq("voorrang wint als de kans beide noemt", waarde("Rijles of motorrijles?", ["Rijles"], ["Motorrijles"]), "voorrang");
+  eq("wel prioriteiten, deze kans noemt er geen: gewoon", waarde("Theorie-examen halen", ["Rijles"], []), "gewoon");
+  eq("geen enkele opgave van het merk: onbekend, niet gewoon", waarde("Rijles", [], []), "null");
 
-  // ── Waarvoor de kans geldt ──
+  // ── Waarvoor de kans geldt: alleen plaatsen (besluit B32) ──
   const kennis: KennisVoorKans[] = [
     { id: "k-dienst", soort: "dienst", bewering: "Rijles", herkomstTabel: "profile_offerings", herkomstId: "o1" },
-    { id: "k-prijs", soort: "prijs", bewering: "€ 80", herkomstTabel: "profile_offerings", herkomstId: "o1" },
-    { id: "k-ander", soort: "dienst", bewering: "Motorrijles", herkomstTabel: "profile_offerings", herkomstId: "o2" },
     { id: "k-best", soort: "werkgebied", bewering: "Best", herkomstTabel: "profiles", herkomstId: null },
     { id: "k-son", soort: "werkgebied", bewering: "Son en Breugel", herkomstTabel: "profiles", herkomstId: null },
     { id: "k-ehv", soort: "werkgebied", bewering: "Eindhoven", herkomstTabel: "profiles", herkomstId: null },
   ];
   const geldt = (titel: string, vraag = "") =>
-    geldtVoorVan({ kans: { titel, lezer: null, doelvragen: [{ promptId: null, weight: null, text: vraag }] }, dienstIds: ["o1"], kennis }).join(",");
-  eq("de dienst van het onderwerp, niet zijn prijs, niet een andere dienst", geldt("Pagina over rijles"), "k-dienst");
-  eq("een plaats die letterlijk in de titel staat", geldt("Rijles in Best"), "k-dienst,k-best");
-  eq("of in een doelvraag", geldt("Faalangst", "Welke rijschool in Son en Breugel helpt bij faalangst?"), "k-dienst,k-son");
-  eq("'Best' in 'beste rijschool' is geen plaats", geldt("De beste rijschool"), "k-dienst");
-  eq("Eindhovense is niet Eindhoven: alleen het hele woord", geldt("Voor Eindhovense leerlingen"), "k-dienst");
+    geldtVoorVan({ kans: { titel, lezer: null, doelvragen: [{ promptId: null, weight: null, text: vraag }] }, kennis }).join(",");
+  eq("geen dienst meer, ook niet als de titel hem noemt", geldt("Pagina over rijles"), "");
+  eq("een plaats die letterlijk in de titel staat", geldt("Rijles in Best"), "k-best");
+  eq("of in een doelvraag", geldt("Faalangst", "Welke rijschool in Son en Breugel helpt bij faalangst?"), "k-son");
+  eq("'Best' in 'beste rijschool' is geen plaats", geldt("De beste rijschool"), "");
+  eq("Eindhovense is niet Eindhoven: alleen het hele woord", geldt("Voor Eindhovense leerlingen"), "");
 
   // ── De opdracht aan het rapport spreekt zichzelf niet meer tegen ──
   const rapportCode = leesBestand("lib/pipeline/report.ts");
@@ -23581,35 +23591,45 @@ group("K8 deel 4: alleen lib/kennis/ schrijft de aanbodboom", () => {
   ok("het onderzoek bewaart de boom via de kennislaag", leesBestand("lib/pipeline/offering.ts").includes("await bewaarAanbodboom("));
 });
 
-group("A1: de brief krijgt de kennisgaten (besluit B21)", () => {
+group("V17, V19, V4, V22: de brief van versie 5 (besluiten B22, B31, B32)", () => {
   const basis = {
     titel: "Warmtepomp installeren", paginasoort: "dienstpagina", handeling: "nieuw" as const, zoekintentie: null, waarom: null,
-    doelvragen: [], merknaam: "Keeris", werkgebied: [], bedrijf: "- Wij installeren warmtepompen.", huidigeTekst: null, eerdereVragen: [],
+    doelvragen: [], merknaam: "Keeris", werkgebied: [], bedrijf: "- Wij installeren warmtepompen.", huidigeTekst: null,
   };
-  const met = briefInvoer({ ...basis, kennisgat: ["een termijn", "voor wie het niet is"] });
-  ok("de invoer noemt wat we voor deze pagina nog niet weten", met.includes("Wat we voor deze pagina nog niet weten over het bedrijf:\n- een termijn\n- voor wie het niet is"));
-  ok("na wat we al weten", met.indexOf("Wat we al weten") < met.indexOf("Wat we voor deze pagina nog niet weten"));
-  ok("zonder kans of zonder gat geen blok", !briefInvoer({ ...basis, kennisgat: null }).includes("nog niet weten") && !briefInvoer({ ...basis, kennisgat: [] }).includes("nog niet weten"));
-  ok("de opdracht zegt: vraag eerst naar wat ontbreekt, en liever om een voorbeeld", BRIEF_SYSTEEM.includes('Staat er een lijst "Wat we voor deze pagina nog niet weten", vraag dan eerst daarnaar, en vraag liever om een voorbeeld uit de praktijk dan om een los feit.'));
+  const invoer = briefInvoer({
+    ...basis,
+    eerdereVragen: [
+      { id: "v1", vraag: "Welke totaalprijs mag de schrijver noemen voor een noodopening?", stand: "beantwoord", antwoord: "Overdag tussen 98,50 en 125 euro." },
+      { id: "v2", vraag: "Hoe lang duurt een montage?", stand: "open", antwoord: null },
+    ],
+  });
+  ok("V17: de brief ziet het antwoord op een eerdere vraag", invoer.includes("[v1] (beantwoord) Welke totaalprijs") && invoer.includes("Antwoord: Overdag tussen 98,50 en 125 euro."));
+  ok("V17: een open vraag zonder antwoordregel", !/\[v2\][^\n]*\n  Antwoord/.test(invoer));
+  ok("V17: de opdracht laat ook een beantwoorde vraag koppelen", BRIEF_SYSTEEM.includes("open of al beantwoord, zet dan zijn id in ook_voor_deze_pagina"));
+  ok("V17: en noemt herhaling met een andere plaatsnaam", BRIEF_SYSTEEM.includes("ook niet in andere woorden of met een andere plaatsnaam"));
+  ok("V19: geen kennisgat meer in de invoer", !invoer.includes("nog niet weten") && !leesBestand("lib/pagina/brief.ts").includes("kennisgatVoorPagina("));
+  ok("B22: geen veld concurrentie meer", !BRIEF_SYSTEEM.includes("concurrentie") && !leesBestand("lib/pagina/schrijfopdracht.ts").includes("concurrentie"));
+  ok("V4: vakkennis gaat over het vak, niet over het bedrijf", BRIEF_SYSTEEM.includes("Vakkennis gaat over het vak, nooit over dit bedrijf"));
+  ok("V22: één vraag vraagt één ding", BRIEF_SYSTEEM.includes("Eén vraag vraagt één ding."));
+  ok("V22: de uitleg zonder de schrijver", BRIEF_SYSTEEM.includes('Schrijf niet over "de schrijver"'));
+  ok("V22: bewijsvragen zijn merkbreed", BRIEF_SYSTEEM.includes("Een vraag naar bewijs (reviews, foto's, toestemming om een klus te noemen) geldt voor het hele bedrijf"));
   ok("nog steeds hooguit acht vragen", MAX_BRIEFVRAGEN === 8 && BRIEF_SYSTEEM.includes(`hooguit ${MAX_BRIEFVRAGEN}`));
-  eq("brief versie 4", String(BRIEF_VERSIE), "4");
-  ok("de brief haalt het gat op", leesBestand("lib/pagina/brief.ts").includes("kennisgatVoorPagina(admin, pieceId)"));
+  eq("brief versie 5", String(BRIEF_VERSIE), "5");
 });
 
 
-group("A2: een antwoord over een dienst geldt voor de dienst (besluit V23)", () => {
+
+group("V17: een antwoord geldt voor de pagina en het cluster waar het gegeven is (besluit B32)", () => {
   const vraag = (extra: Partial<BronVraag> = {}): BronVraag => ({
     id: "v1", analysis_id: "c1", question: "Hoe verloopt een installatie?", answer: "Eerst een adviesbezoek.", status: "beantwoord",
     scope: "pagina", content_piece_ids: ["p1"], open_vraag: false, raw_json: { bron: "pagina_brief", soort: "werkwijze" }, ...extra,
   });
-  const metDienst = kennisUitAntwoord(vraag(), ["d1"]);
-  eq("één item, voor de dienst", `${metDienst.length}/${metDienst[0]?.geldtVoorIds?.join(",")}/${metDienst[0]?.contentPieceId}/${metDienst[0]?.analysisId}`, "1/d1/null/null");
-  eq("zonder dienst zoals het was: voor de pagina", String(kennisUitAntwoord(vraag())[0]?.contentPieceId), "p1");
-  eq("een praktijkvoorbeeld blijft bij de pagina (B3)", String(kennisUitAntwoord(vraag({ raw_json: { bron: "pagina_brief", soort: "praktijk" } }), ["d1"])[0]?.contentPieceId), "p1");
-  eq("de open vraag ook", String(kennisUitAntwoord(vraag({ open_vraag: true }), ["d1"])[0]?.contentPieceId), "p1");
-  eq("een merkvraag blijft merkbreed", String(kennisUitAntwoord(vraag({ scope: "merk", content_piece_ids: [] }), ["d1"])[0]?.geldtVoorIds), "undefined");
-  ok("de antwoordroute zoekt de diensten van de pagina op", leesBestand("lib/facts.ts").includes("dienstenVanPaginas(admin, input.profileId"));
-  ok("een antwoord van vóór A2 blijft bij zijn pagina als het gewijzigd wordt", /if \(!sleutel \|\| !\(await metSleutel\(admin, args\.profileId, sleutel\)\)\) diensten = \[\];/.test(leesBestand("lib/kennis/uit-gesprek.ts")));
+  const gericht = kennisUitAntwoord(vraag());
+  eq("een gericht antwoord wordt één item voor het cluster", `${gericht.length}/${gericht[0]?.analysisId}/${gericht[0]?.contentPieceId}/${gericht[0]?.geldtVoorIds ?? "geen"}`, "1/c1/null/geen");
+  eq("een praktijkvoorbeeld blijft bij de pagina (B3)", String(kennisUitAntwoord(vraag({ raw_json: { bron: "pagina_brief", soort: "praktijk" } }))[0]?.contentPieceId), "p1");
+  eq("de open vraag ook", String(kennisUitAntwoord(vraag({ open_vraag: true }))[0]?.contentPieceId), "p1");
+  eq("een merkvraag blijft merkbreed", `${kennisUitAntwoord(vraag({ scope: "merk", content_piece_ids: [], analysis_id: null }))[0]?.analysisId}`, "null");
+  ok("de antwoordroute zoekt geen diensten of plaatsen meer op", !codeZonderCommentaar(leesBestand("lib/facts.ts")).includes("dienstenVanPaginas"));
 });
 
 group("A3: één bron van vragen (besluit V3)", () => {
@@ -23717,4 +23737,45 @@ group("V23: de gestructureerde gegevens zeggen wie het bedrijf is en waar het we
   eq("als blok voor de schrijver", String(contactBlok(c)), "Contact:\n- Telefoon: 030-2660400\n- Adres: Tingietersgilde 16");
   eq("zonder gegevens geen blok", String(contactBlok({ telefoon: null, email: null, adres: null })), "null");
   ok("het live melden zet de datum", leesBestand("lib/pipeline/publish.ts").includes("metPublicatiedatum("));
+});
+
+group("V4: vakkennis dekt geen zin over het bedrijf", () => {
+  const vak = ["Bij Myfinance kost boekhouding en software samen € 79,95 per maand.", "Een cilinder mag maximaal 3 mm uitsteken."];
+  const oordeel = (zin: string) => controleerV4(zin, ["Het zzp-tarief is € 69,95 per maand."], ["Myfinance"], vak)[0]?.ongedekt.length ?? 0;
+  eq("een bedrijfsprijs uit de vakkennis is niet gedekt (de fout uit ronde 1)", String(oordeel("Bij ons betaal je samen € 79,95 per maand.")), "1");
+  eq("een bedrijfsprijs uit de bedrijfskennis wel", String(oordeel("Bij ons betaal je € 69,95 per maand.")), "0");
+  eq("algemene uitleg met een getal blijft gedekt door de vakkennis", String(oordeel("Een cilinder mag maximaal 3 mm uitsteken.")), "0");
+});
+
+group("V3: blok A is een dossier, geen stapel", () => {
+  const item = (id: string, domein: string, soort: string, bewering: string, herkomst: string | null = "profiles"): KennisVoorBlokA => ({
+    id, domein: domein as KennisVoorBlokA["domein"], soort, bewering, status: "verklaard", bron: "klant", gebruik: "content",
+    bron_url: null, citaat: null, bevestigd_door: null, bevestigd_op: null, vastgelegd_door: "u", vastgelegd_door_taak: null,
+    verloopt_op: null, vervangen_door: null, afgewezen_op: null, bewijskracht: null,
+    geldt_voor: [], analysis_id: null, content_piece_id: null, herkomst_tabel: herkomst, herkomst_id: null,
+  } as KennisVoorBlokA);
+  const lang = item("a1", "aanbod", "feit", "Welke actuele totaalprijs mag de schrijver noemen voor een noodopening overdag?\nDoordeweeks overdag kost een buitensluiting tussen 98,50 en 125 euro.", "fact_requests");
+  eq("een zelfstandig antwoord zonder de vraag voor de ondernemer", regelVoorBlokA(lang), "Doordeweeks overdag kost een buitensluiting tussen 98,50 en 125 euro.");
+  eq("een kort antwoord houdt zijn vraag", regelVoorBlokA(item("a2", "aanbod", "feit", "Kom je ook in het weekend?\nJa.", "fact_requests")), "Kom je ook in het weekend? Ja.");
+  const tekst = blokAUitKennis("Van Kessel", [
+    item("v1", "identiteit", "vestiging", "Het bedrijf heeft een vestiging aan Tingietersgilde 16."),
+    item("v2", "identiteit", "vestiging", "Het bedrijf heeft een vestiging aan Tingietersgilde 16"),
+    item("b1", "doelgroep", "bezwaar", "Is het niet duur?"),
+    item("b2", "doelgroep", "bezwaar met antwoord", "Is dat niet duur? Ik zeg dan: je hoort de prijs vooraf."),
+  ], "Contact:\n- Telefoon: 030-2660400");
+  ok("het contactblok staat bovenaan", tekst.indexOf("Telefoon: 030-2660400") < tekst.indexOf("Over het bedrijf"));
+  eq("geen dubbelingen", String(tekst.split("Tingietersgilde 16").length - 1), "1");
+  ok("een bezwaar zonder antwoord onder een eigen kop", /beantwoord ze niet namens hem\):\n- Is het niet duur\?/.test(tekst));
+  ok("een bezwaar met antwoord bij de klanten", /bezwaren, met het antwoord van de ondernemer:\n- Is dat niet duur\? Ik zeg dan/.test(tekst));
+});
+
+group("V5: de verhalen in vakken worden losse items (besluit B28, migratie 0129)", () => {
+  eq("alinea's gescheiden door een lege regel", alineas("Klus een.\nNog een regel.\n\n  Klus twee.  \n\n\n").join(" | "), "Klus een.\nNog een regel. | Klus twee.");
+  const m = { items: [] as { soort: string; domein: string; bewering: string }[], uitsluitingen: [] as unknown[] };
+  const merk = { profiel: { id: "p1", url: "x.nl", verhaal_klussen: "Een VvE in Nieuwegein.\n\nEen stel in Zeist." }, veldHerkomst: [{ field: "verhaal_klussen", source: "gesprek" as const, not_applicable: false }], aanbod: [], vragen: [] };
+  planVeldV5(m as never, merk as never, "verhaal_klussen");
+  eq("elke klus een eigen item", m.items.map((i) => `${i.domein}/${i.soort}/${i.bewering}`).join(" | "), "verhaal/klus/Een VvE in Nieuwegein. | verhaal/klus/Een stel in Zeist.");
+  const w = { items: [] as { soort: string; domein: string }[], uitsluitingen: [] as unknown[] };
+  planVeldV5(w as never, { ...merk, profiel: { id: "p1", url: "x.nl", verhaal_werkwijze: "Eerst kijken, dan uitleggen." }, veldHerkomst: [{ field: "verhaal_werkwijze", source: "gesprek", not_applicable: false }] } as never, "verhaal_werkwijze");
+  eq("de werkwijze telt als werkwijze", w.items.map((i) => `${i.domein}/${i.soort}`).join(""), "aanbod/werkwijze");
 });

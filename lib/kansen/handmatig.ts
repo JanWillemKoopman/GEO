@@ -86,14 +86,9 @@ export async function voegHandmatigeKansToe(
 
   // Alleen ids die echt bij dit merk horen, en hun actuele versie (K2).
   const geldtVoor = await naarActueleVersies(admin, invoer.profileId, invoer.geldtVoor);
-  const { data: kennisRows } = geldtVoor.length
-    ? await admin.from("klantkennis").select("id, herkomst_tabel, herkomst_id").in("id", geldtVoor)
-    : { data: [] as { herkomst_tabel: string | null; herkomst_id: string | null }[] };
-  const dienstIds = ((kennisRows ?? []) as { herkomst_tabel: string | null; herkomst_id: string | null }[])
-    .filter((k) => k.herkomst_tabel === "profile_offerings" && k.herkomst_id)
-    .map((k) => k.herkomst_id as string);
+  // V19, besluit B32: de voorrang van de klant op de tekst van de kans.
   const commercieleWaarde = commercieleWaardeVan({
-    diensten: dienstIds,
+    tekst: [titel, invoer.lezer ?? ""].join("\n"),
     voorrang: profiel.priority_offerings ?? [],
     minder: profiel.deprioritised_offerings ?? [],
   });

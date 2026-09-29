@@ -5647,7 +5647,10 @@ async function main(): Promise<void> {
       ok("en de stemvoorbeelden", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("nuchtere tuinmensen")));
       ok("een beantwoorde vraag uit het rapport van dit cluster gaat mee naar de schrijver (B17)", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("veertig tuinen per jaar")));
       ok("en naar de brief", aanroepen.some((a) => a.schema === "content_brief" && a.user.includes("veertig tuinen per jaar")));
-      ok("een antwoord uit een ander cluster niet", !aanroepen.some((a) => a.user.includes("kleine vijvers")));
+      // V17: de brief ziet eerdere antwoorden, ook uit een ander cluster, om niet
+      // opnieuw te vragen; de schrijver krijgt ze alleen als de brief ze koppelt.
+      ok("een antwoord uit een ander cluster niet naar de schrijver", !aanroepen.some((a) => a.schema === "pagina" && a.user.includes("kleine vijvers")));
+      ok("wel naar de brief, als eerder antwoord (V17)", aanroepen.some((a) => a.schema === "content_brief" && a.user.includes("kleine vijvers")));
       ok("de controle is ingepland", (await wachtrij("pagina_controle")).length === 2);
 
       // ── Controle en hooguit één herschrijving ─────────────────────────────
@@ -8813,7 +8816,8 @@ async function main(): Promise<void> {
       const gericht = vanVraag(rijen, vraagId("Hoe ziet"));
       eqc("scenario 22: de gerichte vraag is één item", String(gericht.length), "1");
       eqc("scenario 22: verklaard, door de klant, als paginatekst", `${gericht[0]?.status}/${gericht[0]?.bron}/${gericht[0]?.gebruik}`, "verklaard/klant/content");
-      eqc("scenario 22: met de reikwijdte van de vraag: deze pagina, in dit cluster", `${gericht[0]?.content_piece_id}/${gericht[0]?.analysis_id}`, `${pagina}/${analyse}`);
+      // V17 (besluit B32): een gericht antwoord geldt voor het hele cluster.
+      eqc("scenario 22: met de reikwijdte van de vraag: het cluster, niet alleen deze pagina", `${gericht[0]?.content_piece_id}/${gericht[0]?.analysis_id}`, `null/${analyse}`);
       eqc("scenario 22: geldt voor verwijst naar geen ander item (V13)", (gericht[0]?.geldt_voor ?? []).join(","), "");
       eqc("scenario 22: vastgelegd door wie antwoordde", String(gericht[0]?.vastgelegd_door), userId);
       eqc("scenario 22: met vraag en antwoord samen", gericht[0]?.bewering ?? "", "Hoe ziet een eerste les eruit?\nWe rijden eerst op een rustig industrieterrein.");
@@ -9047,8 +9051,9 @@ async function main(): Promise<void> {
       eqc("scenario 23: verbeteren met zijn adres", `${tarieven?.handeling}/${tarieven?.bestaande_url}`, "pagina_verbeteren/https://kansentest.nl/tarieven/");
       eqc("scenario 23: met herkomst: rapport, cluster, taak", `${best?.rapport_id}/${best?.analysis_id}/${best?.vastgelegd_door_taak}`, `${rapport}/${analyse}/generate_report`);
       eqc("scenario 23: de dienst heeft voorrang bij dit merk", String(best?.commerciele_waarde), "voorrang");
-      eqc("scenario 23: geldt voor de dienst en de plaats uit de titel, niet voor een andere plaats", [...(best?.geldt_voor ?? [])].sort().join(","), [kennisId("Rijles"), kennisId("Best")].sort().join(","));
-      eqc("scenario 23: de tarievenkans geldt alleen voor de dienst", (tarieven?.geldt_voor ?? []).join(","), kennisId("Rijles"));
+      // Besluit B32: een kans hangt niet meer aan een dienst, alleen aan de plaats die hij noemt.
+      eqc("scenario 23: geldt voor de plaats uit de titel, niet voor een dienst of een andere plaats", [...(best?.geldt_voor ?? [])].sort().join(","), kennisId("Best"));
+      eqc("scenario 23: de tarievenkans hangt nergens aan", (tarieven?.geldt_voor ?? []).join(","), "");
 
       type BewijsRij = { kans_id: string; bron: string; vragen_gemeten: number; vragen_genoemd: number; concurrenten: string[]; run_ids: string[] };
       const bewijs = (await db.client.query("select * from public.kans_bewijs where profile_id = $1 order by bron", [merk])).rows as BewijsRij[];
@@ -9137,16 +9142,10 @@ async function main(): Promise<void> {
       );
       eqc("scenario 23: de tarievenkans (een artikel) heeft geen verhaal van een andere pagina", (await gatVan(tarieven?.id)).kennis_ontbreekt?.join(",") ?? "null", "voorbeeld,bewijs");
 
-      // A1: de brief van de pagina krijgt dit gat mee, in woorden.
+      // V19 (besluit B31): het kennisgat gaat niet meer naar de brief; het
+      // wordt nog wel uitgerekend en gelezen.
       const { kennisgatVoorPagina } = await import("@/lib/kennis/voor-pagina");
-      const { briefInvoer } = await import("@/lib/pagina/brief-opdracht");
-      const gatVoorBrief = await kennisgatVoorPagina(shim, v2);
-      eqc("scenario 23: de brief krijgt het kennisgat van de kans (A1)", (gatVoorBrief ?? ["null"]).join(" | "), "een prijsindicatie | een termijn | voor wie het niet is | bewijs");
-      const invoer = briefInvoer({
-        titel: "Rijles in Best", paginasoort: "dienstpagina", handeling: "nieuw", zoekintentie: null, waarom: null, doelvragen: [],
-        merknaam: "Kansentest", werkgebied: [], bedrijf: "-", huidigeTekst: null, eerdereVragen: [], kennisgat: gatVoorBrief,
-      });
-      ok("scenario 23: en zet het in de invoer van de brief", invoer.includes("Wat we voor deze pagina nog niet weten over het bedrijf:\n- een prijsindicatie"), invoer);
+      ok("scenario 23: het kennisgat van de kans is er nog", (await kennisgatVoorPagina(shim, v2)) !== null);
       eqc("scenario 23: een pagina zonder kans heeft geen kennisgat", String(await kennisgatVoorPagina(shim, v1)), "null");
 
       // Een rapport zonder kansen (van vóór N2): de voorraad maakt ze alsnog.
@@ -9663,11 +9662,12 @@ async function main(): Promise<void> {
       await answerFact(shim, { profileId: merk, factId: praktijk, answer: "Vorige maand een jaren-dertigwoning in Tiel, met vloerverwarming beneden.", gebruikerId: userId });
 
       const { rows: items } = await db.client.query(
-        `select herkomst_id, geldt_voor, content_piece_id, soort from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests'`,
+        `select herkomst_id, geldt_voor, content_piece_id, analysis_id, soort from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests'`,
         [merk],
       );
       const vanVraag = (id: string) => items.find((r) => r.herkomst_id === id);
-      ok("scenario 30: het antwoord over de werkwijze geldt voor de dienst", (vanVraag(werkwijze)?.geldt_voor ?? []).includes(dienstId) && !vanVraag(werkwijze)?.content_piece_id, JSON.stringify(items));
+      // V17 (besluit B32): voor het cluster, niet meer voor een dienst.
+      ok("scenario 30: het antwoord over de werkwijze geldt voor het cluster", vanVraag(werkwijze)?.analysis_id === cluster && (vanVraag(werkwijze)?.geldt_voor ?? []).length === 0 && !vanVraag(werkwijze)?.content_piece_id, JSON.stringify(items));
       eqc("scenario 30: het voorbeeld blijft bij de eerste pagina", String(vanVraag(praktijk)?.content_piece_id), p1);
 
       const blokA2 = await kennisVoor(shim, { profileId: merk, analysisId: cluster, pieceId: p2, titel: "Warmtepomp onderhoud", zoekintentie: null });
@@ -9687,12 +9687,12 @@ async function main(): Promise<void> {
       // Een gewijzigd antwoord blijft voor de dienst gelden, als nieuwe versie.
       await answerFact(shim, { profileId: merk, factId: werkwijze, answer: "Eerst een adviesbezoek, dan binnen drie weken de installatie in één dag.", gebruikerId: userId });
       const { rows: versies } = await db.client.query(
-        `select bewering, geldt_voor, vervangen_door from public.klantkennis where profile_id = $1 and herkomst_id = $2 order by vastgelegd_op`,
+        `select bewering, geldt_voor, analysis_id, vervangen_door from public.klantkennis where profile_id = $1 and herkomst_id = $2 order by vastgelegd_op`,
         [merk, werkwijze],
       );
       ok(
-        "scenario 30: een gewijzigd antwoord is een nieuwe versie, weer voor de dienst",
-        versies.length === 2 && Boolean(versies[0].vervangen_door) && (versies[1].geldt_voor ?? []).includes(dienstId) && String(versies[1].bewering).includes("drie weken"),
+        "scenario 30: een gewijzigd antwoord is een nieuwe versie, weer voor het cluster",
+        versies.length === 2 && Boolean(versies[0].vervangen_door) && versies[1].analysis_id === cluster && String(versies[1].bewering).includes("drie weken"),
         JSON.stringify(versies),
       );
     }

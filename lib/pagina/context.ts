@@ -16,6 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { redactCompetitors } from "@/lib/pipeline/redact";
 import { kennisVoor } from "@/lib/kennis/voor-pagina";
 import type { BedrijfsInvoer } from "@/lib/pagina/bedrijfskennis";
+import { contactBlok, contactUitFeiten } from "@/lib/pagina/contact";
 import type { Doelvraag } from "@/lib/pagina/brief-opdracht";
 import type { ContentAction, ContentType, StemVoorbeeld } from "@/lib/types/database";
 
@@ -164,11 +165,20 @@ export async function laadBedrijf(admin: Admin, pagina: PaginaBasis): Promise<Be
     titel: pagina.titel,
     zoekintentie: pagina.zoekintentie,
   });
+  // V3: telefoon, e-mail en adres uit de oogst van de site, altijd bovenaan.
+  const { data: techniek } = await admin
+    .from("profile_facets")
+    .select("raw_json")
+    .eq("profile_id", pagina.profileId)
+    .eq("facet", "techniek")
+    .maybeSingle();
+  const feiten = ((techniek?.raw_json ?? null) as { facts?: { key?: string; value?: string }[] } | null)?.facts ?? [];
   return {
     bedrijfsnaam: profiel.brand_name?.trim() || profiel.name,
     kennis: keuze.beweringen,
     verbodenWoorden: keuze.verbodenWoorden,
     verbodenOnderwerpen: keuze.verbodenOnderwerpen,
+    contact: contactBlok(contactUitFeiten(feiten)),
   };
 }
 

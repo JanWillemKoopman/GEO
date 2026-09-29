@@ -342,6 +342,12 @@ export interface Profile {
   style_samples: string[]; // ✅ contentkwaliteit (A3): letterlijke stijlvoorbeelden
   /** De verhalen uit het gesprek met de ondernemer (migratie 0115, §6.3). */
   verhalen?: string | null;
+  /** De verhalen in vier vakken, en bezwaren met antwoord (migratie 0129, besluit B28). */
+  verhaal_klussen?: string | null;
+  verhaal_werkwijze?: string | null;
+  verhaal_niet?: string | null;
+  verhaal_begin?: string | null;
+  bezwaren_met_antwoord?: string | null;
   /** Eén tot drie adressen met de stem van het bedrijf, met de opgehaalde tekst (migratie 0115, B14). */
   stem_voorbeelden?: StemVoorbeeld[] | null;
   raw_json: unknown | null;

@@ -60,6 +60,12 @@ const NULLABLE_TEXT_FIELDS = [
   "contact_phone",
   // Migratie 0115 (contentketen-opnieuw.md §6.3).
   "verhalen",
+  // Migratie 0129 (besluit B28).
+  "verhaal_klussen",
+  "verhaal_werkwijze",
+  "verhaal_niet",
+  "verhaal_begin",
+  "bezwaren_met_antwoord",
 ] as const;
 
 /** De aanspreekvorm van de CONTENT, niet van ORBIT ENGINE's eigen interface. */

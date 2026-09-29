@@ -825,7 +825,7 @@ blijven de kosten per pagina ruim onder de grens van $0,50 uit B4.
 | Fase | Stand |
 |---|---|
 | 1. Fundament | Gebouwd: V1, V2, V3a, V12, V0, V21 punt 1 en 2, V23, met eenheidstests en een ketentest voor V0. Nog niet tegen productie nagerekend |
-| 2. Invoer | Bezig |
-| 3. Pagina-definitie en set | Nog niet begonnen |
+| 2. Invoer | Gebouwd: V17, V19 punt 1, V3, V4, V5 (migratie 0129), V22, en B32 voor de kansen. V19 punt 2 (de kaart) komt met V8 in fase 3. Nog niet tegen productie nagerekend |
+| 3. Pagina-definitie en set | Bezig |
 | 4. Na het schrijven | Nog niet begonnen |
 | 5. Onderzoek en meting | Nog niet begonnen |

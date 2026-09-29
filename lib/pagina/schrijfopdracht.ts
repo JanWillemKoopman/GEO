@@ -116,7 +116,6 @@ export interface SchrijfBlokken {
   /** Blok C: het onderzoek uit de brief, of null als de brief mislukte. */
   onderzoek: {
     deelvragen: string[];
-    concurrentie: { goed: string[]; gaten: string[] };
     vakkennis: { uitleg: string; bron_url: string }[];
     valkuilen: string[];
   } | null;
@@ -167,8 +166,6 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
         "WAT EEN GOEDE PAGINA OVER DIT ONDERWERP BEHANDELT (onderzoek, algemene kennis)",
         "Dit is onderzoek op het web over het onderwerp, niet over dit bedrijf. Het zegt niet wat dit bedrijf doet of belooft.",
         lijst("Wat de bezoeker verder wil weten:", b.onderzoek.deelvragen),
-        lijst("Wat goede pagina's goed doen:", b.onderzoek.concurrentie.goed),
-        lijst("Wat ze laten liggen:", b.onderzoek.concurrentie.gaten),
         lijst("Algemene vakkennis:", b.onderzoek.vakkennis.map((v) => v.uitleg)),
         lijst("Wat klanten vaak verkeerd begrijpen:", b.onderzoek.valkuilen),
       ]

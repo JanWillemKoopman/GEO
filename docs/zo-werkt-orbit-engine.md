@@ -293,9 +293,11 @@ dus voor een groot deel hoe goed alle latere teksten worden.
 - De commerciële vragen: waar wil de klant op groeien, wat juist niet meer, welke klantgroepen en
   plaatsen, wat is een klant waard, het seizoen, veelgehoorde bezwaren, **verboden onderwerpen en
   verboden woorden**, extra bewijs (certificaten, cijfers), en gelijknamige bedrijven.
-- Het tekstvak **"Verhalen"**: twee of drie typische klussen, hoe het bedrijf werkt in eigen
-  woorden, wat de ondernemer zegt als een klant twijfelt, wat het bedrijf bewust niet doet, waarom
-  het ooit begon.
+- **De verhalen**, in losse vakken: twee of drie typische klussen (elk in een eigen alinea), hoe het
+  bedrijf werkt in eigen woorden, de bezwaren die de ondernemer hoort met wat hij dan zegt, wat het
+  bedrijf bewust niet doet, en waarom het ooit begon. Elke klus gaat los mee, zodat hij op de
+  pagina komt waar hij past; de werkwijze gaat één keer mee naar elke pagina. Een vak "Nog meer
+  verhalen" vangt de rest op.
 - **Stemvoorbeelden**: één tot drie adressen van pagina's waarop de stem van het bedrijf goed te
   horen is. De app haalt die tekst op. Zonder stemvoorbeelden gebruikt de schrijver de homepage.
 - Optioneel: een tarievenpagina, brochure of offertetekst plakken, of een verandering vastleggen
@@ -469,8 +471,9 @@ dollarcent per pagina en duurt ongeveer een halve minuut.
   met wat ChatGPT er nu op antwoordt, alles wat de app al zeker weet over het bedrijf, het
   kennisgat van deze kans, en bij een verbeterpagina de huidige tekst. Met zoeken op internet
   levert het twee dingen:
-  - **onderzoek**: wat de bezoeker wil weten, wat goede pagina's goed doen en laten liggen,
-    vakkennis (met het webadres waar die gevonden is), en wat klanten vaak verkeerd begrijpen;
+  - **onderzoek**: wat de bezoeker wil weten, vakkennis over het onderwerp (met het webadres waar
+    die gevonden is, nooit van de eigen site en nooit over het bedrijf zelf), en wat klanten vaak
+    verkeerd begrijpen;
   - **hooguit acht vragen aan de ondernemer**, over feiten, voorbeelden uit de praktijk, de
     werkwijze, twijfels van klanten en wat het bedrijf anders doet. Alleen vragen waarvan de
     schrijver het antwoord kan gebruiken en die niet al bekend of op te zoeken zijn. Nul vragen is

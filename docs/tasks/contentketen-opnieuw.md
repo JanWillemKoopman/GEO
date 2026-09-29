@@ -242,7 +242,7 @@ antwoorden (concurrentnamen weggehaald met `redactCompetitors`), merknaam, werkg
 ```
 zoekintentie: string                                   // in de woorden van de bezoeker
 deelvragen: string[]                                   // wat hij verder wil weten
-concurrentie: { goed: string[], gaten: string[] }      // zonder bedrijfsnamen
+                                                       // concurrentie (goed en gaten) verviel op 29 september 2026 (B22)
 vakkennis: { uitleg: string, bron_url: string }[]
 valkuilen: string[]                                    // wat klanten vaak verkeerd begrijpen
 vragen: {                                              // tot 8

@@ -201,8 +201,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
     }
     if (nieuw.length === 0 && teVerversen.length === 0) return telling;
 
-    const [{ data: topicRows }, { data: profiel }, { data: kennisRows }] = await Promise.all([
-      admin.from("profile_topics").select("offering_ids, offering_names").eq("analysis_id", r.analysis_id),
+    const [{ data: profiel }, { data: kennisRows }] = await Promise.all([
       admin.from("profiles").select("priority_offerings, deprioritised_offerings, url").eq("id", profileId).maybeSingle(),
       // Alleen actuele, niet afgewezen kennis: een kans hangt niet aan iets wat
       // een mens heeft weggehaald.
@@ -212,18 +211,18 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
         .eq("profile_id", profileId)
         .is("vervangen_door", null)
         .is("afgewezen_op", null)
-        .in("soort", ["dienst", "categorie", "werkgebied"]),
+        .in("soort", ["werkgebied"]),
     ]);
-    const topics = (topicRows ?? []) as { offering_ids: string[] | null; offering_names: string[] | null }[];
-    const dienstIds = topics.flatMap((t) => t.offering_ids ?? []);
-    const dienstNamen = topics.flatMap((t) => t.offering_names ?? []);
     const p = profiel as { priority_offerings: string[] | null; deprioritised_offerings: string[] | null; url: string | null } | null;
     const profileUrl = p?.url ?? null;
-    const commercieel = commercieleWaardeVan({
-      diensten: dienstNamen,
-      voorrang: p?.priority_offerings ?? [],
-      minder: p?.deprioritised_offerings ?? [],
-    });
+    // V19, besluit B32: de voorrang van de klant op de tekst van de kans, niet
+    // via de diensten van het cluster.
+    const commercieelVoor = (k: { titel: string; lezer: string | null; doelvragen: { text: string | null }[] }) =>
+      commercieleWaardeVan({
+        tekst: [k.titel, k.lezer ?? "", ...k.doelvragen.map((d) => d.text ?? "")].join("\n"),
+        voorrang: p?.priority_offerings ?? [],
+        minder: p?.deprioritised_offerings ?? [],
+      });
     const kennis: KennisVoorKans[] = (
       (kennisRows ?? []) as { id: string; soort: string | null; bewering: string; herkomst_tabel: string | null; herkomst_id: string | null }[]
     ).map((k) => ({ id: k.id, soort: k.soort, bewering: k.bewering, herkomstTabel: k.herkomst_tabel, herkomstId: k.herkomst_id }));
@@ -268,7 +267,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
 
     for (const k of nieuw) {
       const bewijs = bewijsUitMetingen(k.doelvragen, metingen, profileUrl);
-      const geldtVoor = geldtVoorVan({ kans: k, dienstIds, kennis });
+      const geldtVoor = geldtVoorVan({ kans: k, kennis });
       const { data: rij, error } = await admin
         .from("kansen")
         .insert({
@@ -279,7 +278,7 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
           handeling: k.handeling,
           bestaande_url: k.bestaandeUrl,
           geldt_voor: geldtVoor,
-          commerciele_waarde: commercieel,
+          commerciele_waarde: commercieelVoor(k),
           status: "open",
           uitleg: uitlegVan({ handeling: k.handeling, bewijs }),
           rapport_id: r.id,

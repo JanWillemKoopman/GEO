@@ -33,7 +33,6 @@ import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, siteTeksten, type Pa
 import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 import { schrijfpoort, type SchrijfpoortOordeel as Poortuitslag } from "@/lib/pagina/schrijfpoort";
 import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
-import { kennisgatVoorPagina } from "@/lib/kennis/voor-pagina";
 
 type Admin = SupabaseClient;
 
@@ -75,10 +74,17 @@ export async function poortVoor(admin: Admin, pagina: Pick<PaginaBasis, "pieceId
   });
 }
 
+/** De naam van het merk en zijn andere schrijfwijzen, om vakkennis over het bedrijf zelf te herkennen (V4). */
+async function merkNamen(admin: Admin, profileId: string, naam: string): Promise<string[]> {
+  const { data } = await admin.from("profiles").select("name, brand_name, aliases").eq("id", profileId).maybeSingle();
+  const r = (data ?? {}) as { name?: string | null; brand_name?: string | null; aliases?: string[] | null };
+  return [...new Set([naam, r.name ?? "", r.brand_name ?? "", ...(r.aliases ?? [])].map((n) => n.trim()).filter(Boolean))];
+}
+
 async function eerdereVragen(admin: Admin, profileId: string): Promise<EerdereVraag[]> {
   const { data } = await admin
     .from("fact_requests")
-    .select("id, question, status, open_vraag, created_at")
+    .select("id, question, status, answer, open_vraag, created_at")
     .eq("profile_id", profileId)
     .order("created_at", { ascending: false })
     .limit(MAX_EERDERE_VRAGEN);
@@ -86,7 +92,7 @@ async function eerdereVragen(admin: Admin, profileId: string): Promise<EerdereVr
   // titel; die hoort niet in de lijst waarmee het model herhaling vermijdt.
   return ((data ?? []) as (EerdereVraag & { open_vraag?: boolean })[])
     .filter((v) => !v.open_vraag)
-    .map(({ id, question, status }) => ({ id, question, status }));
+    .map(({ id, question, status, answer }) => ({ id, question, status, answer: status === "beantwoord" ? (answer ?? null) : null }));
 }
 
 async function bewaarVragen(admin: Admin, pagina: PaginaBasis, vragen: NieuweVraag[]): Promise<number> {
@@ -118,7 +124,7 @@ async function bewaarVragen(admin: Admin, pagina: PaginaBasis, vragen: NieuweVra
   return bewaard;
 }
 
-/** Een al open vraag van dit merk ook aan deze pagina hangen. */
+/** Een open of al beantwoorde vraag van dit merk ook aan deze pagina hangen (V17). */
 async function koppelVragen(admin: Admin, pagina: PaginaBasis, ids: string[]): Promise<void> {
   for (const id of ids) {
     const { data } = await admin
@@ -126,7 +132,7 @@ async function koppelVragen(admin: Admin, pagina: PaginaBasis, ids: string[]): P
       .select("id, content_piece_ids")
       .eq("id", id)
       .eq("profile_id", pagina.profileId)
-      .eq("status", "open")
+      .in("status", ["open", "beantwoord"])
       .maybeSingle();
     if (!data) continue;
     const huidig = ((data as { content_piece_ids?: string[] | null }).content_piece_ids ?? []) as string[];
@@ -165,12 +171,14 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
   }
 
   const merk = await laadMerk(admin, pagina);
-  const [bedrijf, doelvragen, eerdere, tekst, kennisgat] = await Promise.all([
+  // V19 (besluit B31): het kennisgat gaat niet meer mee. De brief ziet blok A
+  // en alle eerdere antwoorden, en ziet zo zelf wat er ontbreekt.
+  const [bedrijf, doelvragen, eerdere, tekst, namen] = await Promise.all([
     laadBedrijf(admin, pagina),
     laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten),
     eerdereVragen(admin, pagina.profileId),
     huidigeTekst(admin, pagina),
-    kennisgatVoorPagina(admin, pieceId),
+    merkNamen(admin, pagina.profileId, merk.naam),
   ]);
 
   const { parsed } = await callStructured({
@@ -187,8 +195,7 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
       werkgebied: merk.werkgebied,
       bedrijf: blokA(bedrijf),
       huidigeTekst: tekst,
-      eerdereVragen: eerdere.map((v) => ({ id: v.id, vraag: v.question, stand: v.status })),
-      kennisgat,
+      eerdereVragen: eerdere.map((v) => ({ id: v.id, vraag: v.question, stand: v.status, antwoord: v.answer ?? null })),
     }),
     schema: ContentBriefSchema,
     schemaName: "content_brief",
@@ -197,7 +204,7 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
     meta: { kind: "pagina_brief", profileId: pagina.profileId, analysisId: pagina.analysisId, contentPieceId: pieceId },
   });
 
-  const verwerkt = verwerkBrief(parsed, eerdere);
+  const verwerkt = verwerkBrief(parsed, eerdere, { url: merk.url, namen });
   const brief: BriefJson = { onderzoek: verwerkt.onderzoek, bedrijf: compactBedrijf(bedrijf), versie: BRIEF_VERSIE };
 
   // Eerst de vragen, dan de brief: de schrijfpoort kijkt of de brief er is en

@@ -184,20 +184,13 @@ export function log(profileId: string, wat: string, t: GesprekTelling, redenen: 
  */
 export async function legAntwoordVast(
   admin: SupabaseClient,
-  args: { profileId: string; vorige: BronVraag | null; nu: BronVraag; diensten?: readonly string[] },
+  args: { profileId: string; vorige: BronVraag | null; nu: BronVraag },
   door: Mens,
 ): Promise<GesprekTelling> {
-  let diensten = args.diensten ?? [];
-  // Een antwoord van vóór A2 staat voor één pagina in de kennislaag. Wijzigt de
-  // klant het, dan blijft het daar: anders stond hetzelfde antwoord straks twee
-  // keer bij die pagina, een keer voor de pagina en een keer voor de dienst.
-  if (diensten.length > 0 && args.vorige?.status === "beantwoord" && args.vorige.answer?.trim()) {
-    const alsDienst = kennisUitAntwoord(args.vorige, diensten)[0];
-    const sleutel = alsDienst ? sleutelVan(alsDienst) : null;
-    if (!sleutel || !(await metSleutel(admin, args.profileId, sleutel))) diensten = [];
-  }
-  const oud = args.vorige ? kennisUitAntwoord(args.vorige, diensten) : [];
-  return verwerk(admin, args.profileId, wijzigingen(oud, kennisUitAntwoord(args.nu, diensten)), door, "antwoord");
+  // V17: de reikwijdte volgt uit de vraag zelf (pagina of cluster), niet meer
+  // uit de diensten of plaatsen van de kans erachter.
+  const oud = args.vorige ? kennisUitAntwoord(args.vorige) : [];
+  return verwerk(admin, args.profileId, wijzigingen(oud, kennisUitAntwoord(args.nu)), door, "antwoord");
 }
 
 // ── 2. Een veld op het gespreksscherm of in de wizard ────────────────────────

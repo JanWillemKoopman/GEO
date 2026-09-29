@@ -191,7 +191,7 @@ async function planControle(admin: Admin, basis: Schrijfbasis): Promise<void> {
 }
 
 function ongedektIn(basis: Schrijfbasis, tekst: string): string[] {
-  return geleZinnen(controleerHardeBeweringen(tekst, basis.bronnen, [basis.merk.naam]));
+  return geleZinnen(controleerHardeBeweringen(tekst, basis.bronnen, [basis.merk.naam], basis.algemeneBronnen));
 }
 
 /** Zinnen met een woord dat het merk niet wil gebruiken (besluit B16). */

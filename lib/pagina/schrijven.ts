@@ -50,10 +50,12 @@ export interface Schrijfbasis {
   bedrijf: BedrijfsInvoer;
   blokken: SchrijfBlokken;
   /**
-   * Alle tekst waar een harde bewering in teruggevonden mag worden (§6.5):
-   * blok A, blok B, de stemvoorbeelden en de vakkennis van blok C.
+   * De bedrijfskennis waar een harde bewering in teruggevonden mag worden
+   * (§6.5): blok A, blok B en de stemvoorbeelden.
    */
   bronnen: string[];
+  /** De vakkennis van blok C: alleen een bron voor een zin die niet over het bedrijf gaat (V4). */
+  algemeneBronnen: string[];
 }
 
 /**
@@ -161,9 +163,9 @@ export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<S
     klant.eigenVerhaal ?? "",
     ...klant.antwoorden.map((a) => `${a.vraag} ${a.antwoord}`),
     ...stem.map((s) => s.tekst),
-    ...(onderzoek?.vakkennis ?? []).map((v) => v.uitleg),
   ].filter((t) => t.trim());
-  return { pagina, merk, bedrijf, blokken, bronnen };
+  const algemeneBronnen = (onderzoek?.vakkennis ?? []).map((v) => v.uitleg).filter((t) => t.trim());
+  return { pagina, merk, bedrijf, blokken, bronnen, algemeneBronnen };
 }
 
 /** De opties voor de aanroep. `kind` is de taaksoort, voor het kostenlogboek. */

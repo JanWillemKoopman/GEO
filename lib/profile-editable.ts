@@ -92,6 +92,12 @@ export const EDITABLE_PROFILE_FIELDS = [
   // Migratie 0115, de contentketen opnieuw (§6.3 en §6.10).
   "verhalen",
   "stem_voorbeelden",
+  // Migratie 0129 (besluit B28): de verhalen in vakken, bezwaren met antwoord.
+  "verhaal_klussen",
+  "verhaal_werkwijze",
+  "verhaal_niet",
+  "verhaal_begin",
+  "bezwaren_met_antwoord",
 ] as const;
 
 export type EditableProfileField = (typeof EDITABLE_PROFILE_FIELDS)[number];

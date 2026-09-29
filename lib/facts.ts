@@ -27,8 +27,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { beoordeelClaim, marktclaimUitleg } from "@/lib/pipeline/claim-plausibility";
 import type { FactRequest } from "@/lib/types/database";
 import { legAntwoordVast } from "@/lib/kennis/uit-gesprek";
-import { geldtVoorDienst } from "@/lib/kennis/gesprek";
-import { dienstenVanPaginas } from "@/lib/kennis/voor-pagina";
 import type { BronVraag } from "@/lib/kennis/terugvullen";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -87,14 +85,12 @@ export async function answerFact(
   // een marktclaim zonder onderbouwing (die houdt de controle op harde
   // beweringen tegen, niet het vastleggen). Gooit nooit een fout.
   //
-  // A2 (besluit V23): hangt een gerichte vraag aan een pagina met een kans over
-  // een dienst, dan geldt het antwoord voor die dienst, zodat de volgende
-  // pagina over dezelfde dienst het niet opnieuw vraagt.
-  const nu = alsBronVraag(updated);
-  const diensten = geldtVoorDienst(nu) ? await dienstenVanPaginas(admin, input.profileId, nu.content_piece_ids ?? []) : [];
+  // V17 (besluit B32): een gericht antwoord geldt voor de pagina en het
+  // cluster waar het gegeven is. Niet meer via de diensten of plaatsen van de
+  // kans: dat stuurde in ronde 1 antwoorden naar pagina's waar ze niet hoorden.
   await legAntwoordVast(
     admin,
-    { profileId: input.profileId, vorige: alsBronVraag(fact), nu, diensten },
+    { profileId: input.profileId, vorige: alsBronVraag(fact), nu: alsBronVraag(updated) },
     { actor: "mens", gebruikerId: input.gebruikerId },
   );
 

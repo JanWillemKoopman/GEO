@@ -63,6 +63,11 @@ export interface BronProfiel {
   offline_proof: string[] | null;
   proof_points: string[] | null;
   verhalen: string | null;
+  verhaal_klussen?: string | null;
+  verhaal_werkwijze?: string | null;
+  verhaal_niet?: string | null;
+  verhaal_begin?: string | null;
+  bezwaren_met_antwoord?: string | null;
   stem_voorbeelden: { url: string; tekst: string | null }[] | null;
   pronoun_preference: string | null;
   taboo_phrases: string[] | null;
@@ -319,6 +324,11 @@ export const TEKSTVELDEN: VeldRegel[] = [
   { veld: "goal_12m", domein: "positionering", soort: "doel over een jaar", gebruik: "intern" },
   { veld: "differentiator", domein: "positionering", soort: "onderscheid", gebruik: "content" },
   { veld: "verhalen", domein: "verhaal", soort: "verhalen van de ondernemer", gebruik: "content" },
+  // Migratie 0129 (besluit B28): de werkwijze telt als werkwijze voor elke
+  // pagina, één keer; wat het bedrijf niet doet en waarom het begon elk apart.
+  { veld: "verhaal_werkwijze", domein: "aanbod", soort: "werkwijze", gebruik: "content" },
+  { veld: "verhaal_niet", domein: "positionering", soort: "wat we bewust niet doen", gebruik: "content" },
+  { veld: "verhaal_begin", domein: "verhaal", soort: "hoe het begon", gebruik: "content" },
   { veld: "pronoun_preference", domein: "stem", soort: "aanspreekvorm", gebruik: "content" },
 ];
 
@@ -338,9 +348,24 @@ export const LIJSTVELDEN: VeldRegel[] = [
   { veld: "forbidden_topics", domein: "grens", soort: "verboden onderwerp", gebruik: "verboden" },
 ];
 
+/** Velden met één item per alinea (migratie 0129, besluit B28). */
+export const ALINEAVELDEN: VeldRegel[] = [
+  { veld: "verhaal_klussen", domein: "verhaal", soort: "klus", gebruik: "content" },
+  { veld: "bezwaren_met_antwoord", domein: "doelgroep", soort: "bezwaar met antwoord", gebruik: "content" },
+];
+
+/** De alinea's van een tekst: gescheiden door een lege regel, zonder lege. */
+export function alineas(tekst: string | null | undefined): string[] {
+  return (tekst ?? "")
+    .split(/\n\s*\n/)
+    .map((a) => a.replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean);
+}
+
 /** De velden die de dekkingstoets per merk verwacht (als ze gevuld zijn), in de volgorde van het terugvullen. */
 export const PROFIEL_MEENEMEN: (keyof BronProfiel)[] = [
   ...TEKSTVELDEN.map((v) => v.veld),
+  ...ALINEAVELDEN.map((v) => v.veld),
   ...LIJSTVELDEN.map((v) => v.veld),
   "products",
   "personas",
@@ -401,6 +426,23 @@ export function planProfielveld(
         return;
       }
       voegToe(m, { ref, domein: regel.domein, soort: regel.soort, bewering: w, status: st.status, bron: st.bron, gebruik: regel.gebruik, herkomst });
+    });
+    return;
+  }
+
+  // Migratie 0129 (besluit B28): één item per alinea. Een klus hoort zo niet
+  // meer als deel van één groot blok op elke pagina, en een bezwaar gaat met het
+  // antwoord van de ondernemer mee.
+  const alineaVeld = ALINEAVELDEN.find((r) => r.veld === veld);
+  if (alineaVeld) {
+    const st = veldStatus(merk.veldHerkomst, String(alineaVeld.veld));
+    alineas(p[alineaVeld.veld] as string | null | undefined).forEach((w, i) => {
+      const ref = `profiles:${p.id}:${String(alineaVeld.veld)}:${i}`;
+      if (st.nvt) {
+        m.uitsluitingen.push({ ref, reden: "De consultant koos 'niet van toepassing'." });
+        return;
+      }
+      voegToe(m, { ref, domein: alineaVeld.domein, soort: alineaVeld.soort, bewering: w, status: st.status, bron: st.bron, gebruik: alineaVeld.gebruik, herkomst });
     });
     return;
   }
@@ -972,7 +1014,7 @@ on conflict (profile_id, sleutel) where vervangen_door is null and sleutel is no
 export const EXPORT_SQL = `
 select jsonb_build_object(
   -- Alleen de kolommen die het plan leest (BronProfiel).
-  'profiel', jsonb_strip_nulls(jsonb_build_object('id', p.id, 'url', p.url, 'brand_name', p.brand_name, 'aliases', p.aliases, 'name_exclusions', p.name_exclusions, 'industry', p.industry, 'business_model', p.business_model, 'summary', p.summary, 'intake_description', p.intake_description, 'intake_audience', p.intake_audience, 'market_language', p.market_language, 'service_scope', p.service_scope, 'service_regions', p.service_regions, 'wikidata_id', p.wikidata_id, 'wikipedia_url', p.wikipedia_url, 'products', p.products, 'priority_offerings', p.priority_offerings, 'deprioritised_offerings', p.deprioritised_offerings, 'deal_value_band', p.deal_value_band, 'seasonality', p.seasonality, 'goal_12m', p.goal_12m, 'growth_regions', p.growth_regions, 'personas', p.personas, 'target_segments', p.target_segments, 'sales_objections', p.sales_objections, 'competitors', p.competitors, 'value_props', p.value_props, 'differentiator', p.differentiator, 'offline_proof', p.offline_proof, 'proof_points', p.proof_points, 'verhalen', p.verhalen, 'stem_voorbeelden', p.stem_voorbeelden, 'pronoun_preference', p.pronoun_preference, 'taboo_phrases', p.taboo_phrases, 'forbidden_topics', p.forbidden_topics, 'respect_site_structure', p.respect_site_structure)),
+  'profiel', jsonb_strip_nulls(jsonb_build_object('id', p.id, 'url', p.url, 'brand_name', p.brand_name, 'aliases', p.aliases, 'name_exclusions', p.name_exclusions, 'industry', p.industry, 'business_model', p.business_model, 'summary', p.summary, 'intake_description', p.intake_description, 'intake_audience', p.intake_audience, 'market_language', p.market_language, 'service_scope', p.service_scope, 'service_regions', p.service_regions, 'wikidata_id', p.wikidata_id, 'wikipedia_url', p.wikipedia_url, 'products', p.products, 'priority_offerings', p.priority_offerings, 'deprioritised_offerings', p.deprioritised_offerings, 'deal_value_band', p.deal_value_band, 'seasonality', p.seasonality, 'goal_12m', p.goal_12m, 'growth_regions', p.growth_regions, 'personas', p.personas, 'target_segments', p.target_segments, 'sales_objections', p.sales_objections, 'competitors', p.competitors, 'value_props', p.value_props, 'differentiator', p.differentiator, 'offline_proof', p.offline_proof, 'proof_points', p.proof_points, 'verhalen', p.verhalen, 'verhaal_klussen', p.verhaal_klussen, 'verhaal_werkwijze', p.verhaal_werkwijze, 'verhaal_niet', p.verhaal_niet, 'verhaal_begin', p.verhaal_begin, 'bezwaren_met_antwoord', p.bezwaren_met_antwoord, 'stem_voorbeelden', p.stem_voorbeelden, 'pronoun_preference', p.pronoun_preference, 'taboo_phrases', p.taboo_phrases, 'forbidden_topics', p.forbidden_topics, 'respect_site_structure', p.respect_site_structure)),
   'veldHerkomst', coalesce((select jsonb_agg(jsonb_build_object('field', s.field, 'source', s.source, 'not_applicable', s.not_applicable)) from public.profile_field_sources s where s.profile_id = p.id), '[]'),
   'feiten', coalesce((select jsonb_agg(jsonb_build_object('id', b.id, 'analysis_id', b.analysis_id, 'text', b.text, 'source_url', b.source_url, 'kind', b.kind,
     'allowed', b.allowed, 'superseded_by', b.superseded_by, 'soort', b.soort, 'waarde', b.waarde, 'geldt_voor', b.geldt_voor, 'stand', b.stand,

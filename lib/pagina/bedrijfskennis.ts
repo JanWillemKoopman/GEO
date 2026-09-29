@@ -25,9 +25,11 @@ export interface BedrijfsInvoer {
   /** Verboden woorden en onderwerpen uit de kennislaag: gaan als verbod mee, niet als bewering. */
   verbodenWoorden: string[];
   verbodenOnderwerpen: string[];
+  /** Het vaste contactblok (`contactBlok()`, V3), of null als er niets bekend is. */
+  contact?: string | null;
 }
 
 /** Blok A als tekst voor de schrijver. Lege onderdelen vallen weg. */
 export function blokA(invoer: BedrijfsInvoer): string {
-  return blokAUitKennis(invoer.bedrijfsnaam, invoer.kennis);
+  return blokAUitKennis(invoer.bedrijfsnaam, invoer.kennis, invoer.contact ?? null);
 }
