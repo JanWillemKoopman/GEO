@@ -4,12 +4,10 @@
 (B33, B34, B35), het waarom met de cijfers in `docs/logbook.md` (29 september 2026 (3)). Dit bestand
 bevat alleen wat nog moet gebeuren; het verdwijnt als alles hieronder af is.
 
-## 1. Naar `main`
+## 1. Live
 
-`BRIEF_ZOEKRESULTATEN_ENABLED=true` staat sinds 29 september 2026 in Vercel (productie), naast de
-bestaande `DATAFORSEO_LOGIN` en `DATAFORSEO_PASSWORD`. De code staat op de branch
-`feature/paginasoorten-en-zoekresultaten`; zodra die op `main` staat, werkt het. Migratie 0130 is al
-op productie toegepast. Een preview heeft de schakelaar niet, en draait dus zonder zoekresultaten.
+Sinds 29 september 2026 op productie (`main`, commit 53e4e84), met `BRIEF_ZOEKRESULTATEN_ENABLED=true`
+in Vercel. Een preview heeft de schakelaar niet, en draait dus zonder zoekresultaten.
 
 ## 2. De vorm van de respons controleren (conventie 10)
 
