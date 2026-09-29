@@ -3305,6 +3305,30 @@ textarea.field {
   text-transform: uppercase;
   letter-spacing: 0.2em;
 }
+/* De punt midden in de O van ORBIT (29 september 2026): een omloop om de
+   eerste letter, met een cirkel van 0,17em in de tekstkleur op het midden van
+   de kapitaalhoogte (48% van de regelhoogte bij line-height 1). De letterafstand
+   van de O zelf staat op 0 en zit als marge ernaast: anders telt de ruimte na
+   de letter mee in "het midden" en zit de punt te ver naar rechts. Het is een
+   pseudo-element, dus een schermlezer leest gewoon "ORBIT". */
+.brand-logo-o {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+  letter-spacing: 0;
+  margin-right: 0.2em;
+}
+.brand-logo-o::after {
+  content: "";
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  width: 0.17em;
+  height: 0.17em;
+  border-radius: 50%;
+  background-color: currentColor;
+  transform: translate(-50%, -50%);
+}
 
 /* ── De link in lopende tekst (23 september 2026) ───────────────────────────
    Er waren vijf behandelingen: altijd onderstreept, pas bij hover, secundair
