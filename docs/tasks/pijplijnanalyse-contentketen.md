@@ -637,12 +637,29 @@ eigenaar).*
    dan in blok B van die pagina. De code controleert alleen dat de vraag van hetzelfde merk is. Zo
    hergebruikt de brief bewust wat de klant al vertelde, ook uit een ander cluster, in plaats van dat
    een tussenlaag gokt welke pagina's erbij horen.
+3. **Ook de bestaande koppeling vervalt** (besluit van de eigenaar, 29 september 2026). Nu krijgt
+   een kans alleen een dienst als de consultant een voorgesteld onderwerp goedkeurde in plaats van er
+   zelf een in te typen. Dat stopt: een kans hangt niet meer aan een dienst, alleen aan zijn cluster.
+   Het voorgestelde onderwerp zelf blijft uit het aanbod komen; alleen het doorgeven aan de kansen
+   stopt. Er gaat niets weg uit de database (conventie 4); de kolom wordt niet meer gevuld. Wat er
+   op die koppeling leunde, krijgt een eenvoudiger vervanger:
+   - **De kennis voor de schrijver (blok A):** wat bij het cluster en de pagina hoort, plus wat
+     merkbreed is (punt 1). Een dienst uit de aanbodboom gaat alleen mee als zijn naam in de titel of
+     de zoekintentie staat, zoals nu al gebeurt bij een kans zonder dienst.
+   - **Het kennisgat:** gaat niet meer naar de brief (V19).
+   - **Het bewijs uit Search Console:** een zoekopdracht hoort bij een kans als hij de woorden van het
+     onderwerp van de kans bevat (V6) of een plaats van de kans, letterlijk, zoals nu met plaatsen.
+   - **De voorstellen voor interne links bij het opleveren:** de goedgekeurde pagina's uit hetzelfde
+     cluster, in plaats van pagina's over dezelfde dienst.
+   - **De melding "wat hangt er aan deze dienst"** (als een dienst verandert of vervalt): voor kansen
+     vervalt die. De consultant ziet een vervallen dienst al in het kennisoverzicht.
 
 Wat het oplost voor elke klant: geen antwoorden meer op pagina's waar ze niet horen, geen herhaalde
 vragen met alleen een andere plaatsnaam, en een landelijk bedrijf krijgt zijn antwoorden ook op de
 verwante pagina's. Het is eenvoudiger dan nu: één voorspelbare regel in plaats van een omweg via
 plaatsen en diensten. (`answerFact()` in `lib/facts.ts`, waar het antwoord nu via
-`dienstenVanPaginas()` aan diensten en plaatsen hangt; `eerdereVragen()` in `lib/pagina/brief.ts`;
+`dienstenVanPaginas()` aan diensten en plaatsen hangt; `lib/kansen/uit-rapport.ts`,
+`lib/kansen/uit-search-console.ts`, `lib/oplevering.ts`, `lib/kennis/blok-a.ts`; `eerdereVragen()` in `lib/pagina/brief.ts`;
 `verwerkBrief()` in `lib/pagina/brief-regels.ts`.)
 
 **V18. Meetvragen en clusters ontdubbelen over het hele merk.** *Code en opdracht, klein tot middel.
@@ -738,8 +755,9 @@ Deze punten raken `contentketen-opnieuw.md` §2, §3, §5 of §6, of zijn om een
 De rest van het plan valt binnen wat al besloten is (§0 regel 5: de invoer en de opdrachten
 verbeteren).
 
-**Al besloten door de eigenaar (29 september 2026):** clusters worden niet aan diensten of producten
-gekoppeld. V17 lost hetzelfde probleem op zonder die koppeling.
+**Al besloten door de eigenaar (29 september 2026):** clusters en kansen worden niet aan diensten of
+producten gekoppeld, ook niet via een goedgekeurd voorgesteld onderwerp. V17 lost hetzelfde probleem
+op zonder die koppeling, en noemt per onderdeel dat erop leunde wat er in de plaats komt.
 
 | # | Besluit | Mijn advies | Raakt |
 |---|---|---|---|
