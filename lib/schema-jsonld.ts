@@ -41,6 +41,19 @@ export interface OrganizationInfo {
   url: string;
   /** Externe profielen uit fase 0 (`techniek`-facet). Leeg is prima. */
   sameAs?: string[];
+  /**
+   * V23 van `docs/tasks/pijplijnanalyse-contentketen.md` (29 september 2026):
+   * wie het bedrijf is en waar het werkt. Een AI-assistent herkent een bedrijf
+   * aan naam, adres en telefoonnummer; tot nu toe stond hier alleen de naam.
+   * Alles optioneel: wat we niet zeker weten, laten we weg (conventie 3).
+   */
+  /** Een lokaal dienstverlenend bedrijf wordt een `LocalBusiness`. */
+  lokaal?: boolean;
+  telefoon?: string | null;
+  email?: string | null;
+  adres?: string | null;
+  /** Het werkgebied, als plaatsen of regio's. */
+  werkgebied?: string[];
 }
 
 interface RebuildInput {
@@ -130,12 +143,16 @@ function organizationNode(
   org: OrganizationInfo,
 ): Record<string, unknown> {
   const node: Record<string, unknown> = {
-    "@type": "Organization",
+    "@type": org.lokaal ? "LocalBusiness" : "Organization",
     "@id": `${org.url.replace(/\/+$/, "")}/#organization`,
     name: org.name,
     url: org.url,
   };
   if (org.sameAs && org.sameAs.length > 0) node.sameAs = org.sameAs.slice(0, 10);
+  if (org.telefoon?.trim()) node.telephone = org.telefoon.trim();
+  if (org.email?.trim()) node.email = org.email.trim();
+  if (org.adres?.trim()) node.address = org.adres.trim();
+  if (org.werkgebied && org.werkgebied.length > 0) node.areaServed = org.werkgebied.slice(0, 30);
   return node;
 }
 
@@ -182,6 +199,13 @@ function applyOwnFields(
     // staat hier: de pagina is VAN en OVER deze organisatie.
     out.author = org;
     out.about = org;
+    // V23: een dienst hoort bij een aanbieder, en geldt in het werkgebied.
+    if (typeOf(out).includes("Service")) {
+      out.provider = org;
+      if (input.organization.werkgebied && input.organization.werkgebied.length > 0 && !out.areaServed) {
+        out.areaServed = input.organization.werkgebied.slice(0, 30);
+      }
+    }
   }
   // De pagina-URL komt uit onze database en niet uit het model.
   out.url = input.url;
@@ -312,4 +336,26 @@ export function bestaandeDatePublished(
     // Geen geldige JSON: dan weten we het niet.
   }
   return null;
+}
+
+/**
+ * De publicatiedatum pas zetten als de pagina echt live staat (V23 van
+ * `docs/tasks/pijplijnanalyse-contentketen.md`). Tot 29 september 2026 kreeg
+ * een pagina de datum van het schrijven als `datePublished`, ook als hij pas
+ * weken later op de site kwam. Geeft de string ongewijzigd terug als hij niet
+ * parst: dan weten we het niet (conventie 3).
+ */
+export function metPublicatiedatum(jsonLd: string | null | undefined, iso: string): string | null {
+  if (!jsonLd) return jsonLd ?? null;
+  try {
+    const parsed = JSON.parse(jsonLd) as Record<string, unknown>;
+    if (Array.isArray(parsed["@graph"])) {
+      const graph = [...(parsed["@graph"] as Record<string, unknown>[])];
+      if (graph[0]) graph[0] = { ...graph[0], datePublished: iso };
+      return JSON.stringify({ ...parsed, "@graph": graph }, null, 2);
+    }
+    return JSON.stringify({ ...parsed, datePublished: iso }, null, 2);
+  } catch {
+    return jsonLd;
+  }
 }

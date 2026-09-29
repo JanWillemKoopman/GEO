@@ -40,11 +40,24 @@ const LABELS: Record<SchrijfKwaliteitSignaal, string> = {
  * dus alleen aan wat de consultant nog kan aanvullen vóór er geschreven wordt.
  */
 export function beoordeelSchrijfKwaliteit(
-  profile: Pick<Profile, "verhalen" | "stem_voorbeelden" | "taboo_phrases">,
+  profile: Pick<Profile, "verhalen" | "stem_voorbeelden" | "taboo_phrases"> &
+    Partial<Pick<Profile, "verhaal_klussen" | "verhaal_werkwijze" | "verhaal_niet" | "verhaal_begin" | "bezwaren_met_antwoord">>,
 ): SchrijfKwaliteitWaarschuwing[] {
   const waarschuwingen: SchrijfKwaliteitWaarschuwing[] = [];
 
-  if ((profile.verhalen ?? "").trim().length < VERHALEN_MIN_LENGTE) {
+  // Sinds migratie 0129 (besluit B28) staan de verhalen in vakken; samen tellen ze.
+  const verhalen = [
+    profile.verhalen,
+    profile.verhaal_klussen,
+    profile.verhaal_werkwijze,
+    profile.verhaal_niet,
+    profile.verhaal_begin,
+    profile.bezwaren_met_antwoord,
+  ]
+    .map((v) => (v ?? "").trim())
+    .join(" ")
+    .trim();
+  if (verhalen.length < VERHALEN_MIN_LENGTE) {
     waarschuwingen.push({ signaal: "verhalen", label: LABELS.verhalen });
   }
 

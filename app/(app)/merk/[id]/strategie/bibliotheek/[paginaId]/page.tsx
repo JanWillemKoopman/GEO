@@ -136,6 +136,7 @@ export default async function PaginaScherm({
             bevestigd={tekst.bevestigd}
             notitie={tekst.notitie}
             punten={tekst.punten}
+            verdwenen={tekst.verdwenen}
             goedgekeurd={!tekst.needsReview}
             aanpassingLoopt={tekst.aanpassingLoopt}
           />
@@ -310,6 +311,8 @@ async function laadTekst(admin: ReturnType<typeof createAdminClient>, pieceId: s
     // Na een herschrijving zijn de punten van de eindredacteur verwerkt; dan
     // horen ze niet meer als "wat we nog zien" op het scherm.
     punten: controle && !controle.herschreven ? (controle.beoordeling?.punten ?? []) : [],
+    // V21 punt 3 (besluit B-h): wat van de huidige pagina niet in de nieuwe tekst staat.
+    verdwenen: controle?.verdwenen ?? [],
     needsReview: r.needs_review,
     aanpassingLoopt: (lopend ?? []).length > 0,
     publishedAt: r.published_at,

@@ -1,6 +1,5 @@
 "use client";
 
-import { kennisgatZin } from "@/lib/kansen/kennisgat";
 import { STAND_CHIP, streefzin, heeftEigenScherm, type PaginaStandSleutel, type StandToon } from "@/lib/pagina-stand";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -114,14 +113,14 @@ export function PlanView({
   topics,
   staff,
   standen = {},
-  kennisgat,
+  kaartZin,
   kansUitleg = {},
   kansBewijs = {},
   kansNietGemeten = {},
   kennisOpties,
 }: {
   /** N6: per kans wat nog ontbreekt. Alleen gevuld voor de consultant. */
-  kennisgat?: Record<string, string[] | null>;
+  kaartZin?: Record<string, string | null>;
   /** N7: de zin die de kans onderbouwt (N1). Voor iedereen zichtbaar. */
   kansUitleg?: Record<string, string | null>;
   /** N7: het bewijs per bron, als leesbare zinnen. Uitklapbaar op het scherm. */
@@ -668,7 +667,7 @@ export function PlanView({
                   <BacklogRij
                     key={item.id}
                     item={item}
-                    gat={gatZin(kennisgat, item.kansId ?? null)}
+                    gat={gatZin(kaartZin, item.kansId ?? null)}
                     kansUitleg={item.kansId ? (kansUitleg[item.kansId] ?? null) : null}
                     bewijs={item.kansId ? (kansBewijs[item.kansId] ?? []) : []}
                     nietGemeten={item.kansId ? (kansNietGemeten[item.kansId] ?? false) : false}
@@ -875,7 +874,7 @@ export function PlanView({
                         <PageRij
                           key={page.id}
                           page={page}
-                          gat={page.status === "gepland" ? gatZin(kennisgat, page.kans_id ?? null) : null}
+                          gat={page.status === "gepland" ? gatZin(kaartZin, page.kans_id ?? null) : null}
                           profileId={profileId}
                           // Alleen een link als het paginascherm iets toevoegt
                           // (`heeftEigenScherm()`): een voorbereidende pagina
@@ -1767,10 +1766,10 @@ export interface RijStand {
  * van de maand worden klaargezet, en geschreven wordt er pas als die gedaan zijn.
  * De dialoog zegt dat vooraf, met de streefdatum voor de antwoorden.
  */
-/** N6: de zin over het kennisgat van een kaart, of null als er niets te tonen is. */
-function gatZin(kennisgat: Record<string, string[] | null> | undefined, kansId: string | null): string | null {
-  if (!kennisgat || !kansId || !(kansId in kennisgat)) return null;
-  return kennisgatZin(kennisgat[kansId] ?? null);
+/** V8, V19 en V20: de zin voor de consultant op een kaart (`kaartZin()`), of null. */
+function gatZin(kaartZin: Record<string, string | null> | undefined, kansId: string | null): string | null {
+  if (!kaartZin || !kansId) return null;
+  return kaartZin[kansId] ?? null;
 }
 
 function vrijgeefTekst(paginas: PlannedPage[]): string {

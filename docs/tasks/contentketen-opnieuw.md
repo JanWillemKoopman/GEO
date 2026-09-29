@@ -141,6 +141,17 @@ Daarnaast twee signalen die helpen verklaren waarom, maar geen doel op zich zijn
 | B20 | Blok A komt uit de kennislaag (`kennisVoor()` in `lib/kennis/`, K6 van `van-pijplijn-naar-kennissysteem.md`) in plaats van uit `brand_facts`, `value_props` en de losse profielvelden. Alleen wat gezien, gezegd of bevestigd is en op een pagina mag (`magInBlokA()`), bevestigd eerst; nooit iets wat alleen een model denkt, ook niet "als achtergrond" (daarmee vervalt "waar het bedrijf voor staat" uit `value_props`, een oordeel van het merkonderzoek zonder citaat). Per pagina: wat voor het hele merk geldt, wat bij de dienst of regio van de kans hoort, wat bij dit cluster hoort, en wat bij deze pagina hoort (alle versies). Verboden woorden en onderwerpen uit de kennislaag gaan als verbod mee. De controle op harde beweringen gebruikt dezelfde set, omdat blok A haar bron is. Een wijziging in de invoer (§0 regel 5), geen stap | 27 september 2026 |
 | B19 | De controle op harde beweringen en verboden woorden loopt ook over de antwoorden in de FAQ en de metabeschrijving, en de eindredacteur leest de FAQ mee. Geen nieuwe stap: dezelfde controle, over meer tekst. Gebouwd als werkpakket C1 van `van-pijplijn-naar-kennissysteem.md` (besluit V4 daar) | 26 september 2026, gebouwd 27 september 2026 |
 | B21 | De content brief krijgt het kennisgat van de kans mee: "wat we voor deze pagina nog niet weten over het bedrijf" (N6 en A1 van `van-pijplijn-naar-kennissysteem.md`). De opdracht krijgt één zin: vraag eerst daarnaar, en liever om een voorbeeld uit de praktijk dan om een los feit. Nog steeds hooguit acht vragen, geen nieuwe stap of aanroep. Brief versie 4 | 27 september 2026 (door Claude, met het vaste akkoord van de eigenaar voor dit plan) |
+| B22 | Het veld `concurrentie` (goed en gaten) gaat uit de brief. In ronde 1 werkte het als verborgen schrijfopdracht ("goede pagina's noemen een prijs per bezoek") zonder dat de invoer dat kon dragen. V4 van `pijplijnanalyse-contentketen.md` | 29 september 2026 |
+| B23 | Een aanbeveling beschrijft een pagina (onderwerp, lezer, rol in de set, kernvraag) in plaats van een opdrachttitel, en het rapport krijgt meer denktijd. De schrijver krijgt onderwerp, lezer en rol mee als deel van blok D. V6 | 29 september 2026 |
+| B24 | De brief markeert welke vraag de kernvraag beantwoordt, en de schrijver ziet in blok B welke vragen de ondernemer oversloeg. Geen wachten, geen tegenhouden. V8 | 29 september 2026 |
+| B25 | De eindredacteur vraagt niet meer naar diepgang, en een verbeterpunt mag niets toevoegen (geen bedrag, voorwaarde of belofte die niet in de informatie staat). V14 | 29 september 2026 |
+| B26 | Een zin die alleen de controle in code niet terugvindt, is geen reden om te herschrijven: hij wordt geel. De herschrijving blijft, tenzij hij een ongedekte zin heeft die er eerst niet stond; die zin wordt dan geel. V15 | 29 september 2026 |
+| B27 | Een beheeractie laat een pagina opnieuw schrijven met dezelfde brief en antwoorden, alleen voor de eigenaar en consultants, om verbeteringen te toetsen. Geen klantroute en geen planning, dus geen tweede route in de zin van §3 regel 7. V0 | 29 september 2026 |
+| B28 | "Verhalen" wordt vier vakken (klussen, hoe we werken, wat we niet doen, waarom we begonnen) en bezwaren worden paren met het antwoord van de ondernemer. V5 | 29 september 2026 |
+| B29 | Na het schrijven ziet de ondernemer welke harde gegevens van zijn huidige pagina niet meer in de nieuwe tekst staan. Een controle op harde feiten, geen oordeel; hij houdt niets tegen. V21 | 29 september 2026 |
+| B30 | Meetvragen worden over alle clusters van een merk ontdubbeld; bestaande clusters blijven zoals ze zijn. V18 | 29 september 2026 |
+| B31 | Het kennisgat gaat niet meer naar de brief (B21 teruggedraaid); de brief ziet eerdere vragen met hun antwoord. Op de plankaart staan de kernvraag en de voorrang van de klant. V17 en V19 | 29 september 2026 |
+| B32 | Clusters en kansen worden niet aan diensten of producten gekoppeld, ook niet via een goedgekeurd voorgesteld onderwerp. Een antwoord hoort bij de pagina en het cluster waar het gegeven is. V17 | 29 september 2026 |
 
 Wat hiermee vervalt uit eerdere besluiten: de inputpoort van 40 en 70 procent met de keuze "algemeen
 schrijven of laten vallen", en de verdeling van het redactionele werk over strategie, schrijven en
@@ -231,7 +242,7 @@ antwoorden (concurrentnamen weggehaald met `redactCompetitors`), merknaam, werkg
 ```
 zoekintentie: string                                   // in de woorden van de bezoeker
 deelvragen: string[]                                   // wat hij verder wil weten
-concurrentie: { goed: string[], gaten: string[] }      // zonder bedrijfsnamen
+                                                       // concurrentie (goed en gaten) verviel op 29 september 2026 (B22)
 vakkennis: { uitleg: string, bron_url: string }[]
 valkuilen: string[]                                    // wat klanten vaak verkeerd begrijpen
 vragen: {                                              // tot 8
@@ -239,9 +250,11 @@ vragen: {                                              // tot 8
   waarom: string,          // voor de klant: wat dit antwoord aan de pagina toevoegt
   soort: "feit"|"praktijk"|"werkwijze"|"twijfel"|"onderscheid",
   antwoord_type: "ja_nee"|"bedrag"|"getal"|"tekst_kort"|"tekst_lang"|"keuze",
-  opties: string[] | null, merkbreed: boolean
+  opties: string[] | null, merkbreed: boolean,
+  kern: boolean            // B-c (V8): beantwoordt de kernvraag van de pagina, hooguit één
 }[]
-ook_voor_deze_pagina: string[]                         // id's van al open vragen die hier ook gelden
+ook_voor_deze_pagina: string[]                         // id's van eerdere vragen die hier ook gelden
+kern_eerder: string | null                             // B-c: een eerdere vraag die de kernvraag beantwoordt
 ```
 
 De opdracht voor `vragen` (B13): stel de vragen waarvan het antwoord deze pagina duidelijk beter en
@@ -310,7 +323,7 @@ zodat hij er altijd is:
   letterlijk naar de schrijver als blok B.
 - Op het scherm altijd als eerste, met een groot tekstvak. Overslaan mag.
 
-**De gerichte vragen:** tot acht per pagina, uit de brief (§6.1). Tot 500 tekens per antwoord,
+**De gerichte vragen:** tot acht per pagina, uit de brief (§6.1). Tot 1.500 tekens per antwoord (was 500, en de route knipte stil af; V1 van `pijplijnanalyse-contentketen.md`),
 merkbreed als het model dat aangaf.
 
 **Hoe de klant ze ziet:** op "Jouw beurt" per pagina gegroepeerd, met de open vraag bovenaan. Bij elke
@@ -330,8 +343,10 @@ zegt; wat jullie bewust niet doen; waarom je ooit begon. Geen AI. Gaat mee in bl
 (`startStructuredAchtergrond` en `haalStructuredOp`). Een aanroep met denktijd hoog duurde al 179 tot
 359 seconden; de routelimiet is 300.
 
-**Invoer:** blok A, B, C en D (§5), plus de titels van de andere pagina's van het merk (om overlap te
-voorkomen), plus bij "verbeteren" de huidige sitetekst.
+**Invoer:** blok A, B, C en D (§5), plus de andere pagina's uit hetzelfde cluster met hun rol (om
+overlap te voorkomen; tot 29 september 2026 de titels van alle pagina's van het merk, V7), plus bij
+"verbeteren" de huidige sitetekst. Blok D draagt sinds B-b ook de rol en de kernvraag uit het rapport,
+blok B sinds B-c ook de vragen die de ondernemer oversloeg.
 
 **De schrijfopdracht** staat in één bestand, `lib/pagina/schrijfopdracht.ts`, met een versienummer
 (`SCHRIJFOPDRACHT_VERSIE`) dat bij de uitvoer bewaard wordt. Dit is het enige bestand waar je aan
@@ -433,9 +448,14 @@ wil. **Invoer:** de tekst, blok A tot en met D, en de zinnen die de code als `on
 - *Klopt het?* Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere
   concrete beweringen in die niet uit de informatie blijken?
 - *Is het goed?* Is de hoofdvraag meteen beantwoord; is de zoekintentie afgedekt; is het prettig en
-  natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er genoeg diepgang; is er onnodige
-  herhaling; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als echte content
-  en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer er iets aan?
+  natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er onnodige herhaling; zijn er zinnen
+  die de lezer niet helpen; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als
+  echte content en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer
+  er iets aan? (De vraag naar diepgang verviel op 29 september 2026, B25.)
+
+Een verbeterpunt schrapt, corrigeert, verplaatst of maakt korter. Het vraagt nooit om een bedrag, een
+totaal, een voorwaarde, een uitzondering, een belofte of een voorbehoud dat niet al in de informatie
+staat (B25).
 
 **Uitvoer:**
 
@@ -445,8 +465,9 @@ verzonnen: { zin: string, waarom: string }[]          // letterlijke zinnen
 punten: { waar: string, probleem: string, hoe: string }[]   // hooguit 5, concreet
 ```
 
-**Code daarna:** herschrijven als het oordeel `niet_goed` is, of als er verzonnen of ongedekte
-zinnen zijn. Anders: status `ready`, `needs_review = true`. Alles gaat in `content_pieces.controle_json`.
+**Code daarna:** herschrijven als het oordeel `niet_goed` is, als er een verzonnen zin is, of een
+zin met een verboden woord (B16). Een zin die alleen de code ongedekt vond, is sinds B26 geen reden:
+die wordt geel. Anders: status `ready`, `needs_review = true`. Alles gaat in `content_pieces.controle_json`.
 **Bij definitief mislukken:** geen herschrijving; de ongedekte zinnen van de code worden geel; status
 `ready`.
 
@@ -455,10 +476,15 @@ zinnen zijn. Anders: status `ready`, `needs_review = true`. Alles gaat in `conte
 **Model:** Sol, `redactioneel`, achtergrondmodus. **Invoer:** dezelfde als §6.4, plus de huidige tekst,
 plus de punten en de verzonnen zinnen uit de controle. Of, als de klant om een aanpassing vraagt: de
 notitie van de klant. **Opdracht:** dezelfde schrijfopdracht, met erbij "Hier is je vorige versie en de
-feedback. Schrijf een betere versie."
+feedback. Schrijf een betere versie. Voer de punten uit en laat de rest van de tekst staan, ook de
+veelgestelde vragen." (die laatste zin sinds B25)
 
-**Code daarna:** mechanische reparatie en de harde beweringen opnieuw. De nieuwe versie blijft, tenzij
-hij meer ongedekte zinnen heeft dan de vorige; dan blijft de vorige, en dat staat in `controle_json`.
+**Code daarna:** mechanische reparatie en de harde beweringen opnieuw. De herschrijving blijft (B26).
+Een ongedekte zin die er in de vorige versie niet stond, wordt geel en staat apart in
+`controle_json.herschrijving.nieuw_ongedekt`; tot 29 september 2026 ging dan de hele herschrijving weg,
+en bij A6 in ronde 1 daarmee ook het telefoonnummer dat hij had opgelost. Bij een verbeterpagina
+staan in `controle_json.verdwenen` de harde gegevens van de huidige pagina die niet in de nieuwe tekst
+staan (B-h van `pijplijnanalyse-contentketen.md`); die ziet de ondernemer bij het goedkeuren.
 Alle zinnen die daarna nog ongedekt zijn of door de controle als verzonnen gemeld waren en er nog
 staan, worden geel. Status `ready`. **Geen tweede beoordeling, geen tweede herschrijving.**
 Een aanpassing op verzoek van de klant maakt een nieuwe versie (`version + 1`, `supersedes_id`).
@@ -551,6 +577,8 @@ Algemene infrastructuur, geen contentlogica:
 | Schrijfregels op tekst naar de klant | `pasSchrijfregelsToe()` in `lib/schrijfregel-vangnet.ts` |
 | Concurrentnamen weghalen | `redactCompetitors` in `lib/pipeline/redact.ts` |
 | Huidige sitetekst ophalen | `fetchExistingPage` in `lib/pipeline/existing-page-fetch.ts` |
+| Menu, telefoonbalk en voettekst uit sitetekst halen (B22 tot en met B32, V2 van `pijplijnanalyse-contentketen.md`) | `zonderSiteHerhaling` in `lib/pipeline/site-herhaling.ts` |
+| De functie van een bestaande pagina (V21 van `pijplijnanalyse-contentketen.md`) | `lib/pipeline/paginafunctie.ts` |
 | Waardeproposities zonder herkomsttaal | `schoneWaardeproposities` in `lib/pipeline/waardeproposities.ts` |
 | Het contentplan: schrijfvoorsprong, onderwerp en meting, paginasoort naar teksttype | `lib/plan-status.ts`, `lib/plan-writing.ts` |
 | JSON-LD opbouwen en valideren | `lib/schema-jsonld.ts` |

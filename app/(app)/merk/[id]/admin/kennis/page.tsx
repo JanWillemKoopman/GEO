@@ -5,7 +5,7 @@ import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { alleRijen } from "@/lib/supabase/pagineer";
 import { PageHeader } from "@/components/page-header";
-import { maakOverzicht, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib/kennis/overzicht";
+import { maakOverzicht, openPuntenUitOnderzoek, werkgebiedPunten, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { KennisOverzicht } from "../../_components/kennis-overzicht";
 import { blokkadesVoorMerk } from "@/lib/kennis/voor-pagina";
 import { BLOKKADE_ZIN } from "@/lib/kennis/betwist";
@@ -49,13 +49,24 @@ export default async function AdminKennisPage({ params }: { params: Promise<{ id
 
   // Wat op de conflictlijst staat of daar verloor, krijgt de schrijver niet
   // (`betwist.ts`); de consultant ziet dat hier, met de reden.
-  const [blokkades, { data: facetten }] = await Promise.all([
+  const [blokkades, { data: facetten }, { data: profielRij }] = await Promise.all([
     blokkadesVoorMerk(admin, id, rijen),
     // De open punten van het onderzoek (A3): sinds besluit V3 geen vragen aan de
     // klant meer, maar onderwerpen voor het gesprek.
     admin.from("profile_facets").select("facet, raw_json").eq("profile_id", id).in("facet", ["synthese", "aanbod"]),
+    admin.from("profiles").select("service_scope, service_regions, business_model").eq("id", id).maybeSingle(),
   ]);
-  const openPunten = openPuntenUitOnderzoek((facetten ?? []) as { facet: string; raw_json: unknown }[]);
+  // V10: het werkgebied in plaatsen en een onbekend bedrijfsmodel eerst.
+  const openPunten = [
+    ...werkgebiedPunten(
+      (profielRij ?? { service_scope: null, service_regions: [], business_model: null }) as {
+        service_scope: string | null;
+        service_regions: string[] | null;
+        business_model: string | null;
+      },
+    ),
+    ...openPuntenUitOnderzoek((facetten ?? []) as { facet: string; raw_json: unknown }[]),
+  ];
   const items = rijen.map((r) => {
     const b = blokkades.get(r.id);
     return { ...r, blokkade: b ? BLOKKADE_ZIN[b] : null };
@@ -112,7 +123,7 @@ export default async function AdminKennisPage({ params }: { params: Promise<{ id
           <ul className="flex list-disc flex-col gap-1 pl-5 text-sm">
             {openPunten.map((p) => (
               <li key={p.punt}>
-                {p.punt} <span className="text-xs text-muted">({p.bron === "aanbod" ? "uit het aanbod" : "uit de samenvatting"})</span>
+                {p.punt} <span className="text-xs text-muted">({p.bron === "aanbod" ? "uit het aanbod" : p.bron === "werkgebied" ? "uit het merkonderzoek" : "uit de samenvatting"})</span>
               </li>
             ))}
           </ul>

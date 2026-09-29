@@ -2905,13 +2905,13 @@ async function main(): Promise<void> {
         bundelMetVoorraad?.backlog[0]?.potentie === null,
       `type was ${typeof bundelMetVoorraad?.backlog[0]?.potentie}`,
     );
-    // N6: de voorraadkaart weet uit welke kans hij komt, en het plan geeft het
-    // kennisgat van die kans mee (dit merk heeft geen kennis, dus alles ontbreekt).
+    // N6 en V20: de voorraadkaart weet uit welke kans hij komt, en het plan
+    // geeft de zin voor de consultant mee. Deze kans rust op één meetvraag.
     const kansVanKaart = bundelMetVoorraad?.backlog[0]?.kansId ?? "";
     ok(
-      "de voorraadkaart wijst naar zijn kans, en het plan kent het kennisgat ervan",
-      kansVanKaart !== "" && (bundelMetVoorraad?.kennisgat[kansVanKaart] ?? []).join(",") === "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs",
-      JSON.stringify(bundelMetVoorraad?.kennisgat[kansVanKaart] ?? null),
+      "de voorraadkaart wijst naar zijn kans, en de kaart zegt dat hij op één meetvraag rust",
+      kansVanKaart !== "" && bundelMetVoorraad?.kaartZin[kansVanKaart] === "Rust op één meetvraag.",
+      JSON.stringify(bundelMetVoorraad?.kaartZin[kansVanKaart] ?? null),
     );
     const voorraad = [{ id: bundelMetVoorraad!.backlog[0]!.id }];
 
@@ -5264,7 +5264,7 @@ async function main(): Promise<void> {
       }
 
       const briefLog: string[] = [];
-      const brief = (vragen: { vraag: string; merkbreed?: boolean }[], ookVoor: string[]) => ({
+      const brief = (vragen: { vraag: string; merkbreed?: boolean; kern?: boolean }[], ookVoor: string[]) => ({
         zoekintentie: "Een goede rijschool in de buurt vinden",
         deelvragen: ["Hoeveel lessen heb ik nodig?"],
         concurrentie: { goed: ["Duidelijke prijzen"], gaten: ["Geen uitleg over het examen"] },
@@ -5280,8 +5280,10 @@ async function main(): Promise<void> {
           antwoord_type: "tekst_lang",
           opties: null,
           merkbreed: v.merkbreed ?? false,
+          kern: v.kern ?? false,
         })),
         ook_voor_deze_pagina: ookVoor,
+        kern_eerder: null,
       });
       let beurt = 0;
       __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
@@ -5293,7 +5295,7 @@ async function main(): Promise<void> {
             ? brief(
                 [
                   { vraag: "Wat kost een rijles." },
-                  ...Array.from({ length: 10 }, (_, i) => ({ vraag: `Welk voorbeeld nummer ${i + 1} kun je geven?` })),
+                  ...Array.from({ length: 10 }, (_, i) => ({ vraag: `Welk voorbeeld nummer ${i + 1} kun je geven?`, kern: i === 0 })),
                 ],
                 [openVanMerk, vanAnder, "verzonnen-id"],
               )
@@ -5332,6 +5334,17 @@ async function main(): Promise<void> {
       );
       ok("hooguit 8 vragen", vragen1.length === 8, String(vragen1.length));
       ok("elk met een reden", vragen1.every((v) => Boolean(v.reason)));
+      // V8 (besluit B-c): de kernvraag staat bovenaan, en de pagina weet welke het is.
+      const { rows: kernRij } = await db.client.query(
+        "select id, question, required from public.fact_requests where $1 = any(content_piece_ids) and required",
+        [stukken[0]],
+      );
+      const kernId = (na1[0].brief_json as { kernvraagId?: string | null }).kernvraagId;
+      ok(
+        "V8: één kernvraag, gemarkeerd, en de brief wijst hem aan",
+        kernRij.length === 1 && kernRij[0].question.startsWith("Welk voorbeeld nummer 1") && kernId === kernRij[0].id,
+        JSON.stringify({ kernRij, kernId }),
+      );
       const { rows: dubbel } = await db.client.query(
         "select count(*)::int as n from public.fact_requests where profile_id = $1 and lower(question) like 'wat kost een rijles%'",
         [merk],
@@ -5499,8 +5512,9 @@ async function main(): Promise<void> {
             valkuilen: [],
             vragen: isOnderhoud
               ? []
-              : [{ vraag: "Hoe verloopt een eerste gesprek bij jullie?", waarom: "Dan weet de lezer wat hij kan verwachten.", soort: "werkwijze", antwoord_type: "tekst_lang", opties: null, merkbreed: false }],
+              : [{ vraag: "Hoe verloopt een eerste gesprek bij jullie?", waarom: "Dan weet de lezer wat hij kan verwachten.", soort: "werkwijze", antwoord_type: "tekst_lang", opties: null, merkbreed: false, kern: true }],
             ook_voor_deze_pagina: [],
+            kern_eerder: null,
           };
         } else if (opts.schemaName === "pagina") {
           const herschrijf = opts.user.includes("SCHRIJF EEN BETERE VERSIE");
@@ -5519,7 +5533,8 @@ async function main(): Promise<void> {
                     ? tekstTwee
                     : tekstEen,
             faq: [],
-            notitie_voor_ondernemer: null,
+            // V16: de schrijver van de onderhoudspagina had nog iets willen weten.
+            notitie_voor_ondernemer: isOnderhoud && !herschrijf && !klant ? "Hoe vaak per jaar komen jullie langs voor onderhoud?" : null,
           };
         } else if (opts.schemaName === "pagina_controle") {
           antwoord = isOnderhoud
@@ -5647,8 +5662,19 @@ async function main(): Promise<void> {
       ok("en de stemvoorbeelden", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("nuchtere tuinmensen")));
       ok("een beantwoorde vraag uit het rapport van dit cluster gaat mee naar de schrijver (B17)", aanroepen.some((a) => a.schema === "pagina" && a.user.includes("veertig tuinen per jaar")));
       ok("en naar de brief", aanroepen.some((a) => a.schema === "content_brief" && a.user.includes("veertig tuinen per jaar")));
-      ok("een antwoord uit een ander cluster niet", !aanroepen.some((a) => a.user.includes("kleine vijvers")));
+      // V17: de brief ziet eerdere antwoorden, ook uit een ander cluster, om niet
+      // opnieuw te vragen; de schrijver krijgt ze alleen als de brief ze koppelt.
+      ok("een antwoord uit een ander cluster niet naar de schrijver", !aanroepen.some((a) => a.schema === "pagina" && a.user.includes("kleine vijvers")));
+      ok("wel naar de brief, als eerder antwoord (V17)", aanroepen.some((a) => a.schema === "content_brief" && a.user.includes("kleine vijvers")));
       ok("de controle is ingepland", (await wachtrij("pagina_controle")).length === 2);
+      const { rows: notitieVraag } = await db.client.query(
+        "select status, scope, analysis_id, content_piece_ids, raw_json from public.fact_requests where question = 'Hoe vaak per jaar komen jullie langs voor onderhoud?'",
+      );
+      ok(
+        "V16: de notitie van de schrijver is een open vraag bij de pagina, in zijn cluster",
+        notitieVraag.length === 1 && notitieVraag[0].status === "open" && notitieVraag[0].content_piece_ids.includes(onderhoud) && notitieVraag[0].analysis_id === cluster && notitieVraag[0].raw_json?.bron === "notitie_schrijver",
+        JSON.stringify(notitieVraag),
+      );
 
       // ── Controle en hooguit één herschrijving ─────────────────────────────
       await draai("pagina_controle");
@@ -5664,7 +5690,8 @@ async function main(): Promise<void> {
       const { rows: planKlaar } = await db.client.query("select status from public.planned_pages where id = $1", [planId("Tuinontwerp laten maken")]);
       ok("de plan-pagina staat op goedkeuren", planKlaar[0].status === "ter_goedkeuring");
 
-      // ── Een herschrijving met meer ongedekte zinnen blijft niet ───────────
+      // ── V15 (besluit B-e): een herschrijving met een nieuwe ongedekte zin
+      //    blijft, en die zin wordt geel ──────────────────────────────────
       const { rows: border } = await db.client.query(
         `insert into public.content_pieces (analysis_id, title, type, status, action, body_markdown, brief_json, controle_json)
          values ($1, 'Borders aanleggen', 'landing', 'draft', 'nieuw', 'Een border geeft kleur aan je tuin.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}',
@@ -5675,7 +5702,17 @@ async function main(): Promise<void> {
       await enqueueHerschrijven(border[0].id);
       await draai("pagina_herschrijven");
       const slechter = await stuk(border[0].id);
-      ok("een herschrijving met meer ongedekte zinnen wordt niet bewaard", (slechter.body_markdown as string) === "Een border geeft kleur aan je tuin." && (slechter.controle_json as { herschrijving: { behouden: string } }).herschrijving.behouden === "vorige");
+      const scj = slechter.controle_json as { herschrijving: { behouden: string; nieuw_ongedekt?: string[] }; gele_zinnen: string[] };
+      ok(
+        "V15: de herschrijving blijft, ook met een nieuwe ongedekte zin",
+        (slechter.body_markdown as string) !== "Een border geeft kleur aan je tuin." && scj.herschrijving.behouden === "nieuw",
+        JSON.stringify(scj),
+      );
+      ok(
+        "V15: wat de herschrijving bijzette, is geel en staat apart",
+        (scj.herschrijving.nieuw_ongedekt ?? []).length > 0 && (scj.herschrijving.nieuw_ongedekt ?? []).every((z) => scj.gele_zinnen.includes(z)),
+        JSON.stringify(scj),
+      );
 
       // ── Een mislukte controle: klaar, met gele zinnen ─────────────────────
       const { rows: mislukt } = await db.client.query(
@@ -5693,6 +5730,29 @@ async function main(): Promise<void> {
       const vijver = await stuk(mislukt[0].id);
       const vcj = vijver.controle_json as { beoordeling: unknown; gele_zinnen: string[] };
       ok("een mislukte controle gaat naar klaar", vijver.status === "ready" && vcj.beoordeling === null);
+
+      // V21 punt 3 (besluit B-h): een verbeterpagina waarvan de nieuwe tekst
+      // het keurmerk en de termijn van de huidige pagina mist.
+      const { rows: verbeter } = await db.client.query(
+        `insert into public.content_pieces (analysis_id, title, type, status, action, existing_url, existing_page_text, body_markdown, brief_json)
+         values ($1, 'Sloten vervangen', 'landing', 'draft', 'verbeteren', 'https://tuin.nl/sloten', 'Wij plaatsen SKG*** sloten binnen 2 dagen. Een cilinder kost € 89.',
+                 'Een cilinder kost € 89. Je kiest zelf het slot.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
+         returning id`,
+        [cluster],
+      );
+      const { rows: verbeterTaak } = await db.client.query(
+        `insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status, attempts)
+         values ('pagina_controle', $1, $2, 'test-controle-verdwenen', 'running', $3) returning *`,
+        [JSON.stringify({ pieceId: verbeter[0].id }), cluster, MAX_ATTEMPTS],
+      );
+      await handleFailure(admin as never, verbeterTaak[0], "model onbereikbaar");
+      const sloten = await stuk(verbeter[0].id);
+      const verdwenen = (sloten.controle_json as { verdwenen?: string[] }).verdwenen ?? [];
+      ok(
+        "V21: de ondernemer ziet welke gegevens van de huidige pagina ontbreken, en het bedrag dat bleef niet",
+        verdwenen.includes("SKG***") && verdwenen.some((g) => g.includes("2 dagen")) && !verdwenen.some((g) => g.includes("89")),
+        JSON.stringify(verdwenen),
+      );
       ok("met de ongedekte zin geel", vcj.gele_zinnen.some((z) => z.includes("2 dagen")));
       ok("en de zin met een verboden woord ook (B16)", vcj.gele_zinnen.length === 2 && vcj.gele_zinnen.some((z) => z.includes("tuinman")));
 
@@ -5724,6 +5784,29 @@ async function main(): Promise<void> {
       ok("de nieuwe is de actuele", versies[1].is_current === true && versies[0].is_current === false && versies[1].status === "ready");
       ok("zonder nieuwe beoordeling", aanroepen.filter((a) => a.schema === "pagina_controle").length === controlesVoor && (await wachtrij("pagina_controle")).length === 0);
       ok("de plan-pagina wijst naar versie 2", (await stukVan(planId("Tuinontwerp laten maken"))) === versies[1].id);
+
+      // ── V0: opnieuw schrijven met dezelfde invoer (B27) ───────────────────
+      const { schrijfOpnieuwMetZelfdeInvoer } = await import("@/lib/pagina/taken");
+      const schrijfVoor = aanroepen.filter((a) => a.schema === "pagina").length;
+      const briefsVoor = aanroepen.filter((a) => a.schema === "content_brief").length;
+      const opnieuw = await schrijfOpnieuwMetZelfdeInvoer(admin as never, versies[1].id);
+      ok("V0: opnieuw schrijven start", opnieuw.uitkomst === "gestart");
+      await draai("pagina_schrijven");
+      const { rows: v3 } = await db.client.query(
+        "select id, version, is_current, supersedes_id, brief_json, body_markdown from public.content_pieces where analysis_id = $1 and title = 'Tuinontwerp laten maken' order by version",
+        [cluster],
+      );
+      ok("V0: er is een derde versie, en die is de actuele", v3.length === 3 && v3[2].version === 3 && v3[2].is_current === true && v3[1].is_current === false);
+      ok("V0: met dezelfde brief", JSON.stringify(v3[2].brief_json) === JSON.stringify(v3[1].brief_json));
+      ok("V0: zonder nieuwe brief", aanroepen.filter((a) => a.schema === "content_brief").length === briefsVoor);
+      ok("V0: precies één nieuwe schrijfbeurt", aanroepen.filter((a) => a.schema === "pagina").length === schrijfVoor + 1);
+      ok("V0: de schrijver kreeg de antwoorden van de klant weer", aanroepen.filter((a) => a.schema === "pagina").slice(-1)[0]?.user.includes("aan de keukentafel") === true);
+      ok("V0: en de nieuwe versie gaat door de gewone controle", (await wachtrij("pagina_controle")).length === 1);
+      ok("V0: de plan-pagina wijst naar versie 3", (await stukVan(planId("Tuinontwerp laten maken"))) === v3[2].id);
+      await draai("pagina_controle");
+      await draai("pagina_herschrijven");
+      const nietGeschreven = await schrijfOpnieuwMetZelfdeInvoer(admin as never, randomUUID());
+      ok("V0: een onbekende pagina geeft geen_pagina", nietGeschreven.uitkomst === "geen_pagina");
 
       async function enqueueHerschrijven(pieceId: string): Promise<void> {
         await db.client.query(
@@ -6977,7 +7060,9 @@ async function main(): Promise<void> {
          ($1, 'https://fysi-unique.nl/hardloopklachten', 'Hardloopklachten',
           'Wij zitten in Amersfoort. Hardloopklachten behandelen wij met dry needling en oefentherapie.'),
          ($1, 'https://fysi-unique.nl/dry-needling', 'Dry needling',
-          'Dry needling voor sporters kost € 65 per behandeling van een half uur.')`,
+          'Dry needling voor sporters kost € 65 per behandeling van een half uur.'),
+         ($1, 'https://fysi-unique.nl/nieuws/marathon', 'Weer op weg',
+          'Vorige maand hielpen we een marathonloper uit Leusden weer op weg na een achillespeesblessure.')`,
         [merk],
       );
       const kennis = async (taak: string) =>
@@ -7026,7 +7111,14 @@ async function main(): Promise<void> {
       await db.client.query("update public.profiles set onboarding_budget_usd = 2.15 where id = $1", [merk]);
 
       await synthesiseProfile(merk);
-      const synthese = await kennis("profile_synthesis");
+      const alleSynthese = await kennis("profile_synthesis");
+      const synthese = alleSynthese.filter((r) => r.soort !== "klus");
+      // V9: de klus van de site is een verhaal, waargenomen; de klus zonder letterlijk citaat valt weg.
+      eqc(
+        "V9: één klus van de site in de kennislaag, met het gevonden citaat",
+        alleSynthese.filter((r) => r.soort === "klus").map((r) => `${r.domein}/${r.status}/${r.gebruik}/${r.citaat}`).join(","),
+        "verhaal/waargenomen/content/hielpen we een marathonloper uit Leusden weer op weg",
+      );
       const { rows: feit } = await db.client.query("select id from public.profile_facets where profile_id = $1 and facet = 'synthese'", [merk]);
       eqc("scenario 21: het sitefeit is waargenomen, met het gevonden citaat", synthese.map((r) => `${r.bewering}/${r.status}/${r.citaat}/${r.gebruik}`).join(","), "De praktijk zit in Amersfoort./waargenomen/Wij zitten in Amersfoort./content");
       eqc("scenario 21: en verwijst naar het verslag van de samenvatting (sinds K8 deel 2)", `${synthese[0]?.herkomst_tabel}/${synthese[0]?.herkomst_id}`, `profile_facets/${feit[0]?.id}`);
@@ -7096,7 +7188,8 @@ async function main(): Promise<void> {
       const gericht = vanVraag(rijen, vraagId("Hoe ziet"));
       eqc("scenario 22: de gerichte vraag is één item", String(gericht.length), "1");
       eqc("scenario 22: verklaard, door de klant, als paginatekst", `${gericht[0]?.status}/${gericht[0]?.bron}/${gericht[0]?.gebruik}`, "verklaard/klant/content");
-      eqc("scenario 22: met de reikwijdte van de vraag: deze pagina, in dit cluster", `${gericht[0]?.content_piece_id}/${gericht[0]?.analysis_id}`, `${pagina}/${analyse}`);
+      // V17 (besluit B32): een gericht antwoord geldt voor het hele cluster.
+      eqc("scenario 22: met de reikwijdte van de vraag: het cluster, niet alleen deze pagina", `${gericht[0]?.content_piece_id}/${gericht[0]?.analysis_id}`, `null/${analyse}`);
       eqc("scenario 22: geldt voor verwijst naar geen ander item (V13)", (gericht[0]?.geldt_voor ?? []).join(","), "");
       eqc("scenario 22: vastgelegd door wie antwoordde", String(gericht[0]?.vastgelegd_door), userId);
       eqc("scenario 22: met vraag en antwoord samen", gericht[0]?.bewering ?? "", "Hoe ziet een eerste les eruit?\nWe rijden eerst op een rustig industrieterrein.");
@@ -7330,8 +7423,9 @@ async function main(): Promise<void> {
       eqc("scenario 23: verbeteren met zijn adres", `${tarieven?.handeling}/${tarieven?.bestaande_url}`, "pagina_verbeteren/https://kansentest.nl/tarieven/");
       eqc("scenario 23: met herkomst: rapport, cluster, taak", `${best?.rapport_id}/${best?.analysis_id}/${best?.vastgelegd_door_taak}`, `${rapport}/${analyse}/generate_report`);
       eqc("scenario 23: de dienst heeft voorrang bij dit merk", String(best?.commerciele_waarde), "voorrang");
-      eqc("scenario 23: geldt voor de dienst en de plaats uit de titel, niet voor een andere plaats", [...(best?.geldt_voor ?? [])].sort().join(","), [kennisId("Rijles"), kennisId("Best")].sort().join(","));
-      eqc("scenario 23: de tarievenkans geldt alleen voor de dienst", (tarieven?.geldt_voor ?? []).join(","), kennisId("Rijles"));
+      // Besluit B32: een kans hangt niet meer aan een dienst, alleen aan de plaats die hij noemt.
+      eqc("scenario 23: geldt voor de plaats uit de titel, niet voor een dienst of een andere plaats", [...(best?.geldt_voor ?? [])].sort().join(","), kennisId("Best"));
+      eqc("scenario 23: de tarievenkans hangt nergens aan", (tarieven?.geldt_voor ?? []).join(","), "");
 
       type BewijsRij = { kans_id: string; bron: string; vragen_gemeten: number; vragen_genoemd: number; concurrenten: string[]; run_ids: string[] };
       const bewijs = (await db.client.query("select * from public.kans_bewijs where profile_id = $1 order by bron", [merk])).rows as BewijsRij[];
@@ -7420,16 +7514,10 @@ async function main(): Promise<void> {
       );
       eqc("scenario 23: de tarievenkans (een artikel) heeft geen verhaal van een andere pagina", (await gatVan(tarieven?.id)).kennis_ontbreekt?.join(",") ?? "null", "voorbeeld,bewijs");
 
-      // A1: de brief van de pagina krijgt dit gat mee, in woorden.
+      // V19 (besluit B31): het kennisgat gaat niet meer naar de brief; het
+      // wordt nog wel uitgerekend en gelezen.
       const { kennisgatVoorPagina } = await import("@/lib/kennis/voor-pagina");
-      const { briefInvoer } = await import("@/lib/pagina/brief-opdracht");
-      const gatVoorBrief = await kennisgatVoorPagina(shim, v2);
-      eqc("scenario 23: de brief krijgt het kennisgat van de kans (A1)", (gatVoorBrief ?? ["null"]).join(" | "), "een prijsindicatie | een termijn | voor wie het niet is | bewijs");
-      const invoer = briefInvoer({
-        titel: "Rijles in Best", paginasoort: "dienstpagina", handeling: "nieuw", zoekintentie: null, waarom: null, doelvragen: [],
-        merknaam: "Kansentest", werkgebied: [], bedrijf: "-", huidigeTekst: null, eerdereVragen: [], kennisgat: gatVoorBrief,
-      });
-      ok("scenario 23: en zet het in de invoer van de brief", invoer.includes("Wat we voor deze pagina nog niet weten over het bedrijf:\n- een prijsindicatie"), invoer);
+      ok("scenario 23: het kennisgat van de kans is er nog", (await kennisgatVoorPagina(shim, v2)) !== null);
       eqc("scenario 23: een pagina zonder kans heeft geen kennisgat", String(await kennisgatVoorPagina(shim, v1)), "null");
 
       // Een rapport zonder kansen (van vóór N2): de voorraad maakt ze alsnog.
@@ -7451,6 +7539,61 @@ async function main(): Promise<void> {
       eqc("scenario 23: een rapport van vóór N2 krijgt zijn kans bij de volgende synchronisatie, met kaart", `${vangnet.length}/${vangnet[0]?.kans === vangnet[0]?.kans_id}`, "1/true");
       const { rows: zonderBewijs } = await db.client.query("select uitleg from public.kansen where rapport_id = $1", [rapport2]);
       eqc("scenario 23: zonder meting: geen gegevens, geen nul", String(zonderBewijs[0]?.uitleg), "Voor deze kans zijn er nog geen gegevens.");
+
+      // V7 en V20: een ander cluster wil dezelfde tarievenpagina verbeteren
+      // (andere schrijfwijze van het adres). Dat wordt bewijs bij de kans die
+      // er al is, geen tweede kaart.
+      const analyse3 = randomUUID();
+      const rapport3 = randomUUID();
+      const p3 = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Prijzen', 'https://kansentest.nl', 'prijzen', 'gereed')`,
+        [analyse3, userId, merk],
+      );
+      await db.client.query(
+        "insert into public.prompts (id, analysis_id, text, category, active) values ($1, $2, 'Hoeveel kost een rijbewijs in totaal?', 'Beslissing', true)",
+        [p3, analyse3],
+      );
+      const run3 = randomUUID();
+      await db.client.query(
+        `insert into public.tracking_runs (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose, engine, repeat_index, brands_in_answer)
+         values ($1, $2, $3, 'Hoeveel kost een rijbewijs in totaal?', 'Beslissing', 0, 'periodic', 'openai', 0, 1)`,
+        [run3, analyse3, p3],
+      );
+      await db.client.query(
+        "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, 'Kansentest', true, false), ($1, 'Rijschool Rood', false, true)",
+        [run3],
+      );
+      await db.client.query(
+        `insert into public.reports (id, analysis_id, period, week_no, recommendations_json) values ($1, $2, 'nulmeting', 0, $3::jsonb)`,
+        [rapport3, analyse3, JSON.stringify([{
+          title: "Wat kost een rijbewijs", why: "x", type: "article", action: "verbeteren",
+          existingUrl: "https://www.kansentest.nl/tarieven", targetIntent: "Iemand die de totale prijs wil weten",
+          targets: [{ promptId: p3, weight: 0.4, text: "Hoeveel kost een rijbewijs in totaal?" }],
+        }])],
+      );
+      const { rows: tarievenVoor } = await db.client.query(
+        "select id from public.kansen where profile_id = $1 and bestaande_url = 'https://kansentest.nl/tarieven/' and status <> 'vervallen'",
+        [merk],
+      );
+      const samen = await legKansenVast(shim, rapport3);
+      eqc("V7: een tweede verbetering van dezelfde pagina wordt bewijs", `${samen.aangemaakt}/${samen.samengevoegd}/${samen.mislukt}`, "0/1/0");
+      const { rows: tarievenNa } = await db.client.query(
+        "select id from public.kansen where profile_id = $1 and handeling = 'pagina_verbeteren' and status <> 'vervallen'",
+        [merk],
+      );
+      eqc("V7: nog steeds één kaart voor die pagina", `${tarievenNa.length}/${tarievenNa[0]?.id === tarievenVoor[0]?.id}`, "1/true");
+      const { rows: bewijsNa } = await db.client.query(
+        "select vragen_gemeten, concurrenten from public.kans_bewijs where kans_id = $1 and bron = 'chatgpt'",
+        [tarievenVoor[0]?.id],
+      );
+      eqc("V7: het bewijs van het andere cluster telt mee", `${bewijsNa[0]?.vragen_gemeten}/${(bewijsNa[0]?.concurrenten ?? []).includes("Rijschool Rood")}`, "2/true");
+      const nogEens = await legKansenVast(shim, rapport3);
+      eqc("V7: nog eens aanroepen telt niets dubbel (conventie 9)", `${nogEens.aangemaakt}/${nogEens.samengevoegd}/${nogEens.bestond}`, "0/0/1");
+      const { rows: geraakt } = await db.client.query("select count(*)::int as n from public.kansen where rapport_id = $1 and status = 'vervallen'", [rapport3]);
+      const { geraaktOverzicht } = await import("@/lib/kansen/impact");
+      const overzicht = await geraaktOverzicht(shim, merk);
+      ok("V7: de samengevoegde kans staat niet bij 'geraakt door een kenniswijziging'", geraakt[0].n === 1 && overzicht.kansen.every((k) => k.titel !== "Wat kost een rijbewijs"));
     }
 
     // ── Scenario 24: blok A leest uit de kennislaag (K6, B20) ─────────────────
@@ -7946,11 +8089,12 @@ async function main(): Promise<void> {
       await answerFact(shim, { profileId: merk, factId: praktijk, answer: "Vorige maand een jaren-dertigwoning in Tiel, met vloerverwarming beneden.", gebruikerId: userId });
 
       const { rows: items } = await db.client.query(
-        `select herkomst_id, geldt_voor, content_piece_id, soort from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests'`,
+        `select herkomst_id, geldt_voor, content_piece_id, analysis_id, soort from public.klantkennis where profile_id = $1 and herkomst_tabel = 'fact_requests'`,
         [merk],
       );
       const vanVraag = (id: string) => items.find((r) => r.herkomst_id === id);
-      ok("scenario 30: het antwoord over de werkwijze geldt voor de dienst", (vanVraag(werkwijze)?.geldt_voor ?? []).includes(dienstId) && !vanVraag(werkwijze)?.content_piece_id, JSON.stringify(items));
+      // V17 (besluit B32): voor het cluster, niet meer voor een dienst.
+      ok("scenario 30: het antwoord over de werkwijze geldt voor het cluster", vanVraag(werkwijze)?.analysis_id === cluster && (vanVraag(werkwijze)?.geldt_voor ?? []).length === 0 && !vanVraag(werkwijze)?.content_piece_id, JSON.stringify(items));
       eqc("scenario 30: het voorbeeld blijft bij de eerste pagina", String(vanVraag(praktijk)?.content_piece_id), p1);
 
       const blokA2 = await kennisVoor(shim, { profileId: merk, analysisId: cluster, pieceId: p2, titel: "Warmtepomp onderhoud", zoekintentie: null });
@@ -7970,12 +8114,12 @@ async function main(): Promise<void> {
       // Een gewijzigd antwoord blijft voor de dienst gelden, als nieuwe versie.
       await answerFact(shim, { profileId: merk, factId: werkwijze, answer: "Eerst een adviesbezoek, dan binnen drie weken de installatie in één dag.", gebruikerId: userId });
       const { rows: versies } = await db.client.query(
-        `select bewering, geldt_voor, vervangen_door from public.klantkennis where profile_id = $1 and herkomst_id = $2 order by vastgelegd_op`,
+        `select bewering, geldt_voor, analysis_id, vervangen_door from public.klantkennis where profile_id = $1 and herkomst_id = $2 order by vastgelegd_op`,
         [merk, werkwijze],
       );
       ok(
-        "scenario 30: een gewijzigd antwoord is een nieuwe versie, weer voor de dienst",
-        versies.length === 2 && Boolean(versies[0].vervangen_door) && (versies[1].geldt_voor ?? []).includes(dienstId) && String(versies[1].bewering).includes("drie weken"),
+        "scenario 30: een gewijzigd antwoord is een nieuwe versie, weer voor het cluster",
+        versies.length === 2 && Boolean(versies[0].vervangen_door) && versies[1].analysis_id === cluster && String(versies[1].bewering).includes("drie weken"),
         JSON.stringify(versies),
       );
     }
@@ -8084,14 +8228,15 @@ async function main(): Promise<void> {
           !cj1.ongedekt.some((z) => z.includes("op maat")),
         JSON.stringify(cj1),
       );
-      ok("scenario 31: ongedekt in code (niet de beoordeling) triggert de ene herschrijving", (await wachtrij("pagina_herschrijven")).length === 1);
+      // V15 (besluit B-e): alleen een ongedekte zin in code is geen reden om te
+      // herschrijven. De zinnen worden geel en de ondernemer beslist.
+      ok("scenario 31: ongedekt in code alleen herschrijft niet (V15)", (await wachtrij("pagina_herschrijven")).length === 0);
 
-      await draai("pagina_herschrijven");
       const naHerschrijven = await haalStuk();
-      ok("scenario 31: klaar om te lezen na de herschrijving", naHerschrijven.status === "ready" && naHerschrijven.needs_review === true);
+      ok("scenario 31: direct klaar om te lezen", naHerschrijven.status === "ready" && naHerschrijven.needs_review === true);
       const cj2 = naHerschrijven.controle_json as { gele_zinnen: string[] };
       ok(
-        "scenario 31: dezelfde twee zinnen blijven geel: de herschrijving loste ze niet op",
+        "scenario 31: de twee zinnen zijn geel",
         cj2.gele_zinnen.some((z) => z.includes("€ 900")) && cj2.gele_zinnen.some((z) => z.includes("10 jaar garantie")),
         JSON.stringify(cj2),
       );

@@ -13031,6 +13031,84 @@ cluster van hetzelfde merk, bij voorkeur met het pad (nieuw of verbeteren) dat n
 De schatting per pagina gaat van $0,90 naar ongeveer $0,20: de $0,90 kwam uit de oude keten met
 reparatierondes. Uitvoering, log en document: `content-reviews/fase1-klant-a/`.
 
+## 29 september 2026: pijplijnanalyse contentketen, fase 1 (fundament) gebouwd
+
+Na akkoord van de eigenaar op het hele verbeterplan (`docs/tasks/pijplijnanalyse-contentketen.md`,
+besluiten B22 tot en met B32 in `contentketen-opnieuw.md` §2) is fase 1 gebouwd: stille
+kwaliteitsverliezen. Een gericht antwoord mag 1.500 tekens in plaats van 500 en wordt nooit meer
+stil afgekapt (in ronde 1 waren 14 van de 21 antwoorden van de rijkste klant midden in een zin
+afgebroken). Tekst die op een groot deel van de pagina's van een site letterlijk terugkomt (menu,
+telefoonbalk, voettekst) gaat uit de stem en de huidige tekst van een verbeterpagina. De sterren van
+een keurmerk worden "SKG★★★" en code-opmaak gaat weg (twee herschrijvingen gingen deels over die
+opmaak). Een verbeterpagina krijgt weer de functie van de pagina mee (`functieblok()`, sinds de
+ombouw niet meer aangeroepen); een tips- of nieuwspagina wordt niet meer vervangen door een
+dienstpagina; de huidige tekst mag 12.000 tekens. De beoordeling van een meetantwoord krijgt bij
+een antwoord dat geen JSON is één poging met redeneertijd (negen meetvragen vielen in ronde 1
+definitief uit). De gestructureerde gegevens dragen nu adres, telefoon, e-mail en werkgebied, een
+lokaal dienstverlenend bedrijf is een `LocalBusiness`, en de publicatiedatum komt pas bij het live
+melden. Nieuw: `POST /api/beheer/paginas/[pieceId]/opnieuw-schrijven` (B27), om een wijziging van de
+keten met dezelfde invoer te toetsen. Nog niet tegen productie nagerekend (conventie 10).
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 2 (invoer) gebouwd
+
+Een gericht antwoord geldt voortaan voor de pagina en het cluster waar het gegeven is, en niet meer
+via de diensten of plaatsen van de kans (B32): in ronde 1 hing zo'n antwoord via plaatsen aan bijna
+elke pagina van een lokaal bedrijf. Kansen hangen alleen nog aan de plaatsen die ze noemen; de
+voorrang van de klant komt uit de tekst van de kans. De brief (versie 5) ziet eerdere vragen met hun
+antwoord en mag ook een beantwoorde vraag aan zijn pagina koppelen (V17), krijgt het kennisgat niet
+meer (V19, B21 teruggedraaid), verliest het veld `concurrentie` (B22), en vakkennis van de eigen site
+of met de naam van het bedrijf valt in code weg (V4); die vakkennis telt ook niet meer als bron voor
+een zin over het bedrijf. Vragen aan de klant zijn korter en vragen één ding (V22). Blok A heeft een
+vast contactblok, geen dubbelingen, antwoorden zonder de vraag voor de ondernemer, en bezwaren
+zonder antwoord onder een eigen kop (V3). Het gespreksscherm heeft de verhalen in vier vakken en
+bezwaren met antwoord (V5, migratie 0129). Nog niet tegen productie nagerekend.
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 3 (pagina-definitie en set) gebouwd
+
+Een aanbeveling beschrijft nu een pagina en draagt geen opdracht meer (B-b): de titel is het
+onderwerp zoals een bezoeker het zoekt, met een rol in de set en een kernvraag erbij, en `why` bevat
+geen schrijfinstructies. Het rapport draait op denktijd gemiddeld in plaats van laag; op productie
+duurde het hooguit 29 seconden en kostte het $0,0035, dus ook twee tot drie keer zo lang blijft ruim
+binnen de 145 seconden. Het rapport ziet de open kansen van het hele merk (V7). Een nieuwe kans die
+dezelfde pagina wil verbeteren, door het rapport aan een open kans gekoppeld is, of als nieuwe pagina
+op één meetvraag rust die een open kans al heeft, wordt extra bewijs bij die kans (V7, V20); een vraag
+telt daarbij nooit twee keer. De brief (versie 6) markeert de vraag die de kernvraag beantwoordt; die
+staat bovenaan bij de klant, en de kaart in het plan zegt of hij beantwoord is (B-c). Het kennisgat
+staat niet meer op de kaart (B-j). De schrijver krijgt de rol, de kernvraag, de overgeslagen vragen en
+de andere pagina's uit hetzelfde cluster met hun rol, in plaats van 60 titels van het merk. Meetvragen
+van een nieuw cluster die al in een ander cluster van het merk staan, vallen weg, en het formulier
+waarschuwt bij een cluster dat op een bestaand lijkt (B-i). Nog niet tegen productie nagerekend.
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 4 (na het schrijven) gebouwd
+
+De schrijfopdracht (versie 5) meet aan de lezer: beantwoord wat deze bezoeker wil weten, zo kort als
+dat kan, elk punt één keer; vakkennis alleen waar die helpt kiezen of handelen; niet om een
+overgeslagen vraag heen schrijven (V13). De eindredacteur vraagt niet meer naar diepgang, en een
+verbeterpunt schrapt, corrigeert, verplaatst of maakt korter, maar voegt geen bedrag, voorwaarde,
+belofte of voorbehoud toe; de herschrijving laat de rest staan, ook de veelgestelde vragen (V14,
+B25). Een zin die alleen de code niet terugvond, leidt niet meer tot een herschrijving maar wordt geel
+(in ronde 1 drie van de tien herschrijvingen), en de herschrijving blijft altijd: wat hij aan
+ongedekte zinnen bijzette, wordt geel en staat apart in `controle_json` (V15, B26). B26 zegt "tenzij
+hij een ongedekte zin heeft die er eerst niet stond; die zin wordt dan geel": gebouwd als "de zin
+wordt geel en de versie blijft", omdat de andere lezing de betere versie weer zou weggooien, precies
+wat B26 wilde voorkomen. Een verboden woord blijft een reden om te herschrijven. Bij een
+verbeterpagina ziet de ondernemer welke bedragen, termijnen, telefoonnummers en keurmerken van zijn
+huidige pagina niet in de nieuwe tekst staan (V21 punt 3, B-h). Nog niet tegen productie nagerekend.
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 5 (onderzoek en meting) gebouwd
+
+De samenvatting van het onderzoek haalt ook de concrete klussen van de site op, elk met een citaat
+dat de code letterlijk op de pagina terugvindt; ze worden verhalen in de kennislaag, naast de klussen
+uit het gesprek (V9). De onderzoeksopdracht vraagt het werkgebied in plaatsen; een streek of een
+onbekend bedrijfsmodel wordt het eerste open punt op het kennisoverzicht (V10). Een lijst van de
+grootste plaatsen per regio, zoals het plan voorstelde, is niet gebouwd: daar is geen bron voor in de
+app, en een gok is slechter dan een vraag in het gesprek. De meetvragen van een cluster hebben
+hooguit één vraag over een bezwaar uit het verkoopgesprek, alleen in de overwegingsfase en alleen als
+het bij het onderwerp past; de code haalt een tweede eruit (V11; in ronde 1 kwam één bezwaar vijf
+keer terug in 90 vragen). Wat de schrijver nog had willen weten, wordt een open vraag bij de pagina,
+ontdubbeld tegen de vragen die het merk al kreeg (V16); dat is sinds besluit V3 de vierde plek die
+vragen aan de klant maakt. Nog niet tegen productie nagerekend.
+
 
 ## 30 september 2026: Sales-module eruit, Diagnose opgegaan in de onboarding, overzicht rustiger
 

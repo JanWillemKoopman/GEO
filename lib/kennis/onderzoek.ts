@@ -172,8 +172,31 @@ export function kennisUitAanbod(knopen: readonly BronAanbod[]): PlanItem[] {
  * (`lib/kennis/indelen.ts`, besluit V18). Zonder soort is het domein "aanbod",
  * dezelfde terugval als bij K3 (`domeinVanFeit(null)`).
  */
-export function kennisUitSynthese(facetId: string, feiten: readonly { text: string; sourceUrl: string; quote: string }[]): PlanItem[] {
+export function kennisUitSynthese(
+  facetId: string,
+  feiten: readonly { text: string; sourceUrl: string; quote: string }[],
+  klussen: readonly { text: string; plaats: string | null; sourceUrl: string; quote: string }[] = [],
+): PlanItem[] {
   const m = { items: [] as PlanItem[] };
+  // V9: een klus van de site is een verhaal, net als een klus uit het gesprek
+  // (`verhaal_klussen`, migratie 0129). De code vond het citaat letterlijk op
+  // de pagina, dus waargenomen, en bruikbaar in content.
+  klussen.forEach((k, i) => {
+    if (!schoon(k.text) || !schoon(k.quote) || !schoon(k.sourceUrl)) return;
+    voegToe(m, {
+      ref: `profile_facets:${facetId}:klus:${i}`,
+      domein: "verhaal",
+      soort: "klus",
+      bewering: schoon(k.text),
+      status: "waargenomen",
+      bron: "website",
+      bronUrl: schoon(k.sourceUrl),
+      citaat: schoon(k.quote),
+      gebruik: "content",
+      herkomst: { tabel: "profile_facets", id: facetId },
+      ruw: { plaats: schoon(k.plaats ?? "") || null },
+    });
+  });
   feiten.forEach((f, i) => {
     if (!schoon(f.text) || !schoon(f.quote) || !schoon(f.sourceUrl)) return;
     voegToe(m, {

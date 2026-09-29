@@ -73,8 +73,13 @@ export async function generateProfileResearch(args: {
     `Bepaal het BEREIK (serviceScope): 'lokaal' = klanten komen uit een stad of streek ` +
     `(praktijk, kapper, installateur); 'landelijk' = het hele land is de markt; ` +
     `'internationaal' = meerdere landen; 'onbekend' = je kunt het niet uit het materiaal afleiden. ` +
-    `Bij 'lokaal' zet je in serviceRegions de plaatsen of streken die de site noemt, zoals een ` +
-    `klant ze zou uitspreken ("Amersfoort", "regio Utrecht"), niet het adres. Bij niet-lokaal laat ` +
+    // V10 (29 september 2026): in ronde 1 stonden er alleen streken ("Alblasserwaard", "regio
+    // Gouda"), en noemden alle 90 meetvragen van die klant een streek. Een klant zoekt op zijn
+    // dorp. Het vangnet: `werkgebiedPunten()` maakt een streek een open punt voor het gesprek.
+    `Bij 'lokaal' zet je in serviceRegions de PLAATSEN die de site noemt, zoals een klant ze zou ` +
+    `uitspreken ("Amersfoort", "Leusden"), niet het adres. Noemt de site alleen een streek of regio, ` +
+    `zet dan de plaatsen die de site daarbinnen noemt; noemt hij er geen, zet dan de streek zelf. ` +
+    `Bij niet-lokaal laat ` +
     `je die lijst leeg. Zet in marketLanguage het land en de taal van de markt ` +
     `(bv. "Nederland, Nederlands"). Weet je het niet, kies 'onbekend' en laat leeg. Dat is een ` +
     `beter antwoord dan een gok.`;

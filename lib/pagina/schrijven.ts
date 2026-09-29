@@ -23,7 +23,9 @@ import type { StructuredCallOptions } from "@/lib/openai/structured";
 import { validateOrRebuildJsonLd } from "@/lib/schema-jsonld";
 import { blokA, type BedrijfsInvoer } from "@/lib/pagina/bedrijfskennis";
 import type { BriefJson } from "@/lib/pagina/brief";
-import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, type MerkBasis, type PaginaBasis } from "@/lib/pagina/context";
+import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, laadPaginaDefinitie, siteTeksten, type MerkBasis, type PaginaBasis } from "@/lib/pagina/context";
+import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
+import { functieblok } from "@/lib/pipeline/paginafunctie";
 import { repareerMechanisch, type PaginaTekst } from "@/lib/pagina/mechanisch";
 import { laadOrganisatie } from "@/lib/pagina/organisatie";
 import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
@@ -39,8 +41,8 @@ import { STEMTEKST_MAX, vanafEersteAlinea } from "@/lib/pagina/stemvoorbeelden-r
 
 type Admin = SupabaseClient;
 
-/** Hoeveel titels van andere pagina's de schrijver meekrijgt. */
-const MAX_ANDERE_TITELS = 60;
+/** Hoeveel andere pagina's uit het cluster de schrijver meekrijgt. */
+const MAX_BUREN = 20;
 
 export interface Schrijfbasis {
   pagina: PaginaBasis;
@@ -48,19 +50,25 @@ export interface Schrijfbasis {
   bedrijf: BedrijfsInvoer;
   blokken: SchrijfBlokken;
   /**
-   * Alle tekst waar een harde bewering in teruggevonden mag worden (§6.5):
-   * blok A, blok B, de stemvoorbeelden en de vakkennis van blok C.
+   * De bedrijfskennis waar een harde bewering in teruggevonden mag worden
+   * (§6.5): blok A, blok B en de stemvoorbeelden.
    */
   bronnen: string[];
+  /** De vakkennis van blok C: alleen een bron voor een zin die niet over het bedrijf gaat (V4). */
+  algemeneBronnen: string[];
 }
 
 /**
  * Zonder stemvoorbeelden de tekst van de homepage (§6.10): dat is ook de eigen
  * tekst van het bedrijf, en beter dan geen stem.
  */
-async function stemVan(admin: Admin, merk: MerkBasis, profileId: string): Promise<Stemvoorbeeld[]> {
+async function stemVan(admin: Admin, merk: MerkBasis, profileId: string, site: readonly string[]): Promise<Stemvoorbeeld[]> {
+  // V2: menu en telefoonbalk zijn geen stem. Ook bij opgegeven stemvoorbeelden,
+  // want die zijn met dezelfde ophaalfunctie van de site gehaald.
   if (merk.stemVoorbeelden.length > 0) {
-    return merk.stemVoorbeelden.map((v) => ({ bron: v.url, tekst: (v.tekst ?? "").slice(0, STEMTEKST_MAX) }));
+    return merk.stemVoorbeelden
+      .map((v) => ({ bron: v.url, tekst: zonderSiteHerhaling(v.tekst ?? "", site).slice(0, STEMTEKST_MAX) }))
+      .filter((v) => v.tekst.trim());
   }
   const { data } = await admin.from("profile_pages").select("url, text_excerpt").eq("profile_id", profileId).limit(200);
   const paginas = (data ?? []) as { url: string; text_excerpt: string | null }[];
@@ -71,19 +79,26 @@ async function stemVan(admin: Admin, merk: MerkBasis, profileId: string): Promis
       return false;
     }
   });
-  const tekst = home?.text_excerpt ? vanafEersteAlinea(home.text_excerpt).slice(0, STEMTEKST_MAX) : "";
+  const tekst = home?.text_excerpt ? vanafEersteAlinea(zonderSiteHerhaling(home.text_excerpt, site)).slice(0, STEMTEKST_MAX) : "";
   return tekst ? [{ bron: home!.url, tekst }] : [];
 }
 
-/** Blok B: wat de ondernemer over déze pagina vertelde. Overgeslagen vragen tellen niet. */
-async function klantinput(admin: Admin, pieceId: string): Promise<{ eigenVerhaal: string | null; antwoorden: { vraag: string; antwoord: string }[] }> {
+/**
+ * Blok B: wat de ondernemer over déze pagina vertelde, en welke vragen hij
+ * oversloeg (V8 punt 3). Een overgeslagen vraag telt niet als antwoord.
+ */
+async function klantinput(
+  admin: Admin,
+  pieceId: string,
+): Promise<{ eigenVerhaal: string | null; antwoorden: { vraag: string; antwoord: string }[]; overgeslagen: string[] }> {
   const { data } = await admin
     .from("fact_requests")
     .select("question, answer, status, scope, open_vraag, created_at")
     .contains("content_piece_ids", [pieceId])
-    .eq("status", "beantwoord")
+    .in("status", ["beantwoord", "overgeslagen"])
     .order("created_at", { ascending: true });
-  const rijen = (data ?? []) as { question: string; answer: string | null; scope: string | null; open_vraag: boolean | null }[];
+  const alle = (data ?? []) as { question: string; answer: string | null; status: string; scope: string | null; open_vraag: boolean | null }[];
+  const rijen = alle.filter((r) => r.status === "beantwoord");
   const open = rijen.find((r) => r.open_vraag && r.answer?.trim());
   return {
     eigenVerhaal: open?.answer?.trim() ?? null,
@@ -91,26 +106,35 @@ async function klantinput(admin: Admin, pieceId: string): Promise<{ eigenVerhaal
     antwoorden: rijen
       .filter((r) => !r.open_vraag && r.scope !== "merk" && r.answer?.trim())
       .map((r) => ({ vraag: r.question, antwoord: (r.answer as string).trim() })),
+    // De open vraag overslaan is geen gat: daar is altijd niets gevraagd wat de
+    // pagina nodig heeft (B3).
+    overgeslagen: alle.filter((r) => r.status === "overgeslagen" && !r.open_vraag).map((r) => r.question),
   };
 }
 
-async function andereTitels(admin: Admin, pagina: PaginaBasis): Promise<string[]> {
-  const { data: analyses } = await admin.from("analyses").select("id").eq("profile_id", pagina.profileId);
-  const ids = ((analyses ?? []) as { id: string }[]).map((a) => a.id);
-  if (ids.length === 0) return [];
+/**
+ * V7 punt 3: de andere pagina's uit hetzelfde cluster, met hun rol. Uit de
+ * kansen van het cluster: die dragen zowel wat al geschreven is als wat nog op
+ * het plan staat, en de rol uit het rapport (V6).
+ */
+async function burenInCluster(admin: Admin, pagina: PaginaBasis): Promise<string[]> {
   const { data } = await admin
-    .from("content_pieces")
-    .select("id, title, status, is_current")
-    .in("analysis_id", ids)
-    .limit(500);
-  return Array.from(
-    new Set(
-      ((data ?? []) as { id: string; title: string; status: string; is_current: boolean | null }[])
-        .filter((p) => p.id !== pagina.pieceId && p.is_current !== false && p.status !== "archived")
-        .map((p) => p.title?.trim())
-        .filter((t): t is string => Boolean(t) && t !== pagina.titel),
-    ),
-  ).slice(0, MAX_ANDERE_TITELS);
+    .from("kansen")
+    .select("titel, sleutel, status, ruw")
+    .eq("analysis_id", pagina.analysisId)
+    .neq("status", "vervallen")
+    .limit(MAX_BUREN * 2);
+  const gezien = new Set<string>([pagina.titel.trim().toLowerCase()]);
+  const uit: string[] = [];
+  for (const k of (data ?? []) as { titel: string; sleutel: string | null; ruw: { rol?: unknown } | null }[]) {
+    if (k.sleutel && k.sleutel === pagina.sourceRef) continue;
+    const titel = k.titel?.trim();
+    if (!titel || gezien.has(titel.toLowerCase())) continue;
+    gezien.add(titel.toLowerCase());
+    const rol = typeof k.ruw?.rol === "string" ? k.ruw.rol.trim() : "";
+    uit.push(rol ? `${titel}: ${rol}` : titel);
+  }
+  return uit.slice(0, MAX_BUREN);
 }
 
 export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<Schrijfbasis | null> {
@@ -126,11 +150,13 @@ export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<S
     verbodenWoorden: [...new Set([...merkProfiel.verbodenWoorden, ...bedrijf.verbodenWoorden])],
     verbodenOnderwerpen: [...new Set([...merkProfiel.verbodenOnderwerpen, ...bedrijf.verbodenOnderwerpen])],
   };
-  const [stem, klant, titels, doelvragen] = await Promise.all([
-    stemVan(admin, merk, pagina.profileId),
+  const site = await siteTeksten(admin, pagina.profileId);
+  const [stem, klant, buren, doelvragen, definitie] = await Promise.all([
+    stemVan(admin, merk, pagina.profileId, site),
     klantinput(admin, pieceId),
-    andereTitels(admin, pagina),
+    burenInCluster(admin, pagina),
     laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten),
+    laadPaginaDefinitie(admin, pagina.sourceRef),
   ]);
   const onderzoek = (pagina.briefJson as BriefJson | null)?.onderzoek ?? null;
   const bedrijfTekst = blokA(bedrijf);
@@ -142,20 +168,24 @@ export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<S
     stem,
     eigenVerhaal: klant.eigenVerhaal,
     antwoorden: klant.antwoorden,
+    overgeslagen: klant.overgeslagen,
     onderzoek,
     zoekintentie: onderzoek?.zoekintentie || pagina.zoekintentie,
     doelvragen: doelvragen.map((d) => d.vraag),
-    andereTitels: titels,
-    huidigeTekst: pagina.handeling === "verbeteren" ? pagina.bestaandeTekst : null,
+    rol: definitie.rol,
+    kernvraag: definitie.kernvraag,
+    buren,
+    huidigeTekst: pagina.handeling === "verbeteren" && pagina.bestaandeTekst ? zonderSiteHerhaling(pagina.bestaandeTekst, site) : null,
+    functie: pagina.handeling === "verbeteren" ? functieblok(pagina.bestaandAdres, null) || null : null,
   };
   const bronnen = [
     bedrijfTekst,
     klant.eigenVerhaal ?? "",
     ...klant.antwoorden.map((a) => `${a.vraag} ${a.antwoord}`),
     ...stem.map((s) => s.tekst),
-    ...(onderzoek?.vakkennis ?? []).map((v) => v.uitleg),
   ].filter((t) => t.trim());
-  return { pagina, merk, bedrijf, blokken, bronnen };
+  const algemeneBronnen = (onderzoek?.vakkennis ?? []).map((v) => v.uitleg).filter((t) => t.trim());
+  return { pagina, merk, bedrijf, blokken, bronnen, algemeneBronnen };
 }
 
 /** De opties voor de aanroep. `kind` is de taaksoort, voor het kostenlogboek. */
@@ -229,7 +259,9 @@ export async function tekstKolommen(
       faq,
       businessModel: (profiel as { business_model?: never } | null)?.business_model ?? null,
       organization: organisatie,
-      datePublished: nu,
+      // V23: de publicatiedatum komt pas bij "deze pagina staat live"
+      // (`markPublished()`), niet op het moment van schrijven.
+      datePublished: null,
       dateModified: nu,
     }),
     word_count: tekst.tekst_markdown.split(/\s+/).filter(Boolean).length,

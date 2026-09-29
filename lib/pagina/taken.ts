@@ -27,8 +27,8 @@ import {
   controleInvoer,
   faqRijen,
   geleZinnenNa,
-  kiesVersie,
   moetHerschrijven,
+  nieuwOngedekt,
   volledigeControletekst,
   zinnenMetVerbodenWoord,
   type ControleJson,
@@ -38,6 +38,11 @@ import { herschrijfInvoer, schrijfInvoer, type PaginaUitvoer } from "@/lib/pagin
 import { gerepareerd, laadSchrijfbasis, schrijfOpties, tekstKolommen, type Schrijfbasis } from "@/lib/pagina/schrijven";
 import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
 import { planBriefs, probeerTeSchrijven } from "@/lib/pagina/start";
+import { siteTeksten } from "@/lib/pagina/context";
+import { verdwenenGegevens } from "@/lib/pagina/verdwenen-gegevens";
+import { vraagUitNotitie } from "@/lib/pagina/notitie-vraag";
+import { normaliseerVraag } from "@/lib/pagina/brief-regels";
+import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 
 type Admin = SupabaseClient;
 
@@ -170,15 +175,49 @@ async function lopendeTekst(
 
 /** Klaar voor de ondernemer: "Lees en keur goed". */
 async function zetKlaar(admin: Admin, pieceId: string, controle: ControleJson): Promise<void> {
+  const verdwenen = await verdwenenVan(admin, pieceId);
   await admin
     .from("content_pieces")
-    .update({ controle_json: controle, status: "ready", needs_review: true, updated_at: new Date().toISOString() })
+    .update({
+      controle_json: verdwenen.length > 0 ? { ...controle, verdwenen } : controle,
+      status: "ready",
+      needs_review: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", pieceId);
   await admin
     .from("planned_pages")
     .update({ status: "ter_goedkeuring" })
     .eq("content_piece_id", pieceId)
     .in("status", ["gepland", "schrijven", "mislukt"]);
+}
+
+/**
+ * V21 punt 3 (besluit B-h): bij een verbeterpagina de harde gegevens van de
+ * huidige pagina die niet in de nieuwe tekst staan. Menu en voettekst die op
+ * de hele site staan tellen niet (V2): een telefoonnummer in de voettekst
+ * blijft op de site, ook als de nieuwe tekst hem niet noemt.
+ */
+async function verdwenenVan(admin: Admin, pieceId: string): Promise<string[]> {
+  const { data } = await admin
+    .from("content_pieces")
+    .select("action, existing_page_text, body_markdown, meta_description, faq_json, analysis_id")
+    .eq("id", pieceId)
+    .maybeSingle();
+  const r = data as {
+    action: string | null;
+    existing_page_text: string | null;
+    body_markdown: string | null;
+    meta_description: string | null;
+    faq_json: unknown;
+    analysis_id: string;
+  } | null;
+  if (!r || r.action !== "verbeteren" || !r.existing_page_text?.trim() || !r.body_markdown?.trim()) return [];
+  const { data: analyse } = await admin.from("analyses").select("profile_id").eq("id", r.analysis_id).maybeSingle();
+  const profileId = (analyse as { profile_id?: string | null } | null)?.profile_id;
+  const site = profileId ? await siteTeksten(admin, profileId) : [];
+  const nieuw = volledigeControletekst(r.body_markdown, r.meta_description, faqRijen(r.faq_json).map((f) => f.a));
+  return verdwenenGegevens(zonderSiteHerhaling(r.existing_page_text, site), nieuw);
 }
 
 async function planControle(admin: Admin, basis: Schrijfbasis): Promise<void> {
@@ -191,7 +230,7 @@ async function planControle(admin: Admin, basis: Schrijfbasis): Promise<void> {
 }
 
 function ongedektIn(basis: Schrijfbasis, tekst: string): string[] {
-  return geleZinnen(controleerHardeBeweringen(tekst, basis.bronnen, [basis.merk.naam]));
+  return geleZinnen(controleerHardeBeweringen(tekst, basis.bronnen, [basis.merk.naam], basis.algemeneBronnen));
 }
 
 /** Zinnen met een woord dat het merk niet wil gebruiken (besluit B16). */
@@ -230,6 +269,58 @@ export async function voerSchrijvenUit(admin: Admin, job: Job, payload: Achtergr
     kennisIds: kolommen.gebruikte_kennis as string[],
   });
   await planControle(admin, basis);
+  await notitieAlsVraag(admin, basis, uitvoer.notitie_voor_ondernemer);
+}
+
+/**
+ * V16: de notitie van de schrijver als open vraag bij deze pagina. Stond
+ * dezelfde vraag al bij het merk (de unieke index op merk en vraagtekst uit
+ * migratie 0019), dan hangt de pagina aan die vraag in plaats van een tweede.
+ * Gooit nooit: een mislukte vraag mag de geschreven pagina niet tegenhouden.
+ */
+async function notitieAlsVraag(admin: Admin, basis: Schrijfbasis, notitie: string | null): Promise<void> {
+  const vraag = vraagUitNotitie(notitie);
+  if (!vraag) return;
+  try {
+    // Zelfde ontdubbeling als de brief (`normaliseerVraag`): hoofdletters,
+    // accenten en leestekens tellen niet.
+    const { data: rijen } = await admin
+      .from("fact_requests")
+      .select("id, question, content_piece_ids")
+      .eq("profile_id", basis.pagina.profileId);
+    const sleutel = normaliseerVraag(vraag);
+    const bestaand = ((rijen ?? []) as { id: string; question: string; content_piece_ids: string[] | null }[]).find(
+      (r) => normaliseerVraag(r.question) === sleutel,
+    );
+    if (bestaand) {
+      if ((bestaand.content_piece_ids ?? []).includes(basis.pagina.pieceId)) return;
+      await admin
+        .from("fact_requests")
+        .update({ content_piece_ids: [...(bestaand.content_piece_ids ?? []), basis.pagina.pieceId] })
+        .eq("id", bestaand.id);
+      return;
+    }
+    const { error } = await admin.from("fact_requests").insert({
+      profile_id: basis.pagina.profileId,
+      analysis_id: basis.pagina.analysisId,
+      question: vraag,
+      reason: "De schrijver van deze pagina had dit nog willen weten. Met je antwoord kun je om een aanpassing vragen.",
+      status: "open",
+      scope: "pagina",
+      kind: "aanvulling",
+      answer_type: "tekst_lang",
+      options: [],
+      required: false,
+      content_piece_ids: [basis.pagina.pieceId],
+      raw_json: { bron: "notitie_schrijver" },
+    });
+    // 23505: een gelijktijdige schrijver was ons voor; dan bestaat hij al.
+    if (error && (error as { code?: string }).code !== "23505") {
+      console.error(`Notitie van pagina ${basis.pagina.pieceId} als vraag bewaren mislukte: ${error.message}`);
+    }
+  } catch (err) {
+    console.error(`Notitie van pagina ${basis.pagina.pieceId} als vraag bewaren mislukte:`, err);
+  }
 }
 
 /**
@@ -277,7 +368,7 @@ export async function voerControleUit(admin: Admin, payload: { pieceId: string }
     },
   });
 
-  if (moetHerschrijven(beoordeling, [...ongedekt, ...verboden])) {
+  if (moetHerschrijven(beoordeling, verboden)) {
     const nieuw: ControleJson = { ongedekt, verboden, beoordeling, herschreven: false, gele_zinnen: [], bevestigd: [] };
     await admin.from("content_pieces").update({ controle_json: nieuw }).eq("id", payload.pieceId);
     await enqueue(admin, {
@@ -354,37 +445,29 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
 
   const vorige = controle as ControleJson;
   const verbodenVorige = vorige.verboden ?? [];
-  // De verboden woorden tellen mee als nalopen: een herschrijving die er een
-  // bij zet, is net zo goed slechter als een met een extra ongedekte zin.
-  const behouden = kiesVersie(
-    vorige.ongedekt.length + verbodenVorige.length,
-    ongedektNieuw.length + verbodenNieuw.length,
-  );
-  if (behouden === "nieuw") {
-    const { error } = await admin.from("content_pieces").update(kolommen).eq("id", payload.pieceId);
-    if (error) throw new Error(`Herschreven tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
-    await legAfhankelijkhedenVast(admin, {
-      profileId: basis.pagina.profileId,
-      vanTabel: "content_pieces",
-      vanId: payload.pieceId,
-      kennisIds: kolommen.gebruikte_kennis as string[],
-    });
-  }
-  const volledigVorige = volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a));
-  const volledigBlijft = behouden === "nieuw" ? volledigNieuw : volledigVorige;
-  const ongedekt = behouden === "nieuw" ? ongedektNieuw : vorige.ongedekt;
-  const verboden = behouden === "nieuw" ? verbodenNieuw : verbodenVorige;
+  // V15 (besluit B-e): de herschrijving blijft. Wat hij aan ongedekte zinnen
+  // of verboden woorden bijzette, wordt geel, in plaats van de hele versie weg
+  // te gooien.
+  const { error } = await admin.from("content_pieces").update(kolommen).eq("id", payload.pieceId);
+  if (error) throw new Error(`Herschreven tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
+  await legAfhankelijkhedenVast(admin, {
+    profileId: basis.pagina.profileId,
+    vanTabel: "content_pieces",
+    vanId: payload.pieceId,
+    kennisIds: kolommen.gebruikte_kennis as string[],
+  });
   await zetKlaar(admin, payload.pieceId, {
     ...vorige,
-    ongedekt,
-    verboden,
+    ongedekt: ongedektNieuw,
+    verboden: verbodenNieuw,
     herschreven: true,
     herschrijving: {
       ongedekt_vorige: vorige.ongedekt.length + verbodenVorige.length,
       ongedekt_nieuw: ongedektNieuw.length + verbodenNieuw.length,
-      behouden,
+      behouden: "nieuw",
+      nieuw_ongedekt: nieuwOngedekt([...vorige.ongedekt, ...verbodenVorige], [...ongedektNieuw, ...verbodenNieuw]),
     },
-    gele_zinnen: geleZinnenNa(volledigBlijft, [...ongedekt, ...verboden], (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
+    gele_zinnen: geleZinnenNa(volledigNieuw, [...ongedektNieuw, ...verbodenNieuw], (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
     bevestigd: [],
   });
 }
@@ -461,11 +544,79 @@ async function nieuweVersie(
     vanId: nieuwId,
     kennisIds: (kolommen.gebruikte_kennis as string[] | undefined) ?? [],
   });
-  await admin.from("planned_pages").update({ content_piece_id: nieuwId, status: "ter_goedkeuring" }).eq("content_piece_id", oudId);
+  await wijsNaarNieuweVersie(admin, oudId, nieuwId, "ter_goedkeuring");
+}
+
+/** Het plan en de vragen van een pagina wijzen voortaan naar de nieuwe versie. */
+async function wijsNaarNieuweVersie(admin: Admin, oudId: string, nieuwId: string, planStatus: string): Promise<void> {
+  await admin.from("planned_pages").update({ content_piece_id: nieuwId, status: planStatus }).eq("content_piece_id", oudId);
   const { data: vragen } = await admin.from("fact_requests").select("id, content_piece_ids").contains("content_piece_ids", [oudId]);
   for (const v of (vragen ?? []) as { id: string; content_piece_ids: string[] }[]) {
+    if (v.content_piece_ids.includes(nieuwId)) continue;
     await admin.from("fact_requests").update({ content_piece_ids: [...v.content_piece_ids, nieuwId] }).eq("id", v.id);
   }
+}
+
+export type OpnieuwUitkomst =
+  | { uitkomst: "gestart"; nieuwId: string }
+  | { uitkomst: "geen_pagina" | "nog_niet_geschreven" | "geen_brief" | "mislukt"; fout?: string };
+
+/**
+ * OPNIEUW SCHRIJVEN MET DEZELFDE INVOER, om een verbetering van de keten te
+ * toetsen (V0 van `docs/tasks/pijplijnanalyse-contentketen.md`, besluit B27).
+ *
+ * Een nieuwe versie met dezelfde brief, dezelfde bewaarde tekst van de huidige
+ * pagina en dezelfde antwoorden van de klant, die daarna gewoon door het
+ * schrijven, de controle en eventueel de herschrijving gaat. Geen nieuwe brief
+ * en geen nieuwe vragen: dan verschilt alleen de keten, en is oud naast nieuw
+ * een eerlijke vergelijking. De oude versie blijft bewaard.
+ *
+ * Alleen voor beheerders; geen klantroute en geen planning (§3 regel 7 van
+ * `contentketen-opnieuw.md` gaat over het inplannen van pagina's).
+ */
+export async function schrijfOpnieuwMetZelfdeInvoer(admin: Admin, oudId: string): Promise<OpnieuwUitkomst> {
+  const { data: oud } = await admin
+    .from("content_pieces")
+    .select("analysis_id, report_id, title, type, target_intent, action, existing_url, existing_page_text, related_url, brief_json, version, cluster, body_markdown")
+    .eq("id", oudId)
+    .maybeSingle();
+  if (!oud) return { uitkomst: "geen_pagina" };
+  const o = oud as Record<string, unknown>;
+  if (!(typeof o.body_markdown === "string" && o.body_markdown.trim())) return { uitkomst: "nog_niet_geschreven" };
+  if (!o.brief_json) return { uitkomst: "geen_brief" };
+
+  await admin.from("content_pieces").update({ is_current: false }).eq("id", oudId);
+  const { data: nieuw, error } = await admin
+    .from("content_pieces")
+    .insert({
+      analysis_id: o.analysis_id,
+      report_id: o.report_id ?? null,
+      title: o.title,
+      type: o.type,
+      target_intent: o.target_intent ?? null,
+      action: o.action ?? "nieuw",
+      existing_url: o.existing_url ?? null,
+      existing_page_text: o.existing_page_text ?? null,
+      related_url: o.related_url ?? null,
+      brief_json: o.brief_json,
+      cluster: o.cluster ?? null,
+      version: ((o.version as number | null) ?? 1) + 1,
+      supersedes_id: oudId,
+      revision_note: "Opnieuw geschreven met dezelfde invoer, om een wijziging van de keten te toetsen.",
+      is_current: true,
+      status: "briefing",
+    })
+    .select("id")
+    .single();
+  if (error || !nieuw) {
+    await admin.from("content_pieces").update({ is_current: true }).eq("id", oudId);
+    return { uitkomst: "mislukt", fout: error?.message };
+  }
+  const nieuwId = (nieuw as { id: string }).id;
+  await wijsNaarNieuweVersie(admin, oudId, nieuwId, "schrijven");
+  const start = await probeerTeSchrijven(admin, nieuwId, { negeerDatum: true });
+  if (start.uitkomst !== "ingepland") return { uitkomst: "mislukt", fout: `Schrijven startte niet: ${start.uitkomst}` };
+  return { uitkomst: "gestart", nieuwId };
 }
 
 /**

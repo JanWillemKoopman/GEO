@@ -16,6 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { redactCompetitors } from "@/lib/pipeline/redact";
 import { kennisVoor } from "@/lib/kennis/voor-pagina";
 import type { BedrijfsInvoer } from "@/lib/pagina/bedrijfskennis";
+import { contactBlok, contactUitFeiten } from "@/lib/pagina/contact";
 import type { Doelvraag } from "@/lib/pagina/brief-opdracht";
 import type { ContentAction, ContentType, StemVoorbeeld } from "@/lib/types/database";
 
@@ -164,12 +165,47 @@ export async function laadBedrijf(admin: Admin, pagina: PaginaBasis): Promise<Be
     titel: pagina.titel,
     zoekintentie: pagina.zoekintentie,
   });
+  // V3: telefoon, e-mail en adres uit de oogst van de site, altijd bovenaan.
+  const { data: techniek } = await admin
+    .from("profile_facets")
+    .select("raw_json")
+    .eq("profile_id", pagina.profileId)
+    .eq("facet", "techniek")
+    .maybeSingle();
+  const feiten = ((techniek?.raw_json ?? null) as { facts?: { key?: string; value?: string }[] } | null)?.facts ?? [];
   return {
     bedrijfsnaam: profiel.brand_name?.trim() || profiel.name,
     kennis: keuze.beweringen,
     verbodenWoorden: keuze.verbodenWoorden,
     verbodenOnderwerpen: keuze.verbodenOnderwerpen,
+    contact: contactBlok(contactUitFeiten(feiten)),
   };
+}
+
+/** De aanbeveling achter een plan-pagina (`<rapport-id>#<volgnummer>`), of `null`. */
+async function aanbevelingVan(admin: Admin, sourceRef: string | null): Promise<Record<string, unknown> | null> {
+  if (!sourceRef) return null;
+  const [reportId, nr] = sourceRef.split("#");
+  const volgnummer = Number(nr);
+  if (!reportId || !Number.isInteger(volgnummer) || volgnummer < 0) return null;
+  const { data } = await admin.from("reports").select("recommendations_json").eq("id", reportId).maybeSingle();
+  const lijst = (data as { recommendations_json?: unknown } | null)?.recommendations_json;
+  const rec = Array.isArray(lijst) ? lijst[volgnummer] : null;
+  return rec && typeof rec === "object" ? (rec as Record<string, unknown>) : null;
+}
+
+/**
+ * V6 (besluit B-b): de rol in de set en de kernvraag uit het rapport. `null`
+ * bij een rapport van vóór 29 september 2026, een handmatige kans of een kans
+ * uit Search Console: onbekend, niet leeg (conventie 3).
+ */
+export async function laadPaginaDefinitie(
+  admin: Admin,
+  sourceRef: string | null,
+): Promise<{ rol: string | null; kernvraag: string | null }> {
+  const rec = await aanbevelingVan(admin, sourceRef);
+  const veld = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  return { rol: veld(rec?.rol), kernvraag: veld(rec?.kernvraag) };
 }
 
 /**
@@ -200,4 +236,15 @@ export async function laadDoelvragen(admin: Admin, sourceRef: string | null, con
       const ruw = typeof d.runId === "string" ? antwoordPerRun.get(d.runId) : undefined;
       return { vraag: (d.text as string).trim(), antwoord: ruw ? redactCompetitors(ruw, concurrenten) : null };
     });
+}
+
+/**
+ * De tekst van de gecrawlde pagina's van dit merk, om menu, telefoonbalk en
+ * voettekst te herkennen (`zonderSiteHerhaling()`, V2 van
+ * `pijplijnanalyse-contentketen.md`). Het crawl-excerpt is genoeg: die
+ * herhaling staat bovenaan elke pagina.
+ */
+export async function siteTeksten(admin: Admin, profileId: string): Promise<string[]> {
+  const { data } = await admin.from("profile_pages").select("text_excerpt").eq("profile_id", profileId).limit(200);
+  return ((data ?? []) as { text_excerpt: string | null }[]).map((r) => r.text_excerpt ?? "").filter((t) => t.trim());
 }

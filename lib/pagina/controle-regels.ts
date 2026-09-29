@@ -7,7 +7,7 @@
  * staat hier als pure functies:
  *
  *   - herschrijven of niet (`moetHerschrijven`);
- *   - na het herschrijven: de nieuwe of de vorige versie (`kiesVersie`);
+ *   - na het herschrijven: wat de herschrijving aan ongedekte zinnen bijzette (`nieuwOngedekt`);
  *   - welke zinnen geel worden (`geleZinnenNa`).
  *
  * Geen score, geen drempel, geen tweede beoordeling (§3).
@@ -34,9 +34,11 @@ Twee vragen.
 
 1. Klopt het? Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere concrete beweringen over dit bedrijf in die niet uit de informatie blijken? Kijk naar de hele pagina: de tekst, de metabeschrijving én de veelgestelde vragen. Een verzonnen bedrag of belofte in een FAQ-antwoord of de metabeschrijving is net zo fout als in de tekst zelf. Zet elke zo'n zin letterlijk in verzonnen, met in één zin waarom. Algemene vakkennis is geen verzonnen claim zolang hij als algemene uitleg staat. Staat hij er als iets wat dit bedrijf doet, biedt, belooft, adviseert of hanteert, en blijkt dat niet uit de informatie over het bedrijf, dan is het wel een verzonnen claim. Je krijgt ook de zinnen die een controle in code niet in de informatie terugvond; beoordeel die zelf, ze zijn niet automatisch fout.
 
-2. Is het goed? Is de hoofdvraag meteen beantwoord; is de zoekintentie afgedekt; is het prettig en natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er genoeg diepgang; is er onnodige herhaling; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als echte content en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer er iets aan?
+2. Is het goed? Is de hoofdvraag meteen beantwoord; is de zoekintentie afgedekt; is het prettig en natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er onnodige herhaling; zijn er zinnen die de lezer niet helpen; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als echte content en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer er iets aan?
 
-Oordeel "goed" als je deze pagina zo op de site van de ondernemer zou zetten. Anders "niet_goed", met hooguit ${MAX_PUNTEN} punten: waar in de tekst, wat het probleem is, en hoe het beter kan. Concreet, zodat een schrijver er direct mee verder kan. Geen punten over smaak als de tekst verder goed is.`;
+Oordeel "goed" als je deze pagina zo op de site van de ondernemer zou zetten. Anders "niet_goed", met hooguit ${MAX_PUNTEN} punten: waar in de tekst, wat het probleem is, en hoe het beter kan. Concreet, zodat een schrijver er direct mee verder kan. Geen punten over smaak als de tekst verder goed is.
+
+Een punt schrapt, corrigeert, verplaatst of maakt korter, zoals een eindredacteur dat doet. Vraag nooit om een bedrag, een totaal, een voorwaarde, een uitzondering of een belofte die niet al in de informatie staat, en niet om een voorbehoud erbij.`;
 
 export function controleInvoer(input: {
   informatie: string;
@@ -63,16 +65,37 @@ export function controleInvoer(input: {
     .join("\n\n");
 }
 
-/** Herschrijven als het oordeel niet goed is, of als er verzonnen of ongedekte zinnen zijn (§6.6). */
-export function moetHerschrijven(beoordeling: Beoordeling | null, ongedekt: readonly string[]): boolean {
+/**
+ * Herschrijven als het oordeel niet goed is, als de eindredacteur een zin
+ * verzonnen noemt, of als er een woord in staat dat het merk niet wil (B16).
+ *
+ * ⚠️ Een zin die alleen de code niet in de informatie terugvond, is sinds
+ * 29 september 2026 geen reden meer (V15, besluit B-e). Die zin wordt geel en
+ * de ondernemer beslist (B1). In ronde 1 kwamen drie van de tien
+ * herschrijvingen alleen daardoor, en bij de noodopening verloor de pagina er
+ * drie bruikbare veelgestelde vragen door. Een verboden woord blijft wel een
+ * reden: dat is een harde huisregel van de klant, geen twijfel over een feit.
+ */
+export function moetHerschrijven(beoordeling: Beoordeling | null, verboden: readonly string[] = []): boolean {
   // Een mislukte beoordeling herschrijft niet: dan worden de ongedekte zinnen geel.
   if (!beoordeling) return false;
-  return beoordeling.oordeel === "niet_goed" || beoordeling.verzonnen.length > 0 || ongedekt.length > 0;
+  return beoordeling.oordeel === "niet_goed" || beoordeling.verzonnen.length > 0 || verboden.length > 0;
 }
 
-/** De nieuwe versie blijft, tenzij hij meer ongedekte zinnen heeft dan de vorige (§6.7). */
-export function kiesVersie(ongedektVorige: number, ongedektNieuw: number): "nieuw" | "vorige" {
-  return ongedektNieuw > ongedektVorige ? "vorige" : "nieuw";
+/**
+ * De ongedekte zinnen van de herschrijving die er in de vorige versie niet
+ * stonden.
+ *
+ * ⚠️ Tot 29 september 2026 koos de code hier tussen twee versies op het
+ * AANTAL ongedekte zinnen, en gooide een betere herschrijving weg als die er
+ * één meer had. Bij A6 in ronde 1 ging zo een versie weg die het ontbrekende
+ * telefoonnummer had opgelost. Sinds V15 (besluit B-e) blijft de herschrijving
+ * altijd; een nieuwe ongedekte zin wordt geel, zoals elke ongedekte zin, en
+ * wordt hier apart bijgehouden zodat te zien is wat de herschrijving bijzette.
+ */
+export function nieuwOngedekt(vorige: readonly string[], nieuw: readonly string[]): string[] {
+  const oud = new Set(vorige.map(plat));
+  return nieuw.filter((z) => !oud.has(plat(z)));
 }
 
 function plat(t: string): string {
@@ -143,10 +166,20 @@ export interface ControleJson {
   /** Null als de beoordeling definitief mislukte. */
   beoordeling: Beoordeling | null;
   herschreven: boolean;
-  /** Alleen na een herschrijving: welke versie bleef, en waarom. */
-  herschrijving?: { ongedekt_vorige: number; ongedekt_nieuw: number; behouden: "nieuw" | "vorige" };
+  /**
+   * Alleen na een herschrijving. `behouden` is sinds V15 altijd "nieuw"; oudere
+   * controles kunnen "vorige" dragen. `nieuw_ongedekt`: de ongedekte zinnen die
+   * de herschrijving bijzette (afwezig bij oudere controles).
+   */
+  herschrijving?: { ongedekt_vorige: number; ongedekt_nieuw: number; behouden: "nieuw" | "vorige"; nieuw_ongedekt?: string[] };
   /** Wat de ondernemer moet nalopen voor hij goedkeurt. */
   gele_zinnen: string[];
+  /**
+   * V21 punt 3 (besluit B-h): harde gegevens van de huidige pagina die niet in
+   * de nieuwe tekst staan. Alleen bij een verbeterpagina, en afwezig als er
+   * niets ontbreekt. Houdt niets tegen.
+   */
+  verdwenen?: string[];
   /** De gele zinnen die de ondernemer bevestigde. */
   bevestigd: string[];
 }

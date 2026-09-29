@@ -589,6 +589,21 @@ const ANTWOORDEN: Record<string, (user: string) => unknown> = {
         quote: "Wij zitten in Amersfoort.",
       },
     ],
+    // V9: één klus met een letterlijk citaat, en één die niet op de pagina staat.
+    klussen: [
+      {
+        text: "Een marathonloper uit Leusden liep weer na een achillespeesblessure.",
+        plaats: "Leusden",
+        sourceUrl: "https://fysi-unique.nl/nieuws/marathon",
+        quote: "hielpen we een marathonloper uit Leusden weer op weg",
+      },
+      {
+        text: "Een verzonnen klus.",
+        plaats: null,
+        sourceUrl: "https://fysi-unique.nl/nieuws/marathon",
+        quote: "dit staat nergens",
+      },
+    ],
   }),
 
   /**

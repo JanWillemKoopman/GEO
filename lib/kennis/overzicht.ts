@@ -155,8 +155,41 @@ export function maakOverzicht(items: readonly OverzichtItem[]): Overzicht {
 
 export interface OpenPunt {
   /** Uit welke stap het punt komt. */
-  bron: "samenvatting" | "aanbod";
+  bron: "samenvatting" | "aanbod" | "werkgebied";
   punt: string;
+}
+
+/**
+ * Woorden die een streek of regio aanduiden en geen plaats. Bewust kort: een
+ * plaats die toevallig zo heet ("Heerhugowaard") telt niet, want de regel kijkt
+ * naar losse woorden en naar het begin van het woord.
+ */
+const STREEK =
+  /^(regio|omgeving|streek|provincie)\b|\b(en omstreken|e\.o\.|en omgeving)\b|^(noord|zuid|oost|west|midden)[- ]?(nederland|holland|brabant|limburg)\b|^(brabant|limburg|zeeland|friesland|drenthe|overijssel|gelderland|flevoland|noord-holland|zuid-holland|randstad|achterhoek|twente|veluwe|betuwe|de kempen|west-friesland|alblasserwaard|vijfheerenlanden|krimpenerwaard|hoeksche waard|het gooi)$/i;
+
+/** Is dit werkgebied een streek en geen plaats? */
+export function isStreek(naam: string): boolean {
+  return STREEK.test(naam.trim());
+}
+
+/**
+ * V10 van `docs/tasks/pijplijnanalyse-contentketen.md`: het werkgebied in
+ * plaatsen. Staat er een streek in het werkgebied, dan is "welke plaatsen
+ * precies?" het eerste open punt van het gesprek, want de meetvragen en de
+ * pagina's noemen straks die plaatsen. Een onbekend bedrijfsmodel is ook een
+ * open punt in plaats van een stille keuze: het stuurt welke vragen de brief
+ * stelt.
+ */
+export function werkgebiedPunten(profiel: { service_scope: string | null; service_regions: readonly string[] | null; business_model: string | null }): OpenPunt[] {
+  const uit: OpenPunt[] = [];
+  const streken = (profiel.service_regions ?? []).filter(isStreek);
+  if (profiel.service_scope === "lokaal" && streken.length > 0) {
+    uit.push({ bron: "werkgebied", punt: `Welke plaatsen vallen precies onder ${streken.join(" en ")}? Daar zoeken klanten op.` });
+  }
+  if (!profiel.business_model || profiel.business_model === "overig") {
+    uit.push({ bron: "werkgebied", punt: "Wat voor bedrijf is dit: een dienstverlener, een winkel, een platform of een maker van eigen producten?" });
+  }
+  return uit;
 }
 
 /**

@@ -52,3 +52,75 @@ export function duplicatePromptIds(rows: PromptRow[]): string[] {
 
   return duplicates;
 }
+
+/**
+ * Een vraag als vergelijksleutel over clusters heen: hoofdletters, accenten,
+ * leestekens en dubbele spaties tellen niet. Geen synoniemen: een vraag in
+ * andere woorden voorkomt de opdracht, dit vangt de letterlijke herhaling.
+ */
+export function vraagSleutel(tekst: string): string {
+  return tekst
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/**
+ * V18 van `docs/tasks/pijplijnanalyse-contentketen.md` (besluit B-i): welke
+ * vragen van een NIEUW cluster staan al in een ander cluster van hetzelfde merk?
+ * In ronde 1 stond dezelfde vraag in drie clusters: drie keer gemeten, drie keer
+ * meegeteld in de merkscore, en drie rapporten die naar dezelfde pagina wezen.
+ *
+ * Alleen de vragen van het nieuwe cluster gaan weg: bestaande clusters blijven
+ * zoals ze zijn, want daar hangen metingen aan. En er blijft altijd minstens één
+ * vraag staan: een cluster zonder vragen kan niet gemeten worden, en dan is een
+ * dubbele vraag het kleinere kwaad.
+ */
+export function dubbelMetAndereClusters(eigen: readonly PromptRow[], andere: readonly string[]): string[] {
+  const bekend = new Set(andere.map(vraagSleutel).filter(Boolean));
+  const dubbel = eigen.filter((r) => bekend.has(vraagSleutel(r.text))).map((r) => r.id);
+  return dubbel.length >= eigen.length ? dubbel.slice(0, Math.max(0, eigen.length - 1)) : dubbel;
+}
+
+/** Woorden die in bijna elke vraag staan en niets over een bezwaar zeggen. */
+const LEGE_WOORDEN = new Set([
+  "de", "het", "een", "en", "of", "in", "op", "voor", "met", "van", "bij", "aan", "tot", "om", "uit", "dat", "die",
+  "is", "zijn", "ik", "je", "jij", "mijn", "niet", "wel", "wat", "hoe", "welke", "waarom", "kan", "moet", "wil",
+  "te", "als", "er", "dan", "ook", "nog", "maar", "wordt", "worden", "heb", "heeft", "hebben",
+]);
+
+function inhoudswoorden(tekst: string): Set<string> {
+  return new Set(
+    vraagSleutel(tekst)
+      .split(" ")
+      .filter((w) => w.length >= 3 && !LEGE_WOORDEN.has(w))
+      .map((w) => w.replace(/(en|s)$/, "")),
+  );
+}
+
+/**
+ * Gaat deze vraag over dit bezwaar? Minstens twee inhoudswoorden gedeeld, of
+ * alle inhoudswoorden van een kort bezwaar ("te duur").
+ */
+export function raaktBezwaar(vraag: string, bezwaar: string): boolean {
+  const b = inhoudswoorden(bezwaar);
+  if (b.size === 0) return false;
+  const v = inhoudswoorden(vraag);
+  let gedeeld = 0;
+  for (const w of b) if (v.has(w)) gedeeld++;
+  return gedeeld >= Math.min(2, b.size);
+}
+
+/**
+ * V11 van `docs/tasks/pijplijnanalyse-contentketen.md`: hooguit één vraag per
+ * cluster over een bezwaar uit het verkoopgesprek. Bij één merk kwam "te laat
+ * aanleveren" vijf keer terug in 90 meetvragen, ook in een cluster waar het
+ * niet over ging: dan meet de meetlat het eigen verkoopverhaal in plaats van de
+ * markt. Geeft `true` als deze vraag een tweede bezwaarvraag zou zijn.
+ */
+export function tweedeBezwaarvraag(vraag: string, bezwaren: readonly string[], eerdere: readonly string[]): boolean {
+  if (!bezwaren.some((b) => raaktBezwaar(vraag, b))) return false;
+  return eerdere.some((e) => bezwaren.some((b) => raaktBezwaar(e, b)));
+}

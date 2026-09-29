@@ -20,8 +20,7 @@ Je doet twee dingen.
 1. ONDERZOEK (zoek op het web waar dat helpt)
 - zoekintentie: wat de bezoeker probeert te bereiken, in zijn eigen woorden, in één of twee zinnen.
 - deelvragen: wat hij daarnaast wil weten.
-- concurrentie.goed: wat goede pagina's over dit onderwerp goed doen. concurrentie.gaten: wat ze laten liggen. Noem nooit een bedrijfsnaam.
-- vakkennis: inhoudelijke uitleg die een goede pagina over dit onderwerp nodig heeft (hoe iets werkt, regels, stappen, aandachtspunten), elk punt met het webadres waar je het vond. Zonder adres laat je het punt weg.
+- vakkennis: inhoudelijke uitleg over het onderwerp die een goede pagina nodig heeft (hoe iets werkt, regels, stappen, aandachtspunten), elk punt met het webadres waar je het vond. Zonder adres laat je het punt weg. Vakkennis gaat over het vak, nooit over dit bedrijf: haal niets van de eigen site van het bedrijf en noem het bedrijf niet. Schrijf elk punt als een feit over het onderwerp, zonder aanwijzingen voor de schrijver en zonder twijfels over wat dit bedrijf wel of niet doet.
 - valkuilen: wat klanten over dit onderwerp vaak verkeerd begrijpen.
 
 2. VRAGEN AAN DE ONDERNEMER (hooguit ${MAX_BRIEFVRAGEN})
@@ -34,25 +33,31 @@ Stel de vragen waarvan het antwoord deze pagina duidelijk beter en eigener maakt
 
 Een vraag is alleen gerechtvaardigd als hij aan beide voorwaarden voldoet:
 1. de schrijver kan het antwoord gebruiken in deze pagina; en
-2. het antwoord is niet betrouwbaar te halen uit wat we al over het bedrijf weten, uit algemene vakkennis of uit webonderzoek.
+2. het antwoord is niet betrouwbaar te halen uit wat we al over het bedrijf weten, uit de eerdere antwoorden, uit algemene vakkennis of uit webonderzoek.
 
 Voorbeelden:
 - Slecht: "Wat is faalangst?" (algemene kennis, dat weet het model zelf).
 - Goed: "Welke situatie komt bij jullie het vaakst voor bij leerlingen met faalangst?"
 - Beter: "Kun je een typisch voorbeeld geven van een leerling met faalangst, en hoe jullie daarmee omgingen?"
 
-Staat er een lijst "Wat we voor deze pagina nog niet weten", vraag dan eerst daarnaar, en vraag liever om een voorbeeld uit de praktijk dan om een los feit.
+Stel zo weinig vragen als nodig is om de kennis op te halen die alleen deze ondernemer heeft. Twee vragen die twee sterke praktijkvoorbeelden opleveren, maken een pagina beter dan acht vragen met losse feiten. Nul vragen is een goed antwoord als alles al bekend is. Vraag liever om een voorbeeld uit de praktijk dan om een los feit.
 
-Stel zo weinig vragen als nodig is om de kennis op te halen die alleen deze ondernemer heeft. Twee vragen die twee sterke praktijkvoorbeelden opleveren, maken een pagina beter dan acht vragen met losse feiten. Nul vragen is een goed antwoord als alles al bekend is.
+Lees eerst "Eerder gestelde vragen aan dit bedrijf": daar staan de vragen die het bedrijf al kreeg, met het antwoord als het er is. Vraag niet naar wat daar of onder "Wat we al weten over het bedrijf" al staat, niet naar algemene vakkennis, en niet opnieuw naar een vraag uit die lijst, ook niet in andere woorden of met een andere plaatsnaam. Is een vraag uit die lijst ook voor deze pagina nuttig, open of al beantwoord, zet dan zijn id in ook_voor_deze_pagina: een beantwoorde vraag komt dan met het antwoord bij de schrijver van deze pagina. Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina: elke pagina hoort zijn eigen voorbeeld te krijgen, dus stel dan een eigen voorbeeldvraag over het onderwerp van deze pagina.
 
-Vraag niet naar wat al onder "Wat we al weten over het bedrijf" staat, niet naar algemene vakkennis, en niet opnieuw naar een vraag uit "Eerder gestelde vragen", ook niet in andere woorden. Geldt een vraag uit die lijst met stand "open" ook voor deze pagina, zet dan zijn id in ook_voor_deze_pagina in plaats van hem opnieuw te stellen. Een vraag om een voorbeeld uit de praktijk koppel je niet aan een andere pagina: elke pagina hoort zijn eigen voorbeeld te krijgen, dus stel dan een eigen voorbeeldvraag over het onderwerp van deze pagina.
+Zegt je vakkennis iets wat per bedrijf kan verschillen en wat voor deze pagina belangrijk is (een werkwijze, een termijn, een vuistregel, wat er wel en niet bij zit), en staat het nergens bij wat we al weten? Vraag dan hoe dit bedrijf het doet. Anders moet de schrijver raden, of schrijft hij de algemene regel op alsof het bedrijf hem zo hanteert.
 
-Zegt je vakkennis iets wat per bedrijf kan verschillen en wat voor deze pagina belangrijk is (een werkwijze, een termijn, een vuistregel, wat er wel en niet bij zit), en staat het niet onder "Wat we al weten over het bedrijf"? Vraag dan hoe dit bedrijf het doet. Anders moet de schrijver raden, of schrijft hij de algemene regel op alsof het bedrijf hem zo hanteert.
+Hoe je een vraag stelt:
+- Eén vraag vraagt één ding. Wil je een voorbeeld én weten of je het mag noemen, stel dan twee korte vragen.
+- Houd de vraag kort, zodat een drukke ondernemer hem in één keer begrijpt en zonder uitleg kan beantwoorden. Spreek hem aan met je.
+- Een vraag naar bewijs (reviews, foto's, toestemming om een klus te noemen) geldt voor het hele bedrijf: merkbreed true.
 
-Formuleer elke vraag zo dat de ondernemer hem zonder uitleg kan beantwoorden. Spreek hem aan met je. Per vraag:
-- waarom: één zin voor de ondernemer over wat zijn antwoord aan de pagina toevoegt;
+De kernvraag: onder "Pagina" staat de ene vraag die deze pagina móet beantwoorden. Kan het antwoord daarop alleen van de ondernemer komen en staat het nog nergens, stel er dan een vraag over en zet bij die ene vraag kern: true. Staat er al een vraag over in "Eerder gestelde vragen aan dit bedrijf", zet dan zijn id in kern_eerder. Is het antwoord al bekend, of is er geen kernvraag, dan is kern overal false en kern_eerder null.
+
+Per vraag:
+- waarom: één zin voor de ondernemer over wat zijn antwoord de lezer van de pagina oplevert, in zijn eigen taal. Schrijf niet over "de schrijver", "de tekst" of "verzinnen".
 - antwoord_type: ja_nee, bedrag, getal, tekst_kort, tekst_lang of keuze (alleen met minstens twee opties);
-- merkbreed: true als het antwoord voor het hele bedrijf geldt en niet alleen voor deze pagina.
+- merkbreed: true als het antwoord voor het hele bedrijf geldt en niet alleen voor deze pagina;
+- kern: true bij hooguit één vraag, die de kernvraag van deze pagina beantwoordt.
 
 Schrijf in gewoon Nederlands, in korte zinnen.`;
 
@@ -69,6 +74,8 @@ export interface BriefContext {
   handeling: "nieuw" | "verbeteren";
   zoekintentie: string | null;
   waarom: string | null;
+  /** V6 en V8: de ene vraag die de pagina móet beantwoorden, uit het rapport. */
+  kernvraag?: string | null;
   doelvragen: Doelvraag[];
   merknaam: string;
   werkgebied: string[];
@@ -76,19 +83,17 @@ export interface BriefContext {
   bedrijf: string;
   /** De huidige tekst van de pagina bij "verbeteren", anders null. */
   huidigeTekst: string | null;
-  eerdereVragen: { id: string; vraag: string; stand: string }[];
-  /**
-   * Wat we voor deze pagina nog niet weten (A1): het kennisgat van de kans (N6),
-   * in woorden. `null` zonder kans of zonder uitgerekend gat; dan ontbreekt het
-   * blok, zoals bij versie 3.
-   */
-  kennisgat?: string[] | null;
+  /** Alle vragen die het merk al kreeg, met het antwoord als het er is (V17). */
+  eerdereVragen: { id: string; vraag: string; stand: string; antwoord?: string | null }[];
 }
+
+/** Zoveel tekens van een eerder antwoord gaan mee: genoeg om te zien wat al bekend is. */
+export const EERDER_ANTWOORD_MAX = 400;
 
 /** Hoeveel tekens van een winnend antwoord mee gaan. */
 export const ANTWOORD_MAX = 1500;
 /** Hoeveel tekens van de huidige pagina mee gaan. */
-export const HUIDIGE_TEKST_MAX = 8000;
+export const HUIDIGE_TEKST_MAX = 12000;
 
 export function briefInvoer(c: BriefContext): string {
   const delen: string[] = [];
@@ -99,6 +104,7 @@ export function briefInvoer(c: BriefContext): string {
       c.handeling === "verbeteren" ? "Dit is een bestaande pagina die beter moet." : "Dit wordt een nieuwe pagina.",
       c.zoekintentie ? `Waar de bezoeker naar zoekt (uit de meting): ${c.zoekintentie}` : null,
       c.waarom ? `Waarom deze pagina: ${c.waarom}` : null,
+      c.kernvraag?.trim() ? `De kernvraag van deze pagina: ${c.kernvraag.trim()}` : null,
       `Bedrijf: ${c.merknaam}`,
       c.werkgebied.length > 0 ? `Werkgebied: ${c.werkgebied.join(", ")}` : null,
     ]
@@ -121,18 +127,19 @@ export function briefInvoer(c: BriefContext): string {
 
   delen.push(`Wat we al weten over het bedrijf:\n${c.bedrijf}`);
 
-  if (c.kennisgat && c.kennisgat.length > 0) {
-    delen.push(`Wat we voor deze pagina nog niet weten over het bedrijf:\n${c.kennisgat.map((k) => `- ${k}`).join("\n")}`);
-  }
-
   if (c.huidigeTekst?.trim()) {
     delen.push(`De huidige tekst van de pagina:\n"""${c.huidigeTekst.trim().slice(0, HUIDIGE_TEKST_MAX)}"""`);
   }
 
   delen.push(
     c.eerdereVragen.length > 0
-      ? "Eerder gestelde vragen aan dit bedrijf (id, stand, vraag):\n" +
-          c.eerdereVragen.map((v) => `- [${v.id}] (${v.stand}) ${v.vraag}`).join("\n")
+      ? "Eerder gestelde vragen aan dit bedrijf (id, stand, vraag, en het antwoord als het er is):\n" +
+          c.eerdereVragen
+            .map((v) => {
+              const antwoord = v.antwoord?.trim();
+              return `- [${v.id}] (${v.stand}) ${v.vraag}` + (antwoord ? `\n  Antwoord: ${antwoord.replace(/\s+/g, " ").slice(0, EERDER_ANTWOORD_MAX)}` : "");
+            })
+            .join("\n")
       : "Eerder gestelde vragen aan dit bedrijf: nog geen.",
   );
 

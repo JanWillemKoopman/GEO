@@ -36,6 +36,7 @@ import { elicitLabel } from "@/lib/pipeline/elicit-rate";
 import { MENTION_SYSTEM, buildMentionUser } from "@/lib/openai/mention-prompt";
 import type { Analysis, AnalysisStatus, Prompt, TrackingRun } from "@/lib/types/database";
 import { isEigenSchrijfwijze } from "@/lib/pipeline/baseline-verdict";
+import { isOnleesbaarAntwoord } from "@/lib/openai/onleesbaar";
 
 /**
  * Geëxporteerd zodat `lib/llm-responses/client.ts` (Gemini via DataForSEO)
@@ -313,21 +314,34 @@ export async function judgeRun(
 
   // 3b, het antwoord beoordelen (goedkoop, geen web_search). Retry-safe: leunt
   // op het al opgeslagen raw_response, herhaalt 3a nooit.
-  const b = await callStructured({
-    model: MODELS.volume,
-    system: MENTION_SYSTEM,
-    user: buildMentionUser({
-      ownLabel,
-      ownAliases,
-      ownExclusions,
-      rawResponse: run.raw_response ?? "",
-    }),
-    schema: Mention,
-    schemaName: "mention",
-    webSearch: false,
-    work: "deterministic",
-    meta: { kind: "measure_mention", analysisId: analysis.id, profileId: analysis.profile_id },
-  });
+  const beoordeel = (work: "deterministic" | "judging") =>
+    callStructured({
+      model: MODELS.volume,
+      system: MENTION_SYSTEM,
+      user: buildMentionUser({
+        ownLabel,
+        ownAliases,
+        ownExclusions,
+        rawResponse: run.raw_response ?? "",
+      }),
+      schema: Mention,
+      schemaName: "mention",
+      webSearch: false,
+      work,
+      meta: { kind: "measure_mention", analysisId: analysis.id, profileId: analysis.profile_id },
+    });
+  // V12 van `docs/tasks/pijplijnanalyse-contentketen.md`: zonder redeneertijd
+  // schrijft het model soms zijn gedachten als antwoord ("We need ou..."), en
+  // dan is het geen JSON. In ronde 1 vielen daardoor negen meetvragen na vier
+  // gelijke pogingen definitief uit de score. Eén tweede poging mét redeneertijd
+  // laat het model denken waar dat hoort; een andere fout gaat gewoon door.
+  let b: Awaited<ReturnType<typeof beoordeel>>;
+  try {
+    b = await beoordeel("deterministic");
+  } catch (err) {
+    if (!isOnleesbaarAntwoord(err)) throw err;
+    b = await beoordeel("judging");
+  }
 
   // Genormaliseerd naar tracking_run_mentions (§5), delete-then-insert voor idempotente retries.
   //

@@ -38,7 +38,21 @@ import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
  * liever om een voorbeeld uit de praktijk dan om een los feit. Nog steeds
  * hooguit acht vragen.
  */
-export const BRIEF_VERSIE = 4;
+/**
+ * Versie 5 (29 september 2026, `pijplijnanalyse-contentketen.md`, besluiten
+ * B22, B31 en B32): het veld `concurrentie` is weg (het werkte als verborgen
+ * schrijfopdracht); vakkennis gaat over het vak en nooit over het bedrijf, en
+ * vakkennis van de eigen site of met de naam van het bedrijf valt in code weg
+ * (V4); het kennisgat gaat niet meer mee (V19); de brief ziet eerdere vragen met
+ * hun antwoord en mag ook een beantwoorde vraag aan zijn pagina koppelen (V17);
+ * een vraag vraagt één ding, en de uitleg erbij is in de taal van de klant (V22).
+ */
+/*
+ * Versie 6 (29 september 2026, besluit B-c, V8): de brief krijgt de kernvraag
+ * van de pagina uit het rapport en markeert welke vraag hem beantwoordt (`kern`,
+ * of `kern_eerder` voor een vraag die er al was).
+ */
+export const BRIEF_VERSIE = 6;
 
 /** Technische bovengrens, geen doel (§6.1). */
 export const MAX_BRIEFVRAGEN = 8;
@@ -49,7 +63,6 @@ export const ANTWOORDTYPEN = ["ja_nee", "bedrag", "getal", "tekst_kort", "tekst_
 export const ContentBriefSchema = z.object({
   zoekintentie: z.string(),
   deelvragen: z.array(z.string()),
-  concurrentie: z.object({ goed: z.array(z.string()), gaten: z.array(z.string()) }),
   vakkennis: z.array(z.object({ uitleg: z.string(), bron_url: z.string() })),
   valkuilen: z.array(z.string()),
   vragen: z.array(
@@ -60,22 +73,28 @@ export const ContentBriefSchema = z.object({
       antwoord_type: z.enum(ANTWOORDTYPEN),
       opties: z.array(z.string()).nullable(),
       merkbreed: z.boolean(),
+      /** V8 (besluit B-c): deze vraag beantwoordt de kernvraag van de pagina. */
+      kern: z.boolean(),
     }),
   ),
   ook_voor_deze_pagina: z.array(z.string()),
+  /** V8: het id van een eerdere vraag die de kernvraag al beantwoordt of zal beantwoorden, of null. */
+  kern_eerder: z.string().nullable(),
 });
 
 export type ContentBrief = z.infer<typeof ContentBriefSchema>;
 export type BriefVraag = ContentBrief["vragen"][number];
 
 /** Het onderzoek zoals het in `brief_json.onderzoek` komt: zonder de vragen, die worden rijen. */
-export type Onderzoek = Omit<ContentBrief, "vragen" | "ook_voor_deze_pagina">;
+export type Onderzoek = Omit<ContentBrief, "vragen" | "ook_voor_deze_pagina" | "kern_eerder">;
 
 /** Een vraag die het merk al kreeg, in welke stand ook. */
 export interface EerdereVraag {
   id: string;
   question: string;
   status: string;
+  /** Het antwoord, als hij beantwoord is (V17). */
+  answer?: string | null;
 }
 
 /** Een vraag zoals hij in `fact_requests` komt. */
@@ -86,6 +105,8 @@ export interface NieuweVraag {
   antwoord_type: BriefVraag["antwoord_type"];
   opties: string[] | null;
   merkbreed: boolean;
+  /** V8: de vraag die de kernvraag van de pagina beantwoordt. Hooguit één per brief. */
+  kern: boolean;
 }
 
 /**
@@ -125,22 +146,59 @@ export interface VerwerkteBrief {
   vragen: NieuweVraag[];
   /** Id's van al open vragen van dit merk die ook voor deze pagina gelden. */
   koppel: string[];
+  /** V8: een eerdere vraag die de kernvraag beantwoordt; staat dan ook in `koppel`. */
+  kernEerder: string | null;
 }
 
 /**
  * Wat code met de uitvoer van het model doet, vóór er iets bewaard wordt.
  *
  * `eerdere` zijn alle vragen die het merk ooit kreeg (open, beantwoord,
- * overgeslagen). Alleen de open vragen daarvan mogen gekoppeld worden; een id
- * dat er niet tussen staat (een ander merk, of verzonnen) valt weg.
+ * overgeslagen). De open en beantwoorde daarvan mogen gekoppeld worden (V17);
+ * een id dat er niet tussen staat (een ander merk, of verzonnen) valt weg.
  */
-export function verwerkBrief(ruw: ContentBrief, eerdere: EerdereVraag[]): VerwerkteBrief {
+export interface MerkVoorBrief {
+  /** De hoofd-URL of hostnaam van het merk. */
+  url: string;
+  /** De naam en andere schrijfwijzen. */
+  namen: readonly string[];
+}
+
+function hostVan(url: string): string | null {
+  try {
+    const u = new URL(/^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`);
+    return u.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Vakkennis over het bedrijf zelf: van de eigen site, of met de naam van het
+ * bedrijf erin (V4 van `pijplijnanalyse-contentketen.md`). In ronde 1 kwam zo
+ * een bedrag van Myfinance binnen ("samen € 79,95") buiten de kennislaag om,
+ * waar een tegenspraak met het klantantwoord was opgevallen. Wat het bedrijf
+ * zelf zegt, hoort in de kennislaag.
+ */
+export function overHetBedrijfZelf(v: { uitleg: string; bron_url: string }, merk: MerkVoorBrief | null): boolean {
+  if (!merk) return false;
+  const eigen = hostVan(merk.url);
+  const bron = hostVan(v.bron_url);
+  if (eigen && bron && (bron === eigen || bron.endsWith(`.${eigen}`))) return true;
+  const tekst = v.uitleg.toLowerCase();
+  return merk.namen
+    .map((n) => n.trim().toLowerCase())
+    .filter((n) => n.length >= 4)
+    .some((n) => tekst.includes(n));
+}
+
+export function verwerkBrief(ruw: ContentBrief, eerdere: EerdereVraag[], merk: MerkVoorBrief | null = null): VerwerkteBrief {
   const onderzoek: Onderzoek = {
     zoekintentie: schoon(ruw.zoekintentie),
     deelvragen: schoneLijst(ruw.deelvragen),
-    concurrentie: { goed: schoneLijst(ruw.concurrentie.goed), gaten: schoneLijst(ruw.concurrentie.gaten) },
     vakkennis: ruw.vakkennis
       .filter((v) => isWebadres(v.bron_url) && v.uitleg.trim())
+      .filter((v) => !overHetBedrijfZelf(v, merk))
       .map((v) => ({ uitleg: schoon(v.uitleg), bron_url: v.bron_url.trim() })),
     valkuilen: schoneLijst(ruw.valkuilen),
   };
@@ -163,14 +221,25 @@ export function verwerkBrief(ruw: ContentBrief, eerdere: EerdereVraag[]): Verwer
       antwoord_type: v.antwoord_type === "keuze" && !keuze ? "tekst_kort" : v.antwoord_type,
       opties: keuze ? opties : null,
       merkbreed: v.merkbreed,
+      // V8: hooguit één kernvraag. Een merkbrede vraag is nooit de kern van
+      // één pagina: die geldt voor het hele bedrijf.
+      kern: Boolean(v.kern) && !v.merkbreed && !vragen.some((x) => x.kern),
     });
     if (vragen.length >= MAX_BRIEFVRAGEN) break;
   }
 
-  const open = new Set(eerdere.filter((e) => e.status === "open").map((e) => e.id));
-  const koppel = Array.from(new Set(ruw.ook_voor_deze_pagina.map((id) => id.trim()))).filter((id) => open.has(id));
+  // V17: ook een beantwoorde vraag mag aan deze pagina, dan komt het antwoord
+  // bij de schrijver. Een overgeslagen vraag niet: daar is niets te halen.
+  const koppelbaar = new Set(eerdere.filter((e) => e.status === "open" || e.status === "beantwoord").map((e) => e.id));
+  const koppel = Array.from(new Set(ruw.ook_voor_deze_pagina.map((id) => id.trim()))).filter((id) => koppelbaar.has(id));
 
-  return { onderzoek, vragen, koppel };
+  // V8: een eerdere vraag als kern, alleen als er geen nieuwe kernvraag is en
+  // hij koppelbaar is. Dan hangt hij ook aan deze pagina.
+  const eerder = (ruw.kern_eerder ?? "").trim();
+  const kernEerder = !vragen.some((v) => v.kern) && eerder && koppelbaar.has(eerder) ? eerder : null;
+  if (kernEerder && !koppel.includes(kernEerder)) koppel.push(kernEerder);
+
+  return { onderzoek, vragen, koppel, kernEerder };
 }
 
 /**

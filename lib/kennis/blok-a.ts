@@ -83,14 +83,15 @@ function dienstNaam(bewering: string): string {
  */
 export function dienstenVanPagina(pagina: PaginaVoorBlokA, kennis: readonly KennisVoorBlokA[]): Set<string> {
   const gekozen = new Set<string>();
-  if (pagina.kansGeldtVoor !== null) {
-    for (const id of pagina.kansGeldtVoor) gekozen.add(id);
-  } else {
-    const context = new Set(woorden(`${pagina.titel} ${pagina.zoekintentie ?? ""}`));
-    for (const k of kennis) {
-      if (k.soort !== "dienst" && k.soort !== "categorie") continue;
-      if (woorden(dienstNaam(k.bewering)).some((w) => context.has(w))) gekozen.add(k.id);
-    }
+  // De plaatsen van de kans (besluit B32: een kans hangt niet meer aan een
+  // dienst, wel aan de plaatsen die hij letterlijk noemt).
+  for (const id of pagina.kansGeldtVoor ?? []) gekozen.add(id);
+  // De diensten waarvan de naam in de titel of de zoekintentie staat. Sinds
+  // B32 altijd zo, ook met een kans: er is geen koppeling aan het aanbod meer.
+  const context = new Set(woorden(`${pagina.titel} ${pagina.zoekintentie ?? ""}`));
+  for (const k of kennis) {
+    if (k.soort !== "dienst" && k.soort !== "categorie") continue;
+    if (woorden(dienstNaam(k.bewering)).some((w) => context.has(w))) gekozen.add(k.id);
   }
   // Naar beneden: wat onder een gekozen dienst of categorie hangt, hoort er ook bij.
   let groeit = true;
@@ -122,6 +123,11 @@ function isAanbodKnoop(item: KennisVoorBlokA): boolean {
 
 export function hoortBijPagina(item: KennisVoorBlokA, pagina: PaginaVoorBlokA, diensten: ReadonlySet<string>): boolean {
   if (item.herkomst_tabel === "fact_requests" && item.herkomst_id && pagina.vragenInBlokB.includes(item.herkomst_id)) return false;
+  // Een antwoord van vóór V17 hangt nog aan de diensten of plaatsen van de kans.
+  // Via die omweg kwam het in ronde 1 op pagina's waar het niet hoorde (het
+  // hoornaarantwoord op de mollenpagina). Zo'n antwoord bereikt zijn eigen
+  // pagina via blok B, en een andere pagina alleen als de brief het koppelt.
+  if (item.herkomst_tabel === "fact_requests" && item.geldt_voor.length > 0) return false;
   if (isAanbodKnoop(item)) return diensten.has(item.id);
   if (item.content_piece_id) return pagina.paginaIds.includes(item.content_piece_id);
   if (item.analysis_id && item.analysis_id !== pagina.analysisId) return false;
@@ -165,12 +171,63 @@ const KOPPEN: [string, string][] = [
   ["geleerd", "Wat eerdere pagina's opleverden"],
 ];
 
-/** Blok A als tekst voor de schrijver. Lege domeinen vallen weg. */
-export function blokAUitKennis(bedrijfsnaam: string, beweringen: readonly KennisVoorBlokA[]): string {
+/** Zoveel tekens moet een antwoord hebben om zonder zijn vraag te begrijpen te zijn. */
+export const ZELFSTANDIG_ANTWOORD = 40;
+
+function plat(t: string): string {
+  return t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/**
+ * Hoe één item in blok A staat (V3 van `pijplijnanalyse-contentketen.md`).
+ *
+ * Een antwoord van de klant is bewaard als "vraag, nieuwe regel, antwoord". De
+ * vraag was voor de ondernemer ("Welke actuele totaalprijs mag de schrijver
+ * noemen ...?"), niet voor de schrijver: bij een antwoord dat op zichzelf te
+ * begrijpen is, gaat alleen het antwoord mee. Een kort antwoord ("Ja") houdt
+ * zijn vraag, anders zegt het niets.
+ */
+export function regelVoorBlokA(item: Pick<KennisVoorBlokA, "bewering" | "herkomst_tabel" | "soort">): string {
+  const tekst = item.bewering.trim();
+  if (item.herkomst_tabel === "fact_requests" && item.soort !== "eigen verhaal") {
+    const [vraag, ...rest] = tekst.split("\n");
+    const antwoord = rest.join(" ").trim();
+    if (antwoord.length >= ZELFSTANDIG_ANTWOORD) return antwoord;
+    if (antwoord) return `${(vraag ?? "").trim()} ${antwoord}`;
+  }
+  return tekst.replace(/\n+/g, "\n  ");
+}
+
+/**
+ * Blok A als tekst voor de schrijver. Lege domeinen vallen weg.
+ *
+ * V3 van `pijplijnanalyse-contentketen.md`: eerst een vast contactblok (in ronde
+ * 1 stond bij nul van de achttien pagina's een telefoonnummer in de invoer),
+ * geen dubbelingen (de vestiging stond twee keer), en een bezwaar zonder antwoord
+ * van de ondernemer onder een eigen kop, zodat de schrijver er geen antwoord bij
+ * verzint.
+ */
+export function blokAUitKennis(bedrijfsnaam: string, beweringen: readonly KennisVoorBlokA[], contact: string | null = null): string {
   const delen: string[] = [`Bedrijf: ${bedrijfsnaam}`];
+  if (contact?.trim()) delen.push(contact.trim());
+  const gezien = new Set<string>();
+  const uniek = beweringen.filter((b) => {
+    const sleutel = plat(regelVoorBlokA(b));
+    if (!sleutel || gezien.has(sleutel)) return false;
+    gezien.add(sleutel);
+    return true;
+  });
+  const zonderAntwoord = uniek.filter((b) => b.soort === "bezwaar");
   for (const [domein, kop] of KOPPEN) {
-    const regels = beweringen.filter((b) => b.domein === domein).map((b) => `- ${b.bewering.trim().replace(/\n+/g, "\n  ")}`);
+    const regels = uniek
+      .filter((b) => b.domein === domein && b.soort !== "bezwaar")
+      .map((b) => `- ${regelVoorBlokA(b)}`);
     if (regels.length > 0) delen.push(`${kop}:\n${regels.join("\n")}`);
+  }
+  if (zonderAntwoord.length > 0) {
+    delen.push(
+      `Twijfels die klanten hebben (de ondernemer gaf hier geen antwoord op; beantwoord ze niet namens hem):\n${zonderAntwoord.map((b) => `- ${regelVoorBlokA(b)}`).join("\n")}`,
+    );
   }
   return delen.join("\n\n");
 }

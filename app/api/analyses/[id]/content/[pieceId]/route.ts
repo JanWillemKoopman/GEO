@@ -61,7 +61,7 @@ export async function PATCH(
   const { data: pieceRow } = await admin
     .from("content_pieces")
     .select(
-      "type, title, body_markdown, meta_title, meta_description, cluster, schema_jsonld, published_url, created_at, updated_at",
+      "type, title, body_markdown, meta_title, meta_description, cluster, schema_jsonld, published_url, published_at, created_at, updated_at",
     )
     .eq("id", pieceId)
     .eq("analysis_id", id)
@@ -133,7 +133,8 @@ export async function PATCH(
       faq: update.faq_json as { q: string; a: string }[],
       businessModel: profileRow?.business_model ?? null,
       organization: schemaOrg,
-      datePublished: bestaandeDatePublished(pieceRow.schema_jsonld) ?? pieceRow.created_at,
+      // V23: alleen een echte publicatiedatum, niet die van het schrijven.
+      datePublished: bestaandeDatePublished(pieceRow.schema_jsonld) ?? (pieceRow as { published_at?: string | null }).published_at ?? null,
       dateModified: new Date().toISOString(),
     });
   }

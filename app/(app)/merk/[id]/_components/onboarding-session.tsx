@@ -124,6 +124,11 @@ export function OnboardingSession({
     () =>
       beoordeelSchrijfKwaliteit({
         verhalen: (waarden.verhalen as string | null) ?? null,
+        verhaal_klussen: (waarden.verhaal_klussen as string | null) ?? null,
+        verhaal_werkwijze: (waarden.verhaal_werkwijze as string | null) ?? null,
+        verhaal_niet: (waarden.verhaal_niet as string | null) ?? null,
+        verhaal_begin: (waarden.verhaal_begin as string | null) ?? null,
+        bezwaren_met_antwoord: (waarden.bezwaren_met_antwoord as string | null) ?? null,
         stem_voorbeelden: (waarden.stem_voorbeelden as Profile["stem_voorbeelden"]) ?? null,
         taboo_phrases: (waarden.taboo_phrases as string[]) ?? [],
       }),

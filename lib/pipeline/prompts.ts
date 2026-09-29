@@ -39,6 +39,7 @@ import {
   REGIO_DREMPEL,
 } from "@/lib/pipeline/geo-share";
 import { growthRegionsRule } from "@/lib/pipeline/commercial-context";
+import { tweedeBezwaarvraag } from "@/lib/pipeline/prompt-dedupe";
 
 /**
  * Vaste ijkpunten voor elke zoekvolumeschatting, in deze stap én in de
@@ -263,6 +264,9 @@ function buildContextBlock(url: string, topic: string, brand: BrandContext): str
   );
 }
 
+/** Hooguit zoveel vragen van andere clusters in de opdracht: genoeg om herhaling te zien. */
+const ANDERE_CLUSTERS_MAX = 60;
+
 async function generateForFunnelStage(args: {
   category: string;
   analysisId: string;
@@ -272,8 +276,10 @@ async function generateForFunnelStage(args: {
   count: number;
   tokens: string[];
   contentBrief?: string | null;
+  andereClusters?: string[];
 }): Promise<GeneratedPrompt[]> {
   const { category, analysisId, url, topic, brand, count, tokens, contentBrief } = args;
+  const andere = (args.andereClusters ?? []).map((t) => t.trim()).filter(Boolean);
 
   const scopeRule = `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`;
 
@@ -349,18 +355,35 @@ async function generateForFunnelStage(args: {
     `Schrijf natuurlijke, gesproken vragen, geen losse zoekwoorden. Varieer in toon en specificiteit. Nederlands. ` +
     neutralityRule;
 
-  // Punt 8: de bezwaren uit het gesprek als bron, alleen in de fasen waarin
-  // iemand nog twijfelt. In de beslisfase kiest hij al een aanbieder.
-  const bezwaren = (brand.salesObjections ?? []).map((b) => b.trim()).filter(Boolean);
+  // Punt 8: de bezwaren uit het gesprek als bron.
+  // ⚠️ V11 (29 september 2026): tot dan "minstens één" in zowel de oriëntatie
+  // als de overweging, en dat per cluster: drie clusters maal twee fasen is zes
+  // keer, ook als het bezwaar niet bij het onderwerp past. Nu alleen in de
+  // overweging (de fase van de twijfel; de drie fasen lopen parallel, dus één
+  // fase is de enige manier om er één per cluster van te maken), hooguit één
+  // vraag, en alleen als een bezwaar echt over dit onderwerp gaat. Het vangnet
+  // eronder (`tweedeBezwaarvraag`) houdt het bij één.
+  const bezwaren =
+    category === "Overweging" ? (brand.salesObjections ?? []).map((b) => b.trim()).filter(Boolean) : [];
   const bezwaarRegel =
-    bezwaren.length > 0 && (category === "Oriëntatie" || category === "Overweging")
-      ? `DE TWIJFELS DIE KOPERS IN DEZE MARKT HEBBEN (uit het verkoopgesprek): ${bezwaren.join(" · ")}. ` +
-        `Laat minstens één vraag over zo'n twijfel gaan, gesteld zoals een koper hem aan een ` +
-        `AI-assistent stelt.\n`
+    bezwaren.length > 0
+      ? `DE TWIJFELS DIE KOPERS VAN DIT BEDRIJF HEBBEN (uit het verkoopgesprek): ${bezwaren.join(" · ")}. ` +
+        `Gaat een van deze twijfels echt over "${topic}", laat dan hooguit één vraag daarover gaan, gesteld ` +
+        `zoals een koper hem aan een AI-assistent stelt. Past geen van deze twijfels bij het onderwerp, stel ` +
+        `er dan geen vraag over.\n`
+      : "";
+
+  // V18 (besluit B-i): een vraag die al in een ander cluster van dit merk
+  // gemeten wordt, telt anders twee keer mee in de merkscore en kost twee keer.
+  const andereRegel =
+    andere.length > 0
+      ? `DEZE VRAGEN WORDEN AL GEMETEN IN EEN ANDER ONDERWERP VAN DIT MERK. Stel ze niet opnieuw, ook niet in ` +
+        `andere woorden:\n${andere.slice(0, ANDERE_CLUSTERS_MAX).map((t) => `- ${t}`).join("\n")}\n\n`
       : "";
 
   const user =
     `${buildContextBlock(url, topic, brand)}\n\n` +
+    andereRegel +
     bezwaarRegel +
     (briefRule ? `${briefRule}\n\n` : "") +
     `Genereer precies ${count} prompts voor de FUNNELFASE "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
@@ -376,7 +399,9 @@ async function generateForFunnelStage(args: {
   // op, waardoor de meetbasis kromp zonder dat iemand het zag, en een kleinere
   // meetbasis betekent een grovere, minder betrouwbare score.
   const collected: PromptSet["prompts"] = [];
-  const seen = new Set<string>();
+  // V18: de vragen van de andere clusters tellen als al gezien, zodat een
+  // letterlijke herhaling wegvalt en de bijvulronde een andere vraag zoekt.
+  const seen = new Set<string>(andere.map((t) => t.toLowerCase()));
   // Punt 8: dezelfde vraag met een andere plaatsnaam telt als dubbel, gemeten
   // tegen de vragen die blijven staan (`tegen`). Dat onderscheid telt in de
   // bijvulrondes: een regionale versie van een landelijke vraag die er straks
@@ -416,6 +441,7 @@ async function generateForFunnelStage(args: {
       if (collected.length >= count) break;
       if (containsForbidden(p.text, tokens)) continue;
       if (!nieuweVraag(p.text, collected.map((c) => c.text))) continue;
+      if (tweedeBezwaarvraag(p.text, bezwaren, collected.map((c) => c.text))) continue;
       collected.push(p);
     }
   }
@@ -637,6 +663,8 @@ export async function generatePromptsForStage(args: {
   category: string;
   /** Hoeveel vragen deze fase moet opleveren (migratie 0054, per analyse). */
   count: number;
+  /** V18: de vragen die in andere clusters van dit merk al gemeten worden. */
+  andereClusters?: string[];
 }): Promise<GeneratedPrompt[]> {
   // Nul is een geldige keuze: een lokale ondernemer die alleen op koopmomenten
   // beoordeeld wil worden, zet de oriëntatiefase op nul. Dan is er niets te

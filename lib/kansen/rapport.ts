@@ -253,23 +253,40 @@ function norm(s: string): string {
   return s.toLocaleLowerCase("nl").replace(/\s+/g, " ").trim();
 }
 
+/** De stam van een woord: kort genoeg om "noodopening" in "noodopeningspagina" te vinden. */
+function stam(woord: string): string {
+  return woord.length > 6 ? woord.slice(0, woord.length - 2) : woord;
+}
+
+/** Noemt de tekst deze dienst? Elk woord van minstens vier letters, op zijn stam. */
+function noemt(tekst: string, dienst: string): boolean {
+  const woorden = norm(dienst).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4);
+  return woorden.length > 0 && woorden.every((w) => tekst.includes(stam(w)));
+}
+
 /**
- * Voorrang als een dienst van het onderwerp bij de voorrang van het merk hoort,
- * minder als hij alleen bij "minder voorrang" hoort, gewoon als het merk wel
- * prioriteiten heeft maar deze dienst er niet in staat. Zonder enige opgave van
- * het merk: `null`, want dan weten we het niet (conventie 3).
+ * Voorrang als de kans letterlijk een dienst noemt die de klant in het gesprek
+ * voorrang gaf, minder als hij alleen een dienst met minder voorrang noemt,
+ * gewoon als het merk wel prioriteiten heeft maar deze kans er geen noemt.
+ * Zonder enige opgave van het merk: `null`, want dan weten we het niet
+ * (conventie 3).
+ *
+ * ⚠️ Sinds 29 september 2026 (V19, besluit B32) op de tekst van de kans (titel,
+ * lezer, doelvragen) en niet meer via de diensten van het cluster: clusters en
+ * kansen worden niet aan diensten gekoppeld. Een hulp voor de consultant bij het
+ * opstellen van het plan, geen automatische rangorde.
  */
 export function commercieleWaardeVan(args: {
-  diensten: readonly string[];
+  tekst: string;
   voorrang: readonly string[];
   minder: readonly string[];
 }): CommercieleWaarde | null {
-  const voorrang = new Set(args.voorrang.map(norm).filter(Boolean));
-  const minder = new Set(args.minder.map(norm).filter(Boolean));
-  if (voorrang.size === 0 && minder.size === 0) return null;
-  const diensten = args.diensten.map(norm);
-  if (diensten.some((d) => voorrang.has(d))) return "voorrang";
-  if (diensten.some((d) => minder.has(d))) return "minder";
+  const voorrang = args.voorrang.map(norm).filter(Boolean);
+  const minder = args.minder.map(norm).filter(Boolean);
+  if (voorrang.length === 0 && minder.length === 0) return null;
+  const tekst = norm(args.tekst);
+  if (voorrang.some((d) => noemt(tekst, d))) return "voorrang";
+  if (minder.some((d) => noemt(tekst, d))) return "minder";
   return "gewoon";
 }
 
@@ -299,28 +316,20 @@ export function bevatHeelWoord(tekstIn: string, woord: string): boolean {
 }
 
 /**
- * De kennisitems waarvoor deze kans geldt: de diensten van het onderwerp en de
- * werkgebieden die letterlijk in de kans voorkomen. Elk id één keer, in de
- * volgorde van de kennis.
+ * De kennisitems waarvoor deze kans geldt: de werkgebieden die letterlijk in de
+ * kans voorkomen. Elk id één keer, in de volgorde van de kennis.
+ *
+ * ⚠️ Niet meer de diensten van het onderwerp (besluit B32, 29 september 2026):
+ * clusters en kansen worden niet aan diensten of producten gekoppeld.
  */
 export function geldtVoorVan(args: {
   kans: Pick<KansUitAanbeveling, "titel" | "lezer" | "doelvragen">;
-  dienstIds: readonly string[];
   kennis: readonly KennisVoorKans[];
 }): string[] {
-  const diensten = new Set(args.dienstIds);
   const teksten = [args.kans.titel, args.kans.lezer ?? "", ...args.kans.doelvragen.map((d) => d.text ?? "")].join("\n");
   const uit: string[] = [];
   for (const k of args.kennis) {
-    // Alleen het item dat de dienst zelf is, niet zijn prijs of doelgroep: die
-    // hangen al aan de dienst, en een kans geldt voor de dienst.
-    const isDienst =
-      (k.soort === "dienst" || k.soort === "categorie") &&
-      k.herkomstTabel === "profile_offerings" &&
-      k.herkomstId !== null &&
-      diensten.has(k.herkomstId);
-    const isRegio = k.soort === "werkgebied" && bevatHeelWoord(teksten, k.bewering);
-    if ((isDienst || isRegio) && !uit.includes(k.id)) uit.push(k.id);
+    if (k.soort === "werkgebied" && bevatHeelWoord(teksten, k.bewering) && !uit.includes(k.id)) uit.push(k.id);
   }
   return uit;
 }

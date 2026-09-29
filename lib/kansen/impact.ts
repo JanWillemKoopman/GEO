@@ -72,7 +72,7 @@ export async function geraaktOverzicht(admin: Admin, profileId: string): Promise
   const [{ data: kansRows }, { data: analyseRows }] = await Promise.all([
     admin
       .from("kansen")
-      .select("id, titel, status")
+      .select("id, titel, status, ruw")
       .eq("profile_id", profileId)
       .in("status", ["te_herzien", "vervallen"])
       .order("updated_at", { ascending: false }),
@@ -90,7 +90,11 @@ export async function geraaktOverzicht(admin: Admin, profileId: string): Promise
         .order("kennis_gewijzigd_op", { ascending: false })
     : { data: [] };
 
-  const kansen = ((kansRows ?? []) as { id: string; titel: string; status: string }[]).map((k) => ({
+  const kansen = ((kansRows ?? []) as { id: string; titel: string; status: string; ruw: { samengevoegdMet?: unknown } | null }[])
+    // V7 en V20: een kans die als bewijs bij een andere kans ging, staat op
+    // "vervallen" maar is niet door een kenniswijziging geraakt.
+    .filter((k) => !k.ruw?.samengevoegdMet)
+    .map((k) => ({
     id: k.id,
     titel: k.titel,
     status: k.status as "te_herzien" | "vervallen",

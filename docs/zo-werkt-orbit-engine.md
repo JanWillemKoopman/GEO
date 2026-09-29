@@ -269,9 +269,14 @@ voeren op basis van wat de app gevonden heeft.
   Het oordeel (bekend, klopt, genoemd) velt de app zelf, nooit de AI over zichzelf. "ChatGPT denkt
   dat je in Eindhoven zit" is voor een ondernemer vaak de meest alarmerende uitkomst.
 - **Alles samenbrengen.** Het sterkste model maakt er één dossier van: vier tot acht zinnen zonder
-  vakjargon, een lijst citeerbare feiten (elk met een bronpagina en een letterlijk citaat), en open
-  punten die in dertig seconden te beantwoorden zijn. Een feit waarvan het citaat niet letterlijk
-  op de bronpagina staat, gooit de app weg.
+  vakjargon, een lijst citeerbare feiten (elk met een bronpagina en een letterlijk citaat), de
+  concrete klussen die de site zelf beschrijft (projecten, recente werkzaamheden), en open punten
+  die in dertig seconden te beantwoorden zijn. Een feit of klus waarvan het citaat niet letterlijk
+  op de bronpagina staat, gooit de app weg. Een klus wordt een verhaal voor de schrijver, naast de
+  verhalen uit het gesprek.
+- Het werkgebied hoort in plaatsen te staan, niet in streken, want klanten zoeken op hun dorp.
+  Staat er toch een streek ("Alblasserwaard"), of is het soort bedrijf onbekend, dan staat dat
+  bovenaan de open punten voor het gesprek.
 - Het merk springt naar **"Klaar voor het gesprek"**. Een stap die niets vond, toont een
   waarschuwing in plaats van een groen vinkje.
 
@@ -293,9 +298,11 @@ dus voor een groot deel hoe goed alle latere teksten worden.
 - De commerciële vragen: waar wil de klant op groeien, wat juist niet meer, welke klantgroepen en
   plaatsen, wat is een klant waard, het seizoen, veelgehoorde bezwaren, **verboden onderwerpen en
   verboden woorden**, extra bewijs (certificaten, cijfers), en gelijknamige bedrijven.
-- Het tekstvak **"Verhalen"**: twee of drie typische klussen, hoe het bedrijf werkt in eigen
-  woorden, wat de ondernemer zegt als een klant twijfelt, wat het bedrijf bewust niet doet, waarom
-  het ooit begon.
+- **De verhalen**, in losse vakken: twee of drie typische klussen (elk in een eigen alinea), hoe het
+  bedrijf werkt in eigen woorden, de bezwaren die de ondernemer hoort met wat hij dan zegt, wat het
+  bedrijf bewust niet doet, en waarom het ooit begon. Elke klus gaat los mee, zodat hij op de
+  pagina komt waar hij past; de werkwijze gaat één keer mee naar elke pagina. Een vak "Nog meer
+  verhalen" vangt de rest op.
 - **Stemvoorbeelden**: één tot drie adressen van pagina's waarop de stem van het bedrijf goed te
   horen is. De app haalt die tekst op. Zonder stemvoorbeelden gebruikt de schrijver de homepage.
 - Optioneel: een tarievenpagina, brochure of offertetekst plakken, of een verandering vastleggen
@@ -348,8 +355,10 @@ gemeten nadat iemand ze heeft goedgekeurd.
 
   De harde regel: nooit de eigen merknaam en nooit een concurrent bij naam, want de meting moet
   laten zien of het merk vanzelf genoemd wordt. Werkt het bedrijf lokaal, dan bevat elke vraag een
-  plaats uit het werkgebied, en wel zo dat de vraag echt lokaal wordt. Minstens één vraag gaat over
-  een twijfel die klanten in het verkoopgesprek hebben.
+  plaats uit het werkgebied, en wel zo dat de vraag echt lokaal wordt. Hooguit één vraag per
+  cluster gaat over een twijfel die klanten in het verkoopgesprek hebben, en alleen als die twijfel
+  bij het onderwerp past; een tweede vraag over een twijfel haalt de app eruit. Zo meet de meting
+  de markt en niet het eigen verkoopverhaal.
 - De app haalt dubbele vragen eruit (ook als ze alleen in de plaatsnaam verschillen), en laat de AI
   aanvullen als er te weinig vragen, te weinig lokale vragen of te weinig vragen over een
   groeiregio zijn.
@@ -409,7 +418,12 @@ de kaarten in het contentplan.
   - of het een **nieuwe** pagina is of een bestaande die **verbeterd** moet worden (met het adres);
   - welke gemiste meetvragen de pagina moet winnen;
   - voor wie de pagina is, in één zin, bijvoorbeeld: "iemand met water door het plafond die
-    vandaag hulp zoekt en wil weten wat een reparatie kost".
+    vandaag hulp zoekt en wil weten wat een reparatie kost";
+  - de titel als onderwerp zoals een bezoeker het zoekt, niet als opdracht;
+  - de rol van de pagina: wat hij doet dat de andere pagina's van het merk niet doen;
+  - de kernvraag: de ene vraag die de pagina moet beantwoorden.
+- Het rapport ziet de open kansen van het hele merk, ook uit andere clusters. Dekt een gemis een
+  pagina die er al als kans ligt, dan wijst het die kans aan.
 - Een aanbeveling komt er alleen als er een gemeten gemis is, de klant er iets echts over kan
   zeggen, geen bestaande pagina het al dekt en hij niet overlapt met een andere. Wat afvalt, staat
   er met de reden bij.
@@ -419,6 +433,13 @@ de kaarten in het contentplan.
   hoeveel vragen een concurrent genoemd werd, en of de eigen site als bron werd aangehaald). Bij
   elke kans houdt de app ook bij wat hij voor die pagina nog niet over het bedrijf weet: het
   **kennisgat**.
+- **Eén kaart per pagina.** Wil een nieuwe kans een pagina verbeteren waar al een open kans voor is,
+  wees het rapport een open kans aan, of is het een nieuwe pagina die op één meetvraag rust die een
+  open kans al heeft, dan wordt het extra bewijs bij die kans in plaats van een tweede kaart. Een
+  vraag telt daarbij nooit twee keer mee.
+- Op de kaart in het plan ziet de consultant: "voorrang van de klant" als een dienst met voorrang
+  letterlijk in de kans staat, "rust op één meetvraag" bij een dunne kans, en of de kernvraag van de
+  pagina beantwoord, nog open of overgeslagen is.
 - Heeft het merk een Search Console-koppeling, dan krijgt een kans er ook bewijs uit Google bij:
   de zoekopdrachten over dezelfde dienst of plaats, met hun vertoningen en klikken. Dat gebeurt
   vanzelf na elke nieuwe ophaalronde van Search Console.
@@ -466,11 +487,14 @@ dollarcent per pagina en duurt ongeveer een halve minuut.
   ziet elke volgende brief welke vragen er al gesteld zijn, en krijgt de klant niet vijf keer
   dezelfde vraag in andere woorden.
 - **De content brief.** Het sterkste model krijgt de titel, de zoekintentie, de gemiste meetvragen
-  met wat ChatGPT er nu op antwoordt, alles wat de app al zeker weet over het bedrijf, het
-  kennisgat van deze kans, en bij een verbeterpagina de huidige tekst. Met zoeken op internet
+  met wat ChatGPT er nu op antwoordt, alles wat de app al zeker weet over het bedrijf, alle
+  vragen die het bedrijf al kreeg met hun antwoord, en bij een verbeterpagina de huidige tekst.
+  Is een eerdere vraag ook voor deze pagina nuttig, dan koppelt de brief hem, en krijgt de
+  schrijver het antwoord erbij in plaats van dat de klant het opnieuw moet vertellen. Met zoeken op internet
   levert het twee dingen:
-  - **onderzoek**: wat de bezoeker wil weten, wat goede pagina's goed doen en laten liggen,
-    vakkennis (met het webadres waar die gevonden is), en wat klanten vaak verkeerd begrijpen;
+  - **onderzoek**: wat de bezoeker wil weten, vakkennis over het onderwerp (met het webadres waar
+    die gevonden is, nooit van de eigen site en nooit over het bedrijf zelf), en wat klanten vaak
+    verkeerd begrijpen;
   - **hooguit acht vragen aan de ondernemer**, over feiten, voorbeelden uit de praktijk, de
     werkwijze, twijfels van klanten en wat het bedrijf anders doet. Alleen vragen waarvan de
     schrijver het antwoord kan gebruiken en die niet al bekend of op te zoeken zijn. Nul vragen is
@@ -528,7 +552,10 @@ ongeveer een minuut per pagina.
   - wat een goede pagina behandelt, uit het onderzoek, met de waarschuwing dat dit algemene kennis
     is en niet zegt wat dit bedrijf doet of belooft;
   - de stemvoorbeelden, met de opdracht de toon over te nemen, maar niet de zinnen;
-  - de titels van andere pagina's van het bedrijf, zodat de schrijver er niet overheen schrijft;
+  - de rol van de pagina en de kernvraag uit het rapport;
+  - de vragen die de ondernemer oversloeg, zodat de schrijver er niet omheen schrijft;
+  - de andere pagina's uit hetzelfde cluster met hun rol, zodat de schrijver ernaast schrijft en
+    niet eroverheen;
   - bij verbeteren: de huidige tekst.
 - **De opdracht** in het kort: schrijf als een ervaren vakschrijver de beste pagina die iemand met
   deze vraag kan lezen. Beantwoord de vraag meteen. Verzin geen claims, cijfers, garanties, prijzen,
@@ -560,15 +587,23 @@ aan de ondernemer voor, in plaats van het zelf te beslissen.
 - **De beoordeling.** Het sterkste model leest als eindredacteur mee, met precies dezelfde
   informatie die de schrijver had. Het herschrijft niets, maar beantwoordt twee vragen:
   - *Klopt het?* Welke zinnen over het bedrijf blijken niet uit de informatie?
-  - *Is het goed?* Wordt de vraag meteen beantwoord, klinkt het als het bedrijf, is er genoeg
-    diepgang, heeft de lezer er iets aan?
+  - *Is het goed?* Wordt de vraag meteen beantwoord, klinkt het als het bedrijf, staat er iets in
+    wat de lezer niet helpt, heeft de lezer er iets aan?
+
+  Een verbeterpunt haalt weg, corrigeert, verplaatst of maakt korter. Het vraagt nooit om een
+  bedrag, voorwaarde of belofte die niet al in de informatie staat.
 
   Het oordeel is "goed" of "niet goed", met hooguit vijf concrete verbeterpunten. Geen cijfer.
 - **De beslissing** is een vaste regel in de code: herschrijven als het oordeel "niet goed" is, of
-  als er verzonnen, onbewezen of verboden zinnen zijn. Anders gaat de pagina direct naar de klant.
+  als er een verzonnen zin of een verboden woord in staat. Een zin die alleen de code niet kon
+  terugvinden, is geen reden: die wordt geel en de klant beslist. Anders gaat de pagina direct naar
+  de klant.
 - **Hooguit één herschrijving.** De schrijver krijgt de vorige versie met de feedback. Daarna
-  controleert de code opnieuw. De nieuwe versie blijft, tenzij hij meer onbewezen zinnen heeft dan
-  de vorige. Er komt geen tweede beoordeling en geen tweede herschrijving.
+  controleert de code opnieuw. De nieuwe versie blijft altijd; een onbewezen zin die hij bijzette,
+  wordt geel. Er komt geen tweede beoordeling en geen tweede herschrijving.
+- **Bij een verbeterpagina** zoekt de code welke harde gegevens van de huidige pagina (bedragen,
+  termijnen, telefoonnummers, keurmerken) niet in de nieuwe tekst staan. De klant ziet die lijst bij
+  het goedkeuren. Hij houdt niets tegen: soms is weglaten juist de bedoeling.
 - **Gele zinnen.** Zinnen die daarna nog twijfelachtig zijn, worden geel gemarkeerd. Een gele zin
   houdt de pagina niet tegen, maar de klant moet hem bevestigen of aanpassen voordat de pagina
   goedgekeurd kan worden.
@@ -583,7 +618,8 @@ is de enige maatstaf die telt. Na goedkeuring krijgt de klant alles wat nodig is
 op de site te zetten.
 
 - De klant leest de tekst opgemaakt, met koppen en lijsten. Bovenaan staat, als die er is, wat de
-  schrijver nog had willen weten.
+  schrijver nog had willen weten. Dat staat ook als open vraag bij de pagina: het antwoord gaat de
+  kennislaag in, en daarmee kan de klant om een aanpassing vragen.
 - De gele zinnen staan geel in de tekst, met per zin **"Klopt"** en **"Pas aan"**.
 - De klant kan de tekst ook zelf bewerken. Een gele zin die daarna niet meer in de tekst staat,
   hoeft niet meer bevestigd te worden.

@@ -14,6 +14,7 @@ import { planImpactWaves } from "@/lib/pipeline/impact";
 import { koppelAdresAanMeetplan } from "@/lib/pipeline/meetplan";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import type { ContentPiece } from "@/lib/types/database";
+import { metPublicatiedatum } from "@/lib/schema-jsonld";
 
 type Admin = SupabaseClient;
 
@@ -35,12 +36,21 @@ export async function markPublished(
   args: { analysisId: string; contentPieceId: string; url: string },
 ): Promise<PublishResult> {
   const publishedAt = new Date();
+  // V23: pas nu krijgen de gestructureerde gegevens een publicatiedatum.
+  const { data: huidig } = await admin
+    .from("content_pieces")
+    .select("schema_jsonld")
+    .eq("id", args.contentPieceId)
+    .eq("analysis_id", args.analysisId)
+    .maybeSingle();
+  const schema = metPublicatiedatum((huidig as { schema_jsonld?: string | null } | null)?.schema_jsonld ?? null, publishedAt.toISOString());
 
   const { error } = await admin
     .from("content_pieces")
     .update({
       status: "published" as const,
       published_at: publishedAt.toISOString(),
+      ...(schema ? { schema_jsonld: schema } : {}),
       published_url: args.url,
       // Een eerdere controle hoort niet bij deze URL; wissen zodat er geen oude
       // uitslag naast een nieuw adres blijft staan.

@@ -30,10 +30,20 @@
  */
 import { segmentsOf } from "@/lib/crawl-urls";
 
-export type FunctieSoort = "homepage" | "prijzen" | "contact" | "over" | "overzicht" | "onderwerp";
+export type FunctieSoort = "homepage" | "prijzen" | "contact" | "over" | "overzicht" | "verzameling" | "bericht" | "onderwerp";
 
-/** Pagina's die het hele bedrijf dragen en nooit één onderwerp mogen worden. */
-export const NIET_TE_VERVANGEN: readonly FunctieSoort[] = ["homepage", "contact", "over"];
+/**
+ * Pagina's die nooit één onderwerp mogen worden. Sinds 29 september 2026 ook
+ * een verzamelpagina (tips, blog, kennisbank, nieuws) en een los nieuwsbericht:
+ * in ronde 1 werd de tipspagina van De Waard (een wespenvanger en mieren) een
+ * pagina over mollen, en een nieuwsbericht over één nest een dienstpagina (V21
+ * van `pijplijnanalyse-contentketen.md`). Zo'n aanbeveling wordt een nieuwe
+ * pagina met de bestaande als verwante pagina.
+ */
+export const NIET_TE_VERVANGEN: readonly FunctieSoort[] = ["homepage", "contact", "over", "verzameling", "bericht"];
+
+/** De eerste stap van het pad van een verzameling van berichten of artikelen. */
+const VERZAMELING = /^(tips|blog|blogs|nieuws|actueel|kennisbank|artikelen|news|nieuwsberichten|werkzaamheden-en-nieuws|projecten)$/;
 
 export function paginaSoort(url: string): FunctieSoort {
   const segmenten = segmentsOf(url);
@@ -46,6 +56,13 @@ export function paginaSoort(url: string): FunctieSoort {
   if (segmenten.length === 1 && /^(over-ons|over|wie-zijn-wij|ons-team.*|team)$/.test(pad)) return "over";
   if (segmenten.length === 1 && /^(diensten|aanbod|onze-diensten|werkzaamheden|services)$/.test(pad)) {
     return "overzicht";
+  }
+  const eerste = (segmenten[0] ?? "").toLowerCase();
+  if (VERZAMELING.test(eerste)) {
+    if (segmenten.length === 1) return "verzameling";
+    // Een los bericht onder nieuws of blog; een artikel in een kennisbank of een
+    // tip is een onderwerp op zich en mag verbeterd worden.
+    if (/^(nieuws|actueel|news|nieuwsberichten|werkzaamheden-en-nieuws|blog|blogs)$/.test(eerste)) return "bericht";
   }
   return "onderwerp";
 }
@@ -65,22 +82,32 @@ const EIS: Record<FunctieSoort, string> = {
   over: "Dit is de pagina OVER HET BEDRIJF. Hij blijft over het bedrijf en de mensen gaan.",
   overzicht:
     "Dit is het OVERZICHT VAN HET AANBOD. Alle diensten die er nu op staan, blijven erop.",
+  verzameling:
+    "Dit is een VERZAMELPAGINA met berichten of artikelen. Hij blijft een overzicht van wat er nu op staat.",
+  bericht: "Dit is een NIEUWSBERICHT over één gebeurtenis. Hij blijft over die gebeurtenis gaan.",
   onderwerp:
     "Het onderwerp van deze pagina blijft wat het nu is, voor dezelfde lezer.",
 };
 
 /**
- * Het promptblok voor de opzet en de schrijver: wat deze pagina nu is, als
- * vaste eis. Leeg zonder bestaande pagina.
+ * Wat de schrijver van een verbeterpagina over die pagina meekrijgt: wat de
+ * pagina nu is, als vaste eis, en dat de concrete gegevens erop blijven. Leeg
+ * zonder bestaande pagina.
+ *
+ * ⚠️ Deze functie werd na de ombouw van de contentketen (25 september 2026)
+ * nergens meer aangeroepen. In ronde 1 werd de prijspagina van de software van
+ * Myfinance daardoor een pagina over de boekhoudservice, precies de fout
+ * waarvoor dit ooit gebouwd werd. Nu roept `schrijfInvoer()` hem weer aan (V21
+ * van `pijplijnanalyse-contentketen.md`); een test bewaakt dat.
  */
 export function functieblok(url: string | null | undefined, titel: string | null | undefined): string {
   if (!url) return "";
   const soort = paginaSoort(url);
   const huidig = (titel ?? "").trim();
   return (
-    `DE FUNCTIE VAN DEZE PAGINA (vaste eis, gaat vóór de doelvraag): ${EIS[soort]}` +
+    `${EIS[soort]}` +
     (huidig ? ` De huidige titel is "${huidig}"; de nieuwe tekst gaat over hetzelfde.` : "") +
-    ` De vraag die de pagina moet winnen, wordt een sectie op deze pagina en niet het nieuwe onderwerp ervan. ` +
-    `Noem in doel en doelgroep dus de lezer van deze pagina, niet alleen de vrager van die ene vraag.`
+    ` Wat de bezoeker volgens de zoekintentie wil weten, krijgt een plek op deze pagina en wordt niet het nieuwe onderwerp ervan.` +
+    ` De concrete gegevens die er nu op staan (prijzen, pakketten, voorwaarden, contactgegevens) blijven erop, tenzij de bedrijfskennis zegt dat ze niet meer kloppen.`
   );
 }

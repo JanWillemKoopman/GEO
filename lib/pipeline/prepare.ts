@@ -34,7 +34,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateTopicResearch } from "@/lib/pipeline/topic-research";
 import { generatePromptsForStage, calibrateVolumes, type BrandContext } from "@/lib/pipeline/prompts";
-import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
+import { dubbelMetAndereClusters, duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { resolveMix, DEFAULT_STAGE_COUNT, type FunnelStage } from "@/lib/prompt-mix";
 import { bandFromEstimate, bandFromMeasuredVolume } from "@/lib/pipeline/volume";
 import { kandidaatZoektermen } from "@/lib/search-demand/keywords";
@@ -278,6 +278,7 @@ export async function generateAnalysisPrompts(
       };
 
       const mix = resolveMix(analysis);
+      const andereClusters = await vragenVanAndereClusters(admin, analysis.profile_id, id);
       const prompts = await generatePromptsForStage({
         analysisId: id,
         url: profile.url,
@@ -286,6 +287,7 @@ export async function generateAnalysisPrompts(
         contentBrief: analysis.content_brief,
         category,
         count: mix[category as FunnelStage] ?? DEFAULT_STAGE_COUNT,
+        andereClusters,
       });
       // ── Blok C, 3.2 deel B: het gewicht verankeren aan een echte meting ────
       // (docs/tasks/zoekdata-in-de-keten.md)
@@ -368,6 +370,19 @@ export async function generateAnalysisPrompts(
   }
 }
 
+/** V18: de actieve vragen van de andere clusters van dit merk. */
+async function vragenVanAndereClusters(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  analysisId: string,
+): Promise<string[]> {
+  const { data: analyses } = await admin.from("analyses").select("id").eq("profile_id", profileId).neq("id", analysisId);
+  const ids = ((analyses ?? []) as { id: string }[]).map((a) => a.id);
+  if (ids.length === 0) return [];
+  const { data } = await admin.from("prompts").select("text").in("analysis_id", ids).eq("active", true);
+  return [...new Set(((data ?? []) as { text: string }[]).map((r) => r.text).filter(Boolean))];
+}
+
 /**
  * De poort naar klant-goedkeuring, na de laatste fasetaak.
  *
@@ -402,6 +417,25 @@ export async function finishPromptGeneration(id: string): Promise<AnalysisStatus
       createdAt: new Date(r.created_at as string | Date).toISOString(),
     })),
   );
+  // V18 (besluit B-i): ook over de clusters van het merk heen. Alleen de vragen
+  // van DEZE analyse gaan weg; er is nog niet op gemeten. De opdracht kreeg de
+  // andere vragen al mee, dit vangt twee clusters die tegelijk hun vragen
+  // opstellen.
+  const { data: analyseRij } = await admin.from("analyses").select("profile_id").eq("id", id).maybeSingle();
+  const profielId = (analyseRij as { profile_id?: string | null } | null)?.profile_id ?? null;
+  if (profielId) {
+    const weg = new Set(duplicaten);
+    const over = (alleVragen ?? []).filter((r) => !weg.has(r.id as string));
+    const andere = await vragenVanAndereClusters(admin, profielId, id);
+    const overClusters = dubbelMetAndereClusters(
+      over.map((r) => ({ id: r.id as string, text: r.text as string, createdAt: new Date(r.created_at as string | Date).toISOString() })),
+      andere,
+    );
+    if (overClusters.length > 0) {
+      console.info(`Analyse ${id}: ${overClusters.length} vraag of vragen stonden al in een ander cluster van dit merk.`);
+      duplicaten.push(...overClusters);
+    }
+  }
   if (duplicaten.length > 0) {
     const { error: verwijderError } = await admin.from("prompts").delete().in("id", duplicaten);
     if (verwijderError) {

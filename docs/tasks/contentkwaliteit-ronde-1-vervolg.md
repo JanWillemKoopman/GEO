@@ -442,3 +442,7 @@ aanmaken en het onderzoek, via het gesprek, de meetvragen, de meting en het rapp
 het schrijven, de controle en de herschrijving. Dezelfde spelregels als hierboven: bestaande stappen
 verbeteren, geen stappen erbij. De opzet van die analyse wordt een eigen document zodra de eigenaar
 akkoord geeft.
+
+> **Uitgevoerd op 29 september 2026:** `docs/tasks/pijplijnanalyse-contentketen.md`. Daar staan de
+> analyse per stap, het verbeterplan (V0 tot en met V23, waarin K1 tot en met K4 zijn opgegaan), de
+> volgorde van bouwen en tien besluiten voor de eigenaar. Nog niets gebouwd; wacht op akkoord.

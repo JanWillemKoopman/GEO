@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ClusterLabel, Profile } from "@/lib/types/database";
 import { PROMPT_CATEGORIES } from "@/lib/types/database";
 import { MAX_LABELNAAM, sorteerLabels } from "@/lib/cluster-labels";
+import { lijktOp } from "@/lib/cluster-overlap";
 import {
   DEFAULT_MIX,
   MAX_PER_STAGE,
@@ -22,6 +23,7 @@ const NIEUW_LABEL = "__nieuw__";
 export function NewAnalysisForm({
   profiles,
   labelsPerMerk,
+  onderwerpenPerMerk = {},
   initialProfileId,
   /** Uit tijdens het bouwen (EMAILS_ENABLED). Dan tonen we het mailvinkje niet. */
   emailsEnabled = false,
@@ -32,6 +34,8 @@ export function NewAnalysisForm({
    * lijst, want een label van merk A hoort niet in de keuzelijst van merk B.
    */
   labelsPerMerk: Record<string, ClusterLabel[]>;
+  /** V18: de onderwerpen van de bestaande clusters per merk-id. */
+  onderwerpenPerMerk?: Record<string, string[]>;
   /** Het merk waar de klant vandaan kwam, zodat hij het niet opnieuw kiest. */
   initialProfileId?: string;
   emailsEnabled?: boolean;
@@ -58,6 +62,9 @@ export function NewAnalysisForm({
   const [pending, setPending] = useState(false);
 
   const labels = sorteerLabels(labelsPerMerk[profileId] ?? []);
+  // V18: waarschuwen, niet tegenhouden. Twee clusters die op elkaar lijken
+  // kunnen een bewuste keuze zijn.
+  const lijkend = topic.trim().length >= 3 ? lijktOp(topic, onderwerpenPerMerk[profileId] ?? []) : [];
   const mixCheck = checkNewClusterMix(mix);
   const mixError = mixCheck.ok ? null : mixCheck.reason;
 
@@ -135,6 +142,12 @@ export function NewAnalysisForm({
         <span className="text-sm text-muted">
           Eén cluster = één product of onderwerp. Scherp afbakenen levert scherpere vragen op.
         </span>
+        {lijkend.length > 0 && (
+          <span className="text-sm text-[var(--intent-warning-content)]">
+            Lijkt op: {lijkend.slice(0, 3).join(", ")}. Twee clusters over hetzelfde onderwerp meten deels
+            dezelfde vragen; ORBIT ENGINE laat een vraag die al in een ander cluster staat weg.
+          </span>
+        )}
       </label>
 
       {/* Het label (migratie 0083). Onder het onderwerp en niet erboven: eerst

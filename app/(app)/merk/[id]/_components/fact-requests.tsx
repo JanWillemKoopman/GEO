@@ -7,7 +7,7 @@ import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/e
 import type { UserFacingError } from "@/lib/errors";
 import type { FactRequest } from "@/lib/types/database";
 import { Antwoordveld } from "@/components/antwoordveld";
-import { vraagsoortKop, vraagVorm, VERPLICHT_UITLEG } from "@/lib/feitenvraag";
+import { kernvraagEerst, vraagsoortKop, vraagVorm, VERPLICHT_UITLEG } from "@/lib/feitenvraag";
 
 /**
  * De klant om feiten vragen (optimalisatie.md 4.6).
@@ -81,7 +81,7 @@ export function FactRequests({
     [facts, groep],
   );
 
-  const open = zichtbaar.filter((f) => f.status === "open");
+  const open = kernvraagEerst(zichtbaar.filter((f) => f.status === "open"));
   const answered = zichtbaar.filter((f) => f.status === "beantwoord");
   // C: "overslaan" veranderde tot nu toe niets zichtbaars, de vraag verdween
   // gewoon uit de lijst zonder enige bevestiging van wat er gebeurd was. Een
@@ -503,7 +503,7 @@ function FactCard({
           <p className="font-medium">{fact.question}</p>
           {kop && <span className="mono-label shrink-0">{kop.titel}</span>}
           {groep && <span className="mono-label shrink-0">{groep}</span>}
-          {fact.required && <span className="chip chip-warning shrink-0">Draagt een kernstuk</span>}
+          {fact.required && <span className="chip chip-warning shrink-0">Kernvraag van de pagina</span>}
         </div>
         {fact.reason && <p className="text-sm text-muted">{fact.reason}</p>}
         {fact.required && <p className="text-sm text-muted">{VERPLICHT_UITLEG}</p>}

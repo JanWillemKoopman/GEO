@@ -822,3 +822,13 @@ een pagina in status `briefing` op de antwoorden van de klant wacht. `/api/cron/
 `vercel.json`, Hobby-limiet) verstuurt hem naast de bestaande publicatieherinnering, alleen als
 `EMAILS_ENABLED` aanstaat. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` A5. Additief en
 idempotent. Op productie toegepast op 27 september 2026.
+
+## 0129: de verhalen in vakken, bezwaren met antwoord
+
+Voegt aan `profiles` toe: `verhaal_klussen`, `verhaal_werkwijze`, `verhaal_niet`, `verhaal_begin`
+en `bezwaren_met_antwoord` (alle `text`). Het gespreksscherm toont ze als losse vakken; de kennislaag
+maakt van elke alinea van `verhaal_klussen` en `bezwaren_met_antwoord` een eigen item, zodat een
+klus alleen op de pagina komt waar hij past en een bezwaar met het antwoord van de ondernemer
+meegaat. `verhalen` blijft bestaan als "Nog meer verhalen". Besluit B28 in
+`docs/tasks/contentketen-opnieuw.md` §2, V5 van `docs/tasks/pijplijnanalyse-contentketen.md`.
+Additief en idempotent. Op productie toegepast op 29 september 2026.

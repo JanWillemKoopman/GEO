@@ -34,6 +34,29 @@
  * verzendknop heeft. Wat daar nog aan vastzit staat in dat document.
  */
 
+/**
+ * Hoe lang een antwoord op een gerichte vraag mag zijn.
+ *
+ * ⚠️ Was 500, en de route knipte stil af. In ronde 1 van de contentkwaliteit
+ * (29 september 2026) waren daardoor 14 van de 21 gerichte antwoorden van de
+ * rijkste klant midden in een zin afgebroken ("een SKG***-cil"), terwijl het
+ * invulveld geen grens en geen teller had. Juist wie uitgebreid antwoordt,
+ * verloor het meest (`docs/tasks/pijplijnanalyse-contentketen.md` V1).
+ * Nu: een ruimere grens, een teller in het veld, en de route weigert een te
+ * lang antwoord in plaats van het stil in te korten.
+ */
+export const GERICHT_ANTWOORD_MAX = 1500;
+
+/** De grens voor dit antwoord: de open vraag krijgt ruimte voor een verhaal (B3). */
+export function antwoordGrens(openVraag: boolean, openMax: number): number {
+  return openVraag ? openMax : GERICHT_ANTWOORD_MAX;
+}
+
+/** Is dit antwoord te lang? Nooit stil inkorten: de gebruiker moet het zien. */
+export function antwoordTeLang(antwoord: string, grens: number): boolean {
+  return antwoord.trim().length > grens;
+}
+
 /** Het invoerveld dat bij een vraag hoort. */
 export type Invoervorm = "keuze" | "tekstvak" | "regel" | "getal" | "bedrag" | "url";
 
@@ -170,4 +193,14 @@ export function groepeerOpSoort<T extends { kind?: string | null }>(
  * klant te weten vóórdat hij besluit hem over te slaan, niet erna.
  */
 export const VERPLICHT_UITLEG =
-  "Zonder dit antwoord blijft een kernstuk van de pagina onbewezen. Overslaan mag, dan laat ORBIT ENGINE dat stuk weg.";
+  "Zonder dit antwoord wordt deze pagina zwak. Overslaan mag: de pagina wordt dan zonder dit stuk geschreven.";
+
+/**
+ * De kernvraag bovenaan (V8 van `docs/tasks/pijplijnanalyse-contentketen.md`,
+ * besluit B-c). Een pagina-brief zet `required` op de ene vraag die de
+ * kernvraag van de pagina beantwoordt. Juist een drukke klant beantwoordt dan
+ * eerst de vraag die ertoe doet. Verder blijft de volgorde zoals hij was.
+ */
+export function kernvraagEerst<T extends { required?: boolean | null }>(vragen: readonly T[]): T[] {
+  return [...vragen.filter((v) => v.required), ...vragen.filter((v) => !v.required)];
+}

@@ -56,25 +56,29 @@ export const GESPREKSVELDEN: (keyof BronProfiel)[] = PROFIEL_MEENEMEN.filter(
 /**
  * Een beantwoorde vraag als kennisitems; een open of overgeslagen vraag levert niets.
  *
- * `diensten` (A2, besluit V23): de diensten van de kans achter de pagina's van de
- * vraag. Is die er, dan geldt het antwoord op een gerichte vraag van een pagina
- * voor die dienst, en niet alleen voor die ene pagina: een volgende pagina over
- * dezelfde dienst krijgt het in blok A en vraagt het niet opnieuw. Niet voor een
- * praktijkvoorbeeld of het antwoord op de open vraag: dat verhaal hoort bij de
- * pagina waarvoor het verteld is (besluit B3), tenzij de vraag merkbreed was.
+ * V17 van `docs/tasks/pijplijnanalyse-contentketen.md` (besluit B32, 29
+ * september 2026): het antwoord op een gerichte vraag van een pagina geldt voor
+ * het cluster van die pagina, en dus ook voor de andere pagina's uit dat
+ * cluster. Niet meer voor een dienst of een plaats: in ronde 1 hing een antwoord
+ * via de plaatsen van de kans aan bijna elke pagina van een lokaal bedrijf (de
+ * Tedee-antwoorden op de Houten-pagina, het hoornaarantwoord op de
+ * mollenpagina), en bij een landelijk bedrijf aan geen enkele andere pagina.
+ * Een praktijkvoorbeeld en het antwoord op de open vraag blijven bij de pagina
+ * waarvoor ze verteld zijn (besluit B3), tenzij de vraag merkbreed was. Verder
+ * hergebruik is aan de brief, die de eerdere antwoorden leest (`briefInvoer()`).
  */
-export function kennisUitAntwoord(vraag: BronVraag, diensten: readonly string[] = []): PlanItem[] {
+export function kennisUitAntwoord(vraag: BronVraag): PlanItem[] {
   const m = { items: [] as PlanItem[], uitsluitingen: [], voorConsultant: [] };
-  if (diensten.length > 0 && geldtVoorDienst(vraag)) {
-    planAntwoord(m, { ...vraag, scope: "dienst", content_piece_ids: [], analysis_id: null }, null);
-    return m.items.map((i) => ({ ...i, geldtVoorIds: [...new Set(diensten)] }));
+  if (geldtVoorCluster(vraag) && vraag.analysis_id) {
+    planAntwoord(m, { ...vraag, scope: "cluster", content_piece_ids: [] }, null);
+    return m.items;
   }
   planAntwoord(m, vraag, null);
   return m.items;
 }
 
-/** Mag het antwoord op deze vraag voor een dienst gelden (A2)? Alleen een gerichte vraag van een pagina, geen verhaal. */
-export function geldtVoorDienst(vraag: Pick<BronVraag, "scope" | "open_vraag" | "raw_json">): boolean {
+/** Geldt het antwoord op deze vraag voor het hele cluster (V17)? Alleen een gerichte vraag van een pagina, geen verhaal. */
+export function geldtVoorCluster(vraag: Pick<BronVraag, "scope" | "open_vraag" | "raw_json">): boolean {
   if (vraag.scope !== "pagina") return false;
   if (vraag.open_vraag) return false;
   return vraag.raw_json?.soort !== "praktijk";
