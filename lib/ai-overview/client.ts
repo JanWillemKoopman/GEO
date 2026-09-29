@@ -23,7 +23,7 @@ import "server-only";
  * moet oplossen.
  */
 import { aiOverviewCredentials } from "@/lib/ai-overview/registry";
-import { leesAiOverview } from "@/lib/ai-overview/parse";
+import { DFS_OK, leesAiOverview, type DfsResponse } from "@/lib/ai-overview/parse";
 import { AI_OVERVIEW_POGINGEN, type AiOverviewResultaat } from "@/lib/ai-overview/types";
 
 const ENDPOINT = "https://api.dataforseo.com/v3/serp/google/organic/live/advanced";
@@ -107,8 +107,21 @@ export async function haalAiOverview(vraag: string): Promise<AiOverviewResultaat
 }
 
 async function eenPoging(auth: string, body: string): Promise<AiOverviewResultaat> {
+  const antwoord = await postSerp(auth, body, TIMEOUT_MS);
+  if (!antwoord.ok) {
+    return { status: "mislukt", tekst: "", bronnen: [], kostenUsd: 0, melding: antwoord.melding };
+  }
+  return leesAiOverview(antwoord.json);
+}
+
+/** Eén POST naar het SERP-endpoint. Gooit nooit: een fout wordt een melding. */
+async function postSerp(
+  auth: string,
+  body: string,
+  timeoutMs: number,
+): Promise<{ ok: true; json: unknown } | { ok: false; melding: string }> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(ENDPOINT, {
       method: "POST",
@@ -116,27 +129,77 @@ async function eenPoging(auth: string, body: string): Promise<AiOverviewResultaa
       body,
       signal: controller.signal,
     });
-
-    if (!res.ok) {
-      return {
-        status: "mislukt",
-        tekst: "",
-        bronnen: [],
-        kostenUsd: 0,
-        melding: `HTTP ${res.status}`,
-      };
-    }
-
-    return leesAiOverview(await res.json());
+    if (!res.ok) return { ok: false, melding: `HTTP ${res.status}` };
+    return { ok: true, json: await res.json() };
   } catch (err) {
-    return {
-      status: "mislukt",
-      tekst: "",
-      bronnen: [],
-      kostenUsd: 0,
-      melding: err instanceof Error ? err.message : String(err),
-    };
+    return { ok: false, melding: err instanceof Error ? err.message : String(err) };
   } finally {
     clearTimeout(timer);
   }
+}
+
+// ── De hele resultatenpagina, voor de content brief (besluit B34) ───────────
+//
+// Dezelfde aanroep als de meting hierboven, maar de brief wil meer dan het
+// AI-overzicht: ook de bovenste resultaten en de vragen die mensen erbij
+// stellen. Uitpakken gebeurt in `leesZoekresultaten()` (puur, `parse-serp.ts`).
+//
+// Een eigen tijdslimiet en geen eigen schakelaar-controle: de brief draait
+// binnen de werker (240 seconden budget, `workerTimeBudgetMs`), en een brief
+// duurde op productie tot 66 seconden (32 briefs, 29 september 2026). Veertig
+// seconden per poging, twee pogingen, alle zoekopdrachten tegelijk: hooguit 80
+// seconden voordat de brief begint.
+
+/** Tijdslimiet per poging voor de brief. Zie hierboven. */
+export const ZOEKRESULTATEN_TIMEOUT_MS = 40_000;
+
+export interface RuweZoekresultaten {
+  status: "gelukt" | "mislukt";
+  /** De respons van DataForSEO, of null bij een mislukking. */
+  json: unknown | null;
+  /** Wat de pogingen samen kostten; ook een mislukte poging kost geld. */
+  kostenUsd: number;
+  melding: string | null;
+}
+
+/**
+ * Haal de resultatenpagina op voor één zoekopdracht, met één herkansing.
+ * Gooit nooit: de brief gaat zonder zoekresultaten door als het niet lukt.
+ */
+export async function haalZoekresultatenpagina(
+  zoekopdracht: string,
+  creds: { login: string; password: string },
+): Promise<RuweZoekresultaten> {
+  const auth = Buffer.from(`${creds.login}:${creds.password}`).toString("base64");
+  const body = JSON.stringify([
+    {
+      keyword: zoekopdracht,
+      location_name: LOCATION_NAME,
+      language_code: LANGUAGE_CODE,
+      device: "desktop",
+      os: "windows",
+      depth: DEPTH,
+      // Dezelfde instellingen als de meting, die op 20 september 2026 tegen het
+      // echte account is nagemeten. Bewust geen extra parameters (zoals het
+      // uitklappen van "Andere mensen vroegen ook"): die zijn nog niet nagemeten,
+      // en een parameter die het endpoint weigert laat elke brief zonder
+      // zoekresultaten draaien.
+      load_async_ai_overview: true,
+    },
+  ]);
+
+  let kostenUsd = 0;
+  let melding: string | null = "geen poging gedaan";
+  for (let poging = 1; poging <= AI_OVERVIEW_POGINGEN; poging++) {
+    const antwoord = await postSerp(auth, body, ZOEKRESULTATEN_TIMEOUT_MS);
+    if (!antwoord.ok) {
+      melding = antwoord.melding;
+      continue;
+    }
+    const taak = (antwoord.json as DfsResponse | null)?.tasks?.[0];
+    kostenUsd += typeof taak?.cost === "number" ? taak.cost : 0;
+    if (taak?.status_code === DFS_OK) return { status: "gelukt", json: antwoord.json, kostenUsd, melding: null };
+    melding = typeof taak?.status_message === "string" ? taak.status_message : `status ${String(taak?.status_code)}`;
+  }
+  return { status: "mislukt", json: null, kostenUsd, melding };
 }

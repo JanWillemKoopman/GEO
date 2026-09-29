@@ -8,6 +8,7 @@ import { isStaff } from "@/lib/staff";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
 import { bereidVoor, probeerTeSchrijven } from "@/lib/pagina/start";
 import { keurGoed } from "@/lib/pagina/goedkeuren";
+import { isContentType } from "@/lib/plan-writing";
 
 /**
  * POST /api/profiles/[id]/plan/pages/[pageId], een handeling op één pagina.
@@ -30,7 +31,8 @@ type Actie =
   | "verplaats"
   | "inplannen"
   | "naar_voorraad"
-  | "datum";
+  | "datum"
+  | "soort";
 
 export async function POST(
   request: Request,
@@ -66,6 +68,7 @@ export async function POST(
     maandId?: string;
     index?: number;
     datum?: string | null;
+    soort?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -124,6 +127,34 @@ export async function POST(
           ? "Er staan nog vragen open voor deze pagina. ORBIT ENGINE schrijft zodra die beantwoord of overgeslagen zijn."
           : "De voorbereiding loopt. Daarna staan de vragen voor deze pagina klaar.",
     });
+  }
+
+  // ── De soort tekst kiezen (besluit B33, 29 september 2026) ────────────────
+  //
+  // Alleen de consultant (eigenaar, 29 september 2026), en alleen zolang er nog
+  // geen pagina is: daarna heeft de brief al voor deze soort gezocht en gevraagd,
+  // en zou een andere soort een brief krijgen die voor iets anders gemaakt is.
+  if (actie === "soort") {
+    if (!(await isStaff(user.id))) {
+      return NextResponse.json({ error: "Alleen je consultant kan de soort pagina kiezen." }, { status: 403 });
+    }
+    if (!isContentType(body.soort)) {
+      return NextResponse.json({ error: "Kies een soort pagina uit de lijst." }, { status: 400 });
+    }
+    if ((page as { content_piece_id?: string | null }).content_piece_id) {
+      return NextResponse.json(
+        { error: "Deze pagina wordt al voorbereid. De soort ligt daarmee vast." },
+        { status: 409 },
+      );
+    }
+    const { error } = await admin
+      .from("planned_pages")
+      .update({ content_type: body.soort })
+      .eq("id", pageId)
+      .eq("profile_id", id)
+      .is("content_piece_id", null);
+    if (error) return NextResponse.json({ error: "Opslaan is niet gelukt." }, { status: 500 });
+    return NextResponse.json({ ok: true });
   }
 
   // ── Inplannen en terugleggen ─────────────────────────────────────────────

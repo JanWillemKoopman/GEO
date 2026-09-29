@@ -61,13 +61,14 @@ const VERVULD_DOOR: Record<Behoefte, { domein?: string; soorten?: readonly strin
  *
  * - landing (dienstpagina): alles, want de lezer beslist hier.
  * - comparison: waar de lezer tussen kiest, dus prijs, werkwijze en voor wie niet.
- * - article en faq: uitleg; een prijs of termijn is daar een pluspunt, geen gat.
+ * - article, gids en faq: uitleg; een prijs of termijn is daar een pluspunt, geen gat.
  */
 export const BEHOEFTEN_PER_SOORT: Record<string, readonly Behoefte[]> = {
   landing: ["werkwijze", "prijs", "termijn", "voorbeeld", "voor_wie_niet", "bewijs"],
   comparison: ["werkwijze", "prijs", "voor_wie_niet", "bewijs"],
   article: ["werkwijze", "voorbeeld", "bewijs"],
   faq: ["werkwijze", "voorbeeld", "bewijs"],
+  gids: ["werkwijze", "voorbeeld", "bewijs"],
 };
 
 export function behoeftenVoor(paginaSoort: string | null): readonly Behoefte[] {
@@ -89,7 +90,7 @@ export interface KansVoorGat {
   geldtVoor: readonly string[];
   /** De pagina's (alle versies) die bij deze kans horen. */
   paginaIds: readonly string[];
-  /** `type` uit de aanbeveling: landing, comparison, article, faq. */
+  /** `type` uit de aanbeveling: landing, comparison, article, faq, of gids (B33). */
   paginaSoort: string | null;
 }
 

@@ -50,6 +50,7 @@ const SOORT: Record<string, string> = {
   faq: "Veelgestelde vragen",
   landing: "Landingspagina",
   comparison: "Vergelijking",
+  gids: "Gids",
 };
 const PAGINASOORT: Record<string, string> = {
   categorie: "Categoriepagina",

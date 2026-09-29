@@ -37,3 +37,24 @@ export function aiOverviewCredentials(): { login: string; password: string } | n
   if (!login || !password) return null;
   return { login, password };
 }
+
+/**
+ * Mogen de zoekresultaten van Google mee in de content brief (besluit B34)?
+ *
+ * Een eigen schakelaar naast `AI_OVERVIEW_ENABLED`, om dezelfde reden als
+ * hierboven: het aanzetten van de meting mag de brief niet meeslepen, en
+ * andersom. Alleen de letterlijke waarde `true`; uit betekent dat de brief
+ * draait zoals vóór 29 september 2026, met alleen zijn eigen zoektocht op het web.
+ */
+export function zoekresultatenInBriefEnabled(): boolean {
+  return process.env.BRIEF_ZOEKRESULTATEN_ENABLED?.trim().toLowerCase() === "true";
+}
+
+/** De inloggegevens voor de brief, of `null` als de schakelaar uit staat of er niets bruikbaars is. */
+export function zoekresultatenCredentials(): { login: string; password: string } | null {
+  if (!zoekresultatenInBriefEnabled()) return null;
+  const login = process.env.DATAFORSEO_LOGIN?.trim();
+  const password = process.env.DATAFORSEO_PASSWORD?.trim();
+  if (!login || !password) return null;
+  return { login, password };
+}

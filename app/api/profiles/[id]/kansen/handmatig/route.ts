@@ -5,6 +5,7 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { voegHandmatigeKansToe } from "@/lib/kansen/handmatig";
 import { KANS_HANDELINGEN, type KansHandeling } from "@/lib/kansen/prioriteit";
+import { isContentType } from "@/lib/plan-writing";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     bestaandeUrl?: string | null;
     geldtVoor?: string[];
     doelvragen?: string[];
+    contentType?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -54,6 +56,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     bestaandeUrl: typeof body.bestaandeUrl === "string" ? body.bestaandeUrl : null,
     geldtVoor: Array.isArray(body.geldtVoor) ? body.geldtVoor.filter((v) => typeof v === "string") : [],
     doelvragen: Array.isArray(body.doelvragen) ? body.doelvragen.filter((v) => typeof v === "string") : [],
+    contentType: isContentType(body.contentType) ? body.contentType : null,
     gebruikerId: user.id,
   });
 

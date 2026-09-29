@@ -52,7 +52,13 @@ import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
  * van de pagina uit het rapport en markeert welke vraag hem beantwoordt (`kern`,
  * of `kern_eerder` voor een vraag die er al was).
  */
-export const BRIEF_VERSIE = 6;
+/*
+ * Versie 7 (29 september 2026, besluiten B33 en B34): de invoer krijgt bij een
+ * artikel, gids, FAQ of vergelijking een zin over wat de lezer van die soort
+ * pagina wil, en de zoekresultaten van Google als apart blok. De vaste opdracht
+ * en het schema zijn gelijk; de invoer van een dienstpagina ook.
+ */
+export const BRIEF_VERSIE = 7;
 
 /** Technische bovengrens, geen doel (§6.1). */
 export const MAX_BRIEFVRAGEN = 8;

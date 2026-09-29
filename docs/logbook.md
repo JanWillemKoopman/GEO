@@ -13129,3 +13129,41 @@ Opdracht van de eigenaar, met een voorbeeld van een zijbalk als referentie. Vijf
 - **Het woordmerk is dun en ruim gespatieerd**: Archivo 300 met 0,2em letterafstand in plaats van Archivo Black met -0,07em, en in de zijbalk 22 pixels in plaats van 18. Het geldt voor elke plek waar `.brand-logo` staat (inlog, 404). Archivo Black is uit de lettertypen gehaald. Later die dag kreeg de O van ORBIT een punt in het midden (`.brand-logo-o`, een cirkel van 0,17em in de tekstkleur). De tekst blijft "ORBIT", niet "ORBIT ENGINE" zoals in de referentie: de volle naam past bij deze letterafstand niet in 240 pixels.
 
 Getest: `tsc --noEmit`, `test:unit` (3656), `test:chain` (806) en `build` groen. ⚠️ Niet geverifieerd in een browser (conventie 10): de opzet is gebouwd en getest op code, niet bekeken met een echte inlog.
+
+## 29 september 2026 (3): soorten pagina en de zoekresultaten van Google (B33, B34, B35)
+
+Opdracht van de eigenaar: behalve productpagina's ook blogs, gidsen, FAQ's en vergelijkingen laten
+schrijven, waarbij zo'n pagina extra onderzoek mag gebruiken, zonder nieuwe intelligencelaag en
+zonder dat de productpagina slechter wordt. Wat de analyse vooraf liet zien, en wat het plan veranderde:
+
+- **Het onderzoek bestond al, ook voor productpagina's.** De brief zoekt voor elke pagina op het web;
+  op productie hadden 41 van de 44 pagina's vakkennis uit de brief (gemiddeld 4 punten), waarvan 34
+  van de 36 dienstpagina's. De scheiding tussen bedrijfskennis (blok A en B) en algemene kennis (blok
+  C) stond er ook al, met een vangnet in code. Daarom kreeg de dienstpagina géén modus "alleen
+  klantkennis": dat had de flow veranderd die de eigenaar wilde beschermen (eigenaar: "houden").
+- **De soort hoort bij de pagina, niet bij het cluster.** Bij 10 van de 13 clusters op productie
+  kwamen kansen van verschillende soorten uit één rapport.
+- **De soort ging onderweg verloren.** Rapport (article, faq, landing, comparison) naar plan
+  (categorie, dienst, informatief) en terug: een FAQ werd een artikel, een vergelijking een
+  dienstpagina. 4 FAQ-kansen en 5 vergelijkingskansen, geen enkele FAQ- of vergelijkingspagina. De
+  kolom `planned_pages.content_type` bestond al op productie (migratie 0107 van 19 september, zonder
+  bestand in de repository) en werd sinds de ombouw van de keten niet meer gelezen; alle 63 rijen
+  leeg. Migratie 0130 hergebruikt hem en voegt `gids` toe.
+
+Gebouwd: een soortregister (`lib/pagina/soorten.ts`) met per soort een beschrijving van wat de lezer
+wil en een onderzoeksniveau; de dienstpagina heeft geen beschrijving en geen zoekresultaten, en een
+test bewijst dat zijn invoer voor brief en schrijver letter voor letter gelijk blijft. Voor de andere
+vier soorten haalt code vóór de brief de resultatenpagina van Google op bij hooguit acht
+zoekopdrachten (titel, kernvraag, doelvragen), tegelijk, veertig seconden per poging. Een
+AI-overzicht met resultatenpagina kostte op productie gemiddeld $0,004 (1.732 aanroepen), dus acht
+zijn ongeveer $0,03 per pagina naast $0,065 voor de brief; de eigenaar vroeg er ruim gebruik van te
+maken. Code haalt de eigen site en elke zin met de naam van de klant eruit en maakt bekende
+concurrenten anoniem ("Bedrijf X biedt gratis installatie" mag nooit als klantfeit binnenkomen), en
+"gratis" telt voortaan als harde bewering (B35). De consultant kiest de soort op de plankaart en bij
+een eigen kans; de klant niet. Het rapport kiest nog steeds uit de vier oude soorten: `gids` is een
+keuze van de consultant.
+
+Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen. ⚠️ Niet nagerekend
+tegen productie (conventie 10): de velden van de organische resultaten en van "Andere mensen vroegen
+ook" komen uit de documentatie van DataForSEO en zijn nog niet tegen een echte respons gecontroleerd,
+en of de teksten er beter van worden is nog niet gemeten. Zie `docs/tasks/paginasoorten-en-zoekresultaten.md`.

@@ -28,10 +28,11 @@ import {
   type BacklogFilters,
   type DeclinedItem,
 } from "@/lib/plan-backlog";
-import { writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
+import { CONTENT_TYPES, soortVanPlanPagina, writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
+import { SOORTEN } from "@/lib/pagina/soorten";
 import { canMove } from "@/lib/plan-order";
 import { kiesVoorBulk, OVERSLAAN_TEKST } from "@/lib/plan-bulk";
-import type { ContentPlan, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
+import type { ContentPlan, ContentType, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
 import { HandmatigeKansFormulier, type KennisOptie } from "./handmatige-kans-formulier";
 
@@ -916,6 +917,7 @@ export function PlanView({
                           }}
                           staff={staff}
                           onSchrijfNu={() => void schrijfNu(page)}
+                          onSoort={(soort) => void stuur(page.id, { actie: "soort", soort })}
                           onRemove={() => setRemoveDialog(page)}
                         />
                       ))}
@@ -1488,6 +1490,7 @@ function PageRij({
   onDatum,
   staff,
   onSchrijfNu,
+  onSoort,
   onRemove,
   stand,
 }: {
@@ -1519,9 +1522,13 @@ function PageRij({
   /** Beheerder? Dan staat "schrijf deze pagina nu" in het menu. */
   staff: boolean;
   onSchrijfNu: () => void;
+  /** B33: de soort tekst kiezen. Alleen de beheerder, en alleen zolang er nog geen pagina is. */
+  onSoort: (soort: ContentType) => void;
   onRemove: () => void;
 }) {
   const meta = PLAN_STATUS_META[page.status];
+  const soort = soortVanPlanPagina(page);
+  const magSoortKiezen = staff && page.status === "gepland" && !page.content_piece_id;
   const magVerhuizen = page.status === "gepland";
   // ⚠️ Alleen de reden die AFWIJKT van de maand. Staat hij al boven de maand,
   // dan is hij hier ruis (zie `sharedNotice()`).
@@ -1665,6 +1672,23 @@ function PageRij({
                   >
                     Schrijf deze pagina nu
                   </MenuKnop>
+                  <MenuScheiding />
+                </>
+              )}
+              {magSoortKiezen && (
+                <>
+                  <MenuKop>Soort pagina, nu: {SOORTEN[soort].keuze.toLowerCase()}</MenuKop>
+                  {CONTENT_TYPES.filter((t) => t !== soort).map((t) => (
+                    <MenuKnop
+                      key={t}
+                      onClick={() => {
+                        sluit();
+                        onSoort(t);
+                      }}
+                    >
+                      {SOORTEN[t].keuze}
+                    </MenuKnop>
+                  ))}
                   <MenuScheiding />
                 </>
               )}

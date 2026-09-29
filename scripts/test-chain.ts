@@ -2932,6 +2932,17 @@ async function main(): Promise<void> {
       naDrieRondes[0].n === 3,
       `${naDrieRondes[0].n} kaarten in plaats van 3`,
     );
+    // B33 (migratie 0130): elke kaart draagt de soort van zijn aanbeveling, ook
+    // de kaarten die er al stonden, zodat een FAQ geen artikel meer wordt.
+    const { rows: soorten } = await db.client.query(
+      `select content_type from public.planned_pages where profile_id = $1`,
+      [planPotProfileId],
+    );
+    ok(
+      "B33: elke kaart draagt de soort van zijn aanbeveling",
+      soorten.length === 3 && soorten.every((r: { content_type: string | null }) => r.content_type === "landing"),
+      soorten.map((r: { content_type: string | null }) => r.content_type ?? "leeg").join(", "),
+    );
 
     // ── De fase in de klantreis (docs/tasks/funnelfase-nooit-gevuld.md) ─────
     //
@@ -5484,10 +5495,10 @@ async function main(): Promise<void> {
       const dicht = maanden.find((m) => m.month_number === 2).id as string;
       const dag = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
       const { rows: planPaginas } = await db.client.query(
-        `insert into public.planned_pages (plan_month_id, profile_id, title, page_type, status, source_analysis_id, scheduled_for, sort_order)
-         values ($1, $3, 'Tuinontwerp laten maken', 'dienst', 'gepland', $4, $5, 1),
-                ($1, $3, 'Onderhoud van je tuin', 'dienst', 'gepland', $4, $6, 2),
-                ($2, $3, 'Schutting plaatsen', 'dienst', 'gepland', $4, $6, 1)
+        `insert into public.planned_pages (plan_month_id, profile_id, title, page_type, status, source_analysis_id, scheduled_for, sort_order, content_type)
+         values ($1, $3, 'Tuinontwerp laten maken', 'dienst', 'gepland', $4, $5, 1, null),
+                ($1, $3, 'Onderhoud van je tuin', 'dienst', 'gepland', $4, $6, 2, 'gids'),
+                ($2, $3, 'Schutting plaatsen', 'dienst', 'gepland', $4, $6, 1, null)
          returning id, title`,
         [vrij, dicht, merk, cluster, dag(3), dag(40)],
       );
@@ -5589,8 +5600,68 @@ async function main(): Promise<void> {
       const { rows: registers } = await db.client.query("select count(*)::int as n from public.jobs where type = 'fact_register' and profile_id = $1", [merk]);
       ok("het feitenregister gaat vóór de briefs", registers[0].n === 1);
 
-      await draai("pagina_brief");
+      // ── B33 en B34: de soort van de plan-pagina, en de zoekresultaten van Google ──
+      // De onderhoudspagina staat in het plan als gids, de ontwerppagina heeft geen
+      // soort en valt terug op zijn paginatype (dienst, dus een dienstpagina).
+      // DataForSEO wordt nagebootst: één vaste resultatenpagina, met een resultaat
+      // van de eigen site en een zin met de naam van het merk, die er allebei uit
+      // moeten.
+      ok("B33: een plan-pagina zonder soort wordt een dienstpagina", (await stuk(ontwerp)).type === "landing");
+      ok("B33: de soort van de plan-pagina gaat mee", (await stuk(onderhoud)).type === "gids");
+      const echteFetch = globalThis.fetch;
+      const serpAanroepen: string[] = [];
+      process.env.BRIEF_ZOEKRESULTATEN_ENABLED = "true";
+      process.env.DATAFORSEO_LOGIN = "test";
+      process.env.DATAFORSEO_PASSWORD = "test";
+      globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+        const adres = String(url instanceof Request ? url.url : url);
+        if (!adres.startsWith("https://api.dataforseo.com/")) return echteFetch(url as never, init);
+        serpAanroepen.push(String(JSON.parse(String(init?.body ?? "[]"))[0]?.keyword ?? ""));
+        return new Response(
+          JSON.stringify({
+            tasks: [{
+              status_code: 20000, cost: 0.004,
+              result: [{ items: [
+                { type: "ai_overview", markdown: "Een tuin onderhoud je het beste in het voorjaar. Hovenier Groen biedt gratis snoeiwerk aan." , references: [{ domain: "tuinkennis.nl" }] },
+                { type: "organic", rank_group: 1, title: "Tuinonderhoud per seizoen", url: "https://tuinkennis.nl/onderhoud", domain: "tuinkennis.nl", description: "Wat je in welk seizoen doet." },
+                { type: "organic", rank_group: 2, title: "Onze tuinen", url: "https://hovenier-groen.nl/tuinen", domain: "hovenier-groen.nl", description: "Eigen site." },
+                { type: "people_also_ask", items: [{ type: "people_also_ask_element", title: "Wanneer moet je een haag snoeien?" }] },
+              ] }],
+            }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }) as typeof fetch;
+      try {
+        await draai("pagina_brief");
+      } finally {
+        globalThis.fetch = echteFetch;
+        delete process.env.BRIEF_ZOEKRESULTATEN_ENABLED;
+        delete process.env.DATAFORSEO_LOGIN;
+        delete process.env.DATAFORSEO_PASSWORD;
+      }
       ok("na de briefs geen schrijftaak: er staan vragen open", await geenSchrijftaak());
+
+      const briefInvoerVan = (titel: string) => aanroepen.find((a) => a.schema === "content_brief" && a.user.includes(`Pagina: ${titel}`))?.user ?? "";
+      const invoerOntwerp = briefInvoerVan("Tuinontwerp laten maken");
+      const invoerOnderhoud = briefInvoerVan("Onderhoud van je tuin");
+      ok("B34: de dienstpagina haalt geen zoekresultaten op", !invoerOntwerp.includes("ZOEKRESULTATEN VAN GOOGLE") && !invoerOntwerp.includes("Wat de lezer van deze soort pagina wil"));
+      ok("B34: de gids krijgt de zoekresultaten en zijn beschrijving", invoerOnderhoud.includes("ZOEKRESULTATEN VAN GOOGLE") && invoerOnderhoud.includes("Wat de lezer van deze soort pagina wil"));
+      ok("B34: een zoekopdracht per titel, geen voor de dienstpagina", serpAanroepen.length >= 1 && serpAanroepen.includes("Onderhoud van je tuin") && !serpAanroepen.includes("Tuinontwerp laten maken"), serpAanroepen.join(" | "));
+      ok("B34: de eigen site en de zin met de merknaam gaan er niet in", !invoerOnderhoud.includes("hovenier-groen.nl/tuinen") && !invoerOnderhoud.includes("gratis snoeiwerk") && invoerOnderhoud.includes("Wanneer moet je een haag snoeien?"));
+      const briefOnderhoud = (await stuk(onderhoud)).brief_json as { versie?: number; zoekresultaten?: { zoekopdrachten?: unknown[]; kostenUsd?: number } | null };
+      ok("B34: de zoekresultaten staan in de brief, met de kosten", (briefOnderhoud.zoekresultaten?.zoekopdrachten?.length ?? 0) === serpAanroepen.length && (briefOnderhoud.zoekresultaten?.kostenUsd ?? 0) > 0);
+      ok("B34: de dienstpagina heeft geen zoekresultaten in zijn brief", ((await stuk(ontwerp)).brief_json as { zoekresultaten?: unknown }).zoekresultaten === null);
+      const { rows: serpKosten } = await db.client.query(
+        "select count(*)::int as n from public.ai_calls where kind = 'pagina_zoekresultaten' and content_piece_id = $1",
+        [onderhoud],
+      );
+      ok("B34: elke zoekopdracht staat in het kostenlog", serpKosten[0].n === serpAanroepen.length, String(serpKosten[0].n));
+      const { rows: extern } = await db.client.query(
+        "select count(*)::int as n from public.klantkennis where profile_id = $1 and (bewering ilike '%snoei%' or bewering ilike '%seizoen%')",
+        [merk],
+      );
+      ok("B34: niets uit de zoekresultaten komt in de kennislaag", extern[0].n === 0);
 
       // ── Elke ingang, met open vragen: geen schrijftaak ─────────────────────
       const nuSchrijven = await probeerTeSchrijven(admin as never, ontwerp, { negeerDatum: true });
@@ -8587,13 +8658,37 @@ async function main(): Promise<void> {
       // maar hoeft te weten dat dit een handmatige kans is.
       await bereidVoor(admin as never, [planPaginaId]);
       const { rows: stukRows } = await db.client.query(
-        "select cp.analysis_id, cp.status, cp.title from public.content_pieces cp join public.planned_pages pp on pp.content_piece_id = cp.id where pp.id = $1",
+        "select cp.analysis_id, cp.status, cp.title, cp.type from public.content_pieces cp join public.planned_pages pp on pp.content_piece_id = cp.id where pp.id = $1",
         [planPaginaId],
       );
       ok(
         "scenario 34: de pagina wordt aangemaakt onder de schaduwanalyse, klaar voor de brief",
         stukRows.length === 1 && stukRows[0].analysis_id === schaduwAnalyseId && stukRows[0].status === "briefing",
         JSON.stringify(stukRows[0]),
+      );
+      ok("scenario 34, B33: zonder keuze wordt een handmatige kans een artikel, zoals voorheen", stukRows[0].type === "article", String(stukRows[0].type));
+
+      // B33: de consultant kiest de soort. De kaart draagt hem, het paginatype
+      // volgt voor de contentmix, en de kans kent hem voor het kennisgat (N6).
+      const vergelijking = await voegHandmatigeKansToe(admin as never, {
+        profileId: merk,
+        titel: "Dakisolatie of spouwmuurisolatie",
+        lezer: null,
+        handeling: "nieuwe_pagina",
+        bestaandeUrl: null,
+        geldtVoor: [],
+        doelvragen: [],
+        contentType: "comparison",
+        gebruikerId: userId,
+      });
+      const { rows: vergelijkingKaart } = await db.client.query(
+        "select pp.content_type, pp.page_type, k.ruw from public.planned_pages pp join public.kansen k on k.id = pp.kans_id where pp.kans_id = $1",
+        [vergelijking.ok ? vergelijking.kansId : ""],
+      );
+      ok(
+        "scenario 34, B33: een gekozen vergelijking blijft een vergelijking",
+        vergelijkingKaart[0]?.content_type === "comparison" && vergelijkingKaart[0]?.page_type === "categorie" && vergelijkingKaart[0]?.ruw?.type === "comparison",
+        JSON.stringify(vergelijkingKaart[0]),
       );
     }
 

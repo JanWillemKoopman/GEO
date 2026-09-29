@@ -832,3 +832,13 @@ klus alleen op de pagina komt waar hij past en een bezwaar met het antwoord van 
 meegaat. `verhalen` blijft bestaan als "Nog meer verhalen". Besluit B28 in
 `docs/tasks/contentketen-opnieuw.md` §2, V5 van `docs/tasks/pijplijnanalyse-contentketen.md`.
 Additief en idempotent. Op productie toegepast op 29 september 2026.
+
+## 0130: de soort pagina in het plan, en `gids`
+
+Voegt de waarde `gids` toe aan de enum `content_type`, en zorgt dat `planned_pages.content_type`
+(tekst) bestaat met een constraint die de vijf soorten toelaat (constraint vervangen, geen `drop` van
+data, zoals 0106). ⚠️ Die kolom stond al op productie via migratie `0107_contenttype_bij_de_kans` (19
+september 2026), waarvan het bestand niet in deze map staat; 0130 gebruikt daarom `add column if not
+exists` met dezelfde vorm. Leeg betekent: de soort volgt uit `page_type` (`soortVanPlanPagina()` in
+`lib/plan-writing.ts`). Besluit B33 in `docs/tasks/contentketen-opnieuw.md` §2. Op productie
+toegepast op 29 september 2026.

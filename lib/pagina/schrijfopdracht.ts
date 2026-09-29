@@ -46,7 +46,14 @@ import { z } from "zod";
  * overgeslagen vraag (V8) schrijf je niet omheen. De invoer draagt sinds deze
  * versie ook de rol, de kernvraag, de overgeslagen vragen en de buren (fase 3).
  */
-export const SCHRIJFOPDRACHT_VERSIE = 5;
+/*
+ * Versie 6 (29 september 2026, besluit B33): de invoer krijgt bij een artikel,
+ * gids, FAQ of vergelijking een alinea over wat de lezer van die soort pagina
+ * wil (`SOORTEN` in `soorten.ts`). Tot dan hoorde de schrijver alleen het woord
+ * "artikel" en schreef hij elke soort als een dienstpagina. De vaste opdracht is
+ * gelijk, en de invoer van een dienstpagina ook.
+ */
+export const SCHRIJFOPDRACHT_VERSIE = 6;
 
 /** Hoogstens zoveel veelgestelde vragen, en alleen als ze iets toevoegen. */
 export const MAX_FAQ = 5;
@@ -113,6 +120,8 @@ export interface Stemvoorbeeld {
 export interface SchrijfBlokken {
   titel: string;
   paginasoort: string;
+  /** B33: wat de lezer van deze soort pagina wil, of null (een dienstpagina). */
+  soortBeschrijving?: string | null;
   handeling: "nieuw" | "verbeteren";
   /** Blok A als tekst (`blokA()`). */
   bedrijf: string;
@@ -163,6 +172,7 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
       b.handeling === "verbeteren" ? "Dit is een bestaande pagina; schrijf een betere versie." : "Dit wordt een nieuwe pagina."
     }`,
   );
+  if (b.soortBeschrijving?.trim()) delen.push(`WAT VOOR PAGINA DIT IS\n${b.soortBeschrijving.trim()}`);
 
   delen.push(
     [

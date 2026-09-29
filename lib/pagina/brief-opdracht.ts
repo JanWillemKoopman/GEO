@@ -70,6 +70,13 @@ export interface Doelvraag {
 export interface BriefContext {
   titel: string;
   paginasoort: string;
+  /**
+   * B33: wat de lezer van deze soort pagina wil (`SOORTEN` in `soorten.ts`), of
+   * null. Een dienstpagina heeft er geen, zodat zijn invoer gelijk blijft.
+   */
+  soortBeschrijving?: string | null;
+  /** B34: het blok met de zoekresultaten van Google (`zoekresultatenBlok()`), of null. */
+  zoekresultaten?: string | null;
   /** Nieuwe pagina of een bestaande verbeteren. */
   handeling: "nieuw" | "verbeteren";
   zoekintentie: string | null;
@@ -101,6 +108,7 @@ export function briefInvoer(c: BriefContext): string {
     [
       `Pagina: ${c.titel}`,
       `Soort pagina: ${c.paginasoort}`,
+      c.soortBeschrijving?.trim() ? `Wat de lezer van deze soort pagina wil: ${c.soortBeschrijving.trim()}` : null,
       c.handeling === "verbeteren" ? "Dit is een bestaande pagina die beter moet." : "Dit wordt een nieuwe pagina.",
       c.zoekintentie ? `Waar de bezoeker naar zoekt (uit de meting): ${c.zoekintentie}` : null,
       c.waarom ? `Waarom deze pagina: ${c.waarom}` : null,
@@ -124,6 +132,10 @@ export function briefInvoer(c: BriefContext): string {
           .join("\n"),
     );
   }
+
+  // B34: na de doelvragen en vóór het bedrijf, zodat het model eerst leest wat
+  // mensen zoeken en daarna pas wat al bekend is.
+  if (c.zoekresultaten?.trim()) delen.push(c.zoekresultaten.trim());
 
   delen.push(`Wat we al weten over het bedrijf:\n${c.bedrijf}`);
 
