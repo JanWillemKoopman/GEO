@@ -448,9 +448,14 @@ wil. **Invoer:** de tekst, blok A tot en met D, en de zinnen die de code als `on
 - *Klopt het?* Staan er bedrijfsclaims, cijfers, prijzen, garanties, certificeringen of andere
   concrete beweringen in die niet uit de informatie blijken?
 - *Is het goed?* Is de hoofdvraag meteen beantwoord; is de zoekintentie afgedekt; is het prettig en
-  natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er genoeg diepgang; is er onnodige
-  herhaling; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als echte content
-  en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer er iets aan?
+  natuurlijk geschreven en klinkt het als de stemvoorbeelden; is er onnodige herhaling; zijn er zinnen
+  die de lezer niet helpen; zijn er zinnen letterlijk uit de stemvoorbeelden overgenomen; voelt het als
+  echte content en niet als AI-content; staat er iets in dat echt van dit bedrijf komt; heeft de lezer
+  er iets aan? (De vraag naar diepgang verviel op 29 september 2026, B25.)
+
+Een verbeterpunt schrapt, corrigeert, verplaatst of maakt korter. Het vraagt nooit om een bedrag, een
+totaal, een voorwaarde, een uitzondering, een belofte of een voorbehoud dat niet al in de informatie
+staat (B25).
 
 **Uitvoer:**
 
@@ -460,8 +465,9 @@ verzonnen: { zin: string, waarom: string }[]          // letterlijke zinnen
 punten: { waar: string, probleem: string, hoe: string }[]   // hooguit 5, concreet
 ```
 
-**Code daarna:** herschrijven als het oordeel `niet_goed` is, of als er verzonnen of ongedekte
-zinnen zijn. Anders: status `ready`, `needs_review = true`. Alles gaat in `content_pieces.controle_json`.
+**Code daarna:** herschrijven als het oordeel `niet_goed` is, als er een verzonnen zin is, of een
+zin met een verboden woord (B16). Een zin die alleen de code ongedekt vond, is sinds B26 geen reden:
+die wordt geel. Anders: status `ready`, `needs_review = true`. Alles gaat in `content_pieces.controle_json`.
 **Bij definitief mislukken:** geen herschrijving; de ongedekte zinnen van de code worden geel; status
 `ready`.
 
@@ -470,10 +476,15 @@ zinnen zijn. Anders: status `ready`, `needs_review = true`. Alles gaat in `conte
 **Model:** Sol, `redactioneel`, achtergrondmodus. **Invoer:** dezelfde als §6.4, plus de huidige tekst,
 plus de punten en de verzonnen zinnen uit de controle. Of, als de klant om een aanpassing vraagt: de
 notitie van de klant. **Opdracht:** dezelfde schrijfopdracht, met erbij "Hier is je vorige versie en de
-feedback. Schrijf een betere versie."
+feedback. Schrijf een betere versie. Voer de punten uit en laat de rest van de tekst staan, ook de
+veelgestelde vragen." (die laatste zin sinds B25)
 
-**Code daarna:** mechanische reparatie en de harde beweringen opnieuw. De nieuwe versie blijft, tenzij
-hij meer ongedekte zinnen heeft dan de vorige; dan blijft de vorige, en dat staat in `controle_json`.
+**Code daarna:** mechanische reparatie en de harde beweringen opnieuw. De herschrijving blijft (B26).
+Een ongedekte zin die er in de vorige versie niet stond, wordt geel en staat apart in
+`controle_json.herschrijving.nieuw_ongedekt`; tot 29 september 2026 ging dan de hele herschrijving weg,
+en bij A6 in ronde 1 daarmee ook het telefoonnummer dat hij had opgelost. Bij een verbeterpagina
+staan in `controle_json.verdwenen` de harde gegevens van de huidige pagina die niet in de nieuwe tekst
+staan (B-h van `pijplijnanalyse-contentketen.md`); die ziet de ondernemer bij het goedkeuren.
 Alle zinnen die daarna nog ongedekt zijn of door de controle als verzonnen gemeld waren en er nog
 staan, worden geel. Status `ready`. **Geen tweede beoordeling, geen tweede herschrijving.**
 Een aanpassing op verzoek van de klant maakt een nieuwe versie (`version + 1`, `supersedes_id`).

@@ -168,6 +168,7 @@ import {
 } from "@/lib/pipeline/recommendation";
 import { kiesDoelKans, openKansenBlok, rustOpEenVraag, telBewijsOp } from "@/lib/kansen/samenvoegen";
 import { kaartZin } from "@/lib/kansen/kaart";
+import { verdwenenGegevens } from "@/lib/pagina/verdwenen-gegevens";
 import { dubbelMetAndereClusters, vraagSleutel } from "@/lib/pipeline/prompt-dedupe";
 import { lijktOp as clusterLijktOp } from "@/lib/cluster-overlap";
 
@@ -1053,10 +1054,10 @@ import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pa
 import { openVraagTekst, OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
 import { verwerkBrief, normaliseerVraag, kindVoorSoort, MAX_BRIEFVRAGEN, BRIEF_VERSIE, type ContentBrief } from "@/lib/pagina/brief-regels";
 import { briefInvoer, BRIEF_SYSTEEM } from "@/lib/pagina/brief-opdracht";
-import { schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
+import { SCHRIJFOPDRACHT_VERSIE, schrijfSysteem, schrijfInvoer, herschrijfInvoer, type SchrijfBlokken } from "@/lib/pagina/schrijfopdracht";
 import {
   moetHerschrijven,
-  kiesVersie,
+  nieuwOngedekt,
   geleZinnenNa,
   allesBevestigd,
   zinnenMetVerbodenWoord,
@@ -21921,7 +21922,15 @@ group("de schrijfopdracht: vier blokken, geen budget (§6.4)", () => {
   const v6 = schrijfInvoer({ ...b, rol: "De pagina voor wie nog geen tuin heeft.", kernvraag: "Wat kost een tuinontwerp?", overgeslagen: ["Hoeveel tuinen ontwierp je vorig jaar?"] });
   ok("V6: de kernvraag in blok D", v6.includes("De vraag die deze pagina moet beantwoorden: Wat kost een tuinontwerp?"));
   ok("V6: de rol in blok D", v6.includes("niet doen: De pagina voor wie nog geen tuin heeft."));
-  ok("V8: overgeslagen vragen in blok B, met de zin erbij", v6.includes("Hoeveel tuinen ontwierp je vorig jaar?") && v6.includes("schrijf er niet omheen"));
+  ok("V8: overgeslagen vragen in blok B", v6.includes("Hoeveel tuinen ontwierp je vorig jaar?") && v6.includes("beweer er niets over"));
+  const sysV13 = schrijfSysteem({ aanspreekvorm: null, verbodenOnderwerpen: [], verbodenWoorden: [] });
+  ok("V13: de lezer als maatstaf", sysV13.includes("zo kort als dat kan, en zeg elk punt één keer") && !sysV13.includes("inhoudelijk volledig") && !sysV13.includes("zo uitgebreid als nodig"));
+  ok("V13: niet om een overgeslagen vraag heen schrijven", sysV13.includes("schrijf er dan niet omheen"));
+  ok("V13: vakkennis alleen als hij de lezer helpt", sysV13.includes("alleen waar die de lezer helpt kiezen of handelen"));
+  eq("V13: schrijfopdracht versie 5", String(SCHRIJFOPDRACHT_VERSIE), "5");
+  const herV14 = herschrijfInvoer(b, { vorige: "Oud.", punten: [], verzonnen: [], ongedekt: [], notitieKlant: null });
+  ok("V14: de rest blijft staan, ook de FAQ", herV14.includes("laat de rest van de tekst staan, ook de veelgestelde vragen"));
+  ok("geen gedachtestreepje in de schrijfopdracht", !/[—–]/.test(sysV13.replace("(— of –)", "")));
   ok("V8: de overgeslagen vraag staat in het blok van de ondernemer", v6.indexOf("oversloeg") > v6.indexOf("WAT DE ONDERNEMER VERTELDE"));
 });
 
@@ -21960,6 +21969,21 @@ group("V7 en V20: een nieuwe kans die al bestaat, wordt bewijs", () => {
   ok("B-j: het kennisgat staat niet meer op de kaart", !plans.includes("kennis_ontbreekt"));
 });
 
+group("V21 punt 3: harde gegevens die van de huidige pagina verdwijnen (besluit B-h)", () => {
+  const huidig = "Bel ons op 0184-701084. Een cilinder kost € 89,50 en we komen binnen 2 dagen. Wij plaatsen SKG*** sloten. Sinds 1990 actief. 3 tips voor je deur.";
+  const nieuw = "Een cilinder kost 89,50 euro. Bel 0184 701084 voor een afspraak.";
+  const weg = verdwenenGegevens(huidig, nieuw);
+  ok("de termijn is weg", weg.some((g) => g.includes("2 dagen")));
+  ok("het keurmerk is weg", weg.includes("SKG***"));
+  ok("het bedrag staat er nog, anders geschreven", !weg.some((g) => g.includes("89")));
+  ok("het telefoonnummer staat er nog, anders geschreven", !weg.some((g) => g.includes("0184")));
+  ok("een jaartal zonder eenheid en een opsomming tellen niet", !weg.some((g) => g.includes("1990") || g.includes("tips")));
+  ok("SKG★★★ in de nieuwe tekst is hetzelfde keurmerk", !verdwenenGegevens("Wij plaatsen SKG*** sloten.", "Wij plaatsen SKG★★★ sloten.").length);
+  eq("een verdwenen telefoonnummer", verdwenenGegevens("Bel +31 6 12345678.", "Bel ons gerust.").join(","), "+31 6 12345678");
+  eq("zonder huidige tekst niets", String(verdwenenGegevens(null, "x").length), "0");
+  ok("hooguit tien", verdwenenGegevens(Array.from({ length: 15 }, (_, i) => `Het kost € ${i + 10}.`).join(" "), "").length === 10);
+});
+
 group("V18: meetvragen en clusters over het hele merk", () => {
   const eigen = [
     { id: "1", text: "Wat kost een online boekhouder?", createdAt: "2026-09-29T10:00:00Z" },
@@ -21996,13 +22020,17 @@ group("V6: het rapport beschrijft een pagina", () => {
 
 group("de controle: herschrijven, welke versie, welke zinnen geel (§6.6, §6.7)", () => {
   const goed = { oordeel: "goed" as const, verzonnen: [], punten: [] };
-  ok("goed en niets ongedekt: niet herschrijven", !moetHerschrijven(goed, []));
-  ok("goed maar een ongedekte zin: wel", moetHerschrijven(goed, ["Wij bestaan 30 jaar."]));
+  ok("goed en geen verboden woord: niet herschrijven", !moetHerschrijven(goed, []));
+  ok("V15: goed met alleen een ongedekte zin: niet herschrijven, de zin wordt geel", !moetHerschrijven(goed));
+  ok("goed maar een verboden woord: wel", moetHerschrijven(goed, ["Het is gratis."]));
   ok("niet goed: wel", moetHerschrijven({ ...goed, oordeel: "niet_goed" }, []));
   ok("een verzonnen zin: wel", moetHerschrijven({ ...goed, verzonnen: [{ zin: "x", waarom: "y" }] }, []));
-  ok("mislukte beoordeling: niet", !moetHerschrijven(null, ["Wij bestaan 30 jaar."]));
-  eq("gelijk aantal ongedekt: de nieuwe blijft", kiesVersie(2, 2), "nieuw");
-  eq("meer ongedekt: de vorige blijft", kiesVersie(1, 2), "vorige");
+  ok("mislukte beoordeling: niet", !moetHerschrijven(null, ["Het is gratis."]));
+  eq("V15: alleen wat de herschrijving bijzette", nieuwOngedekt(["Wij bestaan 30 jaar."], ["wij bestaan 30 jaar", "Wij geven 5 jaar garantie."]).join("|"), "Wij geven 5 jaar garantie.");
+  ok("V14: geen vraag naar diepgang meer", !CONTROLE_SYSTEEM.includes("diepgang"));
+  ok("V14: een punt voegt niets toe", CONTROLE_SYSTEEM.includes("Een punt schrapt, corrigeert, verplaatst of maakt korter") && CONTROLE_SYSTEEM.includes("niet om een voorbehoud erbij"));
+  ok("V14: zinnen die de lezer niet helpen", CONTROLE_SYSTEEM.includes("zinnen die de lezer niet helpen"));
+  ok("geen gedachtestreepje in de controle", !/[—–]/.test(CONTROLE_SYSTEEM));
   const geel = geleZinnenNa("Wij bestaan 30 jaar. Wij zijn de beste.", ["Wij bestaan 30 jaar."], ["Wij zijn de beste.", "Weggeschreven zin."]);
   eq("ongedekt plus verzonnen die er nog staan", geel.join(" | "), "Wij bestaan 30 jaar. | Wij zijn de beste.");
   ok("alles bevestigd", allesBevestigd({ gele_zinnen: ["A zin."], bevestigd: ["a zin"] }));

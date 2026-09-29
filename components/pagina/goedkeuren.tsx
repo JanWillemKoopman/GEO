@@ -27,6 +27,7 @@ export function Goedkeuren({
   bevestigd: beginBevestigd,
   notitie,
   punten,
+  verdwenen = [],
   goedgekeurd,
   aanpassingLoopt,
 }: {
@@ -40,6 +41,8 @@ export function Goedkeuren({
   bevestigd: string[];
   notitie: string | null;
   punten: { waar: string; probleem: string; hoe: string }[];
+  /** V21 punt 3: harde gegevens van de huidige pagina die niet in de nieuwe tekst staan. */
+  verdwenen?: string[];
   goedgekeurd: boolean;
   aanpassingLoopt: boolean;
 }) {
@@ -247,6 +250,23 @@ export function Goedkeuren({
               </button>
             </div>
           )}
+        </section>
+      )}
+
+      {verdwenen.length > 0 && !goedgekeurd && (
+        <section className="card flex flex-col gap-2">
+          <h2 className="type-section">Gegevens van je huidige pagina</h2>
+          <p className="type-body text-secondary">
+            Deze gegevens staan op je huidige pagina en niet in de nieuwe tekst. Horen ze erbij, vraag dan een
+            aanpassing. Zijn ze niet meer actueel, dan kun je gewoon goedkeuren.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {verdwenen.map((g) => (
+              <li key={g} className="chip">
+                {g}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

@@ -27,8 +27,8 @@ import {
   controleInvoer,
   faqRijen,
   geleZinnenNa,
-  kiesVersie,
   moetHerschrijven,
+  nieuwOngedekt,
   volledigeControletekst,
   zinnenMetVerbodenWoord,
   type ControleJson,
@@ -38,6 +38,9 @@ import { herschrijfInvoer, schrijfInvoer, type PaginaUitvoer } from "@/lib/pagin
 import { gerepareerd, laadSchrijfbasis, schrijfOpties, tekstKolommen, type Schrijfbasis } from "@/lib/pagina/schrijven";
 import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
 import { planBriefs, probeerTeSchrijven } from "@/lib/pagina/start";
+import { siteTeksten } from "@/lib/pagina/context";
+import { verdwenenGegevens } from "@/lib/pagina/verdwenen-gegevens";
+import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 
 type Admin = SupabaseClient;
 
@@ -170,15 +173,49 @@ async function lopendeTekst(
 
 /** Klaar voor de ondernemer: "Lees en keur goed". */
 async function zetKlaar(admin: Admin, pieceId: string, controle: ControleJson): Promise<void> {
+  const verdwenen = await verdwenenVan(admin, pieceId);
   await admin
     .from("content_pieces")
-    .update({ controle_json: controle, status: "ready", needs_review: true, updated_at: new Date().toISOString() })
+    .update({
+      controle_json: verdwenen.length > 0 ? { ...controle, verdwenen } : controle,
+      status: "ready",
+      needs_review: true,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", pieceId);
   await admin
     .from("planned_pages")
     .update({ status: "ter_goedkeuring" })
     .eq("content_piece_id", pieceId)
     .in("status", ["gepland", "schrijven", "mislukt"]);
+}
+
+/**
+ * V21 punt 3 (besluit B-h): bij een verbeterpagina de harde gegevens van de
+ * huidige pagina die niet in de nieuwe tekst staan. Menu en voettekst die op
+ * de hele site staan tellen niet (V2): een telefoonnummer in de voettekst
+ * blijft op de site, ook als de nieuwe tekst hem niet noemt.
+ */
+async function verdwenenVan(admin: Admin, pieceId: string): Promise<string[]> {
+  const { data } = await admin
+    .from("content_pieces")
+    .select("action, existing_page_text, body_markdown, meta_description, faq_json, analysis_id")
+    .eq("id", pieceId)
+    .maybeSingle();
+  const r = data as {
+    action: string | null;
+    existing_page_text: string | null;
+    body_markdown: string | null;
+    meta_description: string | null;
+    faq_json: unknown;
+    analysis_id: string;
+  } | null;
+  if (!r || r.action !== "verbeteren" || !r.existing_page_text?.trim() || !r.body_markdown?.trim()) return [];
+  const { data: analyse } = await admin.from("analyses").select("profile_id").eq("id", r.analysis_id).maybeSingle();
+  const profileId = (analyse as { profile_id?: string | null } | null)?.profile_id;
+  const site = profileId ? await siteTeksten(admin, profileId) : [];
+  const nieuw = volledigeControletekst(r.body_markdown, r.meta_description, faqRijen(r.faq_json).map((f) => f.a));
+  return verdwenenGegevens(zonderSiteHerhaling(r.existing_page_text, site), nieuw);
 }
 
 async function planControle(admin: Admin, basis: Schrijfbasis): Promise<void> {
@@ -277,7 +314,7 @@ export async function voerControleUit(admin: Admin, payload: { pieceId: string }
     },
   });
 
-  if (moetHerschrijven(beoordeling, [...ongedekt, ...verboden])) {
+  if (moetHerschrijven(beoordeling, verboden)) {
     const nieuw: ControleJson = { ongedekt, verboden, beoordeling, herschreven: false, gele_zinnen: [], bevestigd: [] };
     await admin.from("content_pieces").update({ controle_json: nieuw }).eq("id", payload.pieceId);
     await enqueue(admin, {
@@ -354,37 +391,29 @@ export async function voerHerschrijvenUit(admin: Admin, job: Job, payload: Achte
 
   const vorige = controle as ControleJson;
   const verbodenVorige = vorige.verboden ?? [];
-  // De verboden woorden tellen mee als nalopen: een herschrijving die er een
-  // bij zet, is net zo goed slechter als een met een extra ongedekte zin.
-  const behouden = kiesVersie(
-    vorige.ongedekt.length + verbodenVorige.length,
-    ongedektNieuw.length + verbodenNieuw.length,
-  );
-  if (behouden === "nieuw") {
-    const { error } = await admin.from("content_pieces").update(kolommen).eq("id", payload.pieceId);
-    if (error) throw new Error(`Herschreven tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
-    await legAfhankelijkhedenVast(admin, {
-      profileId: basis.pagina.profileId,
-      vanTabel: "content_pieces",
-      vanId: payload.pieceId,
-      kennisIds: kolommen.gebruikte_kennis as string[],
-    });
-  }
-  const volledigVorige = volledigeControletekst(body, metaBeschrijving, faq.map((f) => f.a));
-  const volledigBlijft = behouden === "nieuw" ? volledigNieuw : volledigVorige;
-  const ongedekt = behouden === "nieuw" ? ongedektNieuw : vorige.ongedekt;
-  const verboden = behouden === "nieuw" ? verbodenNieuw : verbodenVorige;
+  // V15 (besluit B-e): de herschrijving blijft. Wat hij aan ongedekte zinnen
+  // of verboden woorden bijzette, wordt geel, in plaats van de hele versie weg
+  // te gooien.
+  const { error } = await admin.from("content_pieces").update(kolommen).eq("id", payload.pieceId);
+  if (error) throw new Error(`Herschreven tekst van ${payload.pieceId} bewaren mislukte: ${error.message}`);
+  await legAfhankelijkhedenVast(admin, {
+    profileId: basis.pagina.profileId,
+    vanTabel: "content_pieces",
+    vanId: payload.pieceId,
+    kennisIds: kolommen.gebruikte_kennis as string[],
+  });
   await zetKlaar(admin, payload.pieceId, {
     ...vorige,
-    ongedekt,
-    verboden,
+    ongedekt: ongedektNieuw,
+    verboden: verbodenNieuw,
     herschreven: true,
     herschrijving: {
       ongedekt_vorige: vorige.ongedekt.length + verbodenVorige.length,
       ongedekt_nieuw: ongedektNieuw.length + verbodenNieuw.length,
-      behouden,
+      behouden: "nieuw",
+      nieuw_ongedekt: nieuwOngedekt([...vorige.ongedekt, ...verbodenVorige], [...ongedektNieuw, ...verbodenNieuw]),
     },
-    gele_zinnen: geleZinnenNa(volledigBlijft, [...ongedekt, ...verboden], (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
+    gele_zinnen: geleZinnenNa(volledigNieuw, [...ongedektNieuw, ...verbodenNieuw], (vorige.beoordeling?.verzonnen ?? []).map((v) => v.zin)),
     bevestigd: [],
   });
 }

@@ -13078,3 +13078,20 @@ staat niet meer op de kaart (B-j). De schrijver krijgt de rol, de kernvraag, de 
 de andere pagina's uit hetzelfde cluster met hun rol, in plaats van 60 titels van het merk. Meetvragen
 van een nieuw cluster die al in een ander cluster van het merk staan, vallen weg, en het formulier
 waarschuwt bij een cluster dat op een bestaand lijkt (B-i). Nog niet tegen productie nagerekend.
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 4 (na het schrijven) gebouwd
+
+De schrijfopdracht (versie 5) meet aan de lezer: beantwoord wat deze bezoeker wil weten, zo kort als
+dat kan, elk punt één keer; vakkennis alleen waar die helpt kiezen of handelen; niet om een
+overgeslagen vraag heen schrijven (V13). De eindredacteur vraagt niet meer naar diepgang, en een
+verbeterpunt schrapt, corrigeert, verplaatst of maakt korter, maar voegt geen bedrag, voorwaarde,
+belofte of voorbehoud toe; de herschrijving laat de rest staan, ook de veelgestelde vragen (V14,
+B25). Een zin die alleen de code niet terugvond, leidt niet meer tot een herschrijving maar wordt geel
+(in ronde 1 drie van de tien herschrijvingen), en de herschrijving blijft altijd: wat hij aan
+ongedekte zinnen bijzette, wordt geel en staat apart in `controle_json` (V15, B26). B26 zegt "tenzij
+hij een ongedekte zin heeft die er eerst niet stond; die zin wordt dan geel": gebouwd als "de zin
+wordt geel en de versie blijft", omdat de andere lezing de betere versie weer zou weggooien, precies
+wat B26 wilde voorkomen. Een verboden woord blijft een reden om te herschrijven. Bij een
+verbeterpagina ziet de ondernemer welke bedragen, termijnen, telefoonnummers en keurmerken van zijn
+huidige pagina niet in de nieuwe tekst staan (V21 punt 3, B-h). Nog niet tegen productie nagerekend.
+

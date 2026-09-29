@@ -580,15 +580,23 @@ aan de ondernemer voor, in plaats van het zelf te beslissen.
 - **De beoordeling.** Het sterkste model leest als eindredacteur mee, met precies dezelfde
   informatie die de schrijver had. Het herschrijft niets, maar beantwoordt twee vragen:
   - *Klopt het?* Welke zinnen over het bedrijf blijken niet uit de informatie?
-  - *Is het goed?* Wordt de vraag meteen beantwoord, klinkt het als het bedrijf, is er genoeg
-    diepgang, heeft de lezer er iets aan?
+  - *Is het goed?* Wordt de vraag meteen beantwoord, klinkt het als het bedrijf, staat er iets in
+    wat de lezer niet helpt, heeft de lezer er iets aan?
+
+  Een verbeterpunt haalt weg, corrigeert, verplaatst of maakt korter. Het vraagt nooit om een
+  bedrag, voorwaarde of belofte die niet al in de informatie staat.
 
   Het oordeel is "goed" of "niet goed", met hooguit vijf concrete verbeterpunten. Geen cijfer.
 - **De beslissing** is een vaste regel in de code: herschrijven als het oordeel "niet goed" is, of
-  als er verzonnen, onbewezen of verboden zinnen zijn. Anders gaat de pagina direct naar de klant.
+  als er een verzonnen zin of een verboden woord in staat. Een zin die alleen de code niet kon
+  terugvinden, is geen reden: die wordt geel en de klant beslist. Anders gaat de pagina direct naar
+  de klant.
 - **Hooguit één herschrijving.** De schrijver krijgt de vorige versie met de feedback. Daarna
-  controleert de code opnieuw. De nieuwe versie blijft, tenzij hij meer onbewezen zinnen heeft dan
-  de vorige. Er komt geen tweede beoordeling en geen tweede herschrijving.
+  controleert de code opnieuw. De nieuwe versie blijft altijd; een onbewezen zin die hij bijzette,
+  wordt geel. Er komt geen tweede beoordeling en geen tweede herschrijving.
+- **Bij een verbeterpagina** zoekt de code welke harde gegevens van de huidige pagina (bedragen,
+  termijnen, telefoonnummers, keurmerken) niet in de nieuwe tekst staan. De klant ziet die lijst bij
+  het goedkeuren. Hij houdt niets tegen: soms is weglaten juist de bedoeling.
 - **Gele zinnen.** Zinnen die daarna nog twijfelachtig zijn, worden geel gemarkeerd. Een gele zin
   houdt de pagina niet tegen, maar de klant moet hem bevestigen of aanpassen voordat de pagina
   goedgekeurd kan worden.

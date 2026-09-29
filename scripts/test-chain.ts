@@ -5681,7 +5681,8 @@ async function main(): Promise<void> {
       const { rows: planKlaar } = await db.client.query("select status from public.planned_pages where id = $1", [planId("Tuinontwerp laten maken")]);
       ok("de plan-pagina staat op goedkeuren", planKlaar[0].status === "ter_goedkeuring");
 
-      // ── Een herschrijving met meer ongedekte zinnen blijft niet ───────────
+      // ── V15 (besluit B-e): een herschrijving met een nieuwe ongedekte zin
+      //    blijft, en die zin wordt geel ──────────────────────────────────
       const { rows: border } = await db.client.query(
         `insert into public.content_pieces (analysis_id, title, type, status, action, body_markdown, brief_json, controle_json)
          values ($1, 'Borders aanleggen', 'landing', 'draft', 'nieuw', 'Een border geeft kleur aan je tuin.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}',
@@ -5692,7 +5693,17 @@ async function main(): Promise<void> {
       await enqueueHerschrijven(border[0].id);
       await draai("pagina_herschrijven");
       const slechter = await stuk(border[0].id);
-      ok("een herschrijving met meer ongedekte zinnen wordt niet bewaard", (slechter.body_markdown as string) === "Een border geeft kleur aan je tuin." && (slechter.controle_json as { herschrijving: { behouden: string } }).herschrijving.behouden === "vorige");
+      const scj = slechter.controle_json as { herschrijving: { behouden: string; nieuw_ongedekt?: string[] }; gele_zinnen: string[] };
+      ok(
+        "V15: de herschrijving blijft, ook met een nieuwe ongedekte zin",
+        (slechter.body_markdown as string) !== "Een border geeft kleur aan je tuin." && scj.herschrijving.behouden === "nieuw",
+        JSON.stringify(scj),
+      );
+      ok(
+        "V15: wat de herschrijving bijzette, is geel en staat apart",
+        (scj.herschrijving.nieuw_ongedekt ?? []).length > 0 && (scj.herschrijving.nieuw_ongedekt ?? []).every((z) => scj.gele_zinnen.includes(z)),
+        JSON.stringify(scj),
+      );
 
       // ── Een mislukte controle: klaar, met gele zinnen ─────────────────────
       const { rows: mislukt } = await db.client.query(
@@ -5710,6 +5721,29 @@ async function main(): Promise<void> {
       const vijver = await stuk(mislukt[0].id);
       const vcj = vijver.controle_json as { beoordeling: unknown; gele_zinnen: string[] };
       ok("een mislukte controle gaat naar klaar", vijver.status === "ready" && vcj.beoordeling === null);
+
+      // V21 punt 3 (besluit B-h): een verbeterpagina waarvan de nieuwe tekst
+      // het keurmerk en de termijn van de huidige pagina mist.
+      const { rows: verbeter } = await db.client.query(
+        `insert into public.content_pieces (analysis_id, title, type, status, action, existing_url, existing_page_text, body_markdown, brief_json)
+         values ($1, 'Sloten vervangen', 'landing', 'draft', 'verbeteren', 'https://tuin.nl/sloten', 'Wij plaatsen SKG*** sloten binnen 2 dagen. Een cilinder kost € 89.',
+                 'Een cilinder kost € 89. Je kiest zelf het slot.', '{"onderzoek":null,"bedrijf":{"feiten":[]},"versie":1}')
+         returning id`,
+        [cluster],
+      );
+      const { rows: verbeterTaak } = await db.client.query(
+        `insert into public.jobs (type, payload_json, analysis_id, dedupe_key, status, attempts)
+         values ('pagina_controle', $1, $2, 'test-controle-verdwenen', 'running', $3) returning *`,
+        [JSON.stringify({ pieceId: verbeter[0].id }), cluster, MAX_ATTEMPTS],
+      );
+      await handleFailure(admin as never, verbeterTaak[0], "model onbereikbaar");
+      const sloten = await stuk(verbeter[0].id);
+      const verdwenen = (sloten.controle_json as { verdwenen?: string[] }).verdwenen ?? [];
+      ok(
+        "V21: de ondernemer ziet welke gegevens van de huidige pagina ontbreken, en het bedrag dat bleef niet",
+        verdwenen.includes("SKG***") && verdwenen.some((g) => g.includes("2 dagen")) && !verdwenen.some((g) => g.includes("89")),
+        JSON.stringify(verdwenen),
+      );
       ok("met de ongedekte zin geel", vcj.gele_zinnen.some((z) => z.includes("2 dagen")));
       ok("en de zin met een verboden woord ook (B16)", vcj.gele_zinnen.length === 2 && vcj.gele_zinnen.some((z) => z.includes("tuinman")));
 
@@ -9870,14 +9904,15 @@ async function main(): Promise<void> {
           !cj1.ongedekt.some((z) => z.includes("op maat")),
         JSON.stringify(cj1),
       );
-      ok("scenario 31: ongedekt in code (niet de beoordeling) triggert de ene herschrijving", (await wachtrij("pagina_herschrijven")).length === 1);
+      // V15 (besluit B-e): alleen een ongedekte zin in code is geen reden om te
+      // herschrijven. De zinnen worden geel en de ondernemer beslist.
+      ok("scenario 31: ongedekt in code alleen herschrijft niet (V15)", (await wachtrij("pagina_herschrijven")).length === 0);
 
-      await draai("pagina_herschrijven");
       const naHerschrijven = await haalStuk();
-      ok("scenario 31: klaar om te lezen na de herschrijving", naHerschrijven.status === "ready" && naHerschrijven.needs_review === true);
+      ok("scenario 31: direct klaar om te lezen", naHerschrijven.status === "ready" && naHerschrijven.needs_review === true);
       const cj2 = naHerschrijven.controle_json as { gele_zinnen: string[] };
       ok(
-        "scenario 31: dezelfde twee zinnen blijven geel: de herschrijving loste ze niet op",
+        "scenario 31: de twee zinnen zijn geel",
         cj2.gele_zinnen.some((z) => z.includes("€ 900")) && cj2.gele_zinnen.some((z) => z.includes("10 jaar garantie")),
         JSON.stringify(cj2),
       );

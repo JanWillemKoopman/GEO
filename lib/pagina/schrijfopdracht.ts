@@ -37,8 +37,16 @@ import { z } from "zod";
  * bedrijf voor staat" uit het merkonderzoek), de kennis per onderwerp gegroepeerd,
  * alleen wat bij de dienst van de kans hoort. Opgehoogd omdat een andere invoer
  * een andere tekst geeft, en een vergelijking moet kunnen zien welke het was.
+ *
+ * Versie 5 (29 september 2026, V13 van `pijplijnanalyse-contentketen.md`, K3):
+ * de lezer als maatstaf. "Wees inhoudelijk volledig" en "schrijf zo uitgebreid
+ * als nodig is" duwden in ronde 1 naar lange pagina's met randgevallen; nu één
+ * zin: beantwoord wat deze bezoeker wil weten, zo kort als dat kan, elk punt één
+ * keer. Vakkennis alleen waar die de lezer helpt kiezen of handelen. Een
+ * overgeslagen vraag (V8) schrijf je niet omheen. De invoer draagt sinds deze
+ * versie ook de rol, de kernvraag, de overgeslagen vragen en de buren (fase 3).
  */
-export const SCHRIJFOPDRACHT_VERSIE = 4;
+export const SCHRIJFOPDRACHT_VERSIE = 5;
 
 /** Hoogstens zoveel veelgestelde vragen, en alleen als ze iets toevoegen. */
 export const MAX_FAQ = 5;
@@ -56,13 +64,13 @@ export type PaginaUitvoer = z.infer<typeof PaginaSchema>;
 
 const KERN = `Je bent een ervaren vakschrijver en schrijft een pagina voor de eigen website van dit bedrijf. Schrijf de beste pagina die iemand met deze vraag zou kunnen lezen.
 
-Wees inhoudelijk volledig, natuurlijk, concreet en overtuigend. Beantwoord de vraag van de bezoeker meteen, en behandel daarna wat hij verder wil weten. Gebruik algemene vakkennis waar die helpt. Gebruik wat de ondernemer zelf vertelde: daar zit wat deze pagina anders maakt dan die van een concurrent.
+Beantwoord wat deze bezoeker wil weten, zo kort als dat kan, en zeg elk punt één keer. Begin met het antwoord op zijn vraag. Schrijf natuurlijk, concreet en overtuigend. Gebruik algemene vakkennis alleen waar die de lezer helpt kiezen of handelen, niet om te laten zien wat je weet. Gebruik wat de ondernemer zelf vertelde: daar zit wat deze pagina anders maakt dan die van een concurrent.
 
 Houd twee soorten kennis uit elkaar. Bedrijfskennis staat onder "WAT WE ZEKER WETEN OVER HET BEDRIJF" en "WAT DE ONDERNEMER VERTELDE". Alleen daarop bouw je wat dit bedrijf doet, biedt, belooft, rekent, adviseert of hanteert. Algemene kennis (het onderzoek en wat je zelf van het vak weet) gebruik je om het onderwerp uit te leggen. Schrijf die dan als algemene uitleg, over hoe het meestal gaat of wat er in Nederland geldt, en nooit als een werkwijze, belofte, advies of eigenschap van dit bedrijf.
 
 Verzin geen bedrijfsclaims, cijfers, garanties, prijzen, resultaten, certificeringen, termijnen of andere concrete eigenschappen die niet uit de bedrijfskennis blijken. Weet je iets niet, laat het dan weg; schrijf niet over wat je niet weet. Noem een concreet gegeven overal op dezelfde manier en met de voorwaarden die erbij horen, ook in de metabeschrijving en de veelgestelde vragen.
 
-Schrijf zo uitgebreid als nodig is om de vraag volledig en nuttig te beantwoorden. Voeg geen tekst toe alleen om langer te worden, en herhaal niets.
+Sloeg de ondernemer een vraag over, schrijf er dan niet omheen: geen alinea over wat de lezer zelf moet navragen of wat niet bekend is. Kies een invalshoek die je met de informatie wel kunt waarmaken.
 
 Schrijf in de stem van dit bedrijf. Noem nooit een ander bedrijf bij naam. Schrijf als een vakman, niet als een AI die informatie afvinkt.`;
 
@@ -175,10 +183,7 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
     b.antwoorden.length > 0
       ? "Antwoorden van de ondernemer:\n" + b.antwoorden.map((a) => `- ${a.vraag}\n  ${a.antwoord}`).join("\n")
       : null,
-    lijst(
-      "Vragen die de ondernemer oversloeg. Hier is geen antwoord op: schrijf er niet omheen en beweer er niets over, kies een invalshoek die je wel kunt waarmaken.",
-      b.overgeslagen ?? [],
-    ),
+    lijst("Vragen die de ondernemer oversloeg (hier is geen antwoord op, dus beweer er niets over):", b.overgeslagen ?? []),
   ].filter(Boolean);
   delen.push(klant.length > 0 ? `WAT DE ONDERNEMER VERTELDE (bedrijfskennis)\n${klant.join("\n\n")}` : null);
 
@@ -238,5 +243,7 @@ export function herschrijfInvoer(b: SchrijfBlokken, f: Feedback): string {
     ),
     lijst("Zinnen met een woord dat dit bedrijf niet wil gebruiken (schrijf ze zonder dat woord):", (f.verboden ?? []).map((z) => `"${z}"`)),
   ].filter(Boolean);
-  return `${schrijfInvoer(b)}\n\nHIER IS JE VORIGE VERSIE EN DE FEEDBACK. SCHRIJF EEN BETERE VERSIE.\n\nVorige versie:\n"""${f.vorige.trim()}"""\n\n${feedback.join("\n\n")}`;
+  // V14 punt 3: bij de noodopening in ronde 1 verdwenen bij het herschrijven
+  // drie bruikbare veelgestelde vragen die niemand had afgekeurd.
+  return `${schrijfInvoer(b)}\n\nHIER IS JE VORIGE VERSIE EN DE FEEDBACK. SCHRIJF EEN BETERE VERSIE. Voer de punten uit en laat de rest van de tekst staan, ook de veelgestelde vragen.\n\nVorige versie:\n"""${f.vorige.trim()}"""\n\n${feedback.join("\n\n")}`;
 }
