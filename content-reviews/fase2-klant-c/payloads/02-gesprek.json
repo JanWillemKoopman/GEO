@@ -1,0 +1,16 @@
+{
+  "bron": "gesprek",
+  "priority_offerings": [
+    "Wespennesten bestrijden"
+  ],
+  "target_segments": [
+    "Particulieren met een wespennest bij huis"
+  ],
+  "deal_value_band": "klein",
+  "sales_objections": [
+    "Is het niet duur?"
+  ],
+  "respect_site_structure": true,
+  "verhalen": "Bel gewoon, dan kom ik kijken.",
+  "stem_voorbeelden": []
+}
