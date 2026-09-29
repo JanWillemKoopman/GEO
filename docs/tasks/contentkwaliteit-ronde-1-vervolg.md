@@ -445,4 +445,4 @@ akkoord geeft.
 
 > **Uitgevoerd op 29 september 2026:** `docs/tasks/pijplijnanalyse-contentketen.md`. Daar staan de
 > analyse per stap, het verbeterplan (V0 tot en met V23, waarin K1 tot en met K4 zijn opgegaan), de
-> volgorde van bouwen en negen besluiten voor de eigenaar. Nog niets gebouwd; wacht op akkoord.
+> volgorde van bouwen en tien besluiten voor de eigenaar. Nog niets gebouwd; wacht op akkoord.
