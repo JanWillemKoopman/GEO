@@ -823,7 +823,7 @@ een pagina in status `briefing` op de antwoorden van de klant wacht. `/api/cron/
 `EMAILS_ENABLED` aanstaat. Zie `docs/tasks/van-pijplijn-naar-kennissysteem.md` A5. Additief en
 idempotent. Op productie toegepast op 27 september 2026.
 
-## 0129 — De verhalen in vakken, bezwaren met antwoord
+## 0129: de verhalen in vakken, bezwaren met antwoord
 
 Voegt aan `profiles` toe: `verhaal_klussen`, `verhaal_werkwijze`, `verhaal_niet`, `verhaal_begin`
 en `bezwaren_met_antwoord` (alle `text`). Het gespreksscherm toont ze als losse vakken; de kennislaag

@@ -468,8 +468,10 @@ dollarcent per pagina en duurt ongeveer een halve minuut.
   ziet elke volgende brief welke vragen er al gesteld zijn, en krijgt de klant niet vijf keer
   dezelfde vraag in andere woorden.
 - **De content brief.** Het sterkste model krijgt de titel, de zoekintentie, de gemiste meetvragen
-  met wat ChatGPT er nu op antwoordt, alles wat de app al zeker weet over het bedrijf, het
-  kennisgat van deze kans, en bij een verbeterpagina de huidige tekst. Met zoeken op internet
+  met wat ChatGPT er nu op antwoordt, alles wat de app al zeker weet over het bedrijf, alle
+  vragen die het bedrijf al kreeg met hun antwoord, en bij een verbeterpagina de huidige tekst.
+  Is een eerdere vraag ook voor deze pagina nuttig, dan koppelt de brief hem, en krijgt de
+  schrijver het antwoord erbij in plaats van dat de klant het opnieuw moet vertellen. Met zoeken op internet
   levert het twee dingen:
   - **onderzoek**: wat de bezoeker wil weten, vakkennis over het onderwerp (met het webadres waar
     die gevonden is, nooit van de eigen site en nooit over het bedrijf zelf), en wat klanten vaak
