@@ -4,7 +4,9 @@
 > `docs/contentkwaliteit-testmethode.md` staat in [`fase1-klant-a/`](fase1-klant-a/). Het document
 > voor de copywriter is
 > [`klantdocument-slotenspecialist-van-kessel.md`](fase1-klant-a/klantdocument-slotenspecialist-van-kessel.md);
-> het uitvoeringslog en het oordeel over het sjabloon staan ernaast en zijn intern.
+> het uitvoeringslog en het oordeel over het sjabloon staan ernaast en zijn intern. Klant B en C staan
+> in `fase2-klant-b/` en `fase2-klant-c/`. Het plan voor het vervolg (versturen, patronen, verbeteren,
+> verifiëren): [`docs/tasks/contentkwaliteit-ronde-1-vervolg.md`](../docs/tasks/contentkwaliteit-ronde-1-vervolg.md).
 
 > **3 september 2026:** deze twaalf zijn inmiddels beoordeeld door een AI in de rol van copywriter,
 > in afwachting van een echte. Die beoordelingen staan apart in [`feedback/`](feedback/README.md) en
