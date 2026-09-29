@@ -10792,24 +10792,14 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // pixels, maar het onderscheid moet blijven bestaan.
   ok("de soort werk bepaalt de toon", wachtrijLijst.includes("workChipTone(item.kind)"));
 
-  // ── ⚠️ ÉÉN PRIMAIRE KNOP (25 AUGUSTUS 2026) ─────────────────────────────
+  // ── ⚠️ GEEN KNOPPEN IN DE WACHTRIJ (30 SEPTEMBER 2026) ──────────────────
   //
-  // Dit scherm is de bestemming na inloggen (`app/page.tsx`) en had géén enkele
-  // primaire knop: de enige verzadigde kleur was een chip, en een chip is een
-  // etiket. Het scherm vroeg nergens om een klik. Een tweede primaire knop is
-  // net zo fout: dan kiest de klant welke van de twee de hoofdactie is, en dan
-  // is er geen.
+  // Er stonden er soms tien onder elkaar. De hele regel is de link en de actie
+  // is een pijltje; er is dus geen primaire knop meer op het scherm.
   ok(
-    "precies één primaire knop op het scherm",
-    (overzicht.match(/btn-primary/g) ?? []).length === 0 &&
-      (wachtrijLijst.match(/btn-primary/g) ?? []).length === 1,
-  );
-  // Sinds 23 september 2026 is die ene knop die van de dringendste taak, en
-  // niet van elke regel: `primair` is waar voor precies één id.
-  ok(
-    "de primaire knop hoort bij de dringendste taak",
-    wachtrijLijst.includes('primair ? "btn-primary"') &&
-      overzicht.includes("eersteId={eigenWerk[0]?.id}"),
+    "geen knoppen op het scherm, de regel is de link",
+    (overzicht.match(/className="[^"]*btn-(primary|outline)/g) ?? []).length === 0 &&
+      (wachtrijLijst.match(/className[^\n]*btn-(primary|outline)/g) ?? []).length === 0,
   );
 
   // Het hoofdgetal stond vier keer op dit scherm, in drie schalen. De subkop is
@@ -10845,27 +10835,14 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // wachtrij.
   ok(
     "elk blok staat in zijn eigen foutopvang",
-    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 3,
+    (overzicht.match(/<SectionErrorBoundary/g) ?? []).length >= 2,
   );
 
-  // ── ⚠️ HET ZICHTBAARHEIDSPERCENTAGE STAAT HIER WEER ─────────────────────
+  // ── ⚠️ HET ZICHTBAARHEIDSBLOK IS WEG (30 SEPTEMBER 2026) ────────────────
   //
-  // Op 26 augustus 2026 verhuisde het naar Analytics, zodat de startpagina de
-  // omvang van het programma toonde. Op 27 augustus is dat teruggedraaid, en
-  // het waarom is een productvraag en geen smaakvraag: een meetproduct dat
-  // opent met vier productietellingen laat de klant eerst zien hoeveel er
-  // gemaakt is, terwijl hij komt kijken of het wérkt. Het cijfer waarvoor hij
-  // betaalt, stond een klik verderop.
-  //
-  // Wat hier NIET mag terugkeren is de valse winst. Het cijfer komt met zijn
-  // marge, en een verschil binnen die marge heet "gelijk gebleven" en geen
-  // stijging. Dat is dezelfde lat als op Analytics.
-  ok("het hoofdgetal staat op de startpagina", overzicht.includes("text-5xl"));
-  ok("met zijn onzekerheidsmarge erbij", overzicht.includes("confidenceBand"));
-  ok(
-    "en een verschil binnen de marge telt niet als winst",
-    overzicht.includes("changeIsMeaningful"),
-  );
+  // Het hoofdcijfer staat op Analytics, "Zichtbaarheid in AI". Het overzicht is
+  // sindsdien het scherm van de openstaande taken.
+  ok("het hoofdgetal staat niet meer op de startpagina", !overzicht.includes("text-5xl"));
 
   // ── ⚠️ DE RONDE STAAT BOVEN DE CIJFERS ──────────────────────────────────
   //
@@ -10876,9 +10853,8 @@ group("het overzicht: één hoofdgetal, één primaire knop, één rekensom", ()
   // ⚠️ Omgedraaid in de UX-audit van 23 september 2026 (P1.1): wat er op de
   // klant wacht staat bovenaan, de maand onderaan als naslag.
   ok(
-    "de wachtrij staat boven het cijfer, het cijfer boven de maand",
-    overzicht.indexOf("<WachtrijLijst") < overzicht.indexOf("text-5xl") &&
-      overzicht.indexOf("text-5xl") < overzicht.indexOf("<RondeBalk"),
+    "de maand staat bovenaan, gevolgd door wat er op je wacht",
+    overzicht.indexOf("<RondeBalk") < overzicht.indexOf("<WachtrijLijst"),
   );
   ok("geen rij van vier grote tellers meer", !overzicht.includes("CijferRij"));
   // ⚠️ Eén maandtelling op het scherm (23 september 2026). "Maand 4 sinds de
@@ -11212,7 +11188,7 @@ group("de teller telt precies wat eronder staat", () => {
 
   // Het geval dat de consultant zag: alles wat blokkeert staat klaar, drie
   // punten voor het gesprek nog niet. Balk en zin mogen dan geen 100% zeggen.
-  const i1 = invoer();
+  const i1 = invoer({ openFactRequests: 1 });
   const s1 = buildOnboardingStatus(i1.steps, assessReadiness(i1));
   ok("elke regel staat in precies één groep", s1.totaal === s1.groepen.reduce((n, g) => n + g.totaal, 0));
   ok("negen onderzoekstaken, één werkgebied, drie afspraken", s1.totaal === 13);
@@ -11229,7 +11205,7 @@ group("de teller telt precies wat eronder staat", () => {
   // Een taak die klaar meldde zonder dat er iets staat, is niet klaar.
   const i3 = invoer({ offerings: 0 });
   const s3 = buildOnboardingStatus(i3.steps, assessReadiness(i3));
-  ok("een lege aanbodboom blokkeert, ook als de taak klaar meldde", s3.nodigOpen.some((r) => r.label === "Aanbod in kaart"));
+  ok("een lege aanbodboom blokkeert, ook als de taak klaar meldde", s3.nodigOpen.length === 1 && s3.nodigOpen[0].label === "profile_offering");
 
   // Draait er nog iets, dan is dat geen bevinding.
   const i4 = invoer({ steps: alleStappen("bezig"), pages: 0, offerings: 0, topics: 0, auditChecks: 0, baselineRows: 0, dossier: false, scopeKnown: false });

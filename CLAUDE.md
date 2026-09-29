@@ -27,14 +27,9 @@ iets rond het schrijven van pagina's, lees dan eerst §0 en §3 daarvan: bouw ni
 schrijfpijplijn, een verificatie na een wijziging, of een test van een nieuwe pijplijnversie, zodat
 rondes onderling vergelijkbaar blijven.
 
-**De Sales-module** (`lib/sales/`, `app/(app)/sales/`, `docs/tasks/geo-prospect-engine.md`) is
-intern: een klant ziet er niets van, en de scheiding staat in de database en niet alleen in de
-schermen. Hij zoekt uit een markt de beste saleskansen, onderbouwt ze en zet een conceptmail klaar.
-Twee regels die overal in die module terugkomen: de app verstuurt zelf nooit een openingsmail, en
-elk getal in een zin die naar buiten gaat wordt tegen de meetdata gecontroleerd. Eén echte markt is
-er op 1 september 2026 doorheen gegaan; de vier blokkerende fouten daaruit zijn gerepareerd, de
-verificatiecriteria zijn nog niet gehaald
-(`docs/tasks/bevindingen-live-test-sales-1-september-2026.md`).
+**De Sales-module is op 30 september 2026 uit de app verwijderd** (schermen, API-routes, `lib/sales/`,
+pijplijnstappen en tests). De databasetabellen `sales_*` blijven staan, want migraties zijn additief.
+De oude documenten in `docs/tasks/` over de Sales-module beschrijven dus iets wat niet meer in de app zit.
 
 **Het zijproject "Solliciteren"** (`app/solliciteren/`) is een eigen app van één pagina achter
 dezelfde inlog, met een eigen stijlblad en een eigen layout. Gaat een opdracht over "het Zijproject",

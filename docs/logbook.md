@@ -13030,3 +13030,11 @@ gelden. Ook besloten: levert een cluster minder dan twee aanbevelingen, dan aanv
 cluster van hetzelfde merk, bij voorkeur met het pad (nieuw of verbeteren) dat nog ontbreekt (§2.3).
 De schatting per pagina gaat van $0,90 naar ongeveer $0,20: de $0,90 kwam uit de oude keten met
 reparatierondes. Uitvoering, log en document: `content-reviews/fase1-klant-a/`.
+
+
+## 30 september 2026: Sales-module eruit, Diagnose opgegaan in de onboarding, overzicht rustiger
+
+- De Sales-module (`lib/sales/`, `app/(app)/sales/`, `app/api/sales/`, `app/markt/`, `lib/pipeline/sales-*.ts`, de dertien taaksoorten en hun tests) is verwijderd. De `sales_*` tabellen en kolommen blijven staan (migraties zijn additief).
+- Diagnose is verwijderd. De negen onboardingtaken en de volledigheidscheck zijn samengevoegd tot één statusoverzicht (`lib/pipeline/onboarding-status.ts`). De oude teller zei "7 van de 7" met een volle balk terwijl de lijst er tien toonde: de balk telde alleen de blokkerende regels. Nu tellen balk, zin en groepen dezelfde 13 regels. Het kostenlogboek, de ruwe modeloutput en de herkomst per veld van Diagnose zijn met het scherm verdwenen.
+- Concurrenten is geen eigen scherm meer maar een keuzeknop naast de AI-vragen onder Zichtbaarheid in AI (`?tabel=concurrenten`). De adressen van het oude scherm sturen door.
+- Op het overzicht staat Deze maand boven Wat er op jou wacht, het zichtbaarheidsblok is weg, en de knoppen in de wachtrij zijn een pijltje geworden.
