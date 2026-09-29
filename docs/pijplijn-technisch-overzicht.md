@@ -31,6 +31,43 @@
 
 ---
 
+## Introductie: wat ORBIT ENGINE is en waarvoor de app dient
+
+**Wat het is.** ORBIT ENGINE is een app van Outer Orbit voor het mkb. Steeds meer mensen stellen hun vragen
+niet meer aan Google maar aan een AI-assistent zoals ChatGPT: "welke installateur in Eindhoven kan mijn
+cv-ketel vervangen?". Noemt zo'n assistent een bedrijf niet in het antwoord, dan bestaat dat bedrijf voor die
+vrager niet. Het vakgebied heet GEO (Generative Engine Optimization): zichtbaar zijn in de antwoorden van
+AI-assistenten. ORBIT ENGINE maakt dat voor een mkb-bedrijf meetbaar en stuurbaar.
+
+**Het doel.** De app helpt een bedrijf vaker en beter genoemd te worden in AI-antwoorden, en laat zien of
+dat gelukt is. Ze doet dat in vier bewegingen:
+
+1. **Meten.** Word je genoemd als een koper een vraag stelt, hoe prominent, en wie wordt er in plaats van
+   jou genoemd?
+2. **Adviseren.** Welke pagina's ontbreken of zijn te zwak, zodat een AI-assistent je niet kan noemen?
+3. **Schrijven.** Die pagina's samen met de ondernemer maken: de app haalt op wat alleen de ondernemer weet,
+   en een sterke AI-schrijver maakt daar een pagina van die de ondernemer zo op zijn site kan zetten.
+4. **Het effect bewijzen.** Na publicatie opnieuw meten, naast een controlegroep van vragen zonder nieuwe
+   pagina, om te zien of de pagina iets opleverde.
+
+**Het uitgangspunt bij het schrijven.** De app probeert niet de beste AI-tekst te maken, maar de kennis van
+een ondernemer zo goed mogelijk aan een goede AI-schrijver te geven. Daarom zijn de vragen aan de ondernemer
+de kern van het product en geen last die zo klein mogelijk gehouden wordt.
+
+**Hoe de app wordt ingezet.** De verkoop loopt via een consultant van Outer Orbit: die zet het merk klaar
+vóór het eerste gesprek, de app doet het onderzoek, en pas na de verkoop krijgt de klant een eigen account.
+Alles wat geld kost, start alleen de consultant. De klant leest, beantwoordt vragen en keurt teksten goed.
+
+**Wat de app bewust niet doet.** Ze publiceert nooit zelf op de site van een klant (er is geen koppeling met
+een websitesysteem), en ze meet geen tien AI-assistenten tegelijk: ChatGPT is de hoofdbron, de andere bronnen
+zijn optioneel.
+
+**Wat dit document beschrijft.** De hele weg die een klant aflegt: account en merk aanmaken, onderzoek, gesprek,
+meten, adviseren, plannen, schrijven, controleren, goedkeuren, publiceren en nameten. Zo ziet een technisch
+team wat er op elk moment achter de schermen gebeurt.
+
+---
+
 ## Inhoud
 
 - [Deel I. Overzicht](#deel-i-overzicht)
