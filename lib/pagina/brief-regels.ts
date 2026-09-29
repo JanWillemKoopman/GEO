@@ -47,7 +47,12 @@ import { pasSchrijfregelsToe } from "@/lib/schrijfregel-vangnet";
  * hun antwoord en mag ook een beantwoorde vraag aan zijn pagina koppelen (V17);
  * een vraag vraagt één ding, en de uitleg erbij is in de taal van de klant (V22).
  */
-export const BRIEF_VERSIE = 5;
+/*
+ * Versie 6 (29 september 2026, besluit B-c, V8): de brief krijgt de kernvraag
+ * van de pagina uit het rapport en markeert welke vraag hem beantwoordt (`kern`,
+ * of `kern_eerder` voor een vraag die er al was).
+ */
+export const BRIEF_VERSIE = 6;
 
 /** Technische bovengrens, geen doel (§6.1). */
 export const MAX_BRIEFVRAGEN = 8;
@@ -68,16 +73,20 @@ export const ContentBriefSchema = z.object({
       antwoord_type: z.enum(ANTWOORDTYPEN),
       opties: z.array(z.string()).nullable(),
       merkbreed: z.boolean(),
+      /** V8 (besluit B-c): deze vraag beantwoordt de kernvraag van de pagina. */
+      kern: z.boolean(),
     }),
   ),
   ook_voor_deze_pagina: z.array(z.string()),
+  /** V8: het id van een eerdere vraag die de kernvraag al beantwoordt of zal beantwoorden, of null. */
+  kern_eerder: z.string().nullable(),
 });
 
 export type ContentBrief = z.infer<typeof ContentBriefSchema>;
 export type BriefVraag = ContentBrief["vragen"][number];
 
 /** Het onderzoek zoals het in `brief_json.onderzoek` komt: zonder de vragen, die worden rijen. */
-export type Onderzoek = Omit<ContentBrief, "vragen" | "ook_voor_deze_pagina">;
+export type Onderzoek = Omit<ContentBrief, "vragen" | "ook_voor_deze_pagina" | "kern_eerder">;
 
 /** Een vraag die het merk al kreeg, in welke stand ook. */
 export interface EerdereVraag {
@@ -96,6 +105,8 @@ export interface NieuweVraag {
   antwoord_type: BriefVraag["antwoord_type"];
   opties: string[] | null;
   merkbreed: boolean;
+  /** V8: de vraag die de kernvraag van de pagina beantwoordt. Hooguit één per brief. */
+  kern: boolean;
 }
 
 /**
@@ -135,6 +146,8 @@ export interface VerwerkteBrief {
   vragen: NieuweVraag[];
   /** Id's van al open vragen van dit merk die ook voor deze pagina gelden. */
   koppel: string[];
+  /** V8: een eerdere vraag die de kernvraag beantwoordt; staat dan ook in `koppel`. */
+  kernEerder: string | null;
 }
 
 /**
@@ -208,6 +221,9 @@ export function verwerkBrief(ruw: ContentBrief, eerdere: EerdereVraag[], merk: M
       antwoord_type: v.antwoord_type === "keuze" && !keuze ? "tekst_kort" : v.antwoord_type,
       opties: keuze ? opties : null,
       merkbreed: v.merkbreed,
+      // V8: hooguit één kernvraag. Een merkbrede vraag is nooit de kern van
+      // één pagina: die geldt voor het hele bedrijf.
+      kern: Boolean(v.kern) && !v.merkbreed && !vragen.some((x) => x.kern),
     });
     if (vragen.length >= MAX_BRIEFVRAGEN) break;
   }
@@ -217,7 +233,13 @@ export function verwerkBrief(ruw: ContentBrief, eerdere: EerdereVraag[], merk: M
   const koppelbaar = new Set(eerdere.filter((e) => e.status === "open" || e.status === "beantwoord").map((e) => e.id));
   const koppel = Array.from(new Set(ruw.ook_voor_deze_pagina.map((id) => id.trim()))).filter((id) => koppelbaar.has(id));
 
-  return { onderzoek, vragen, koppel };
+  // V8: een eerdere vraag als kern, alleen als er geen nieuwe kernvraag is en
+  // hij koppelbaar is. Dan hangt hij ook aan deze pagina.
+  const eerder = (ruw.kern_eerder ?? "").trim();
+  const kernEerder = !vragen.some((v) => v.kern) && eerder && koppelbaar.has(eerder) ? eerder : null;
+  if (kernEerder && !koppel.includes(kernEerder)) koppel.push(kernEerder);
+
+  return { onderzoek, vragen, koppel, kernEerder };
 }
 
 /**

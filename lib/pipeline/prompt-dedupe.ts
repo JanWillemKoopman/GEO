@@ -52,3 +52,34 @@ export function duplicatePromptIds(rows: PromptRow[]): string[] {
 
   return duplicates;
 }
+
+/**
+ * Een vraag als vergelijksleutel over clusters heen: hoofdletters, accenten,
+ * leestekens en dubbele spaties tellen niet. Geen synoniemen: een vraag in
+ * andere woorden voorkomt de opdracht, dit vangt de letterlijke herhaling.
+ */
+export function vraagSleutel(tekst: string): string {
+  return tekst
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/**
+ * V18 van `docs/tasks/pijplijnanalyse-contentketen.md` (besluit B-i): welke
+ * vragen van een NIEUW cluster staan al in een ander cluster van hetzelfde merk?
+ * In ronde 1 stond dezelfde vraag in drie clusters: drie keer gemeten, drie keer
+ * meegeteld in de merkscore, en drie rapporten die naar dezelfde pagina wezen.
+ *
+ * Alleen de vragen van het nieuwe cluster gaan weg: bestaande clusters blijven
+ * zoals ze zijn, want daar hangen metingen aan. En er blijft altijd minstens één
+ * vraag staan: een cluster zonder vragen kan niet gemeten worden, en dan is een
+ * dubbele vraag het kleinere kwaad.
+ */
+export function dubbelMetAndereClusters(eigen: readonly PromptRow[], andere: readonly string[]): string[] {
+  const bekend = new Set(andere.map(vraagSleutel).filter(Boolean));
+  const dubbel = eigen.filter((r) => bekend.has(vraagSleutel(r.text))).map((r) => r.id);
+  return dubbel.length >= eigen.length ? dubbel.slice(0, Math.max(0, eigen.length - 1)) : dubbel;
+}

@@ -250,9 +250,11 @@ vragen: {                                              // tot 8
   waarom: string,          // voor de klant: wat dit antwoord aan de pagina toevoegt
   soort: "feit"|"praktijk"|"werkwijze"|"twijfel"|"onderscheid",
   antwoord_type: "ja_nee"|"bedrag"|"getal"|"tekst_kort"|"tekst_lang"|"keuze",
-  opties: string[] | null, merkbreed: boolean
+  opties: string[] | null, merkbreed: boolean,
+  kern: boolean            // B-c (V8): beantwoordt de kernvraag van de pagina, hooguit één
 }[]
-ook_voor_deze_pagina: string[]                         // id's van al open vragen die hier ook gelden
+ook_voor_deze_pagina: string[]                         // id's van eerdere vragen die hier ook gelden
+kern_eerder: string | null                             // B-c: een eerdere vraag die de kernvraag beantwoordt
 ```
 
 De opdracht voor `vragen` (B13): stel de vragen waarvan het antwoord deze pagina duidelijk beter en
@@ -341,8 +343,10 @@ zegt; wat jullie bewust niet doen; waarom je ooit begon. Geen AI. Gaat mee in bl
 (`startStructuredAchtergrond` en `haalStructuredOp`). Een aanroep met denktijd hoog duurde al 179 tot
 359 seconden; de routelimiet is 300.
 
-**Invoer:** blok A, B, C en D (§5), plus de titels van de andere pagina's van het merk (om overlap te
-voorkomen), plus bij "verbeteren" de huidige sitetekst.
+**Invoer:** blok A, B, C en D (§5), plus de andere pagina's uit hetzelfde cluster met hun rol (om
+overlap te voorkomen; tot 29 september 2026 de titels van alle pagina's van het merk, V7), plus bij
+"verbeteren" de huidige sitetekst. Blok D draagt sinds B-b ook de rol en de kernvraag uit het rapport,
+blok B sinds B-c ook de vragen die de ondernemer oversloeg.
 
 **De schrijfopdracht** staat in één bestand, `lib/pagina/schrijfopdracht.ts`, met een versienummer
 (`SCHRIJFOPDRACHT_VERSIE`) dat bij de uitvoer bewaard wordt. Dit is het enige bestand waar je aan

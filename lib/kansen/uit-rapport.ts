@@ -34,6 +34,7 @@ import {
   BEWIJS_REGEL,
   bewijsUitMetingen,
   commercieleWaardeVan,
+  doelvragenVan,
   isConcurrent,
   geldtVoorVan,
   kansUitAanbeveling,
@@ -42,12 +43,22 @@ import {
   type RuweAanbeveling,
 } from "@/lib/kansen/rapport";
 import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
+import {
+  OPEN_KANS_STATUSSEN,
+  kiesDoelKans,
+  telBewijsOp,
+  type BestaandeKans,
+  type OpgeslagenBewijs,
+} from "@/lib/kansen/samenvoegen";
+import type { KansBron } from "@/lib/kansen/prioriteit";
 
 export interface KansenTelling {
   aangemaakt: number;
   bestond: number;
   /** Bestaande kansen waarvan het bewijs met een oudere regel was geteld, nu opnieuw. */
   ververst: number;
+  /** V7 en V20: nieuwe kansen die als bewijs bij een open kans van het merk gingen. */
+  samengevoegd: number;
   mislukt: number;
 }
 
@@ -151,7 +162,7 @@ async function metingenVoor(
  * telling terug.
  */
 export async function legKansenVast(admin: SupabaseClient, rapportId: string): Promise<KansenTelling> {
-  const telling: KansenTelling = { aangemaakt: 0, bestond: 0, ververst: 0, mislukt: 0 };
+  const telling: KansenTelling = { aangemaakt: 0, bestond: 0, ververst: 0, samengevoegd: 0, mislukt: 0 };
   try {
     const { data: rapport } = await admin
       .from("reports")
@@ -265,7 +276,33 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
       telling.ververst++;
     }
 
+    // V7 en V20: de open kansen van het hele merk, met de meetvragen waar hun
+    // bewijs op rust. Een nieuwe kans die daarbij hoort, wordt bewijs en geen
+    // tweede kaart.
+    // Alleen kansen uit ándere rapporten: binnen één rapport is de overlap al
+    // afgehandeld (`mergeOverlappingRecommendations`, `eenVerbeteringPerAdres`).
+    const openKansen = (await openKansenMetVragen(admin, profileId, r.id));
+
     for (const k of nieuw) {
+      const bijKans = typeof (k.ruw as { bijKans?: unknown }).bijKans === "string" ? ((k.ruw as { bijKans: string }).bijKans) : null;
+      const doel = kiesDoelKans(
+        { handeling: k.handeling, bestaandeUrl: k.bestaandeUrl, doelvragen: k.doelvragen, bijKans },
+        openKansen,
+      );
+      if (doel) {
+        const gelukt = await voegToeAlsBewijs(admin, {
+          profileId,
+          rapport: r,
+          kans: k,
+          doel: openKansen.find((o) => o.id === doel.id)!,
+          reden: doel.reden,
+          metingen,
+          profileUrl,
+        });
+        if (gelukt) telling.samengevoegd++;
+        else telling.mislukt++;
+        continue;
+      }
       const bewijs = bewijsUitMetingen(k.doelvragen, metingen, profileUrl);
       const geldtVoor = geldtVoorVan({ kans: k, kennis });
       const { data: rij, error } = await admin
@@ -299,16 +336,18 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
       }
       telling.aangemaakt++;
       const kansId = (rij as { id: string }).id;
+
       // G2: waar deze kans op leunt, voor "wat hangt er aan deze dienst".
       await legAfhankelijkhedenVast(admin, { profileId, vanTabel: "kansen", vanId: kansId, kennisIds: geldtVoor });
       if (bewijs.length === 0) continue;
       const { error: bewijsFout } = await admin.from("kans_bewijs").insert(bewijsRijen(kansId, k, bewijs));
       if (bewijsFout) console.error(`Bewijs bij kans "${k.titel}" vastleggen mislukt: ${bewijsFout.message}`);
     }
-    if (telling.aangemaakt > 0 || telling.ververst > 0 || telling.mislukt > 0) {
+    if (telling.aangemaakt > 0 || telling.ververst > 0 || telling.samengevoegd > 0 || telling.mislukt > 0) {
       console.log(
         `Kansen uit rapport ${r.id}: ${telling.aangemaakt} nieuw, ${telling.bestond} bestonden, ` +
-          `${telling.ververst} met opnieuw geteld bewijs, ${telling.mislukt} mislukt.`,
+          `${telling.ververst} met opnieuw geteld bewijs, ${telling.samengevoegd} als bewijs bij een open kans, ` +
+          `${telling.mislukt} mislukt.`,
       );
     }
   } catch (err) {
@@ -316,6 +355,161 @@ export async function legKansenVast(admin: SupabaseClient, rapportId: string): P
     console.error(`Kansen uit rapport ${rapportId} vastleggen mislukt:`, err);
   }
   return telling;
+}
+
+/** De open kansen van het merk met de meetvragen waar hun bewijs op rust (V7, V20). */
+async function openKansenMetVragen(admin: SupabaseClient, profileId: string, rapportId: string): Promise<BestaandeKans[]> {
+  const { data: rows } = await admin
+    .from("kansen")
+    .select("id, handeling, bestaande_url, ruw, rapport_id")
+    .eq("profile_id", profileId)
+    .in("status", [...OPEN_KANS_STATUSSEN]);
+  const kansen = ((rows ?? []) as { id: string; handeling: string; bestaande_url: string | null; ruw: RuweAanbeveling | null; rapport_id: string | null }[])
+    .filter((k) => k.rapport_id !== rapportId);
+  if (kansen.length === 0) return [];
+  const bewijs: { kans_id: string; ruw: { doelvragen?: unknown } | null }[] = [];
+  for (const stuk of inStukken(kansen.map((k) => k.id))) {
+    const { data } = await admin.from("kans_bewijs").select("kans_id, ruw").in("kans_id", stuk);
+    bewijs.push(...((data ?? []) as typeof bewijs));
+  }
+  return kansen.map((k) => {
+    const ids = new Set<string>();
+    for (const d of doelvragenVan(k.ruw?.targets)) if (d.promptId) ids.add(d.promptId);
+    for (const b of bewijs.filter((b) => b.kans_id === k.id)) {
+      for (const d of doelvragenVan(b.ruw?.doelvragen)) if (d.promptId) ids.add(d.promptId);
+    }
+    return {
+      id: k.id,
+      handeling: k.handeling === "pagina_verbeteren" ? "pagina_verbeteren" : "nieuwe_pagina",
+      bestaandeUrl: k.bestaande_url,
+      promptIds: [...ids],
+    };
+  });
+}
+
+/**
+ * Een nieuwe kans als bewijs bij een open kans (V7 punt 1 en 2, V20). Het
+ * bewijs telt alleen doelvragen die de open kans nog niet had, zodat een vraag
+ * nooit twee keer meetelt. De nieuwe kans wordt wel vastgelegd, als
+ * "vervallen" met een verwijzing: dan blijft de sleutel bestaan en voegt een
+ * tweede aanroep niets nog eens toe (conventie 9), en is terug te zien waar hij
+ * bleef.
+ */
+async function voegToeAlsBewijs(
+  admin: SupabaseClient,
+  a: {
+    profileId: string;
+    rapport: { id: string; analysis_id: string };
+    kans: ReturnType<typeof kansUitAanbeveling> & object;
+    doel: BestaandeKans;
+    reden: string;
+    metingen: MetingVoorBewijs[];
+    profileUrl: string | null;
+  },
+): Promise<boolean> {
+  const { data: rij, error } = await admin
+    .from("kansen")
+    .insert({
+      profile_id: a.profileId,
+      analysis_id: a.rapport.analysis_id,
+      titel: a.kans.titel,
+      lezer: a.kans.lezer,
+      handeling: a.kans.handeling,
+      bestaande_url: a.kans.bestaandeUrl,
+      geldt_voor: [],
+      status: "vervallen",
+      uitleg: null,
+      rapport_id: a.rapport.id,
+      vastgelegd_door_taak: TAAK,
+      sleutel: a.kans.sleutel,
+      ruw: { ...a.kans.ruw, samengevoegdMet: a.doel.id, samenvoegReden: a.reden } as never,
+    })
+    .select("id")
+    .single();
+  if (error || !rij) {
+    if ((error as { code?: string } | null)?.code === "23505") return true;
+    console.error(`Kans "${a.kans.titel}" als bewijs vastleggen mislukt: ${error?.message ?? "geen rij"}`);
+    return false;
+  }
+
+  const nieuweVragen = a.kans.doelvragen.filter((d) => d.promptId && !a.doel.promptIds.includes(d.promptId));
+  if (nieuweVragen.length === 0) return true;
+  const nieuw = bewijsUitMetingen(nieuweVragen, a.metingen, a.profileUrl);
+  if (nieuw.length === 0) return true;
+
+  const { data: oudRows } = await admin
+    .from("kans_bewijs")
+    .select("bron, vragen_gemeten, vragen_genoemd, concurrenten, run_ids, eigen_site_geciteerd, ruw")
+    .eq("kans_id", a.doel.id);
+  const oud = (oudRows ?? []) as {
+    bron: KansBron;
+    vragen_gemeten: number | null;
+    vragen_genoemd: number | null;
+    concurrenten: string[] | null;
+    run_ids: string[] | null;
+    eigen_site_geciteerd: boolean | null;
+    ruw: { regel?: number; doelvragen?: unknown } | null;
+  }[];
+  const opgeslagen = (b: (typeof oud)[number]): OpgeslagenBewijs => ({
+    bron: b.bron,
+    vragenGemeten: b.vragen_gemeten,
+    vragenGenoemd: b.vragen_genoemd,
+    concurrenten: b.concurrenten ?? [],
+    runIds: b.run_ids ?? [],
+  });
+  const samen = telBewijsOp(
+    oud.filter((b) => ["chatgpt", "ai_overview", "gemini"].includes(b.bron)).map(opgeslagen),
+    nieuw.map((n) => ({ bron: n.bron, vragenGemeten: n.vragenGemeten ?? null, vragenGenoemd: n.vragenGenoemd ?? null, concurrenten: n.concurrenten ?? [], runIds: n.runIds })),
+  );
+  const nu = new Date().toISOString();
+  const rijen = samen.map((b) => {
+    const vorig = oud.find((o) => o.bron === b.bron);
+    const extra = nieuw.find((n) => n.bron === b.bron);
+    return {
+      kans_id: a.doel.id,
+      profile_id: a.profileId,
+      bron: b.bron,
+      vragen_gemeten: b.vragenGemeten,
+      vragen_genoemd: b.vragenGenoemd,
+      concurrenten: [...b.concurrenten],
+      eigen_site_geciteerd: (vorig?.eigen_site_geciteerd ?? false) || (extra?.eigenSiteGeciteerd ?? false),
+      run_ids: [...b.runIds],
+      rapport_id: a.rapport.id,
+      ruw: {
+        regel: vorig?.ruw?.regel ?? BEWIJS_REGEL,
+        doelvragen: [...doelvragenVan(vorig?.ruw?.doelvragen), ...(extra ? nieuweVragen : [])],
+      } as never,
+      updated_at: nu,
+    };
+  });
+  const { error: fout } = await admin.from("kans_bewijs").upsert(rijen, { onConflict: "kans_id,bron" });
+  if (fout) {
+    console.error(`Bewijs bij kans ${a.doel.id} aanvullen mislukt: ${fout.message}`);
+    return false;
+  }
+  a.doel.promptIds = [...a.doel.promptIds, ...nieuweVragen.map((d) => d.promptId as string)];
+  const { data: alles } = await admin
+    .from("kans_bewijs")
+    .select("bron, vragen_gemeten, vragen_genoemd, concurrenten, eigen_site_geciteerd")
+    .eq("kans_id", a.doel.id);
+  const { data: doelRij } = await admin.from("kansen").select("handeling").eq("id", a.doel.id).maybeSingle();
+  await admin
+    .from("kansen")
+    .update({
+      uitleg: uitlegVan({
+        handeling: ((doelRij as { handeling?: string } | null)?.handeling ?? a.doel.handeling) as BestaandeKans["handeling"],
+        bewijs: ((alles ?? []) as { bron: KansBron; vragen_gemeten: number | null; vragen_genoemd: number | null; concurrenten: string[] | null; eigen_site_geciteerd: boolean | null }[]).map((b) => ({
+          bron: b.bron,
+          vragenGemeten: b.vragen_gemeten,
+          vragenGenoemd: b.vragen_genoemd,
+          concurrenten: b.concurrenten,
+          eigenSiteGeciteerd: b.eigen_site_geciteerd,
+        })),
+      }),
+      updated_at: nu,
+    })
+    .eq("id", a.doel.id);
+  return true;
 }
 
 /**

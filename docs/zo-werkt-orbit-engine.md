@@ -411,7 +411,12 @@ de kaarten in het contentplan.
   - of het een **nieuwe** pagina is of een bestaande die **verbeterd** moet worden (met het adres);
   - welke gemiste meetvragen de pagina moet winnen;
   - voor wie de pagina is, in één zin, bijvoorbeeld: "iemand met water door het plafond die
-    vandaag hulp zoekt en wil weten wat een reparatie kost".
+    vandaag hulp zoekt en wil weten wat een reparatie kost";
+  - de titel als onderwerp zoals een bezoeker het zoekt, niet als opdracht;
+  - de rol van de pagina: wat hij doet dat de andere pagina's van het merk niet doen;
+  - de kernvraag: de ene vraag die de pagina moet beantwoorden.
+- Het rapport ziet de open kansen van het hele merk, ook uit andere clusters. Dekt een gemis een
+  pagina die er al als kans ligt, dan wijst het die kans aan.
 - Een aanbeveling komt er alleen als er een gemeten gemis is, de klant er iets echts over kan
   zeggen, geen bestaande pagina het al dekt en hij niet overlapt met een andere. Wat afvalt, staat
   er met de reden bij.
@@ -421,6 +426,13 @@ de kaarten in het contentplan.
   hoeveel vragen een concurrent genoemd werd, en of de eigen site als bron werd aangehaald). Bij
   elke kans houdt de app ook bij wat hij voor die pagina nog niet over het bedrijf weet: het
   **kennisgat**.
+- **Eén kaart per pagina.** Wil een nieuwe kans een pagina verbeteren waar al een open kans voor is,
+  wees het rapport een open kans aan, of is het een nieuwe pagina die op één meetvraag rust die een
+  open kans al heeft, dan wordt het extra bewijs bij die kans in plaats van een tweede kaart. Een
+  vraag telt daarbij nooit twee keer mee.
+- Op de kaart in het plan ziet de consultant: "voorrang van de klant" als een dienst met voorrang
+  letterlijk in de kans staat, "rust op één meetvraag" bij een dunne kans, en of de kernvraag van de
+  pagina beantwoord, nog open of overgeslagen is.
 - Heeft het merk een Search Console-koppeling, dan krijgt een kans er ook bewijs uit Google bij:
   de zoekopdrachten over dezelfde dienst of plaats, met hun vertoningen en klikken. Dat gebeurt
   vanzelf na elke nieuwe ophaalronde van Search Console.
@@ -533,7 +545,10 @@ ongeveer een minuut per pagina.
   - wat een goede pagina behandelt, uit het onderzoek, met de waarschuwing dat dit algemene kennis
     is en niet zegt wat dit bedrijf doet of belooft;
   - de stemvoorbeelden, met de opdracht de toon over te nemen, maar niet de zinnen;
-  - de titels van andere pagina's van het bedrijf, zodat de schrijver er niet overheen schrijft;
+  - de rol van de pagina en de kernvraag uit het rapport;
+  - de vragen die de ondernemer oversloeg, zodat de schrijver er niet omheen schrijft;
+  - de andere pagina's uit hetzelfde cluster met hun rol, zodat de schrijver ernaast schrijft en
+    niet eroverheen;
   - bij verbeteren: de huidige tekst.
 - **De opdracht** in het kort: schrijf als een ervaren vakschrijver de beste pagina die iemand met
   deze vraag kan lezen. Beantwoord de vraag meteen. Verzin geen claims, cijfers, garanties, prijzen,

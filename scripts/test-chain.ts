@@ -2905,13 +2905,13 @@ async function main(): Promise<void> {
         bundelMetVoorraad?.backlog[0]?.potentie === null,
       `type was ${typeof bundelMetVoorraad?.backlog[0]?.potentie}`,
     );
-    // N6: de voorraadkaart weet uit welke kans hij komt, en het plan geeft het
-    // kennisgat van die kans mee (dit merk heeft geen kennis, dus alles ontbreekt).
+    // N6 en V20: de voorraadkaart weet uit welke kans hij komt, en het plan
+    // geeft de zin voor de consultant mee. Deze kans rust op één meetvraag.
     const kansVanKaart = bundelMetVoorraad?.backlog[0]?.kansId ?? "";
     ok(
-      "de voorraadkaart wijst naar zijn kans, en het plan kent het kennisgat ervan",
-      kansVanKaart !== "" && (bundelMetVoorraad?.kennisgat[kansVanKaart] ?? []).join(",") === "werkwijze,prijs,termijn,voorbeeld,voor_wie_niet,bewijs",
-      JSON.stringify(bundelMetVoorraad?.kennisgat[kansVanKaart] ?? null),
+      "de voorraadkaart wijst naar zijn kans, en de kaart zegt dat hij op één meetvraag rust",
+      kansVanKaart !== "" && bundelMetVoorraad?.kaartZin[kansVanKaart] === "Rust op één meetvraag.",
+      JSON.stringify(bundelMetVoorraad?.kaartZin[kansVanKaart] ?? null),
     );
     const voorraad = [{ id: bundelMetVoorraad!.backlog[0]!.id }];
 
@@ -5264,7 +5264,7 @@ async function main(): Promise<void> {
       }
 
       const briefLog: string[] = [];
-      const brief = (vragen: { vraag: string; merkbreed?: boolean }[], ookVoor: string[]) => ({
+      const brief = (vragen: { vraag: string; merkbreed?: boolean; kern?: boolean }[], ookVoor: string[]) => ({
         zoekintentie: "Een goede rijschool in de buurt vinden",
         deelvragen: ["Hoeveel lessen heb ik nodig?"],
         concurrentie: { goed: ["Duidelijke prijzen"], gaten: ["Geen uitleg over het examen"] },
@@ -5280,8 +5280,10 @@ async function main(): Promise<void> {
           antwoord_type: "tekst_lang",
           opties: null,
           merkbreed: v.merkbreed ?? false,
+          kern: v.kern ?? false,
         })),
         ook_voor_deze_pagina: ookVoor,
+        kern_eerder: null,
       });
       let beurt = 0;
       __setTestTransport((async (opts: { schemaName: string; user: string; schema: { parse: (x: unknown) => unknown } }) => {
@@ -5293,7 +5295,7 @@ async function main(): Promise<void> {
             ? brief(
                 [
                   { vraag: "Wat kost een rijles." },
-                  ...Array.from({ length: 10 }, (_, i) => ({ vraag: `Welk voorbeeld nummer ${i + 1} kun je geven?` })),
+                  ...Array.from({ length: 10 }, (_, i) => ({ vraag: `Welk voorbeeld nummer ${i + 1} kun je geven?`, kern: i === 0 })),
                 ],
                 [openVanMerk, vanAnder, "verzonnen-id"],
               )
@@ -5332,6 +5334,17 @@ async function main(): Promise<void> {
       );
       ok("hooguit 8 vragen", vragen1.length === 8, String(vragen1.length));
       ok("elk met een reden", vragen1.every((v) => Boolean(v.reason)));
+      // V8 (besluit B-c): de kernvraag staat bovenaan, en de pagina weet welke het is.
+      const { rows: kernRij } = await db.client.query(
+        "select id, question, required from public.fact_requests where $1 = any(content_piece_ids) and required",
+        [stukken[0]],
+      );
+      const kernId = (na1[0].brief_json as { kernvraagId?: string | null }).kernvraagId;
+      ok(
+        "V8: één kernvraag, gemarkeerd, en de brief wijst hem aan",
+        kernRij.length === 1 && kernRij[0].question.startsWith("Welk voorbeeld nummer 1") && kernId === kernRij[0].id,
+        JSON.stringify({ kernRij, kernId }),
+      );
       const { rows: dubbel } = await db.client.query(
         "select count(*)::int as n from public.fact_requests where profile_id = $1 and lower(question) like 'wat kost een rijles%'",
         [merk],
@@ -5499,8 +5512,9 @@ async function main(): Promise<void> {
             valkuilen: [],
             vragen: isOnderhoud
               ? []
-              : [{ vraag: "Hoe verloopt een eerste gesprek bij jullie?", waarom: "Dan weet de lezer wat hij kan verwachten.", soort: "werkwijze", antwoord_type: "tekst_lang", opties: null, merkbreed: false }],
+              : [{ vraag: "Hoe verloopt een eerste gesprek bij jullie?", waarom: "Dan weet de lezer wat hij kan verwachten.", soort: "werkwijze", antwoord_type: "tekst_lang", opties: null, merkbreed: false, kern: true }],
             ook_voor_deze_pagina: [],
+            kern_eerder: null,
           };
         } else if (opts.schemaName === "pagina") {
           const herschrijf = opts.user.includes("SCHRIJF EEN BETERE VERSIE");
@@ -5748,7 +5762,7 @@ async function main(): Promise<void> {
       ok("V0: de plan-pagina wijst naar versie 3", (await stukVan(planId("Tuinontwerp laten maken"))) === v3[2].id);
       await draai("pagina_controle");
       await draai("pagina_herschrijven");
-      const nietGeschreven = await schrijfOpnieuwMetZelfdeInvoer(admin as never, border[0].id.replace(/.$/, "0"));
+      const nietGeschreven = await schrijfOpnieuwMetZelfdeInvoer(admin as never, randomUUID());
       ok("V0: een onbekende pagina geeft geen_pagina", nietGeschreven.uitkomst === "geen_pagina");
 
       async function enqueueHerschrijven(pieceId: string): Promise<void> {
@@ -9167,6 +9181,61 @@ async function main(): Promise<void> {
       eqc("scenario 23: een rapport van vóór N2 krijgt zijn kans bij de volgende synchronisatie, met kaart", `${vangnet.length}/${vangnet[0]?.kans === vangnet[0]?.kans_id}`, "1/true");
       const { rows: zonderBewijs } = await db.client.query("select uitleg from public.kansen where rapport_id = $1", [rapport2]);
       eqc("scenario 23: zonder meting: geen gegevens, geen nul", String(zonderBewijs[0]?.uitleg), "Voor deze kans zijn er nog geen gegevens.");
+
+      // V7 en V20: een ander cluster wil dezelfde tarievenpagina verbeteren
+      // (andere schrijfwijze van het adres). Dat wordt bewijs bij de kans die
+      // er al is, geen tweede kaart.
+      const analyse3 = randomUUID();
+      const rapport3 = randomUUID();
+      const p3 = randomUUID();
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status) values ($1, $2, $3, 'Prijzen', 'https://kansentest.nl', 'prijzen', 'gereed')`,
+        [analyse3, userId, merk],
+      );
+      await db.client.query(
+        "insert into public.prompts (id, analysis_id, text, category, active) values ($1, $2, 'Hoeveel kost een rijbewijs in totaal?', 'Beslissing', true)",
+        [p3, analyse3],
+      );
+      const run3 = randomUUID();
+      await db.client.query(
+        `insert into public.tracking_runs (id, analysis_id, prompt_id, prompt_text_snapshot, prompt_category_snapshot, week_no, purpose, engine, repeat_index, brands_in_answer)
+         values ($1, $2, $3, 'Hoeveel kost een rijbewijs in totaal?', 'Beslissing', 0, 'periodic', 'openai', 0, 1)`,
+        [run3, analyse3, p3],
+      );
+      await db.client.query(
+        "insert into public.tracking_run_mentions (tracking_run_id, entity_name, is_own_brand, mentioned) values ($1, 'Kansentest', true, false), ($1, 'Rijschool Rood', false, true)",
+        [run3],
+      );
+      await db.client.query(
+        `insert into public.reports (id, analysis_id, period, week_no, recommendations_json) values ($1, $2, 'nulmeting', 0, $3::jsonb)`,
+        [rapport3, analyse3, JSON.stringify([{
+          title: "Wat kost een rijbewijs", why: "x", type: "article", action: "verbeteren",
+          existingUrl: "https://www.kansentest.nl/tarieven", targetIntent: "Iemand die de totale prijs wil weten",
+          targets: [{ promptId: p3, weight: 0.4, text: "Hoeveel kost een rijbewijs in totaal?" }],
+        }])],
+      );
+      const { rows: tarievenVoor } = await db.client.query(
+        "select id from public.kansen where profile_id = $1 and bestaande_url = 'https://kansentest.nl/tarieven/' and status <> 'vervallen'",
+        [merk],
+      );
+      const samen = await legKansenVast(shim, rapport3);
+      eqc("V7: een tweede verbetering van dezelfde pagina wordt bewijs", `${samen.aangemaakt}/${samen.samengevoegd}/${samen.mislukt}`, "0/1/0");
+      const { rows: tarievenNa } = await db.client.query(
+        "select id from public.kansen where profile_id = $1 and handeling = 'pagina_verbeteren' and status <> 'vervallen'",
+        [merk],
+      );
+      eqc("V7: nog steeds één kaart voor die pagina", `${tarievenNa.length}/${tarievenNa[0]?.id === tarievenVoor[0]?.id}`, "1/true");
+      const { rows: bewijsNa } = await db.client.query(
+        "select vragen_gemeten, concurrenten from public.kans_bewijs where kans_id = $1 and bron = 'chatgpt'",
+        [tarievenVoor[0]?.id],
+      );
+      eqc("V7: het bewijs van het andere cluster telt mee", `${bewijsNa[0]?.vragen_gemeten}/${(bewijsNa[0]?.concurrenten ?? []).includes("Rijschool Rood")}`, "2/true");
+      const nogEens = await legKansenVast(shim, rapport3);
+      eqc("V7: nog eens aanroepen telt niets dubbel (conventie 9)", `${nogEens.aangemaakt}/${nogEens.samengevoegd}/${nogEens.bestond}`, "0/0/1");
+      const { rows: geraakt } = await db.client.query("select count(*)::int as n from public.kansen where rapport_id = $1 and status = 'vervallen'", [rapport3]);
+      const { geraaktOverzicht } = await import("@/lib/kansen/impact");
+      const overzicht = await geraaktOverzicht(shim, merk);
+      ok("V7: de samengevoegde kans staat niet bij 'geraakt door een kenniswijziging'", geraakt[0].n === 1 && overzicht.kansen.every((k) => k.titel !== "Wat kost een rijbewijs"));
     }
 
     // ── Scenario 24: blok A leest uit de kennislaag (K6, B20) ─────────────────

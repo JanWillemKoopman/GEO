@@ -52,6 +52,33 @@ export interface StoredRecommendation {
    * het oude gedrag (thematische inspiratie), wat minder goed is maar niet stuk.
    */
   targets: RecommendationTarget[];
+  /**
+   * V6 (`docs/tasks/pijplijnanalyse-contentketen.md`): wat deze pagina doet dat
+   * de andere pagina's van het merk niet doen. Ontbreekt bij rapporten van vóór
+   * 29 september 2026; leeg is dan onbekend, geen lege rol (conventie 3).
+   */
+  rol?: string | null;
+  /** V6: de ene vraag die de pagina móet beantwoorden. */
+  kernvraag?: string | null;
+  /**
+   * V7: het id van de open kans van hetzelfde merk die deze aanbeveling
+   * versterkt, opgelost uit de K-code van het model. Dan wordt hij bewijs bij
+   * die kans in plaats van een nieuwe kans.
+   */
+  bijKans?: string | null;
+}
+
+/** Een open kans van het merk met de code waarmee het rapport hem kan aanwijzen (V7). */
+export interface GecodeerdeKans {
+  code: string;
+  id: string;
+}
+
+/** Een tekstveld van het model, of `null` als er niets bruikbaars in staat. */
+function veld(waarde: unknown): string | null {
+  if (typeof waarde !== "string") return null;
+  const t = waarde.trim();
+  return t && !/^(onbekend|n\.?v\.?t\.?|geen|null|-)$/i.test(t) ? t : null;
 }
 
 /** Wat het model teruggaf: vraagCODES in plaats van verwijzingen. */
@@ -64,6 +91,9 @@ export interface RawRecommendation {
   action: ContentAction;
   existingUrl: string | null;
   targetQuestionIds: string[];
+  rol?: string;
+  kernvraag?: string;
+  bestaandeKans?: string | null;
 }
 
 /** Een gemiste vraag met de code waarmee het rapport hem kan aanwijzen. */
@@ -87,8 +117,11 @@ export interface CodedMissedPrompt {
 export function resolveTargets(
   recommendations: RawRecommendation[],
   missed: CodedMissedPrompt[],
+  openKansen: readonly GecodeerdeKans[] = [],
 ): StoredRecommendation[] {
   const byCode = new Map(missed.map((m) => [m.code.trim().toUpperCase(), m]));
+  // V7: een onbekende K-code wordt stil `null`, net als een onbekende V-code.
+  const kansPerCode = new Map(openKansen.map((k) => [k.code.trim().toUpperCase(), k.id]));
 
   return recommendations.map((r) => {
     const targets: RecommendationTarget[] = [];
@@ -121,6 +154,9 @@ export function resolveTargets(
       relatedUrl: null,
       // Zwaarste vraag eerst: die bepaalt waar de pagina over moet gaan.
       targets: targets.sort((a, b) => b.weight - a.weight),
+      rol: veld(r.rol),
+      kernvraag: veld(r.kernvraag),
+      bijKans: kansPerCode.get(String(r.bestaandeKans ?? "").trim().toUpperCase()) ?? null,
     };
   });
 }
@@ -354,6 +390,10 @@ export function readRecommendations(value: unknown): StoredRecommendation[] {
       // de keten zich als voorheen in plaats van te struikelen.
       relatedUrl: rec.relatedUrl ?? null,
       targets: Array.isArray(rec.targets) ? rec.targets : [],
+      // V6 en V7: rapporten van vóór 29 september 2026 hebben deze velden niet.
+      rol: veld(rec.rol),
+      kernvraag: veld(rec.kernvraag),
+      bijKans: veld(rec.bijKans),
     };
   });
 }

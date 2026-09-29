@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Antwoordveld } from "@/components/antwoordveld";
 import { Icon } from "@/components/icon";
 import { OPEN_VRAAG_MAX, OPEN_VRAAG_VOORBEELDEN } from "@/lib/pagina/open-vraag-tekst";
+import { VERPLICHT_UITLEG } from "@/lib/feitenvraag";
 
 /**
  * De vragen van een pagina (`docs/tasks/contentketen-opnieuw.md` §6.2).
@@ -82,7 +83,8 @@ export function Vragenlijst({
       )}
 
       <ul className="flex flex-col gap-3">
-        {[...vragen].sort((a, b) => Number(Boolean(b.open_vraag)) - Number(Boolean(a.open_vraag))).map((v) => (
+        {/* V8: de kernvraag van de pagina bovenaan, dan de open vraag, dan de rest. */}
+        {[...vragen].sort((a, b) => volgorde(b) - volgorde(a)).map((v) => (
           <li key={v.id}>
             <Vraagkaart
               profileId={profileId}
@@ -95,6 +97,10 @@ export function Vragenlijst({
       </ul>
     </div>
   );
+}
+
+function volgorde(v: Vraag): number {
+  return v.required ? 2 : v.open_vraag ? 1 : 0;
 }
 
 export function Vraagkaart({
@@ -181,6 +187,9 @@ export function Vraagkaart({
         <span id={labelId} className="type-body-emphasis">
           {vraag.question}
         </span>
+        {vraag.required && !vraag.open_vraag && (
+          <span className="type-caption text-[var(--intent-warning-content)]">{VERPLICHT_UITLEG}</span>
+        )}
         {vraag.reason && <span className="type-caption text-muted">{vraag.reason}</span>}
         {vraag.paginas > 1 && (
           <span className="type-caption text-secondary">Geldt voor {vraag.paginas} pagina&apos;s</span>

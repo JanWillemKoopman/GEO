@@ -193,4 +193,14 @@ export function groepeerOpSoort<T extends { kind?: string | null }>(
  * klant te weten vóórdat hij besluit hem over te slaan, niet erna.
  */
 export const VERPLICHT_UITLEG =
-  "Zonder dit antwoord blijft een kernstuk van de pagina onbewezen. Overslaan mag, dan laat ORBIT ENGINE dat stuk weg.";
+  "Zonder dit antwoord wordt deze pagina zwak. Overslaan mag: de pagina wordt dan zonder dit stuk geschreven.";
+
+/**
+ * De kernvraag bovenaan (V8 van `docs/tasks/pijplijnanalyse-contentketen.md`,
+ * besluit B-c). Een pagina-brief zet `required` op de ene vraag die de
+ * kernvraag van de pagina beantwoordt. Juist een drukke klant beantwoordt dan
+ * eerst de vraag die ertoe doet. Verder blijft de volgorde zoals hij was.
+ */
+export function kernvraagEerst<T extends { required?: boolean | null }>(vragen: readonly T[]): T[] {
+  return [...vragen.filter((v) => v.required), ...vragen.filter((v) => !v.required)];
+}

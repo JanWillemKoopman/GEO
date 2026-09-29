@@ -22,6 +22,9 @@ import { syncBacklog, meetbareVragenPerAnalyse, loadDeclinedOpportunities } from
 import { sortBacklog, compareByPotential, type BacklogItem, type DeclinedItem } from "@/lib/plan-backlog";
 import { bepaalVulling, type OpenMaand } from "@/lib/plan-fill";
 import { bewijsRegel, type KansBewijs } from "@/lib/kansen/prioriteit";
+import { kaartZin, type KernStand } from "@/lib/kansen/kaart";
+import { rustOpEenVraag } from "@/lib/kansen/samenvoegen";
+import { doelvragenVan } from "@/lib/kansen/rapport";
 import { canonicalKey } from "@/lib/crawl-urls";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type {
@@ -58,17 +61,55 @@ export interface PlanBundle {
   funnels: FunnelStage[];
   topics: TopicWritingState[];
   /**
-   * N6: per kans wat de pagina nog nodig heeft en we niet weten
-   * (`kansen.kennis_ontbreekt`). `null` = nog niet uitgerekend. Alleen voor de
-   * consultant op het scherm; de pagina zelf geeft het niet aan de klant door.
+   * Per kans de zin op de kaart voor de consultant (`kaartZin()`, V8, V19 en
+   * V20): voorrang van de klant, rust op één meetvraag, en de stand van de
+   * kernvraag. Verving op 29 september 2026 het kennisgat (besluit B-j).
    */
-  kennisgat: Record<string, string[] | null>;
+  kaartZin: Record<string, string | null>;
   /** N7: de zin die de kans onderbouwt (N1, `kansen.uitleg`). `null` = nog geen bewijs verwerkt. */
   kansUitleg: Record<string, string | null>;
   /** N7: het bewijs per bron, als leesbare zinnen, voor het uitklapbare blok op het scherm. */
   kansBewijs: Record<string, string[]>;
   /** N5: geen gemeten cluster (`kansen.analysis_id is null`), een handmatige kans van de consultant. */
   kansNietGemeten: Record<string, boolean>;
+}
+
+/**
+ * V8: de stand van de kernvraag per kans, via de pagina op de kaart en de
+ * brief van die pagina (`brief_json.kernvraagId`). Een kans zonder pagina,
+ * zonder brief of zonder kernvraag ontbreekt: onbekend, geen stand.
+ */
+async function kernStandPerKans(admin: Admin, profileId: string): Promise<Map<string, KernStand>> {
+  const uit = new Map<string, KernStand>();
+  const { data: kaartRows } = await admin
+    .from("planned_pages")
+    .select("kans_id, content_piece_id")
+    .eq("profile_id", profileId)
+    .not("kans_id", "is", null)
+    .not("content_piece_id", "is", null);
+  const kaarten = (kaartRows ?? []) as { kans_id: string; content_piece_id: string }[];
+  if (kaarten.length === 0) return uit;
+  const { data: stukRows } = await admin
+    .from("content_pieces")
+    .select("id, brief_json")
+    .in("id", kaarten.map((k) => k.content_piece_id));
+  const kernVanStuk = new Map<string, string>();
+  for (const r of (stukRows ?? []) as { id: string; brief_json: { kernvraagId?: unknown } | null }[]) {
+    const id = r.brief_json?.kernvraagId;
+    if (typeof id === "string" && id) kernVanStuk.set(r.id, id);
+  }
+  if (kernVanStuk.size === 0) return uit;
+  const { data: vraagRows } = await admin
+    .from("fact_requests")
+    .select("id, status")
+    .in("id", [...new Set(kernVanStuk.values())]);
+  const stand = new Map(((vraagRows ?? []) as { id: string; status: string }[]).map((v) => [v.id, v.status]));
+  for (const k of kaarten) {
+    const vraag = kernVanStuk.get(k.content_piece_id);
+    const s = vraag ? stand.get(vraag) : undefined;
+    if (s === "beantwoord" || s === "open" || s === "overgeslagen") uit.set(k.kans_id, s);
+  }
+  return uit;
 }
 
 /**
@@ -191,16 +232,27 @@ export async function loadPlan(
   const declined = await loadDeclinedOpportunities(admin, profileId);
   const { data: gatRows } = await admin
     .from("kansen")
-    .select("id, kennis_ontbreekt, uitleg, analysis_id")
+    .select("id, commerciele_waarde, uitleg, analysis_id, ruw")
     .eq("profile_id", profileId)
     .neq("status", "vervallen");
   const kansRijen = (gatRows ?? []) as {
     id: string;
-    kennis_ontbreekt: string[] | null;
+    commerciele_waarde: string | null;
     uitleg: string | null;
     analysis_id: string | null;
+    ruw: { targets?: unknown } | null;
   }[];
-  const kennisgat = Object.fromEntries(kansRijen.map((k) => [k.id, k.kennis_ontbreekt]));
+  const kernPerKans = await kernStandPerKans(admin, profileId);
+  const kaartZinnen = Object.fromEntries(
+    kansRijen.map((k) => [
+      k.id,
+      kaartZin({
+        commercieleWaarde: k.commerciele_waarde,
+        eenVraag: k.analysis_id !== null && rustOpEenVraag(doelvragenVan(k.ruw?.targets)),
+        kern: kernPerKans.get(k.id) ?? null,
+      }),
+    ]),
+  );
   const kansUitleg = Object.fromEntries(kansRijen.map((k) => [k.id, k.uitleg]));
   const kansNietGemeten = Object.fromEntries(kansRijen.map((k) => [k.id, k.analysis_id === null]));
 
@@ -252,7 +304,7 @@ export async function loadPlan(
       voorraad.map((rij) => naarBacklogItem(rij, gemeten, clusterNaam, new Set(buitenBereikIds))),
     ),
     declined,
-    kennisgat,
+    kaartZin: kaartZinnen,
     kansUitleg,
     kansBewijs,
     kansNietGemeten,

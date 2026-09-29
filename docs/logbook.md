@@ -13062,3 +13062,19 @@ een zin over het bedrijf. Vragen aan de klant zijn korter en vragen één ding (
 vast contactblok, geen dubbelingen, antwoorden zonder de vraag voor de ondernemer, en bezwaren
 zonder antwoord onder een eigen kop (V3). Het gespreksscherm heeft de verhalen in vier vakken en
 bezwaren met antwoord (V5, migratie 0129). Nog niet tegen productie nagerekend.
+
+## 29 september 2026: pijplijnanalyse contentketen, fase 3 (pagina-definitie en set) gebouwd
+
+Een aanbeveling beschrijft nu een pagina en draagt geen opdracht meer (B-b): de titel is het
+onderwerp zoals een bezoeker het zoekt, met een rol in de set en een kernvraag erbij, en `why` bevat
+geen schrijfinstructies. Het rapport draait op denktijd gemiddeld in plaats van laag; op productie
+duurde het hooguit 29 seconden en kostte het $0,0035, dus ook twee tot drie keer zo lang blijft ruim
+binnen de 145 seconden. Het rapport ziet de open kansen van het hele merk (V7). Een nieuwe kans die
+dezelfde pagina wil verbeteren, door het rapport aan een open kans gekoppeld is, of als nieuwe pagina
+op één meetvraag rust die een open kans al heeft, wordt extra bewijs bij die kans (V7, V20); een vraag
+telt daarbij nooit twee keer. De brief (versie 6) markeert de vraag die de kernvraag beantwoordt; die
+staat bovenaan bij de klant, en de kaart in het plan zegt of hij beantwoord is (B-c). Het kennisgat
+staat niet meer op de kaart (B-j). De schrijver krijgt de rol, de kernvraag, de overgeslagen vragen en
+de andere pagina's uit hetzelfde cluster met hun rol, in plaats van 60 titels van het merk. Meetvragen
+van een nieuw cluster die al in een ander cluster van het merk staan, vallen weg, en het formulier
+waarschuwt bij een cluster dat op een bestaand lijkt (B-i). Nog niet tegen productie nagerekend.

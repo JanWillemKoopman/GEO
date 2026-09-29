@@ -51,10 +51,13 @@ Hoe je een vraag stelt:
 - Houd de vraag kort, zodat een drukke ondernemer hem in één keer begrijpt en zonder uitleg kan beantwoorden. Spreek hem aan met je.
 - Een vraag naar bewijs (reviews, foto's, toestemming om een klus te noemen) geldt voor het hele bedrijf: merkbreed true.
 
+De kernvraag: onder "Pagina" staat de ene vraag die deze pagina móet beantwoorden. Kan het antwoord daarop alleen van de ondernemer komen en staat het nog nergens, stel er dan een vraag over en zet bij die ene vraag kern: true. Staat er al een vraag over in "Eerder gestelde vragen aan dit bedrijf", zet dan zijn id in kern_eerder. Is het antwoord al bekend, of is er geen kernvraag, dan is kern overal false en kern_eerder null.
+
 Per vraag:
 - waarom: één zin voor de ondernemer over wat zijn antwoord de lezer van de pagina oplevert, in zijn eigen taal. Schrijf niet over "de schrijver", "de tekst" of "verzinnen".
 - antwoord_type: ja_nee, bedrag, getal, tekst_kort, tekst_lang of keuze (alleen met minstens twee opties);
-- merkbreed: true als het antwoord voor het hele bedrijf geldt en niet alleen voor deze pagina.
+- merkbreed: true als het antwoord voor het hele bedrijf geldt en niet alleen voor deze pagina;
+- kern: true bij hooguit één vraag, die de kernvraag van deze pagina beantwoordt.
 
 Schrijf in gewoon Nederlands, in korte zinnen.`;
 
@@ -71,6 +74,8 @@ export interface BriefContext {
   handeling: "nieuw" | "verbeteren";
   zoekintentie: string | null;
   waarom: string | null;
+  /** V6 en V8: de ene vraag die de pagina móet beantwoorden, uit het rapport. */
+  kernvraag?: string | null;
   doelvragen: Doelvraag[];
   merknaam: string;
   werkgebied: string[];
@@ -99,6 +104,7 @@ export function briefInvoer(c: BriefContext): string {
       c.handeling === "verbeteren" ? "Dit is een bestaande pagina die beter moet." : "Dit wordt een nieuwe pagina.",
       c.zoekintentie ? `Waar de bezoeker naar zoekt (uit de meting): ${c.zoekintentie}` : null,
       c.waarom ? `Waarom deze pagina: ${c.waarom}` : null,
+      c.kernvraag?.trim() ? `De kernvraag van deze pagina: ${c.kernvraag.trim()}` : null,
       `Bedrijf: ${c.merknaam}`,
       c.werkgebied.length > 0 ? `Werkgebied: ${c.werkgebied.join(", ")}` : null,
     ]

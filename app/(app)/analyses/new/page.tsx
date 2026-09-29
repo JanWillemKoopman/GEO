@@ -51,6 +51,22 @@ export default async function NewAnalysisPage({
     }
   }
 
+  // V18: de onderwerpen van de bestaande clusters per merk, zodat het formulier
+  // kan waarschuwen als een nieuw cluster erop lijkt.
+  const onderwerpenPerMerk: Record<string, string[]> = {};
+  if (profiles.length > 0) {
+    const { data: analyseRijen } = await supabase
+      .from("analyses")
+      .select("profile_id, topic")
+      .in(
+        "profile_id",
+        profiles.map((p) => p.id),
+      );
+    for (const a of (analyseRijen ?? []) as { profile_id: string; topic: string | null }[]) {
+      if (a.topic?.trim()) onderwerpenPerMerk[a.profile_id] = [...(onderwerpenPerMerk[a.profile_id] ?? []), a.topic.trim()];
+    }
+  }
+
   // Kwam hij van een merk, dan gaat hij daar ook naar terug. Zonder merk in de
   // link is `/analyses` de doorverwijzing naar het actieve merk, dus die weg
   // klopt ook (`app/(app)/analyses/page.tsx`).
@@ -90,6 +106,7 @@ export default async function NewAnalysisPage({
         <NewAnalysisForm
           profiles={profiles}
           labelsPerMerk={labelsPerMerk}
+          onderwerpenPerMerk={onderwerpenPerMerk}
           initialProfileId={vanMerk?.id}
           emailsEnabled={emailsEnabled()}
         />

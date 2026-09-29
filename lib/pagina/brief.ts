@@ -29,7 +29,7 @@ import {
   type NieuweVraag,
   type Onderzoek,
 } from "@/lib/pagina/brief-regels";
-import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, siteTeksten, type PaginaBasis } from "@/lib/pagina/context";
+import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, laadPaginaDefinitie, siteTeksten, type PaginaBasis } from "@/lib/pagina/context";
 import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 import { schrijfpoort, type SchrijfpoortOordeel as Poortuitslag } from "@/lib/pagina/schrijfpoort";
 import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
@@ -45,6 +45,13 @@ export interface BriefJson {
   /** De feiten die blok A vormden, voor de audit: wat wist de brief. */
   bedrijf: { feiten: { id: string; text: string }[] };
   versie: number;
+  /**
+   * V8 (besluit B-c): de vraag in `fact_requests` die de kernvraag van deze
+   * pagina beantwoordt, of `null` als de brief er geen stelde of aanwees. Per
+   * pagina en niet op de vraag zelf: een eerdere vraag kan de kern van deze
+   * pagina zijn en niet van een andere.
+   */
+  kernvraagId?: string | null;
 }
 
 export type BriefUitkomst =
@@ -95,10 +102,11 @@ async function eerdereVragen(admin: Admin, profileId: string): Promise<EerdereVr
     .map(({ id, question, status, answer }) => ({ id, question, status, answer: status === "beantwoord" ? (answer ?? null) : null }));
 }
 
-async function bewaarVragen(admin: Admin, pagina: PaginaBasis, vragen: NieuweVraag[]): Promise<number> {
+async function bewaarVragen(admin: Admin, pagina: PaginaBasis, vragen: NieuweVraag[]): Promise<{ bewaard: number; kernId: string | null }> {
   let bewaard = 0;
+  let kernId: string | null = null;
   for (const v of vragen) {
-    const { error } = await admin.from("fact_requests").insert({
+    const { data: rij, error } = await admin.from("fact_requests").insert({
       profile_id: pagina.profileId,
       // Een merkbrede vraag hangt aan geen cluster: het antwoord geldt straks
       // voor elke pagina van dit merk (blok A, "eerder beantwoorde vragen").
@@ -110,18 +118,24 @@ async function bewaarVragen(admin: Admin, pagina: PaginaBasis, vragen: NieuweVra
       kind: kindVoorSoort(v.soort),
       answer_type: v.antwoord_type,
       options: v.opties ?? [],
-      required: false,
+      // V8: de kernvraag staat bovenaan, met "zonder dit antwoord wordt deze
+      // pagina zwak" (`VERPLICHT_UITLEG`). Een nieuwe vraag hangt aan één
+      // pagina, dus hier mag het op de vraag zelf.
+      required: v.kern,
       content_piece_ids: [pagina.pieceId],
-      raw_json: { bron: "pagina_brief", soort: v.soort },
-    });
+      raw_json: { bron: "pagina_brief", soort: v.soort, kern: v.kern },
+    }).select("id").single();
     // 23505: de unieke index op (merk, vraagtekst) uit migratie 0019. Dezelfde
     // vraag stond er al; dat is precies wat hier niet dubbel mag.
     if (error && (error as { code?: string }).code !== "23505") {
       throw new Error(`Vraag bewaren voor pagina ${pagina.pieceId} mislukte: ${error.message}`);
     }
-    if (!error) bewaard++;
+    if (!error) {
+      bewaard++;
+      if (v.kern) kernId = (rij as { id: string } | null)?.id ?? null;
+    }
   }
-  return bewaard;
+  return { bewaard, kernId };
 }
 
 /** Een open of al beantwoorde vraag van dit merk ook aan deze pagina hangen (V17). */
@@ -173,12 +187,13 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
   const merk = await laadMerk(admin, pagina);
   // V19 (besluit B31): het kennisgat gaat niet meer mee. De brief ziet blok A
   // en alle eerdere antwoorden, en ziet zo zelf wat er ontbreekt.
-  const [bedrijf, doelvragen, eerdere, tekst, namen] = await Promise.all([
+  const [bedrijf, doelvragen, eerdere, tekst, namen, definitie] = await Promise.all([
     laadBedrijf(admin, pagina),
     laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten),
     eerdereVragen(admin, pagina.profileId),
     huidigeTekst(admin, pagina),
     merkNamen(admin, pagina.profileId, merk.naam),
+    laadPaginaDefinitie(admin, pagina.sourceRef),
   ]);
 
   const { parsed } = await callStructured({
@@ -190,6 +205,7 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
       handeling: pagina.handeling,
       zoekintentie: pagina.zoekintentie,
       waarom: pagina.waarom,
+      kernvraag: definitie.kernvraag,
       doelvragen,
       merknaam: merk.naam,
       werkgebied: merk.werkgebied,
@@ -205,13 +221,18 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
   });
 
   const verwerkt = verwerkBrief(parsed, eerdere, { url: merk.url, namen });
-  const brief: BriefJson = { onderzoek: verwerkt.onderzoek, bedrijf: compactBedrijf(bedrijf), versie: BRIEF_VERSIE };
 
   // Eerst de vragen, dan de brief: de schrijfpoort kijkt of de brief er is en
   // of er nul open vragen zijn. Andersom zou een gelijktijdige poortvraag in
   // het gat daartussen een pagina zonder vragen zien en te vroeg schrijven.
-  await bewaarVragen(admin, pagina, verwerkt.vragen);
+  const { kernId } = await bewaarVragen(admin, pagina, verwerkt.vragen);
   await koppelVragen(admin, pagina, verwerkt.koppel);
+  const brief: BriefJson = {
+    onderzoek: verwerkt.onderzoek,
+    bedrijf: compactBedrijf(bedrijf),
+    versie: BRIEF_VERSIE,
+    kernvraagId: kernId ?? verwerkt.kernEerder,
+  };
   await admin.from("content_pieces").update({ brief_json: brief }).eq("id", pieceId).is("brief_json", null);
 
   return { uitkomst: "gemaakt", profileId: pagina.profileId, poort: await poortVoor(admin, pagina) };

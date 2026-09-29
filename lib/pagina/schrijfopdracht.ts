@@ -113,6 +113,12 @@ export interface SchrijfBlokken {
   eigenVerhaal: string | null;
   /** Blok B: de gerichte vragen met hun antwoord. */
   antwoorden: { vraag: string; antwoord: string }[];
+  /**
+   * Blok B: de vragen die de ondernemer oversloeg (V8 punt 3, besluit B-c).
+   * Zonder deze lijst zag de schrijver alleen wat er wél was, en schreef hij om
+   * het gat heen met algemene zinnen.
+   */
+  overgeslagen?: string[];
   /** Blok C: het onderzoek uit de brief, of null als de brief mislukte. */
   onderzoek: {
     deelvragen: string[];
@@ -122,7 +128,17 @@ export interface SchrijfBlokken {
   /** Blok D. */
   zoekintentie: string | null;
   doelvragen: string[];
-  andereTitels: string[];
+  /** Blok D (V6, besluit B-b): wat deze pagina doet dat de andere pagina's niet doen. */
+  rol?: string | null;
+  /** Blok D (V6): de ene vraag die deze pagina moet beantwoorden. */
+  kernvraag?: string | null;
+  /**
+   * Blok D (V7 punt 3): de andere pagina's uit hetzelfde cluster, met wat ze
+   * doen. Was tot 29 september 2026 een lijst van hooguit 60 titels van het hele
+   * merk: daaruit kon de schrijver niet opmaken wat hij aan zijn buren moest
+   * overlaten.
+   */
+  buren: string[];
   huidigeTekst: string | null;
   /** Bij "verbeteren": wat de pagina nu is en wat erop blijft (`functieblok()`, V21). */
   functie?: string | null;
@@ -144,6 +160,8 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
     [
       "ZOEKINTENTIE",
       b.zoekintentie ? `Wat de bezoeker wil: ${b.zoekintentie}` : null,
+      b.kernvraag?.trim() ? `De vraag die deze pagina moet beantwoorden: ${b.kernvraag.trim()}` : null,
+      b.rol?.trim() ? `Wat deze pagina doet dat de andere pagina's van dit bedrijf niet doen: ${b.rol.trim()}` : null,
       lijst("Vragen die mensen hierover aan AI-assistenten stellen:", b.doelvragen.map((v) => `"${v}"`)),
     ]
       .filter(Boolean)
@@ -157,6 +175,10 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
     b.antwoorden.length > 0
       ? "Antwoorden van de ondernemer:\n" + b.antwoorden.map((a) => `- ${a.vraag}\n  ${a.antwoord}`).join("\n")
       : null,
+    lijst(
+      "Vragen die de ondernemer oversloeg. Hier is geen antwoord op: schrijf er niet omheen en beweer er niets over, kies een invalshoek die je wel kunt waarmaken.",
+      b.overgeslagen ?? [],
+    ),
   ].filter(Boolean);
   delen.push(klant.length > 0 ? `WAT DE ONDERNEMER VERTELDE (bedrijfskennis)\n${klant.join("\n\n")}` : null);
 
@@ -181,7 +203,7 @@ export function schrijfInvoer(b: SchrijfBlokken): string {
     );
   }
 
-  delen.push(lijst("ANDERE PAGINA'S VAN DIT BEDRIJF (schrijf er niet overheen)", b.andereTitels));
+  delen.push(lijst("ANDERE PAGINA'S OVER DIT ONDERWERP, MET WAT ZE DOEN (schrijf ernaast, niet eroverheen)", b.buren));
   if (b.huidigeTekst?.trim()) {
     delen.push(
       [b.functie?.trim() ? `DE FUNCTIE VAN DEZE PAGINA (vaste eis)\n${b.functie.trim()}` : null, `DE HUIDIGE TEKST VAN DEZE PAGINA\n"""${b.huidigeTekst.trim()}"""`]

@@ -263,6 +263,9 @@ function buildContextBlock(url: string, topic: string, brand: BrandContext): str
   );
 }
 
+/** Hooguit zoveel vragen van andere clusters in de opdracht: genoeg om herhaling te zien. */
+const ANDERE_CLUSTERS_MAX = 60;
+
 async function generateForFunnelStage(args: {
   category: string;
   analysisId: string;
@@ -272,8 +275,10 @@ async function generateForFunnelStage(args: {
   count: number;
   tokens: string[];
   contentBrief?: string | null;
+  andereClusters?: string[];
 }): Promise<GeneratedPrompt[]> {
   const { category, analysisId, url, topic, brand, count, tokens, contentBrief } = args;
+  const andere = (args.andereClusters ?? []).map((t) => t.trim()).filter(Boolean);
 
   const scopeRule = `Alle prompts gaan UITSLUITEND over "${topic}" binnen deze branche.`;
 
@@ -359,8 +364,17 @@ async function generateForFunnelStage(args: {
         `AI-assistent stelt.\n`
       : "";
 
+  // V18 (besluit B-i): een vraag die al in een ander cluster van dit merk
+  // gemeten wordt, telt anders twee keer mee in de merkscore en kost twee keer.
+  const andereRegel =
+    andere.length > 0
+      ? `DEZE VRAGEN WORDEN AL GEMETEN IN EEN ANDER ONDERWERP VAN DIT MERK. Stel ze niet opnieuw, ook niet in ` +
+        `andere woorden:\n${andere.slice(0, ANDERE_CLUSTERS_MAX).map((t) => `- ${t}`).join("\n")}\n\n`
+      : "";
+
   const user =
     `${buildContextBlock(url, topic, brand)}\n\n` +
+    andereRegel +
     bezwaarRegel +
     (briefRule ? `${briefRule}\n\n` : "") +
     `Genereer precies ${count} prompts voor de FUNNELFASE "${category}": ${CATEGORY_BRIEF[category] ?? ""}\n` +
@@ -376,7 +390,9 @@ async function generateForFunnelStage(args: {
   // op, waardoor de meetbasis kromp zonder dat iemand het zag, en een kleinere
   // meetbasis betekent een grovere, minder betrouwbare score.
   const collected: PromptSet["prompts"] = [];
-  const seen = new Set<string>();
+  // V18: de vragen van de andere clusters tellen als al gezien, zodat een
+  // letterlijke herhaling wegvalt en de bijvulronde een andere vraag zoekt.
+  const seen = new Set<string>(andere.map((t) => t.toLowerCase()));
   // Punt 8: dezelfde vraag met een andere plaatsnaam telt als dubbel, gemeten
   // tegen de vragen die blijven staan (`tegen`). Dat onderscheid telt in de
   // bijvulrondes: een regionale versie van een landelijke vraag die er straks
@@ -637,6 +653,8 @@ export async function generatePromptsForStage(args: {
   category: string;
   /** Hoeveel vragen deze fase moet opleveren (migratie 0054, per analyse). */
   count: number;
+  /** V18: de vragen die in andere clusters van dit merk al gemeten worden. */
+  andereClusters?: string[];
 }): Promise<GeneratedPrompt[]> {
   // Nul is een geldige keuze: een lokale ondernemer die alleen op koopmomenten
   // beoordeeld wil worden, zet de oriëntatiefase op nul. Dan is er niets te

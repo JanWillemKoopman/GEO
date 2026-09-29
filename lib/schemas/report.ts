@@ -33,6 +33,28 @@ export const Report = z.object({
        * met `prompts.id` weg. Precies de koppeling waar deze hele fase op rust.
        */
       targetQuestionIds: z.array(z.string()),
+      /**
+       * V6 van `docs/tasks/pijplijnanalyse-contentketen.md` (besluit B-b): de
+       * pagina beschreven in plaats van opgedragen. `title` is sindsdien het
+       * onderwerp zoals een bezoeker het zou zoeken, geen gebiedende wijs.
+       *
+       * `rol`: in één zin wat deze pagina doet dat de andere pagina's van het
+       * merk niet doen. De schrijver krijgt hem mee om naast zijn buren te
+       * schrijven in plaats van eroverheen.
+       */
+      rol: z.string(),
+      /**
+       * De ene vraag die de pagina móet beantwoorden om bestaansrecht te hebben
+       * (bij een prijspagina: wat kost het). De brief markeert welke van zijn
+       * vragen hem beantwoordt (V8), en de kaart in het plan zegt of dat gebeurde.
+       */
+      kernvraag: z.string(),
+      /**
+       * V7: de code (K1, K2, …) van een open kans van hetzelfde merk die deze
+       * aanbeveling versterkt, of `null`. Dan wordt het geen nieuwe kans maar
+       * extra bewijs bij die kans (`lib/kansen/samenvoegen.ts`).
+       */
+      bestaandeKans: z.string().nullable(),
     }),
   ),
   /**

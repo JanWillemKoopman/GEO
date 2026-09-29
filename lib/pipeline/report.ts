@@ -22,6 +22,7 @@ import {
   eenVerbeteringPerAdres,
 } from "@/lib/pipeline/recommendation";
 import { canonicalKey } from "@/lib/crawl-urls";
+import { OPEN_KANS_STATUSSEN, OPEN_KANSEN_MAX, openKansenBlok, type OpenKans } from "@/lib/kansen/samenvoegen";
 import { reconcileExistingPageActions } from "@/lib/pipeline/existing-page-match";
 import {
   bronnenDieWelNoemden,
@@ -146,6 +147,24 @@ const REPORT_SYSTEM =
   "kant van dezelfde beslissing die je toch al nam. " +
   // Punt 24 van de kwaliteitsdoorlichting: de richting stond nergens. De code
   // rangschikt daarna zelf opnieuw (`rangschikAanbevelingen`).
+  // V6 van docs/tasks/pijplijnanalyse-contentketen.md (besluit B-b, 29 september
+  // 2026): de aanbeveling beschrijft een pagina en draagt geen opdracht. In
+  // ronde 1 van de contentkwaliteit beloofde de titel ("Laat zien hoe snel je ter
+  // plaatse bent") wat de invoer niet kon waarmaken, en `why` stuurde de
+  // schrijver met instructies die het rapport niet kon onderbouwen.
+  "BESCHRIJF ELKE AANBEVELING ALS PAGINA, NIET ALS OPDRACHT. `title` is het onderwerp zoals een " +
+  "bezoeker het zou zoeken (\"Mollenbestrijding in de Alblasserwaard\"), nooit een gebiedende wijs " +
+  "(\"Laat zien dat je snel bent\") en nooit een belofte over wat er op de pagina komt. `rol` zegt in " +
+  "één zin wat deze pagina doet dat de andere pagina's van dit merk niet doen, ook de open kansen " +
+  "hieronder. `kernvraag` is de ene vraag die deze pagina móet beantwoorden om bestaansrecht te " +
+  "hebben, zoals de lezer hem stelt (bij een prijspagina: \"Wat kost het?\"). `why` is de onderbouwing " +
+  "uit de meting voor de consultant: welk gemis deze pagina dicht. Geen schrijfinstructies in `why`, " +
+  "geen \"benadruk\", \"noem\" of \"laat zien\". " +
+  // V7 (K2 punt 1): eis 4 geldt over het hele merk, niet alleen binnen dit rapport.
+  "Eis 4 geldt voor het HELE MERK: onder \"Open kansen van dit merk\" staan pagina's die al " +
+  "voorgesteld zijn, uit dit en andere clusters. Dekt een gemis dezelfde pagina als zo'n open kans, " +
+  "geef dan toch de aanbeveling, maar zet in `bestaandeKans` de code van die kans (K1, K2, …): dan " +
+  "wordt het extra bewijs bij die kans en geen tweede pagina. Anders is `bestaandeKans` null. " +
   "Geef priority als rangnummer: 1 is de belangrijkste aanbeveling, 2 de volgende, enzovoort. " +
   "Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter " +
   "zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per " +
@@ -328,6 +347,8 @@ function buildReportInput(
    * getal expliciet meegaat in plaats van dat het model het afleidt.
    */
   measurementSize: { questions: number; runs: number },
+  /** V7: de open kansen van het hele merk, met hun code. */
+  openKansen: readonly OpenKans[] = [],
 ): string {
   return [
     `Eigen merk: ${ownLabel(analysis, profile)}`,
@@ -349,6 +370,8 @@ function buildReportInput(
         ]
       : []),
     buildPagesBlock(pages),
+    "",
+    openKansenBlok(openKansen),
     structureGaps,
     // Migratie 0060: mag het advies nieuwe pagina's voorstellen, en waar werkt
     // de klant naartoe? Twee regels die de aanbevelingen sturen en die uit het
@@ -811,6 +834,25 @@ export async function generateReport(
     ),
   );
 
+  // V7: de open kansen van het hele merk, zodat het rapport geen tweede pagina
+  // voorstelt voor iets wat er al ligt.
+  const { data: kansRows } = await admin
+    .from("kansen")
+    .select("id, titel, bestaande_url, ruw, created_at")
+    .eq("profile_id", analysis.profile_id)
+    .in("status", [...OPEN_KANS_STATUSSEN])
+    .order("created_at", { ascending: true })
+    .limit(OPEN_KANSEN_MAX);
+  const openKansen: OpenKans[] = (
+    (kansRows ?? []) as { id: string; titel: string; bestaande_url: string | null; ruw: { rol?: unknown } | null }[]
+  ).map((k, i) => ({
+    code: `K${i + 1}`,
+    id: k.id,
+    titel: k.titel,
+    rol: typeof k.ruw?.rol === "string" && k.ruw.rol.trim() ? k.ruw.rol.trim() : null,
+    bestaandeUrl: k.bestaande_url,
+  }));
+
   try {
     // B1, concurrentie-gap-analyse
     const gap = await callStructured({
@@ -850,11 +892,17 @@ export async function generateReport(
         migratieMelding,
         structuurGaten,
         measurementSize,
+        openKansen,
       ),
       schema: Report,
       schemaName: "report",
       webSearch: false,
-      work: "analytical",
+      // V6: meer denktijd (van laag naar gemiddeld). Dit is de beslissing welke
+      // pagina's er komen. Op 29 september 2026 duurde het rapport op productie
+      // hooguit 29 seconden en kostte het $0,0035 (31 aanroepen in 30 dagen);
+      // ook twee tot drie keer zo lang blijft ruim binnen de 145 seconden van
+      // de client. `judging` is de stand met denktijd gemiddeld op dit model.
+      work: "judging",
       meta: { kind: "report", analysisId: id, profileId: analysis.profile_id },
     });
 
@@ -865,7 +913,7 @@ export async function generateReport(
     // zwaarste gemiste vraag mikken. De instructie vraagt het model dit al,
     // dit is de garantie erachter (conventie 1).
     const enriched = mergeOverlappingRecommendations(
-      resolveTargets(report.parsed.recommendations, missed),
+      resolveTargets(report.parsed.recommendations, missed, openKansen),
     );
 
     // ── Bestaat dit al op de website? (docs/logbook.md 1 september 2026) ───
