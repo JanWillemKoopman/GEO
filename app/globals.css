@@ -3207,10 +3207,15 @@ textarea.field {
 }
 
 /* ── Het bolletje bij "openstaande vragen" (28 augustus 2026) ───────────────
-   Staat rechts in de bovenbalk en achter het menu-item, dus naast ÉLK scherm van
-   de app. Daarom ademt hij traag: vier seconden per gang, van de groene tint uit
-   het systeem naar een donkerder variant ervan en terug. Snel knipperen is een
-   alarm, en dit is een uitnodiging, er staat werk klaar dat geen haast heeft.
+   Staat rechts in de bovenbalk en op mobiel in de onderbalk, dus naast ÉLK
+   scherm van de app. Daarom ademt hij traag: vier seconden per gang, van de
+   groene tint uit het systeem naar een donkerder variant ervan en terug. Snel
+   knipperen is een alarm, en dit is een uitnodiging, er staat werk klaar dat
+   geen haast heeft.
+
+   ⚠️ Achter het menu-item in de zijbalk stond hij ook, tot 29 september 2026.
+   Daar is hij op verzoek van de eigenaar weg; de teller in de bovenbalk noemt
+   het aantal voluit en blijft de plek waar dit signaal staat.
 
    ⚠️ Geen `box-shadow`-puls zoals `.live-dot`. Die zegt "er gebeurt nu iets",
    en dit zegt "er wacht iets op jou". Twee verschillende beloftes horen twee

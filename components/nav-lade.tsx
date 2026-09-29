@@ -29,7 +29,6 @@ export function NavLade({
   onSelectBrand,
   profiel,
   staff,
-  openVragen,
 }: {
   activeBrand: BrandOption | null;
   brands: BrandOption[];
@@ -37,7 +36,6 @@ export function NavLade({
   /** Het profiel met zijn menu: ook in de lade staat het onderaan. */
   profiel: React.ReactNode;
   staff: boolean;
-  openVragen: number;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -65,7 +63,6 @@ export function NavLade({
           onSelectBrand={onSelectBrand}
           profiel={profiel}
           staff={staff}
-          openVragen={openVragen}
           onMobileClose={() => setOpen(false)}
         />
       </Drawer>
