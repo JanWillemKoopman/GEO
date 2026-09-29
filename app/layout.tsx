@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { GeistMono } from "geist/font/mono";
-import { Archivo, Archivo_Black } from "next/font/google";
+import { Archivo } from "next/font/google";
 import "./globals.css";
 
 // ── ARCHIVO, SINDS 17 SEPTEMBER 2026 ────────────────────────────────────────
@@ -16,9 +16,10 @@ import "./globals.css";
 // De volledige tabel staat in `redesign2026.md` §5.2.
 //
 // Gewichten 400, 500 en 600. Meer niet, want bij OKX is "bold" gewicht 500 en
-// gaan alleen twee koppen naar 600.
+// gaan alleen twee koppen naar 600. Plus 300, uitsluitend voor het woordmerk
+// (29 september 2026, `.brand-logo`): dun en ruim gespatieerd.
 const archivo = Archivo({
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600"],
   subsets: ["latin"],
   variable: "--font-archivo",
   display: "swap",
@@ -27,16 +28,6 @@ const archivo = Archivo({
 // Geist Mono blijft: hij staat alleen onder cijfers en code, en daar is niets
 // mis mee. Mono was ooit JetBrains Mono; twee families van twee makers naast
 // elkaar is precies het soort verschil dat je niet ziet maar wel voelt.
-
-// Archivo Black, uitsluitend voor het woordmerk ORBIT ENGINE (26 augustus 2026).
-// Een logo is geen kop en volgt daarom niet de tekstschaal in §3.1 van
-// designsystem.md: het krijgt een eigen, zwaardere letter dan enig gewicht dat
-// in de rest van de app voorkomt. `--font-logo` staat los van `--font-sans`.
-const archivoBlack = Archivo_Black({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-logo",
-});
 
 // A.4: elke pagina een eigen tabbladtitel. Het sjabloon hier is de bodem: een
 // pagina die alleen `title: "Merken"` opgeeft wordt automatisch "Merken · ORBIT ENGINE".
@@ -90,7 +81,7 @@ export default function RootLayout({
   return (
     <html
       lang="nl"
-      className={`${archivo.variable} ${GeistMono.variable} ${archivoBlack.variable}`}
+      className={`${archivo.variable} ${GeistMono.variable}`}
       suppressHydrationWarning
     >
       <head>

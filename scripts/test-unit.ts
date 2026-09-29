@@ -258,6 +258,7 @@ import { kiesAanspreekvorm, telAanspreekvormen } from "@/lib/pipeline/tone-slide
 import { stripChrome } from "@/lib/pipeline/page-text";
 import { duplicatePromptIds } from "@/lib/pipeline/prompt-dedupe";
 import { dedupeCompetitorNames } from "@/lib/pipeline/competitor-dedupe";
+import { weergaveNaam } from "@/lib/weergavenaam";
 import { htmlToText } from "@/lib/pipeline/html-text";
 import { identifyEmptyProfiles } from "@/lib/profile-status";
 import { isRapportageVorm } from "@/lib/pipeline/factcard";
@@ -269,7 +270,6 @@ import {
   isActive,
   isExact,
   HOOFDSTUKKEN,
-  HOOFDSTUK_ICOON,
   GRENS_PER_HOOFDSTUK,
 } from "@/lib/nav";
 // ⚠️ Hernoemd bij het importeren: `lib/reputation/budget.ts` heeft een functie
@@ -8089,11 +8089,13 @@ group("welk menu-item licht op", () => {
     href: "/merk/abc/strategie/clusters",
     label: "Clusters",
     hoofdstuk: "Strategie" as const,
+    icoon: "taken" as const,
   };
   const bibliotheek = {
     href: "/merk/abc/strategie/bibliotheek",
     label: "Bibliotheek",
     hoofdstuk: "Strategie" as const,
+    icoon: "taken" as const,
   };
 
   ok("de bestemming zelf", navActief("/merk/abc/strategie/clusters", clusters));
@@ -8113,6 +8115,7 @@ group("welk menu-item licht op", () => {
     href: "/merk/abc/merkprofiel",
     label: "Merkdossier",
     hoofdstuk: "Merkdossier" as const,
+    icoon: "taken" as const,
   };
   ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
   // contentflow-een-lijn.md §4.6: het paginascherm woont onder de bibliotheek.
@@ -9792,33 +9795,51 @@ group("elke merkbestemming hangt onder /merk/[id]", () => {
   );
 });
 
-group("de iconenset: alleen de hoofdstukken dragen er een", () => {
-  // Een kop zonder icoon geeft in de ingeklapte balk (64px) een lege regel:
-  // daar ís de kop niets ánders dan zijn icoon.
-  for (const kop of HOOFDSTUKKEN) {
-    ok(`hoofdstuk ${kop} heeft een icoon dat bestaat`, Boolean(ICONEN[HOOFDSTUK_ICOON[kop]]));
-  }
-
-  // ⚠️ Twee hoofdstukken met dezelfde tekening is erger dan geen tekening:
-  // ingeklapt is het icoon het enige onderscheid tussen twee koppen.
-  const kopIconen = HOOFDSTUKKEN.map((k) => HOOFDSTUK_ICOON[k]);
-  ok(
-    "geen twee hoofdstukken delen een icoon",
-    new Set(kopIconen).size === kopIconen.length,
-    kopIconen.join(", "),
-  );
-
-  // ⚠️ DE BESTEMMINGEN DRAGEN ER GEEN, en dat moet zo blijven (besluit
-  // 21 augustus 2026). Ze hebben ze een halve dag wél gehad: zestien tekeningen
-  // in een balk van zestien regels, en dan markeert een icoon niets meer. De
-  // kop moet het verschil dragen tussen "een van de zes vaste plekken" en "een
-  // pagina daarbinnen". Deze test bewaakt dat het veld niet terugsluipt.
+group("de iconenset: elke bestemming draagt er een, de koppen niet (29 september 2026)", () => {
+  // Omgekeerd aan het besluit van 21 augustus 2026: de koppen zijn kleine
+  // tekstregels geworden en het icoon zit bij de klikbare regel.
   const items = [...brandNav("abc", true), ...generalNav(true)];
+  for (const item of items) {
+    ok(`bestemming "${item.label}" heeft een icoon dat bestaat`, Boolean(ICONEN[item.icoon]), item.icoon);
+  }
+  // Twee bestemmingen met dezelfde tekening is erger dan geen tekening.
+  const iconen = items.map((i) => i.icoon);
+  ok("geen twee bestemmingen delen een icoon", new Set(iconen).size === iconen.length, iconen.join(", "));
   ok(
-    "geen enkele bestemming heeft een icoonveld",
-    items.every((i) => !("icoon" in i)),
-    items.find((i) => "icoon" in i)?.label,
+    "een kop heeft geen icoonveld meer",
+    hoofdstukken(items).every((k) => !("icoon" in k)),
   );
+  const zijbalk = leesBestand("components/sidebar.tsx");
+  ok("de zijbalk tekent geen icoon bij de kop", !zijbalk.includes("kop.icoon"));
+  ok("de inklapknop is weg", !zijbalk.includes("klapOm") && !zijbalk.includes("window.localStorage"));
+});
+
+group("de naam onderaan de zijbalk: voornaam, anders het e-mailadres (29 september 2026)", () => {
+  eq("voornaam uit metadata", weergaveNaam({ voornaam: "Eva" }, "eva@voorbeeld.nl"), "Eva");
+  eq("alleen het eerste woord van een volledige naam", weergaveNaam({ full_name: "Jan Willem Koopman" }, "j@x.nl"), "Jan");
+  eq("first_name gaat voor full_name", weergaveNaam({ full_name: "Jan Koopman", first_name: "Sanne" }, "j@x.nl"), "Sanne");
+  eq("lege naam valt terug op het adres", weergaveNaam({ voornaam: "  " }, "eva@voorbeeld.nl"), "eva@voorbeeld.nl");
+  eq("geen metadata valt terug op het adres", weergaveNaam(undefined, "eva@voorbeeld.nl"), "eva@voorbeeld.nl");
+  eq("een getal als naam wordt genegeerd", weergaveNaam({ name: 42 }, "eva@voorbeeld.nl"), "eva@voorbeeld.nl");
+  eq("geen adres en geen naam is leeg, geen gok", weergaveNaam(null, null), "");
+});
+
+group("de shell van 29 september 2026: zijbalk over de volle hoogte, doorzichtige bovenbalk", () => {
+  const chrome = leesBestand("components/workspace-chrome.tsx");
+  ok("de zijbalk plakt aan de bovenrand", chrome.includes("sticky top-0") && !chrome.includes("top-[var(--header-h)]"));
+  ok("de themaschakelaar staat niet meer in de balk", !chrome.includes("<ThemeToggle"));
+  ok("het Support-icoon staat niet meer in de balk", !chrome.includes('href="/support"'));
+  ok("het profiel staat in de zijbalk", chrome.includes("profiel={profiel}"));
+  const menu = leesBestand("components/profile-menu.tsx");
+  for (const rij of ["Mijn account", "<ThemeMenuItem", "Support", "Uitloggen"]) {
+    ok(`het profielmenu heeft ${rij}`, menu.includes(rij));
+  }
+  const css = leesBestand("app/globals.css");
+  const topbar = css.slice(css.indexOf(".topbar {"), css.indexOf("}", css.indexOf(".topbar {")));
+  ok("de bovenbalk is doorzichtig zonder rand", topbar.includes("background-color: transparent") && !topbar.includes("border"));
+  ok("er is geen ingeklapte zijbalk meer", !css.includes("sidebar-w-collapsed") && !css.includes(".sidebar-smal"));
+  const kiezer = leesBestand("components/brand-switcher.tsx");
+  ok("bij één merk toont de kiezer niets", kiezer.includes("if (brands.length === 1) return null;"));
 });
 
 group("de actieve regel is exact, niet met prefix", () => {

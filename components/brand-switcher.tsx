@@ -16,9 +16,12 @@ import type { BrandOption } from "@/lib/workspace";
  *
  * ── WAAROM HIJ SOMS HELEMAAL NIET VERSCHIJNT ────────────────────────────────
  *
- * Bij precies één merk is er niets te kiezen. Dan staat de naam er als tekst en
- * niet als knop. Een kiezer met één optie belooft een keuze die er niet is, en
- * dat is exact het soort holle navigatie dat `lib/nav.ts` eerder al opruimde.
+ * Bij precies één merk is er niets te kiezen. Dan is er niets te zien, ook geen
+ * naam als tekst (sinds 29 september 2026). Een kiezer met één optie belooft een
+ * keuze die er niet is, en dat is exact het soort holle navigatie dat
+ * `lib/nav.ts` eerder al opruimde.
+ *
+ * Hij staat bovenin de zijbalk, onder het woordmerk, over de volle breedte.
  */
 export function BrandSwitcher({
   brands,
@@ -70,27 +73,24 @@ export function BrandSwitcher({
 
   if (brands.length === 0) return null;
 
-  // Eén merk: geen keuze, dus geen knop.
-  if (brands.length === 1) {
-    return (
-      <span className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-sm font-medium">{brands[0].name}</span>
-      </span>
-    );
-  }
+  // Eén merk: niets te kiezen, dus ook niets te tonen (29 september 2026). Tot
+  // dan stond de naam hier als platte tekst; de eigenaar wil dat een klant met
+  // één profiel geen kiezer ziet.
+  if (brands.length === 1) return null;
 
   const label = active ? active.name : "Alle merken";
 
   return (
-    <div ref={wrap} className="relative min-w-0">
+    <div ref={wrap} className="relative w-full min-w-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="field flex h-9 w-auto min-w-0 max-w-[14rem] items-center gap-2 text-left font-medium"
+        className="field flex h-10 w-full min-w-0 items-center gap-2 text-left font-medium"
       >
-        <span className="truncate">{label}</span>
+        <Icon naam="bedrijven" size={16} />
+        <span className="min-w-0 flex-1 truncate">{label}</span>
         <span className="text-[var(--text-subtle)]">
           <Icon naam="openen" size={14} />
         </span>
@@ -98,7 +98,7 @@ export function BrandSwitcher({
 
       {open && (
         <div
-          className="menu-surface absolute left-0 z-40 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden py-0"
+          className="menu-surface absolute left-0 z-40 mt-1 w-full min-w-64 overflow-hidden py-0"
           role="listbox"
         >
           {zoekbaar && (

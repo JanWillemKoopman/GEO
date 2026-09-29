@@ -139,36 +139,16 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
 };
 
 /**
- * Eén icoon per hoofdstuk, en **alleen** per hoofdstuk. Ingeklapt is dit het
- * enige wat er van de kop overblijft, dus het moet in zijn eentje herkenbaar
- * zijn.
- *
- * ⚠️ **Hier stonden tot 21 augustus 2026 de tekens ◉ ▣ ▲ ◆ ⚙ ◈**, met erboven
- * de reden waarom er géén icoonset was: "die vraagt een bibliotheek, een
- * kleurregel en een tweede manier om betekenis over te brengen, voor zes
- * koppen". Twee van die drie bezwaren zijn opgelost in `lib/icons.ts`: er is één
- * tabel die betekenis aan tekening koppelt, en de iconen kleuren niet zelf maar
- * erven de kleur van de tekst. Het derde bezwaar, de bibliotheek, bleek het
- * kleinste probleem: die vier tekens komen op Windows, macOS en Android uit
- * drie verschillende fallback-fonts en hadden dus sowieso al geen vaste vorm.
- *
- * ⚠️ **De bestemmingen eronder krijgen er géén** (besluit 21 augustus 2026,
- * later dezelfde dag). Ze hebben ze kort wél gehad. Het resultaat was zestien
- * tekeningen in een balk van zestien regels, en dan markeert een icoon niets
- * meer: als alles opvalt, valt niets op. De kop draagt het icoon omdat hij één
- * van de zes vaste plekken in de app aanwijst; de bestemming eronder staat al
- * ingesprongen achter een lijn en heeft niets extra's nodig om als kind te
- * lezen. Vandaar dat `NavItem` geen icoonveld heeft: dan kán het ook niet
- * ongemerkt terugkomen.
+ * ⚠️ **Sinds 29 september 2026 dragen de bestemmingen een icoon en de koppen
+ * niet meer** (opdracht van de eigenaar bij de nieuwe zijbalk over de volle
+ * hoogte, `components/sidebar.tsx`). Dit keert het besluit van 21 augustus 2026
+ * om ("de bestemmingen krijgen er géén"): dat besluit ging uit van zestien
+ * tekeningen naast zes koppen met een icoon, waar het icoon van de kop het
+ * onderscheid moest dragen. Nu de kop een gewone, kleine tekstregel is, is het
+ * icoon per bestemming juist wat de regel in één oogopslag terugvindbaar maakt.
+ * `HOOFDSTUK_ICOON` bestaat daarom niet meer, en ook de ingeklapte zijbalk (waar
+ * het kopicoon het enige was wat overbleef) is weg.
  */
-export const HOOFDSTUK_ICOON: Record<Hoofdstuk, IcoonNaam> = {
-  Overzicht: "taken",
-  Clusters: "clusters",
-  Strategie: "strategie",
-  Analytics: "analytics",
-  Merkdossier: "merkprofiel",
-  Admin: "admin",
-};
 
 export interface NavItem {
   href: string;
@@ -181,6 +161,8 @@ export interface NavItem {
    * JSX verhuizen.
    */
   hoofdstuk: Hoofdstuk;
+  /** Het icoon voor deze regel, uit `lib/icons.ts`. Erft de kleur van de tekst. */
+  icoon: IcoonNaam;
   /**
    * Alleen voor Outer Orbit, nooit voor de klant (`docs/ux-design.md`, "Wat de
    * klant ziet en wat alleen jij ziet"). De zijbalk zet er een klein teken bij,
@@ -194,7 +176,6 @@ export interface NavItem {
 /** Eén kop met zijn bestemmingen. Leeg wordt niet getoond. */
 export interface NavHoofdstuk {
   naam: Hoofdstuk;
-  icoon: IcoonNaam;
   items: NavItem[];
   /** Sales en Admin staan onder een scheidingslijn: de klant ziet ze nooit. */
   afgeschermd?: boolean;
@@ -219,6 +200,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       href: `/merk/${brandId}`,
       label: "Openstaande taken",
       hoofdstuk: "Overzicht",
+      icoon: "taken" as const,
     },
 
     // ── CLUSTERS ─────────────────────────────────────────────────────────
@@ -258,16 +240,19 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       href: `/merk/${brandId}/strategie/plan`,
       label: "Contentplan",
       hoofdstuk: "Strategie",
+      icoon: "plannen" as const,
     },
     {
       href: `/merk/${brandId}/strategie/vragen`,
       label: "Openstaande vragen",
       hoofdstuk: "Strategie",
+      icoon: "feit" as const,
     },
     {
       href: `/merk/${brandId}/strategie/bibliotheek`,
       label: "Bibliotheek",
       hoofdstuk: "Strategie",
+      icoon: "bibliotheek" as const,
     },
 
     // ── ANALYTICS ────────────────────────────────────────────────────────
@@ -275,11 +260,13 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       href: `/merk/${brandId}/analytics`,
       label: "Zichtbaarheid in AI",
       hoofdstuk: "Analytics",
+      icoon: "analytics" as const,
     },
     {
       href: `/merk/${brandId}/analytics/zoekverkeer`,
       label: "Search console",
       hoofdstuk: "Analytics",
+      icoon: "zoekmachine",
     },
     //
     // ⚠️ VIER BESTEMMINGEN, EN DIT IS DE VIERDE (besluit 22 augustus 2026).
@@ -314,6 +301,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       href: `/merk/${brandId}/merkprofiel/bewerken`,
       label: "Mijn bedrijf",
       hoofdstuk: "Merkdossier",
+      icoon: "merkprofiel" as const,
     },
     // ⚠️ "Vraagt jouw input" stond hier tot 28 augustus 2026. Het heet nu
     // "Openstaande vragen" en staat onder Strategie, zie het blok hierboven.
@@ -354,18 +342,21 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
             href: `/merk/${brandId}/admin/onboarding`,
             label: "Onboardinggesprek",
             hoofdstuk: "Admin" as const,
+            icoon: "reputatie" as const,
             staffOnly: true,
           },
           {
             href: `/merk/${brandId}/admin/0-meting`,
             label: "0-meting",
             hoofdstuk: "Admin" as const,
+            icoon: "meten" as const,
             staffOnly: true,
           },
           {
             href: `/merk/${brandId}/admin/aanbodboom`,
             label: "Aanbodboom",
             hoofdstuk: "Admin" as const,
+            icoon: "strategie" as const,
             staffOnly: true,
           },
           // Verhuisd van Concurrenten (plan analytics-herontwerp.md, C1): het
@@ -375,12 +366,14 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
             href: `/merk/${brandId}/admin/concurrenten`,
             label: "Concurrenten indelen",
             hoofdstuk: "Admin" as const,
+            icoon: "concurrenten" as const,
             staffOnly: true,
           },
           {
             href: `/merk/${brandId}/admin/toewijzen`,
             label: "Toewijzen",
             hoofdstuk: "Admin" as const,
+            icoon: "label" as const,
             staffOnly: true,
           },
         ]
@@ -389,11 +382,11 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
 }
 
 function ontdekken(brandId: string): NavItem {
-  return { href: `/merk/${brandId}/ontdekken`, label: "Clusters ontdekken", hoofdstuk: "Clusters" };
+  return { href: `/merk/${brandId}/ontdekken`, label: "Clusters ontdekken", hoofdstuk: "Clusters", icoon: "ontdekken" };
 }
 
 function mijnClusters(brandId: string): NavItem {
-  return { href: `/merk/${brandId}/strategie/clusters`, label: "Mijn clusters", hoofdstuk: "Clusters" };
+  return { href: `/merk/${brandId}/strategie/clusters`, label: "Mijn clusters", hoofdstuk: "Clusters", icoon: "clusters" };
 }
 
 /**
@@ -427,12 +420,14 @@ export function generalNav(staff = false): NavItem[] {
             href: "/beheer",
             label: "Alle merken",
             hoofdstuk: "Admin" as const,
+            icoon: "bedrijven" as const,
             staffOnly: true,
           },
           {
             href: "/instellingen/koppelingen",
             label: "Search Console",
             hoofdstuk: "Admin" as const,
+            icoon: "koppeling" as const,
             staffOnly: true,
           },
         ]
@@ -449,7 +444,6 @@ const AFGESCHERMD = new Set<Hoofdstuk>(["Admin"]);
 export function hoofdstukken(items: NavItem[]): NavHoofdstuk[] {
   return HOOFDSTUKKEN.map((naam) => ({
     naam,
-    icoon: HOOFDSTUK_ICOON[naam],
     items: items.filter((i) => i.hoofdstuk === naam),
     afgeschermd: AFGESCHERMD.has(naam),
   })).filter((h) => h.items.length > 0);

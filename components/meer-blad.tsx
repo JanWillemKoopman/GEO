@@ -95,10 +95,7 @@ export function MeerBlad({
 
         {koppen.map((kop) => (
           <div key={kop.naam} className="flex flex-col gap-1">
-            <span className="nav-kop">
-              <Icon naam={kop.icoon} size={16} />
-              {kop.naam}
-            </span>
+            <span className="nav-kop">{kop.naam}</span>
             {kop.items.map((item) => (
               <Link
                 key={item.href}
@@ -107,7 +104,10 @@ export function MeerBlad({
                 className="nav-item nav-item-lg"
                 aria-current={navActief(pathname, item) ? "page" : undefined}
               >
-                {item.label}
+                <span className="flex min-w-0 items-center gap-2">
+                  <Icon naam={item.icoon} size={16} />
+                  <span className="truncate">{item.label}</span>
+                </span>
               </Link>
             ))}
           </div>

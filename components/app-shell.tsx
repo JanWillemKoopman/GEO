@@ -6,11 +6,13 @@ import { PreviewToggle } from "@/components/preview-toggle";
 import { WorkspaceChrome } from "@/components/workspace-chrome";
 import { OpenQuestionsBadge } from "@/components/open-questions-badge";
 import { isTelefoon } from "@/lib/apparaat";
+import { weergaveNaam } from "@/lib/weergavenaam";
 import type { Workspace } from "@/lib/workspace";
 import type { User } from "@supabase/supabase-js";
 
 /**
- * App-shell voor het ingelogde gedeelte: zijbalk links, merkkiezer bovenin.
+ * App-shell voor het ingelogde gedeelte: zijbalk links over de volle hoogte, met
+ * woordmerk, merkkiezer en profiel; de bovenbalk staat rechts ernaast.
  *
  * ── WAAROM DIT VERANDERDE ───────────────────────────────────────────────────
  *
@@ -50,6 +52,8 @@ export async function AppShell({
   // de server. Dit is de enige plek in de shell die nog wist welke van de
   // twee opbouwen `WorkspaceChrome` moet kiezen; die zelf blijft "use client".
   const telefoon = await isTelefoon();
+  const email = user.email ?? "";
+  const naam = weergaveNaam(user.user_metadata, email);
 
   return (
     <WorkspaceChrome
@@ -66,7 +70,7 @@ export async function AppShell({
         // naar een lijst gaat kost een klik om terug te komen waar je was.
         <Link
           href={workspace.active ? `/merk/${workspace.active.id}` : "/merk"}
-          className="text-lg"
+          className="text-[1.375rem] leading-none"
         >
           <span className="brand-logo">ORBIT</span>
         </Link>
@@ -84,7 +88,10 @@ export async function AppShell({
         />
       }
       previewToggle={staffAccount ? <PreviewToggle previewing={!staff} /> : null}
-      accountMenu={<ProfileMenu email={user.email ?? ""} signOutAction={signOut} />}
+      accountMenu={
+        <ProfileMenu naam={naam} email={email} signOutAction={signOut} plek="topbalk" />
+      }
+      profiel={<ProfileMenu naam={naam} email={email} signOutAction={signOut} plek="zijbalk" />}
     >
       {children}
     </WorkspaceChrome>
