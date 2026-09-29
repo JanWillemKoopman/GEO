@@ -29,7 +29,6 @@ export async function AppShell({
   workspace,
   staff,
   staffAccount,
-  sales,
   openVragen,
   children,
 }: {
@@ -42,8 +41,6 @@ export async function AppShell({
   /** Het ECHTE recht, dat de klantweergave nooit verandert. Alleen gebruikt om
    *  de wisselknop zelf te tonen: anders is er geen weg terug. */
   staffAccount: boolean;
-  /** Salesmedewerker? Dan staat de Sales-sectie in de zijbalk (plan §4.1). */
-  sales: boolean;
   /** Hoeveel vragen er op de klant wachten, voor de teller in de bovenbalk. */
   openVragen: number;
   children: React.ReactNode;
@@ -59,7 +56,6 @@ export async function AppShell({
       brands={workspace.brands}
       activeBrand={workspace.active}
       staff={staff}
-      sales={sales}
       telefoon={telefoon}
       signOutAction={signOut}
       openVragen={openVragen}
@@ -72,7 +68,7 @@ export async function AppShell({
           href={workspace.active ? `/merk/${workspace.active.id}` : "/merk"}
           className="text-lg"
         >
-          <span className="brand-logo">ORBIT ENGINE</span>
+          <span className="brand-logo">ORBIT</span>
         </Link>
       }
       // Alleen een echte beheerder ziet deze knop, ook terwijl hij zelf op de

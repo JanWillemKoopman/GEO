@@ -1977,16 +1977,6 @@ textarea.field {
   background-color: var(--bg-base);
   border-bottom: var(--border-width-xs) solid var(--line-muted);
 }
-/* De streep onder de bovenbalk in elke Sales-route (`redesign2026.md` §8.7,
-   stap 10). Sales is intern: een klant ziet er niets van, en deze streep is
-   de visuele kant van diezelfde scheiding, één regel CSS die in één
-   oogopslag zegt "je zit in een intern scherm". Op zowel de desktop- als de
-   mobiele bovenbalk, via dezelfde klasse. */
-.topbar-sales {
-  border-bottom-width: var(--border-width-sm); /* 2px */
-  border-bottom-color: var(--intent-warning-solid);
-}
-
 /* ── De contentpagina: drie zones (22 september 2026) ──────────────────────
    Zie `docs/tasks/herontwerp-contentpagina.md`. De tekst is de held, de
    context staat in een rail ernaast, en de handeling staat in een balk die

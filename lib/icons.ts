@@ -99,6 +99,7 @@ import {
   PanelLeftOpen,
   Plus,
   Radar,
+  ListChecks,
   RotateCcw,
   RotateCw,
   Scale,
@@ -125,12 +126,12 @@ import {
 export type IcoonNaam =
   // ── De zeven hoofdstukken van de zijbalk ────────────────────────────────
   | "overzicht"
+  | "taken"
   | "clusters"
   | "strategie"
   | "analytics"
   | "merkprofiel"
   | "instellingen"
-  | "sales"
   | "admin"
   // ── Bediening ───────────────────────────────────────────────────────────
   | "menu"
@@ -219,6 +220,7 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // op de vraag die dit hoofdstuk stelt: waar sta je ten opzichte van de rest.
   // Een middelpunt met een lichaam eromheen is precies dat beeld.
   overzicht: Orbit,
+  taken: ListChecks,
   // Punten die met elkaar verbonden zijn en oplopen: contentplan, clusters en
   // bibliotheek zijn stappen in één volgorde en geen losse keuzes. Hier stond
   // eerst `Route`, maar die leek op 18 pixels te veel op de schuifjes van
@@ -242,7 +244,6 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // maakt van een prospect een prooi, en geen geldteken, want de module gaat
   // over de kans en niet over de rekening. Sales staat net als Admin onder de
   // scheidingslijn: de klant ziet het nooit (plan §4.3).
-  sales: Radar,
   // Het schild is niet "beveiligd" maar "afgeschermd": dit hoofdstuk staat al
   // onder een scheidingslijn omdat de klant het nooit ziet (`lib/nav.ts`).
   admin: Shield,

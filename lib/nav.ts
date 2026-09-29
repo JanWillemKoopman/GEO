@@ -59,8 +59,7 @@ export const HOOFDSTUKKEN = [
   "Clusters",
   "Strategie",
   "Analytics",
-  "Merkprofiel",
-  "Sales",
+  "Merkdossier",
   "Admin",
 ] as const;
 
@@ -131,8 +130,7 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   // hoofdstuk geworden, dus Strategie heeft er geen vier meer nodig.
   Strategie: 3,
   Analytics: 4,
-  Merkprofiel: 3,
-  Sales: 5,
+  Merkdossier: 3,
   Admin: 8,
 };
 
@@ -160,12 +158,11 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
  * ongemerkt terugkomen.
  */
 export const HOOFDSTUK_ICOON: Record<Hoofdstuk, IcoonNaam> = {
-  Overzicht: "overzicht",
+  Overzicht: "taken",
   Clusters: "clusters",
   Strategie: "strategie",
   Analytics: "analytics",
-  Merkprofiel: "merkprofiel",
-  Sales: "sales",
+  Merkdossier: "merkprofiel",
   Admin: "admin",
 };
 
@@ -216,7 +213,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     // één kind dat hetzelfde heet is een regel die niets toevoegt.
     {
       href: `/merk/${brandId}`,
-      label: "Hoe sta je ervoor",
+      label: "Openstaande taken",
       hoofdstuk: "Overzicht",
     },
 
@@ -277,12 +274,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     },
     {
       href: `/merk/${brandId}/analytics/zoekverkeer`,
-      label: "Zoekverkeer",
-      hoofdstuk: "Analytics",
-    },
-    {
-      href: `/merk/${brandId}/analytics/concurrenten`,
-      label: "Concurrenten",
+      label: "Search console",
       hoofdstuk: "Analytics",
     },
     //
@@ -305,11 +297,6 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     // Wat dit besluit betekent: een VIJFDE bestaat dan echt niet meer zonder
     // eerst iets samen te voegen. Dat is vanaf nu geen stijlregel meer maar een
     // grens, en `scripts/test-unit.ts` bewaakt hem.
-    {
-      href: `/merk/${brandId}/analytics/reputatie`,
-      label: "Mijn reputatie",
-      hoofdstuk: "Analytics",
-    },
 
     // ── MERKPROFIEL ──────────────────────────────────────────────────────
     //
@@ -321,8 +308,8 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     // profiel doet.
     {
       href: `/merk/${brandId}/merkprofiel/bewerken`,
-      label: "Merkdossier",
-      hoofdstuk: "Merkprofiel",
+      label: "Mijn bedrijf",
+      hoofdstuk: "Merkdossier",
     },
     // ⚠️ "Vraagt jouw input" stond hier tot 28 augustus 2026. Het heet nu
     // "Openstaande vragen" en staat onder Strategie, zie het blok hierboven.
@@ -455,48 +442,7 @@ export function generalNav(staff = false): NavItem[] {
   ];
 }
 
-/**
- * De Sales-sectie: de GEO Prospect Engine, uitsluitend voor Outer Orbit
- * (`docs/tasks/geo-prospect-engine.md` §4.1).
- *
- * ⚠️ **De volgorde is niet willekeurig, en Opportunities staat bewust bóven
- * Markten.** Sales werkt vanuit kansen en niet vanuit rapporten. Wie de module
- * opent moet binnen enkele seconden zien wie hij vandaag moet bellen, niet
- * welke markten er onderzocht zijn. Zet je Markten bovenaan, dan wordt dit een
- * rapportenkast met een belijst eronder, en dat is precies het oude plan dat
- * New business heeft teruggestuurd.
- *
- * ⚠️ **Dit is geen merk-navigatie.** Alle andere hoofdstukken gaan over één
- * gekozen merk. Een prospect is per definitie nog geen merk, dus deze
- * bestemmingen hangen aan de app en niet aan de merkkiezer. Ze blijven daarom
- * ook staan als er geen merk gekozen is.
- *
- * `sales` verbergt de hele groep. Dat is een beleefdheid en geen slot: elke
- * route eronder geeft een gewone gebruiker nog steeds "pagina bestaat niet", en
- * de RLS-policies uit migratie 0065 geven hem nul rijen.
- */
-export function salesNav(sales = false): NavItem[] {
-  if (!sales) return [];
-  return [
-    { href: "/sales", label: "Overzicht", hoofdstuk: "Sales", staffOnly: true },
-    {
-      href: "/sales/opportunities",
-      label: "Kansen",
-      hoofdstuk: "Sales",
-      staffOnly: true,
-    },
-    { href: "/sales/prospects", label: "Bedrijven", hoofdstuk: "Sales", staffOnly: true },
-    { href: "/sales/markten", label: "Markten", hoofdstuk: "Sales", staffOnly: true },
-    { href: "/sales/outreach", label: "Verstuurd", hoofdstuk: "Sales", staffOnly: true },
-  ];
-}
-
-/**
- * De hoofdstukken die onder de scheidingslijn staan, omdat de klant ze nooit
- * ziet. Een set en geen vergelijking, zodat er een derde bij kan zonder dat
- * iemand een `||` over het hoofd ziet.
- */
-const AFGESCHERMD = new Set<Hoofdstuk>(["Sales", "Admin"]);
+const AFGESCHERMD = new Set<Hoofdstuk>(["Admin"]);
 
 /**
  * De platte lijst bestemmingen omgezet in koppen, in de volgorde van
@@ -562,11 +508,7 @@ export function navActief(pathname: string, item: NavItem): boolean {
   // die dag hing een pagina onder het cluster en lichtte "Clusters" op als je
   // vanuit de Bibliotheek op een pagina klikte.
   if (item.href.endsWith("/strategie/bibliotheek") && pathname.startsWith(`${item.href}/`)) return true;
-  // Dezelfde redenering voor de Sales-sectie: een marktdossier woont op
-  // `/sales/markten/<id>` en een prospectdossier op `/sales/prospects/<id>`.
-  // Zonder deze regel dooft de hele zijbalk zodra je doorklikt, precies op de
-  // schermen waar een salesmedewerker het langst zit.
-  return item.href.startsWith("/sales/") && pathname.startsWith(`${item.href}/`);
+  return false;
 }
 
 /**

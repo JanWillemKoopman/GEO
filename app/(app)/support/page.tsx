@@ -455,32 +455,32 @@ function slug(label: string): string {
 
 /** Eén icoon per bestemming. Vier lenen die van hun eigen hoofdstuk, de rest staat voor het eerst in `lib/icons.ts`. */
 const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
-  "Hoe sta je ervoor": "overzicht",
+  "Openstaande taken": "taken",
   "Mijn clusters": "meten",
   "Clusters ontdekken": "zoekmachine",
   "Openstaande vragen": "feit",
   Contentplan: "plannen",
   Bibliotheek: "bibliotheek",
   "Zichtbaarheid in AI": "analytics",
-  Zoekverkeer: "zoekmachine",
+  "Search console": "zoekmachine",
   Concurrenten: "concurrenten",
   "Mijn reputatie": "reputatie",
-  Merkdossier: "merkprofiel",
+  "Mijn bedrijf": "merkprofiel",
 };
 
 /** De belofte in één zin, zichtbaar naast de titel (schrijfstijl.md §4: kop is de belofte, subkop is één zin uitleg). */
 const KICKER: Record<string, string> = {
-  "Hoe sta je ervoor": "Is er iets nieuws sinds je hier voor het laatst was?",
+  "Openstaande taken": "Is er iets nieuws sinds je hier voor het laatst was?",
   "Mijn clusters": "Eén onderwerp, gemeten op hoe vaak AI je noemt.",
   "Clusters ontdekken": "Nieuwe onderwerpen die bij je merk passen.",
   "Openstaande vragen": "Wat ORBIT ENGINE nog van je wil weten.",
   Contentplan: "Wat er wanneer geschreven en gepubliceerd wordt.",
   Bibliotheek: "Alle pagina's, van de eerste vragen tot het gemeten effect.",
   "Zichtbaarheid in AI": "Je hoofdcijfer: hoe vaak je genoemd wordt.",
-  Zoekverkeer: "Levert je content ook bezoekers op uit Google?",
+  "Search console": "Levert je content ook bezoekers op uit Google?",
   Concurrenten: "Wie er nog meer genoemd wordt, en waar jij staat.",
   "Mijn reputatie": "Niet óf je genoemd wordt, maar hoé.",
-  Merkdossier: "Wie je bent volgens ORBIT ENGINE, en of dat klopt.",
+  "Mijn bedrijf": "Wie je bent volgens ORBIT ENGINE, en of dat klopt.",
 };
 
 /**
@@ -491,7 +491,7 @@ const KICKER: Record<string, string> = {
  */
 const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
   Overzicht: {
-    "Hoe sta je ervoor": (
+    "Openstaande taken": (
       <>
         <p className="text-secondary">
           Dit is de eerste pagina die je ziet zodra je inlogt, en het antwoord op één vraag: is er
@@ -675,7 +675,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
         </p>
       </>
     ),
-    Zoekverkeer: (
+    "Search console": (
       <>
         <p className="text-secondary">
           Levert de content die ORBIT ENGINE publiceerde ook bezoekers op uit Google? Dit scherm
@@ -745,8 +745,8 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
     ),
   },
 
-  Merkprofiel: {
-    Merkdossier: (
+  Merkdossier: {
+    "Mijn bedrijf": (
       <>
         <p className="text-secondary">
           Wie ben je volgens ORBIT ENGINE, en klopt dat? ORBIT ENGINE heeft het meeste al van je
