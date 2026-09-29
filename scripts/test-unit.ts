@@ -539,8 +539,22 @@ import {
   writeBlockNotice,
   planBriefing,
   contentTypeFor,
+  soortVanPlanPagina,
+  pageTypeFor,
+  isContentType,
+  CONTENT_TYPES,
   type PageForWriting,
 } from "@/lib/plan-writing";
+import { SOORTEN as PAGINASOORTEN, soortVan } from "@/lib/pagina/soorten";
+import { leesZoekresultaten } from "@/lib/ai-overview/parse-serp";
+import {
+  zoekopdrachtenVoor,
+  schoonResultaten,
+  zonderEigenMerk,
+  zoekresultatenBlok,
+  MAX_ZOEKOPDRACHTEN,
+  type BriefZoekresultaten,
+} from "@/lib/pagina/zoekresultaten-regels";
 import { swapWithNeighbour, canMove, type OrderablePage } from "@/lib/plan-order";
 import {
   contentHref,
@@ -18653,6 +18667,8 @@ group("lib/pagina importeert alleen wat op de lijst van §7.3 staat", () => {
     /^@\/lib\/plan-(status|writing)$/,
     /^@\/lib\/kennis\/(voor-pagina|blok-a)$/,
     /^@\/lib\/afhankelijkheden\/vastleggen$/,
+    // B34: de zoekresultaten van Google voor de brief, dezelfde aanroep als de meting.
+    /^@\/lib\/ai-overview\/(client|parse-serp|registry)$/,
     /^zod$/,
     /^server-only$/,
     /^@supabase\/supabase-js$/,
@@ -19149,7 +19165,7 @@ group("de schrijfopdracht: vier blokken, geen budget (§6.4)", () => {
   ok("V13: de lezer als maatstaf", sysV13.includes("zo kort als dat kan, en zeg elk punt één keer") && !sysV13.includes("inhoudelijk volledig") && !sysV13.includes("zo uitgebreid als nodig"));
   ok("V13: niet om een overgeslagen vraag heen schrijven", sysV13.includes("schrijf er dan niet omheen"));
   ok("V13: vakkennis alleen als hij de lezer helpt", sysV13.includes("alleen waar die de lezer helpt kiezen of handelen"));
-  eq("V13: schrijfopdracht versie 5", String(SCHRIJFOPDRACHT_VERSIE), "5");
+  eq("B33: schrijfopdracht versie 6 (de beschrijving van de soort)", String(SCHRIJFOPDRACHT_VERSIE), "6");
   const herV14 = herschrijfInvoer(b, { vorige: "Oud.", punten: [], verzonnen: [], ongedekt: [], notitieKlant: null });
   ok("V14: de rest blijft staan, ook de FAQ", herV14.includes("laat de rest van de tekst staan, ook de veelgestelde vragen"));
   ok("geen gedachtestreepje in de schrijfopdracht", !/[—–]/.test(sysV13.replace("(— of –)", "")));
@@ -21000,7 +21016,7 @@ group("V17, V19, V4, V22: de brief van versie 5 (besluiten B22, B31, B32)", () =
   ok("V22: de uitleg zonder de schrijver", BRIEF_SYSTEEM.includes('Schrijf niet over "de schrijver"'));
   ok("V22: bewijsvragen zijn merkbreed", BRIEF_SYSTEEM.includes("Een vraag naar bewijs (reviews, foto's, toestemming om een klus te noemen) geldt voor het hele bedrijf"));
   ok("nog steeds hooguit acht vragen", MAX_BRIEFVRAGEN === 8 && BRIEF_SYSTEEM.includes(`hooguit ${MAX_BRIEFVRAGEN}`));
-  eq("brief versie 6 (V8: de kernvraag)", String(BRIEF_VERSIE), "6");
+  eq("brief versie 7 (B33 en B34: soort en zoekresultaten)", String(BRIEF_VERSIE), "7");
 });
 
 
@@ -21165,6 +21181,159 @@ group("V5: de verhalen in vakken worden losse items (besluit B28, migratie 0129)
   const w = { items: [] as { soort: string; domein: string }[], uitsluitingen: [] as unknown[] };
   planVeldV5(w as never, { ...merk, profiel: { id: "p1", url: "x.nl", verhaal_werkwijze: "Eerst kijken, dan uitleggen." }, veldHerkomst: [{ field: "verhaal_werkwijze", source: "gesprek", not_applicable: false }] } as never, "verhaal_werkwijze");
   eq("de werkwijze telt als werkwijze", w.items.map((i) => `${i.domein}/${i.soort}`).join(""), "aanbod/werkwijze");
+});
+
+// ── B33, B34, B35: soorten pagina en de zoekresultaten van Google ──────────
+// (`docs/tasks/contentketen-opnieuw.md` §2, 29 september 2026)
+console.log("\nSoorten pagina en de zoekresultaten van Google (B33, B34, B35)");
+
+group("B33: de soort gaat ongewijzigd door de keten", () => {
+  ok("een FAQ blijft een FAQ", soortVanPlanPagina({ content_type: "faq", page_type: "informatief" }) === "faq");
+  ok("een vergelijking blijft een vergelijking, ook op een categoriepagina", soortVanPlanPagina({ content_type: "comparison", page_type: "categorie" }) === "comparison");
+  ok("zonder soort de oude vertaling: dienst wordt een dienstpagina", soortVanPlanPagina({ content_type: null, page_type: "dienst" }) === "landing");
+  ok("een onbekende soort telt als geen soort", soortVanPlanPagina({ content_type: "blog", page_type: "informatief" }) === "article");
+  ok("gids is een soort", isContentType("gids") && !isContentType("blog") && !isContentType(null));
+  eq("het paginatype voor de contentmix", CONTENT_TYPES.map((t) => `${t}:${pageTypeFor(t)}`).join(" "), "landing:dienst article:informatief gids:informatief faq:informatief comparison:categorie");
+  ok("de oude vertaling zelf is ongewijzigd", contentTypeFor("categorie") === "landing" && contentTypeFor("overig") === "article");
+});
+
+group("B33: het soortregister", () => {
+  ok("elke soort in het keuzemenu staat in het register", CONTENT_TYPES.every((t) => Boolean(PAGINASOORTEN[t])));
+  ok("de dienstpagina krijgt geen beschrijving en geen zoekresultaten", PAGINASOORTEN.landing.beschrijving === null && PAGINASOORTEN.landing.onderzoek === "web");
+  ok("de dienstpagina heet in de opdracht nog steeds zo", PAGINASOORTEN.landing.label === "dienstpagina");
+  ok(
+    "artikel, gids, FAQ en vergelijking krijgen een beschrijving en de zoekresultaten",
+    (["article", "gids", "faq", "comparison"] as const).every((t) => Boolean(PAGINASOORTEN[t].beschrijving) && PAGINASOORTEN[t].onderzoek === "web_en_zoekresultaten"),
+  );
+  ok("geen gedachtestreepje en geen en/of in de beschrijvingen", Object.values(PAGINASOORTEN).every((x) => !/[—–]|en\/of/.test(`${x.beschrijving ?? ""} ${x.keuze} ${x.label}`)));
+  ok(
+    "een beschrijving beschrijft de lezer, geen opbouw of lengte (§3 regel 4)",
+    Object.values(PAGINASOORTEN).every((x) => !/\b(woorden|secties?|kopjes?|verplicht|minimaal|maximaal)\b/i.test(x.beschrijving ?? "")),
+  );
+  ok("een onbekende soort valt terug op de dienstpagina", soortVan("iets") === PAGINASOORTEN.landing && soortVan(null) === PAGINASOORTEN.landing);
+});
+
+group("B33 en B34: de invoer van een dienstpagina blijft letter voor letter gelijk", () => {
+  const basis = {
+    titel: "Rijles in Zwolle", paginasoort: PAGINASOORTEN.landing.label, handeling: "nieuw" as const, zoekintentie: "Rijles zoeken", waarom: "Staat in het plan",
+    kernvraag: "Wat kost rijles?", doelvragen: [{ vraag: "Beste rijschool Zwolle?", antwoord: "Een antwoord." }], merknaam: "Rijschool Rem",
+    werkgebied: ["Zwolle"], bedrijf: "Bedrijf: Rijschool Rem", huidigeTekst: null, eerdereVragen: [{ id: "q1", vraag: "Hoe lang?", stand: "open" }],
+  };
+  eq("de brief", briefInvoer({ ...basis, soortBeschrijving: PAGINASOORTEN.landing.beschrijving, zoekresultaten: zoekresultatenBlok(null) }), briefInvoer(basis));
+  const blokken: SchrijfBlokken = {
+    titel: "Tuinontwerp", paginasoort: PAGINASOORTEN.landing.label, handeling: "nieuw", bedrijf: "Bedrijf: Groen", stem: [], eigenVerhaal: null,
+    antwoorden: [], onderzoek: null, zoekintentie: null, doelvragen: [], buren: [], huidigeTekst: null,
+  };
+  eq("de schrijver", schrijfInvoer({ ...blokken, soortBeschrijving: PAGINASOORTEN.landing.beschrijving }), schrijfInvoer(blokken));
+  const gids = briefInvoer({ ...basis, paginasoort: PAGINASOORTEN.gids.label, soortBeschrijving: PAGINASOORTEN.gids.beschrijving, zoekresultaten: "ZOEKRESULTATEN VAN GOOGLE (extern onderzoek, niet over dit bedrijf)\n\nx" });
+  ok("een gids krijgt zijn beschrijving in de brief", gids.includes(`Wat de lezer van deze soort pagina wil: ${PAGINASOORTEN.gids.beschrijving}`));
+  ok("de zoekresultaten staan vóór wat we over het bedrijf weten", gids.indexOf("ZOEKRESULTATEN VAN GOOGLE") < gids.indexOf("Wat we al weten over het bedrijf"));
+  ok("en de schrijver ook", schrijfInvoer({ ...blokken, soortBeschrijving: PAGINASOORTEN.faq.beschrijving }).includes(`WAT VOOR PAGINA DIT IS\n${PAGINASOORTEN.faq.beschrijving}`));
+});
+
+const serpRespons = (items: unknown[], status = 20000) => ({ tasks: [{ status_code: status, status_message: "Ok.", cost: 0.004, result: [{ items }] }] });
+
+group("B34: de resultatenpagina uitpakken", () => {
+  const pagina = leesZoekresultaten(serpRespons([
+    { type: "organic", rank_group: 2, title: "Tweede", url: "https://b.nl/x", domain: "www.b.nl", description: "  Fragment   twee. " },
+    { type: "organic", rank_group: 1, title: "Eerste", url: "https://a.nl/", description: "Fragment een." },
+    { type: "organic", rank_group: 3, title: "", url: "https://c.nl/" },
+    { type: "people_also_ask", items: [
+      { type: "people_also_ask_element", title: "Wat kost het?", expanded_element: [{ description: "Tussen 100 en 200 euro.", url: "https://p.nl/prijs" }] },
+      { type: "people_also_ask_element", title: "Hoe lang duurt het?" },
+    ] },
+    { type: "related_searches", items: ["warmtepomp subsidie", "", 7] },
+    { type: "ai_overview", markdown: "Een warmtepomp gaat zo'n 15 jaar mee.", references: [{ domain: "www.milieucentraal.nl" }] },
+  ]));
+  eq("organische resultaten op positie, lege weg", pagina.organisch.map((r) => `${r.positie}:${r.domein}`).join(" "), "1:a.nl 2:b.nl");
+  eq("een fragment zonder dubbele spaties", pagina.organisch[1]?.fragment ?? "", "Fragment twee.");
+  eq("de vragen, met het antwoord als het er is", pagina.vragen.map((v) => `${v.vraag}=${v.antwoord ?? "-"}`).join(" | "), "Wat kost het?=Tussen 100 en 200 euro. | Hoe lang duurt het?=-");
+  eq("gerelateerde zoekopdrachten, alleen tekst", pagina.gerelateerd.join(","), "warmtepomp subsidie");
+  ok("het AI-overzicht met zijn bronnen", pagina.aiOverzicht?.tekst === "Een warmtepomp gaat zo'n 15 jaar mee." && pagina.aiOverzicht.bronnen.join() === "milieucentraal.nl");
+  const fout = leesZoekresultaten(serpRespons([{ type: "organic", rank_group: 1, title: "x", url: "https://x.nl" }], 40101));
+  ok("een mislukte taak geeft een lege pagina", fout.organisch.length === 0 && fout.aiOverzicht === null);
+  ok("rommel geeft een lege pagina, geen fout", leesZoekresultaten(null).organisch.length === 0 && leesZoekresultaten({ tasks: [{ status_code: 20000, result: [{ items: [null, 3, "x"] }] }] }).vragen.length === 0);
+});
+
+group("B34: welke zoekopdrachten", () => {
+  eq(
+    "titel, kernvraag en doelvragen, zonder dubbelingen",
+    zoekopdrachtenVoor({ titel: "Warmtepomp  kosten", kernvraag: "warmtepomp kosten?", doelvragen: ["Is een warmtepomp het waard?", "", "Is een Warmtepomp het waard"] }).join(" | "),
+    "Warmtepomp kosten | Is een warmtepomp het waard?",
+  );
+  eq("hooguit acht", String(zoekopdrachtenVoor({ titel: "t", kernvraag: null, doelvragen: Array.from({ length: 20 }, (_, i) => `vraag ${i}`) }).length), String(MAX_ZOEKOPDRACHTEN));
+});
+
+group("B34: extern blijft extern (het voorbeeld van de eigenaar)", () => {
+  const merk = { url: "https://www.zonnig-dak.nl", namen: ["Zonnig Dak", "ZD"], concurrenten: ["Zonnestroom BV"] };
+  eq(
+    "een zin met de naam van de klant gaat eruit, een naam van twee letters telt niet",
+    zonderEigenMerk("Zonnepanelen gaan 25 jaar mee. Zonnig Dak biedt gratis installatie. ZD is een afkorting.", merk.namen),
+    "Zonnepanelen gaan 25 jaar mee. ZD is een afkorting.",
+  );
+  const schoon = schoonResultaten(
+    {
+      organisch: [
+        { positie: 1, titel: "Zonnepanelen kopen", url: "https://www.zonnig-dak.nl/zon", domein: "zonnig-dak.nl", fragment: "Eigen site." },
+        { positie: 2, titel: "Zonnestroom BV: panelen", url: "https://zonnestroom.nl", domein: "zonnestroom.nl", fragment: "Zonnestroom BV levert in heel Brabant." },
+        { positie: 3, titel: "Winkel", url: "https://shop.zonnig-dak.nl", domein: "shop.zonnig-dak.nl", fragment: "" },
+      ],
+      vragen: [{ vraag: "Wat kost een paneel?", antwoord: "Zonnig Dak rekent 300 euro. Gemiddeld 250 euro.", bronUrl: "https://www.zonnig-dak.nl/prijs" }],
+      gerelateerd: ["zonnig dak ervaringen", "zonnepanelen subsidie"],
+      aiOverzicht: { tekst: "Zonnig Dak biedt gratis installatie.", bronnen: ["zonnig-dak.nl"] },
+    },
+    merk,
+  );
+  eq("de eigen site en zijn subdomeinen vallen weg", schoon.organisch.map((r) => r.domein).join(","), "zonnestroom.nl");
+  ok("een bekende concurrent wordt een andere aanbieder", !JSON.stringify(schoon).includes("Zonnestroom BV") && schoon.organisch[0]!.fragment.includes("een andere aanbieder"));
+  eq("uit een antwoord gaat alleen de zin over de klant", schoon.vragen[0]?.antwoord ?? "", "Gemiddeld 250 euro.");
+  ok("een bron op de eigen site telt niet als bron", schoon.vragen[0]?.bronUrl === null);
+  eq("een gerelateerde zoekopdracht met de merknaam gaat weg", schoon.gerelateerd.join(","), "zonnepanelen subsidie");
+  ok("een AI-overzicht dat alleen over de klant gaat, gaat helemaal weg", schoon.aiOverzicht === null);
+});
+
+group("B34: het blok voor de brief", () => {
+  ok("niets gelukt: geen blok", zoekresultatenBlok(null) === null && zoekresultatenBlok({ opgehaaldOp: "", kostenUsd: 0, zoekopdrachten: [{ zoekopdracht: "x", status: "mislukt", pagina: null, melding: "HTTP 500" }] }) === null);
+  const z: BriefZoekresultaten = {
+    opgehaaldOp: "2026-09-29T10:00:00Z",
+    kostenUsd: 0.008,
+    zoekopdrachten: [
+      { zoekopdracht: "warmtepomp kosten", status: "gelukt", melding: null, pagina: {
+        organisch: [{ positie: 1, titel: "Kosten warmtepomp", url: "https://mc.nl/wp", domein: "mc.nl", fragment: "f".repeat(1000) }],
+        vragen: [{ vraag: "Hoe lang gaat hij mee?", antwoord: "15 jaar.", bronUrl: "https://mc.nl/duur" }],
+        gerelateerd: ["hybride warmtepomp"],
+        aiOverzicht: { tekst: "Een warmtepomp kost tussen 4.000 en 12.000 euro.", bronnen: ["mc.nl"] },
+      } },
+      { zoekopdracht: "leeg", status: "gelukt", melding: null, pagina: { organisch: [], vragen: [], gerelateerd: [], aiOverzicht: null } },
+    ],
+  };
+  const blok = zoekresultatenBlok(z) ?? "";
+  ok("met de kop die zegt dat het extern is", blok.startsWith("ZOEKRESULTATEN VAN GOOGLE (extern onderzoek, niet over dit bedrijf)"));
+  ok("en de regel dat het niets over dit bedrijf zegt", blok.includes("wat hier over een bedrijf staat, zegt niets over dit bedrijf"));
+  ok("alle vier onderdelen", ["AI-overzicht van Google (bronnen: mc.nl)", "1. Kosten warmtepomp (https://mc.nl/wp)", "Hoe lang gaat hij mee?", "hybride warmtepomp"].every((d) => blok.includes(d)));
+  ok("een lang fragment wordt ingekort", !blok.includes("f".repeat(400)));
+  ok("een zoekopdracht zonder uitkomst geeft geen lege kop", !blok.includes('Zoekopdracht: "leeg"'));
+  ok("geen gedachtestreepje in het blok", !/[—–]/.test(blok));
+});
+
+group("B35: gratis is een harde belofte", () => {
+  const namen = ["Zonnig Dak"];
+  const gele = (tekst: string, bronnen: string[], algemeen: string[] = []) => geleZinnen(controleerHardeBeweringen(tekst, bronnen, namen, algemeen)).join("|");
+  eq("zonder bron wordt hij geel", gele("Wij installeren de panelen gratis.", ["Bedrijf: Zonnig Dak"]), "Wij installeren de panelen gratis.");
+  eq("met de klant als bron niet", gele("Wij installeren de panelen gratis.", ["De installatie is bij ons gratis."]), "");
+  eq(
+    "een belofte van een ander in het onderzoek dekt hem niet",
+    gele("Wij installeren de panelen gratis.", ["Bedrijf: Zonnig Dak"], ["Veel installateurs installeren gratis."]),
+    "Wij installeren de panelen gratis.",
+  );
+  eq("een zin die niet over het bedrijf gaat, niet", gele("Een adviesgesprek is vaak gratis.", []), "");
+});
+
+group("B34: de zoekresultaten schrijven nooit in de kennislaag", () => {
+  const bestanden = ["lib/pagina/zoekresultaten.ts", "lib/pagina/zoekresultaten-regels.ts", "lib/ai-overview/parse-serp.ts", "lib/ai-overview/client.ts"];
+  ok("de bestanden bestaan", bestanden.every(bestaatBestand));
+  ok("geen van hen schrijft in klantkennis", bestanden.every((p) => !schrijftInKlantkennis(leesBestand(p))));
+  ok("en importeert de schrijfingang van de kennislaag niet", bestanden.every((p) => !importeertModule(leesBestand(p), ["lib/kennis/vastleggen"])));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

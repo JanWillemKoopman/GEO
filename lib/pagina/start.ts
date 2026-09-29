@@ -16,7 +16,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
-import { contentTypeFor } from "@/lib/plan-writing";
+import { soortVanPlanPagina } from "@/lib/plan-writing";
 import { maakOpenVraag } from "@/lib/pagina/open-vraag";
 import { poortVoor } from "@/lib/pagina/brief";
 import type { SchrijfReden } from "@/lib/pagina/schrijfpoort";
@@ -50,6 +50,7 @@ interface PlanRij {
   profile_id: string;
   title: string;
   page_type: PageType;
+  content_type: string | null;
   status: string;
   is_buffer: boolean;
   topic_id: string | null;
@@ -109,7 +110,8 @@ async function paginaVoor(admin: Admin, p: PlanRij, negeerMaand: boolean): Promi
           analysis_id: analysisId,
           report_id: p.source_ref?.split("#")[0] || null,
           title: p.title,
-          type: contentTypeFor(p.page_type),
+          // B33: de soort van de plan-pagina zelf; alleen zonder soort de oude vertaling.
+          type: soortVanPlanPagina(p),
           target_intent: p.target_intent,
           action: verbeteren ? "verbeteren" : "nieuw",
           existing_url: verbeteren ? p.existing_url : null,
@@ -139,7 +141,7 @@ async function paginaVoor(admin: Admin, p: PlanRij, negeerMaand: boolean): Promi
 }
 
 const PLAN_KOLOMMEN =
-  "id, profile_id, title, page_type, status, is_buffer, topic_id, source_analysis_id, source_ref, " +
+  "id, profile_id, title, page_type, content_type, status, is_buffer, topic_id, source_analysis_id, source_ref, " +
   "recommendation_action, existing_url, related_url, target_intent, content_piece_id, plan_month_id, sort_order, scheduled_for";
 
 export interface Voorbereidingsuitslag {

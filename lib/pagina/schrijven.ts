@@ -28,7 +28,7 @@ import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 import { functieblok } from "@/lib/pipeline/paginafunctie";
 import { repareerMechanisch, type PaginaTekst } from "@/lib/pagina/mechanisch";
 import { laadOrganisatie } from "@/lib/pagina/organisatie";
-import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
+import { soortVan } from "@/lib/pagina/soorten";
 import {
   PaginaSchema,
   SCHRIJFOPDRACHT_VERSIE,
@@ -162,7 +162,8 @@ export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<S
   const bedrijfTekst = blokA(bedrijf);
   const blokken: SchrijfBlokken = {
     titel: pagina.titel,
-    paginasoort: SOORT_LABEL[pagina.type] ?? pagina.type,
+    paginasoort: soortVan(pagina.type).label,
+    soortBeschrijving: soortVan(pagina.type).beschrijving,
     handeling: pagina.handeling,
     bedrijf: bedrijfTekst,
     stem,

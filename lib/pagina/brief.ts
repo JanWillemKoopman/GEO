@@ -32,7 +32,9 @@ import {
 import { laadBedrijf, laadDoelvragen, laadMerk, laadPagina, laadPaginaDefinitie, siteTeksten, type PaginaBasis } from "@/lib/pagina/context";
 import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
 import { schrijfpoort, type SchrijfpoortOordeel as Poortuitslag } from "@/lib/pagina/schrijfpoort";
-import { SOORT_LABEL } from "@/lib/pagina/paginasoort";
+import { soortVan } from "@/lib/pagina/soorten";
+import { haalZoekresultatenVoorBrief } from "@/lib/pagina/zoekresultaten";
+import { zoekresultatenBlok, type BriefZoekresultaten } from "@/lib/pagina/zoekresultaten-regels";
 
 type Admin = SupabaseClient;
 
@@ -52,6 +54,12 @@ export interface BriefJson {
    * pagina zijn en niet van een andere.
    */
   kernvraagId?: string | null;
+  /**
+   * B34: de zoekresultaten van Google die de brief kreeg, geschoond, of null
+   * (een dienstpagina, de schakelaar uit, of niets gelukt). Ontbreekt bij een
+   * brief van vóór versie 7.
+   */
+  zoekresultaten?: BriefZoekresultaten | null;
 }
 
 export type BriefUitkomst =
@@ -196,12 +204,34 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
     laadPaginaDefinitie(admin, pagina.sourceRef),
   ]);
 
+  // B34: de zoekresultaten van Google, alleen voor een soort die ze krijgt.
+  // Na het laden hierboven, want de zoekopdrachten zijn de titel, de kernvraag
+  // en de doelvragen. Gooit nooit.
+  const soort = soortVan(pagina.type);
+  const zoekresultaten = await haalZoekresultatenVoorBrief(
+    {
+      type: pagina.type,
+      profileId: pagina.profileId,
+      analysisId: pagina.analysisId,
+      pieceId,
+      titel: pagina.titel,
+      kernvraag: definitie.kernvraag,
+      doelvragen: doelvragen.map((d) => d.vraag),
+    },
+    { url: merk.url, namen, concurrenten: merk.concurrenten },
+  ).catch((err) => {
+    console.error(`Zoekresultaten voor pagina ${pieceId} ophalen mislukt:`, err);
+    return null;
+  });
+
   const { parsed } = await callStructured({
     model: MODELS.content,
     system: BRIEF_SYSTEEM,
     user: briefInvoer({
       titel: pagina.titel,
-      paginasoort: SOORT_LABEL[pagina.type] ?? pagina.type,
+      paginasoort: soort.label,
+      soortBeschrijving: soort.beschrijving,
+      zoekresultaten: zoekresultatenBlok(zoekresultaten),
       handeling: pagina.handeling,
       zoekintentie: pagina.zoekintentie,
       waarom: pagina.waarom,
@@ -232,6 +262,7 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
     bedrijf: compactBedrijf(bedrijf),
     versie: BRIEF_VERSIE,
     kernvraagId: kernId ?? verwerkt.kernEerder,
+    zoekresultaten,
   };
   await admin.from("content_pieces").update({ brief_json: brief }).eq("id", pieceId).is("brief_json", null);
 

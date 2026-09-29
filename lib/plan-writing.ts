@@ -155,6 +155,12 @@ export function writeBlockNotice(
  * plan denkt in de functie van een pagina op de site (Nova's vier), de
  * schrijfpijplijn in de vorm van de tekst. Een categorie- en een dienstpagina
  * zijn allebei een landingspagina; informatief en overig worden een artikel.
+ *
+ * ⚠️ Alleen nog de terugval voor een plan-pagina zonder eigen soort
+ * (`planned_pages.content_type` leeg). Via deze vertaling werd een FAQ een
+ * artikel en een vergelijking een dienstpagina: op 29 september 2026 stonden er
+ * 4 FAQ- en 5 vergelijkingskansen, en geen enkele FAQ- of vergelijkingspagina
+ * (besluit B33, migratie 0130). Gebruik `soortVanPlanPagina()`.
  */
 export function contentTypeFor(pageType: PageType): ContentType {
   switch (pageType) {
@@ -163,6 +169,41 @@ export function contentTypeFor(pageType: PageType): ContentType {
       return "landing";
     default:
       return "article";
+  }
+}
+
+/** De vijf soorten tekst die de schrijfketen kent, in de volgorde van het keuzemenu. */
+export const CONTENT_TYPES: readonly ContentType[] = ["landing", "article", "gids", "faq", "comparison"];
+
+/** Is dit een soort die de keten kent? Alles anders is onbekend (conventie 3). */
+export function isContentType(waarde: unknown): waarde is ContentType {
+  return typeof waarde === "string" && (CONTENT_TYPES as readonly string[]).includes(waarde);
+}
+
+/**
+ * De soort tekst van een plan-pagina: zijn eigen soort als die er is, anders
+ * de oude vertaling uit het paginatype (besluit B33).
+ */
+export function soortVanPlanPagina(p: { content_type?: string | null; page_type: PageType }): ContentType {
+  return isContentType(p.content_type) ? p.content_type : contentTypeFor(p.page_type);
+}
+
+/**
+ * Het contenttype → het paginatype van het plan, voor de contentmix.
+ *
+ * De omgekeerde richting van `contentTypeFor()`, en even onvolledig: een
+ * landingspagina is in planwoorden een dienstpagina, een vergelijking een
+ * categoriepagina, en de rest (artikel, gids, FAQ) is informatief. Daarom
+ * draagt de plan-pagina sinds migratie 0130 ook zijn eigen soort.
+ */
+export function pageTypeFor(type: unknown): PageType {
+  switch (type) {
+    case "landing":
+      return "dienst";
+    case "comparison":
+      return "categorie";
+    default:
+      return "informatief";
   }
 }
 

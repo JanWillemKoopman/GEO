@@ -48,6 +48,7 @@ export const CONTENT_TYPE_PATH_HINT: Record<ContentType, string> = {
   faq: "veelgestelde-vragen",
   landing: "",
   comparison: "vergelijken",
+  gids: "gids",
 };
 
 export function suggestedPath(title: string, type: ContentType): string {

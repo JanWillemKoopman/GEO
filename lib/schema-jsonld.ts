@@ -83,7 +83,7 @@ export function schemaTypeFor(
   businessModel?: BusinessModel | null,
 ): string {
   if (type === "faq") return "FAQPage";
-  if (type === "article") return "Article";
+  if (type === "article" || type === "gids") return "Article";
   if (type === "comparison") return "WebPage";
 
   // landing
@@ -113,6 +113,8 @@ function acceptableTypes(
   if (type === "faq") return new Set(["FAQPage", "QAPage"]);
   if (type === "article")
     return new Set(["Article", "BlogPosting", "NewsArticle", "TechArticle"]);
+  // Een gids is een artikel dat de lezer stap voor stap helpt (B33).
+  if (type === "gids") return new Set(["Article", "BlogPosting", "TechArticle", "HowTo"]);
   if (type === "comparison")
     return new Set(["WebPage", "Article", "ItemList", "CollectionPage"]);
 

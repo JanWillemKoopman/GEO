@@ -37,28 +37,10 @@ import { readRecommendations, type RecommendationTarget } from "@/lib/pipeline/r
 import { legKansenVast, werkKennisgatBij, werkPotentieBij } from "@/lib/kansen/uit-rapport";
 import { schoonAdres, tekst, type RuweAanbeveling } from "@/lib/kansen/rapport";
 import type { BacklogItem, BacklogHandeling, DeclinedItem } from "@/lib/plan-backlog";
-import type { PageType } from "@/lib/types/database";
+import type { ContentType, PageType } from "@/lib/types/database";
+import { isContentType, pageTypeFor } from "@/lib/plan-writing";
 
 type Admin = ReturnType<typeof createAdminClient>;
-
-/**
- * Het contenttype van het rapport → het paginatype van het plan.
- *
- * Twee woordenlijsten die over hetzelfde gaan maar niet één op één passen; de
- * omgekeerde vertaling staat in `contentTypeFor()` in `lib/plan-writing.ts`. Een
- * landingspagina is in planwoorden een dienstpagina, een vergelijking een
- * categoriepagina, en de rest is informatief.
- */
-function pageTypeVoor(type: unknown): PageType {
-  switch (type) {
-    case "landing":
-      return "dienst";
-    case "comparison":
-      return "categorie";
-    default:
-      return "informatief";
-  }
-}
 
 /** De handeling van de kans → de twee handelingen die de voorraad kent. */
 function handelingVoor(handeling: string): BacklogHandeling {
@@ -135,7 +117,7 @@ export async function syncBacklog(
         .not("analysis_id", "is", null),
       admin
         .from("planned_pages")
-        .select("id, source_ref, funnel_stage_id, kans_id")
+        .select("id, source_ref, funnel_stage_id, kans_id, content_type")
         .eq("profile_id", profileId)
         .not("source_ref", "is", null),
       // Bewust geen `ensureFunnels()`: die staat in `lib/plans.ts`, dat dit
@@ -156,9 +138,9 @@ export async function syncBacklog(
   );
 
   const bestaand = new Map(
-    ((bestaandRows ?? []) as { id: string; source_ref: string | null; funnel_stage_id: string | null; kans_id: string | null }[])
+    ((bestaandRows ?? []) as { id: string; source_ref: string | null; funnel_stage_id: string | null; kans_id: string | null; content_type: string | null }[])
       .filter((r) => r.source_ref)
-      .map((r) => [r.source_ref as string, { id: r.id, faseId: r.funnel_stage_id, kansId: r.kans_id }]),
+      .map((r) => [r.source_ref as string, { id: r.id, faseId: r.funnel_stage_id, kansId: r.kans_id, soort: r.content_type }]),
   );
 
   // Alleen het laatste rapport per cluster (de rij hierboven staat op datum).
@@ -212,6 +194,7 @@ export async function syncBacklog(
     why: string | null;
     targetIntent: string | null;
     pageType: PageType;
+    contentType: ContentType | null;
     handeling: BacklogHandeling;
     existingUrl: string | null;
     relatedUrl: string | null;
@@ -233,7 +216,9 @@ export async function syncBacklog(
       // van de kans (`kansen.uitleg`) is voor het kansenscherm (N7).
       why: tekst(ruw.why),
       targetIntent: k.lezer,
-      pageType: pageTypeVoor(ruw.type),
+      pageType: pageTypeFor(ruw.type),
+      // B33: de soort van de aanbeveling zelf, zodat een FAQ geen artikel wordt.
+      contentType: isContentType(ruw.type) ? ruw.type : null,
       handeling,
       existingUrl: k.bestaande_url ?? schoonAdres(ruw.existingUrl),
       // Migratie 0083: alleen zinnig bij een nieuwe pagina, want bij
@@ -309,6 +294,12 @@ export async function syncBacklog(
     kans_id?: string;
     /** Alleen gezet als de rij nog geen fase had; een bestaande fase blijft staan. */
     funnel_stage_id?: string;
+    /**
+     * B33: alleen gezet als de kaart nog geen soort had. Zo krijgen de kaarten
+     * van vóór migratie 0130 alsnog de soort van hun aanbeveling, en blijft een
+     * soort die de consultant koos staan.
+     */
+    content_type?: ContentType;
   }[] = [];
 
   for (const [i, k] of kandidaten.entries()) {
@@ -330,6 +321,7 @@ export async function syncBacklog(
         target_count: raakt,
         ...(fase ? { funnel_stage_id: fase } : {}),
         ...(bestaandeRij.kansId ? {} : { kans_id: k.kansId }),
+        ...(!bestaandeRij.soort && k.contentType ? { content_type: k.contentType } : {}),
       });
       continue;
     }
@@ -339,6 +331,7 @@ export async function syncBacklog(
       profile_id: profileId,
       title: k.title,
       page_type: k.pageType,
+      content_type: k.contentType,
       topic_id: topicVanAnalyse.get(k.analysisId) ?? null,
       status: "gepland",
       sort_order: 0,
@@ -381,6 +374,7 @@ export async function syncBacklog(
         target_count: b.target_count,
         ...(b.funnel_stage_id ? { funnel_stage_id: b.funnel_stage_id } : {}),
         ...(b.kans_id ? { kans_id: b.kans_id } : {}),
+        ...(b.content_type ? { content_type: b.content_type } : {}),
       })
       .eq("id", b.id);
   }

@@ -35,6 +35,8 @@ import { naarActueleVersies } from "@/lib/kennis/versies";
 import { commercieleWaardeVan } from "@/lib/kansen/rapport";
 import { uitlegVan, type KansHandeling } from "@/lib/kansen/prioriteit";
 import { legAfhankelijkhedenVast } from "@/lib/afhankelijkheden/vastleggen";
+import { isContentType, pageTypeFor } from "@/lib/plan-writing";
+import type { ContentType } from "@/lib/types/database";
 
 type Admin = SupabaseClient;
 
@@ -48,6 +50,8 @@ export interface HandmatigeKansInvoer {
   geldtVoor: readonly string[];
   /** Vragen die de consultant later wil laten meten. Leeg mag: dan is er nog geen nulmeting. */
   doelvragen: readonly string[];
+  /** De soort tekst (B33). Onbekend of leeg: een artikel, zoals tot 29 september 2026. */
+  contentType?: ContentType | null;
   gebruikerId: string;
 }
 
@@ -129,6 +133,9 @@ export async function voegHandmatigeKansToe(
   }
 
   const uitleg = uitlegVan({ handeling: invoer.handeling, bewijs: [{ bron: "consultant" }] });
+  // B33: zonder keuze een artikel, want zo schreef de keten een handmatige kans
+  // tot 29 september 2026 (`page_type` informatief, dus `contentTypeFor()` article).
+  const soort: ContentType = isContentType(invoer.contentType) ? invoer.contentType : "article";
 
   const { data: kansRow, error: kansError } = await admin
     .from("kansen")
@@ -144,6 +151,9 @@ export async function voegHandmatigeKansToe(
       status: "open",
       uitleg,
       vastgelegd_door: invoer.gebruikerId,
+      // Dezelfde plek als bij een kans uit het rapport, zodat het kennisgat (N6)
+      // de behoeften van deze soort pakt.
+      ruw: { type: soort },
     })
     .select("id")
     .single();
@@ -164,6 +174,8 @@ export async function voegHandmatigeKansToe(
   const { error: kaartError } = await admin.from("planned_pages").insert({
     profile_id: invoer.profileId,
     title: titel,
+    page_type: pageTypeFor(soort),
+    content_type: soort,
     source_analysis_id: analysisId,
     kans_id: kansId,
     target_intent: invoer.lezer?.trim() || null,

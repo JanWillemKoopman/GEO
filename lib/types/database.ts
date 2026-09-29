@@ -26,7 +26,8 @@ export type MentionSentiment = "positive" | "neutral" | "negative";
  * aanbevolen of alleen genoemd", het verschil dat klanten oplevert.
  */
 export type MentionRole = "eerste_aanbeveling" | "een_van_meerdere" | "zijdelings";
-export type ContentType = "article" | "faq" | "landing" | "comparison";
+/** De soort tekst. `gids` sinds migratie 0130 (besluit B33). */
+export type ContentType = "article" | "faq" | "landing" | "comparison" | "gids";
 /** `draft` = tussenstand tijdens generatie (migratie 0013): stap 1 klaar, stap 2 nog niet. */
 /**
  * `briefing` = door de klant gekozen, wacht op zijn antwoorden vóórdat er ook
@@ -103,6 +104,12 @@ export interface PlannedPage {
   title: string;
   url_path: string | null;
   page_type: PageType;
+  /**
+   * De soort tekst (migraties 0107 en 0130, besluit B33): uit de aanbeveling,
+   * of gekozen door de consultant. Null = afgeleid van `page_type`
+   * (`soortVanPlanPagina()` in `lib/plan-writing.ts`).
+   */
+  content_type?: ContentType | null;
   funnel_stage_id: string | null;
   topic_id: string | null;
   /** Het cluster waar deze kans uit voortkomt (migratie 0065). Null bij een kans buiten een meting om. */

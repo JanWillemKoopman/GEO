@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
+import { CONTENT_TYPES } from "@/lib/plan-writing";
+import { SOORTEN } from "@/lib/pagina/soorten";
+import type { ContentType } from "@/lib/types/database";
 
 /**
  * De handmatige kans (N5): een kans die de meting niet vond, door de
@@ -33,6 +36,9 @@ export function HandmatigeKansFormulier({
   const [bestaandeUrl, setBestaandeUrl] = useState("");
   const [geldtVoor, setGeldtVoor] = useState<string[]>([]);
   const [doelvragenTekst, setDoelvragenTekst] = useState("");
+  // B33: de soort tekst. Standaard een artikel, zoals een handmatige kans tot
+  // 29 september 2026 altijd werd.
+  const [soort, setSoort] = useState<ContentType>("article");
 
   const reset = () => {
     setTitel("");
@@ -41,6 +47,7 @@ export function HandmatigeKansFormulier({
     setBestaandeUrl("");
     setGeldtVoor([]);
     setDoelvragenTekst("");
+    setSoort("article");
   };
 
   const versturen = async () => {
@@ -61,6 +68,7 @@ export function HandmatigeKansFormulier({
           titel,
           lezer: lezer.trim() || null,
           handeling,
+          contentType: soort,
           bestaandeUrl: handeling === "pagina_verbeteren" ? bestaandeUrl : null,
           geldtVoor,
           doelvragen: doelvragenTekst
@@ -114,6 +122,18 @@ export function HandmatigeKansFormulier({
         value={lezer}
         onChange={(e) => setLezer(e.target.value)}
       />
+      <select
+        className="field field-sm field-select"
+        aria-label="Soort pagina"
+        value={soort}
+        onChange={(e) => setSoort(e.target.value as ContentType)}
+      >
+        {CONTENT_TYPES.map((t) => (
+          <option key={t} value={t}>
+            {SOORTEN[t].keuze}
+          </option>
+        ))}
+      </select>
       <div className="flex gap-2">
         <select
           className="field field-sm field-select"

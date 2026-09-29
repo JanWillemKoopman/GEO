@@ -83,6 +83,11 @@ const BELOFTEWOORDEN: [RegExp, string][] = [
   [/\bde grootste\b/i, "grootste"],
   [/\bde enige\b/i, "enige"],
   [/\bnummer 1\b|\bnummer één\b/i, "nummer 1"],
+  // B35 (29 september 2026): "gratis" is een bedrag, namelijk nul. Zonder deze
+  // regel ving alleen de eindredacteur een verzonnen "wij installeren gratis"
+  // af, en met de zoekresultaten van Google (B34) staat zo'n belofte van een
+  // ander bedrijf voortaan vaker in de invoer van de brief.
+  [/\bgratis\b/i, "gratis"],
 ];
 
 /** Een zin gaat over het bedrijf als hij de wij-vorm of de bedrijfsnaam gebruikt. */
