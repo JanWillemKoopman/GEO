@@ -22,10 +22,16 @@
 > **Voorbehoud.** Of de feedback van een mens of van een AI komt, is nog open. Deze analyse leunt
 > daar weinig op: de meeste bevindingen komen uit de invoer en uitvoer van de stappen zelf, niet uit
 > het oordeel over de tekst.
+>
+> **Tweede ronde (29 september 2026, op verzoek van de eigenaar).** Een extra, diepere doorlichting
+> met nadruk op de clusters, de kansen en de voorgestelde pagina's, plus de uitvoer van de schrijver,
+> de vragen aan de klant, de verbeterpagina's en het opleveren. Die leverde één nieuwe rode draad op
+> (R7) en de voorstellen V17 tot en met V23. Ze staan op hun plek in de keten; alles uit de eerste
+> ronde blijft staan.
 
 ---
 
-## 1. Het grote plaatje in één alinea
+## 1. Het grote plaatje
 
 De keten schrijft al behoorlijke teksten, en bij rijke invoer herkenbaar eigen teksten ("klinkt als
 dit bedrijf" 5,0 bij klant A). Wat ronde 1 laat zien, zit bijna nergens in het schrijven zelf. Het zit
@@ -36,7 +42,13 @@ keten slimmer door de schrijver betere informatie te geven, niet door er besliss
 bouwen. De verbeteringen hieronder gaan dus vooral over de kwaliteit van de invoer en over het
 opruimen van wat de tekst stroever maakt.
 
-## 2. Zes rode draden (de oorzaken die in meerdere stappen terugkomen)
+De tweede ronde voegde daar een laag onder toe: **de clusters en kansen zelf**. Een cluster dat
+de consultant intypt, hangt niet aan het aanbod van het bedrijf, en de clusters van één merk
+overlappen zonder dat iemand het ziet. Daardoor klopt het kennisgat niet, telt de voorrang van de
+klant niet mee, en wijzen meerdere rapporten naar dezelfde pagina. Dat is het fundament onder de
+rest, en het gaat daarom vroeg in de bouwvolgorde.
+
+## 2. Zeven rode draden (de oorzaken die in meerdere stappen terugkomen)
 
 Dit zijn geen losse klachten maar mechanismen. Elk mechanisme verklaart een deel van meerdere
 patronen uit de feedback, en elk komt in meer dan één stap voor. Het verbeterplan (§4) is op deze
@@ -147,6 +159,49 @@ Naast het afkappen van antwoorden (R2):
 - **Verificatie zonder gereedschap.** Een al geschreven pagina opnieuw laten schrijven met dezelfde
   brief en antwoorden kan niet via de app (stap 6 van het vervolgplan). Dat maakt elke
   verbetering lastig te toetsen, en conventie 10 vraagt juist om die toets.
+- **Een vangnet dat bij de ombouw is losgeraakt.** `functieblok()` in
+  `lib/pipeline/paginafunctie.ts` zorgde dat een verbeterde pagina zijn functie houdt (een
+  prijzenpagina blijft een prijzenpagina). Het werd gebouwd na precies die fout op 24 september, en
+  wordt sinds de ombouw van de contentketen nergens meer aangeroepen. In ronde 1 gebeurde het
+  opnieuw: `myfinance.nl/prijzen/` is de prijspagina van de software (pakketten vanaf €10), en de
+  keten schreef hem om naar een pagina over de boekhoudservice. Het vanafbedrag van €89,95 van die
+  pagina verdween daarbij uit de tekst.
+- **Verbeterpagina's afgekapt op 6.000 tekens.** Twee van de twaalf verbeterpagina's stonden precies
+  op die grens. De schrijver verbetert dan een pagina waarvan hij het einde niet heeft gezien.
+
+### R7. Clusters en kansen staan los van het aanbod en van elkaar
+
+Dit is de belangrijkste vondst van de tweede ronde, en hij verklaart een deel van R1, R2 en R5.
+
+- **Een cluster dat de consultant zelf intypt, hangt nergens aan.** De app koppelt een kans alleen
+  aan een dienst als het cluster uit een voorgesteld onderwerp komt (`profile_topics.offering_ids`).
+  Alle negen clusters van ronde 1 zijn ingetypt, ook als er een bijna gelijk voorstel lag
+  ("Buitengesloten: deur laten openen" tegenover het ingetypte "Buitengesloten? Deur laten
+  openen"). Gevolg: **geen van de 29 kansen hangt aan een dienst**; bij Myfinance hangt geen enkele
+  kans ergens aan, bij de slotenmaker alleen aan een plaats. Intypen is een gewone route in de app
+  (hoofdstuk 9), dus dit geldt voor elke klant die zo werkt.
+- **Wat daardoor stil misgaat:**
+  - het **kennisgat** is bij bijna elke kans hetzelfde lijstje ("werkwijze, prijs, termijn, voor wie
+    niet"), ook bij de slotenmaker, die zijn prijzen en werkwijze uitgebreid gaf. De code telt
+    alleen kennis die aan de dienst van de kans hangt, en die is er niet. De brief krijgt de
+    opdracht "vraag eerst daarnaar", en vraagt dus opnieuw naar wat al bekend is. Dat is de
+    eigenlijke oorzaak van de herhaalde vragen bij IJsselstein (waarneming 1.5);
+  - de **commerciële waarde** is bij alle 29 kansen "gewoon": wat de klant in het gesprek als
+    voorrang aangaf (de noodopening, wespennesten), telt niet mee bij het ordenen van het plan;
+  - een antwoord op een vraag wordt **niet gedeeld** met de andere pagina's over dezelfde dienst, en
+    blok A kiest bij gebrek aan een dienst op losse woorden (vandaar het hoornaarantwoord op de
+    mollenpagina).
+- **De clusters van één merk overlappen, en niemand ziet het.** Bij Myfinance staan "is zelf
+  boekhouden goedkoper dan een online boekhouder", "is een online boekhouder persoonlijk genoeg" en
+  "te laat aanleveren" in alle drie de clusters. Die vragen worden drie keer gemeten, tellen drie
+  keer mee in de score, en leiden in drie rapporten tot dezelfde aanbeveling: "vergelijk zelf
+  boekhouden met uitbesteden" staat in **alle drie** de rapporten.
+- **Het plan laat twee kaarten voor dezelfde pagina toe.** Drie bestaande pagina's (Nieuwegein,
+  /prijzen/, /online-boekhouder/) staan twee keer in het plan, in twee verschillende maanden. In de
+  tweede maand zou de app dezelfde pagina opnieuw en anders herschrijven, en krijgt de klant twee
+  vervangingen voor één adres.
+- **Dunne kansen.** Negen van de 29 kansen rusten op één meetvraag. Ze komen achteraan in het plan,
+  maar ze vullen de voorraad en blijven daar als losse kaart staan.
 
 ---
 
@@ -206,8 +261,13 @@ De verbeteringen staan hier kort; de uitwerking in §4 (met de code tussen haakj
   het onderwerp past. Bij B kwam "te laat aanleveren" vijf keer terug in 90 vragen, ook in het
   aangiftecluster; bij A spiegelden twee uitgezette vragen een werkwijze uit het gesprek (waarneming
   1.7). Dan meet de meetlat deels het eigen verkoopverhaal.
+- **Tweede ronde:** hier begint R7. Een ingetypt cluster krijgt geen diensten mee, en de
+  meetvragen worden alleen binnen één cluster ontdubbeld, niet over de clusters van het merk heen.
+  Het scherm waarschuwt ook niet als een nieuw cluster bijna gelijk is aan een bestaand cluster of
+  aan een voorgesteld onderwerp.
 - **Beter:** V11 in §4: hooguit één bezwaarvraag per cluster, en alleen een bezwaar dat bij het
-  onderwerp past. Plaatsen in plaats van regio's volgt uit V10.
+  onderwerp past. Plaatsen in plaats van regio's volgt uit V10. Uit de tweede ronde: V17 (elk
+  cluster hangt aan het aanbod) en V18 (meetvragen en clusters ontdubbelen over het merk).
 
 ### 3.5 De meting (hoofdstuk 10)
 
@@ -231,15 +291,29 @@ Dit is de stap met de meeste invloed op de uiteindelijke pagina's, en hij krijgt
   - overlap tussen clusters en binnen één cluster (R5);
   - bij A zeven plaatspagina's van de twaalf aanbevelingen, waar besluit B12 (de plaatsregel) al een
     antwoord op heeft dat nog niet gebouwd is.
+- **Tweede ronde, de negen rapporten naast elkaar:** 29 aanbevelingen, waarvan 23 een bestaande
+  pagina verbeteren. Bij Myfinance komen 11 aanbevelingen neer op ongeveer zes verschillende
+  pagina's: /prijzen/ en /online-boekhouder/ worden elk door twee clusters aanbevolen, en "zelf
+  boekhouden of uitbesteden" door alle drie. Bij de slotenmaker gaan zeven van de twaalf over een
+  plaatspagina, en Zeist en Nieuwegein komen elk uit twee rapporten. Het rapport kiest ook
+  bestaande pagina's met een andere functie om te verbeteren: een nieuwsbericht, een tipspagina,
+  een kennisbankartikel en de prijspagina van de software.
 - **Beter:** V6, V7 en V8 in §4. Dit is de grootste verandering in het plan, en ze zit in een
-  bestaande aanroep.
+  bestaande aanroep. Uit de tweede ronde: V17 (kansen aan het aanbod) en V21 (de functie van een
+  bestaande pagina).
 
 ### 3.7 Het contentplan (hoofdstuk 12)
 
 - **Oordeel:** de mechaniek werkt (voorraad, maanden, vrijgeven). Het plan vult op potentie en kijkt
   niet naar overlap of naar wat we per kans al weten.
+- **Tweede ronde:** de potentiescore is bij **alle 29** kaarten leeg, omdat er geen zoekvolume
+  bekend is. Dat is terecht (onbekend is beter dan verkeerd, conventie 3), maar het betekent dat het
+  plan in de praktijk alleen op de geschatte weging van de meetvragen ordent. De commerciële waarde
+  had dan het verschil kunnen maken, maar die is door R7 overal "gewoon". De wensen van de klant uit
+  het gesprek bepalen de volgorde dus niet. Daarnaast staan drie pagina's twee keer in het plan.
 - **Beter:** de set-regels van V7 gelden ook bij het vullen. De consultant ziet op de kaart welke
-  kernvraag nog openstaat (V8), zodat hij een kaart kan wisselen vóór hij de maand vrijgeeft.
+  kernvraag nog openstaat (V8), zodat hij een kaart kan wisselen vóór hij de maand vrijgeeft. Uit de
+  tweede ronde: V17 geeft de voorrang van de klant weer gewicht, en V20 houdt één kaart per pagina aan.
 
 ### 3.8 De brief (hoofdstuk 13)
 
@@ -270,8 +344,16 @@ Dit is de stap met de meeste invloed op de uiteindelijke pagina's, en hij krijgt
   de meeste vragen (C 31, A 28, B 25, waarneming 1.6), omdat het aantal vragen het gat volgt en bij C
   het gat het grootst is. Dat is verklaarbaar, maar het werkt tegen de klant die het minst tijd heeft.
 - **Een stil gat:** het afkappen op 500 tekens (R2).
+- **Tweede ronde, de vragen zelf:** van de 66 gerichte vragen bestaan er 59 uit meerdere vragen in
+  één zin ("wat trof je aan, wat heb je gedaan, hoeveel bezoeken waren nodig en wat betaalde de
+  klant? Mag dit voorbeeld zonder naam op de pagina?"), en 32 zijn langer dan 200 tekens. Een
+  drukke ondernemer slaat zo'n vraag over of beantwoordt een deel. In 19 van de uitlegzinnen die
+  de klant ziet, staat "de schrijver", in 5 "verzinnen": de klant leest hoe de machine werkt in
+  plaats van wat zijn antwoord oplevert. En De Waard kreeg drie bijna gelijke vragen om bewijs of
+  toestemming voor foto's, één per dienst, terwijl dat voor het hele bedrijf één antwoord is.
 - **Beter:** V1 (niet meer afkappen), en V8 (de kernvraag herkenbaar maken, zodat een drukke klant
-  weet welke ene vraag er echt toe doet). Het aantal vragen zelf laat ik bewust staan: B13 zegt dat
+  weet welke ene vraag er echt toe doet). Uit de tweede ronde: V22 (korte, enkelvoudige vragen in
+  de taal van de klant). Het aantal vragen zelf laat ik bewust staan: B13 zegt dat
   vragen de kern is, en een beter gedefinieerde pagina (V6) vraagt vanzelf gerichter.
 
 ### 3.10 Het schrijven (hoofdstuk 15)
@@ -285,7 +367,16 @@ Dit is de stap met de meeste invloed op de uiteindelijke pagina's, en hij krijgt
   input vol herhaling (R2) en een opdrachttitel die iets belooft wat er niet is (R1), wint lengte.
   Dat is K3 uit het vervolgplan, en die blijft staan. Maar het meeste van patroon 2, 4 en 5 lost zich
   eerder op in de invoer (V3, V4, V6) dan in de opdracht.
-- **Beter:** V13 in §4.
+- **Tweede ronde, bij een verbeterpagina:** de schrijver krijgt alleen "dit is een bestaande pagina;
+  schrijf een betere versie". Hij hoort niet welke functie de pagina heeft (R6: het vangnet is
+  losgeraakt), en niet dat de concrete gegevens van de huidige pagina moeten blijven staan tenzij
+  ze niet meer kloppen. Op de prijspagina van Myfinance verdween zo een bedrag van de huidige pagina,
+  zonder dat iemand dat te zien kreeg.
+- **Tweede ronde, de notities van de schrijver:** bij Myfinance vroegen vier pagina's los van
+  elkaar hetzelfde ("is €69,95 inclusief of exclusief btw?"), bij De Waard twee keer "welk
+  telefoonnummer mag erop?". Een gegeven dat ontbreekt, ontbreekt voor alle pagina's tegelijk.
+- **Beter:** V13 in §4. Uit de tweede ronde: V21 (de functie en de gegevens van een verbeterpagina
+  blijven staan).
 
 ### 3.11 De controle en de herschrijving (hoofdstuk 16)
 
@@ -305,14 +396,22 @@ Dit is de stap met de meeste invloed op de uiteindelijke pagina's, en hij krijgt
 - **Een gemiste lus:** de schrijver vult per pagina `notitie_voor_ondernemer` in: wat hij nog had
   willen weten. Dat is precies de informatie die de volgende pagina beter maakt, maar het blijft een
   notitie op het scherm. Het antwoord komt nergens in de kennislaag.
-- **Beter:** V16 in §4 (klein, geen AI).
+- **Tweede ronde, de gestructureerde gegevens:** voor een product dat om zichtbaarheid in
+  AI-antwoorden draait, is dit het deel dat een AI-assistent vertelt wie het bedrijf is. Nu staat er
+  alleen een "Organization" met naam, webadres en sociale profielen, en een "Service" zonder
+  werkgebied. Geen adres, geen telefoonnummer, geen werkgebied, geen
+  openingstijden, terwijl de app die gegevens wel kent. De beschrijving erin is de metabeschrijving,
+  dus ook de app-taal ("voor mollenbestrijding bij De Waard is geen richtprijs bevestigd"). En de
+  publicatiedatum is het moment van schrijven, niet van publiceren.
+- **Beter:** V16 in §4 (klein, geen AI). Uit de tweede ronde: V23 (de gestructureerde gegevens uit
+  de kennislaag).
 
 ---
 
 ## 4. Het verbeterplan
 
-Zestien voorstellen, geordend naar waar ze in de keten ingrijpen. Per voorstel: wat, waarom het voor
-elke klant helpt, waar in de code, en of het een besluit van de eigenaar vraagt (§6). "Code" betekent
+Vijfentwintig voorstellen (V0 tot en met V23, plus V3a), geordend naar waar ze in de keten
+ingrijpen; groep F komt uit de tweede ronde. Per voorstel: wat, waarom het voor elke klant helpt, waar in de code, en of het een besluit van de eigenaar vraagt (§6). "Code" betekent
 een deterministische regel (conventie 1), "opdracht" een wijziging in een bestaande opdracht aan een
 model. Geen enkel voorstel voegt een AI-aanroep of een taaksoort toe.
 
@@ -507,7 +606,85 @@ Wat de schrijver in `notitie_voor_ondernemer` zet ("hoe lang duurt een montage?"
 vraag van het merk in "Jouw beurt", gekoppeld aan de dienst van de pagina. Het antwoord gaat de
 kennislaag in en helpt elke volgende pagina over die dienst, en de klant kan met dat antwoord "Vraag
 een aanpassing" doen. Eén lus die er al half ligt, zonder nieuwe aanroep. (Raakt §3 regel 8 niet:
-dat gaat over de vaste open vraag.)
+dat gaat over de vaste open vraag.) Uit de tweede ronde: vraagt een tweede pagina hetzelfde ("is
+€69,95 inclusief btw?"), dan wordt het geen tweede vraag maar hangt de pagina aan de bestaande,
+met dezelfde ontdubbeling als de brief al heeft.
+
+### F. Tweede ronde: clusters, kansen, verbeterpagina's, vragen en opleveren
+
+**V17. Elk cluster hangt aan het aanbod.** *Code en een bestaande aanroep, middel. De wortel van R7.*
+1. Typt de consultant een onderwerp in dat bijna gelijk is aan een voorgesteld onderwerp, dan stelt
+   het scherm voor dat voorstel te gebruiken, met zijn diensten.
+2. Anders kiest het onderwerponderzoek (`topic_research`, dat al kijkt wat de eigen site over het
+   onderwerp zegt) de passende diensten uit de aanbodboom. De code neemt alleen diensten over die
+   echt bestaan. De consultant ziet ze bij het bevestigen van de meetvragen en kan ze aanpassen.
+3. Voor de bestaande merken één keer bijwerken: de clusters koppelen en het kennisgat en de
+   commerciële waarde van de kansen opnieuw uitrekenen.
+
+Wat het oplost voor elke klant: het kennisgat klopt weer (dus minder en betere vragen), de voorrang
+die de klant in het gesprek gaf telt mee in het plan, een antwoord helpt alle pagina's over dezelfde
+dienst, en blok A kiest op dienst in plaats van op losse woorden.
+(`lib/pipeline/topic-research.ts`, `lib/kansen/uit-rapport.ts`, het clusterscherm.)
+
+**V18. Meetvragen en clusters ontdubbelen over het hele merk.** *Code en opdracht, klein tot middel.
+Besluit B-i.*
+1. Het opstellen van de meetvragen krijgt de vragen van de andere clusters van het merk mee, en het
+   bestaande vangnet voor dubbele vragen loopt over alle clusters van het merk, niet alleen binnen
+   één cluster.
+2. Bij het aanmaken van een cluster waarschuwt het scherm als het onderwerp dicht bij een bestaand
+   cluster ligt ("lijkt op: Online boekhouder met vaste prijs"). Het houdt niets tegen.
+
+Wat het oplost: één vraag wordt één keer gemeten en telt één keer mee, en drie rapporten wijzen niet
+meer naar dezelfde pagina. Het scheelt ook meetkosten. (`lib/pipeline/prompts.ts`,
+`lib/pipeline/prompt-dedupe.ts`.)
+
+**V19. Het kennisgat eerlijk maken.** *Code, klein.*
+Volgt grotendeels uit V17 en V5. Daarnaast: het gat wordt na elk antwoord opnieuw uitgerekend, en
+"hoe we werken" uit het gesprek telt als werkwijze voor elke dienst. Een kennisgat dat bijna altijd
+hetzelfde lijstje geeft, stuurt de brief de verkeerde kant op; een eerlijk gat is precies wat B21
+bedoelde. (`lib/kansen/kennisgat.ts`.)
+
+**V20. Eén kaart per pagina, en dunne kansen worden bewijs.** *Code, klein.*
+1. Staat er voor een bestaande pagina al een kaart in het plan of de voorraad, dan wordt een nieuwe
+   kans voor dezelfde pagina daaraan toegevoegd als extra bewijs, in plaats van een tweede kaart.
+   Twee vervangingen voor één adres kunnen dan niet meer.
+2. Een kans die op één meetvraag rust en bij de dienst van een bestaande kans past, wordt bewijs bij
+   die kans. Past hij nergens bij, dan blijft hij in de voorraad, met "rust op één meetvraag" op de
+   kaart.
+
+Dit is V7 punt 2 doorgetrokken naar het plan. (`lib/plans.ts`, `lib/kansen/uit-rapport.ts`.)
+
+**V21. Een verbeterpagina houdt zijn functie en zijn gegevens.** *Code, klein tot middel. Punt 3 is
+besluit B-h.*
+1. `functieblok()` weer aansluiten: de schrijver krijgt bij een verbeterpagina de functie van de
+   pagina mee (prijzenpagina, overzicht, onderwerp). Dat vangnet bestond al en is bij de ombouw
+   losgeraakt. De lijst krijgt er twee soorten bij: een nieuwsbericht en een tips- of
+   kennisbankpagina worden niet vervangen door een dienstpagina; dan wordt het een nieuwe pagina met
+   die pagina als verwante pagina, zoals nu al bij de homepage.
+2. De grens van 6.000 tekens voor de huidige tekst omhoog, zodat de schrijver de hele pagina ziet.
+3. Na het schrijven zoekt de code welke harde gegevens van de huidige pagina (bedragen,
+   telefoonnummers, termijnen, keurmerken) niet meer in de nieuwe tekst staan, en toont die aan de
+   ondernemer: "deze gegevens staan op je huidige pagina en niet in de nieuwe". Niets houdt de pagina
+   tegen; het is dezelfde soort controle op harde feiten als de gele zinnen (conventie 1).
+(`lib/pipeline/paginafunctie.ts`, `lib/pagina/schrijfopdracht.ts`, `lib/pipeline/existing-page-match.ts`.)
+
+**V22. Korte vragen, één ding per vraag, in de taal van de klant.** *Opdracht in de brief, klein.*
+1. Eén vraag vraagt één ding. Wil de brief een voorbeeld én toestemming om het te noemen, dan zijn
+   dat twee korte vragen, of één vraag met een ja-of-nee erachter.
+2. De uitleg bij een vraag zegt wat het antwoord de lezer van de pagina oplevert, in de taal van de
+   ondernemer. Geen "de schrijver", geen "verzinnen".
+3. Een vraag naar bewijs (reviews, foto's, toestemming om een klus te noemen) is merkbreed: die
+   geldt voor het hele bedrijf en wordt één keer gesteld.
+
+Wat het oplost: juist de drukke klant beantwoordt meer vragen, en beter. Dit past bij B13: de klant
+ziet waarom we het vragen. (`lib/pagina/brief-opdracht.ts`.)
+
+**V23. De gestructureerde gegevens uit de kennislaag.** *Code, middel. Geen besluit nodig.*
+De organisatie krijgt het passende type (bij een lokaal bedrijf een lokaal bedrijf) met adres,
+telefoon, werkgebied en openingstijden uit de kennislaag; de dienst krijgt de aanbieder en het
+werkgebied. De publicatiedatum komt pas bij "deze pagina staat live". Dit is geen tekst en geen
+oordeel, maar het deel van de pagina dat een AI-assistent helpt het bedrijf te herkennen, en dus de
+kern van wat ORBIT ENGINE belooft. (`lib/schema-jsonld.ts`, `lib/pagina/organisatie.ts`.)
 
 ---
 
@@ -518,10 +695,10 @@ Elke fase is los te bouwen en los te toetsen. Na elke fase de vier controles (`t
 
 | Fase | Voorstellen | Waarom in deze volgorde | Toets |
 |---|---|---|---|
-| **1. Fundament** | V1, V2, V3a, V12, V0 | Stille verliezen eerst: elke latere toets is anders vervuild door afgekapte antwoorden en menu-tekst. V0 maakt de rest toetsbaar. | Eenheidstests; V2 op de opgeslagen pagina's van de drie merken nagerekend (conventie 10) |
-| **2. Invoer** | V3, V4, V5 | Het grootste effect op herhaling en feitelijkheid, zonder de schrijfopdracht aan te raken. Zo zien we wat de invoer alleen al doet. | Met V0 dezelfde achttien pagina's opnieuw laten schrijven, zonder nieuwe brief (ongeveer $0,20 per pagina) |
-| **3. Pagina-definitie en set** | V6, V7, V8 | Raakt het rapport, dus pas na de invoer: anders verandert er te veel tegelijk. | Rapporten opnieuw op de bestaande metingen (geen nieuwe meting nodig, het rapport leest opgeslagen data), dan een nieuwe maand van twee pagina's per klant |
-| **4. Na het schrijven** | V13, V14, V15, en T1 uit het vervolgplan | Als de invoer schoon is, is pas te zien wat de controle nog toevoegt. | T1 (eerste en herschreven versie naast elkaar), daarna T2 |
+| **1. Fundament** | V1, V2, V3a, V12, V0, V21 punt 1 en 2, V23 | Stille verliezen en het losgeraakte vangnet eerst: elke latere toets is anders vervuild door afgekapte antwoorden, menu-tekst en pagina's die hun functie verliezen. V0 maakt de rest toetsbaar. V23 is los werk met direct nut voor de zichtbaarheid. | Eenheidstests; V2 op de opgeslagen pagina's van de drie merken nagerekend (conventie 10) |
+| **2. Invoer** | V17, V19, V3, V4, V5, V22 | V17 eerst: zonder koppeling aan het aanbod kiezen blok A en het kennisgat op losse woorden. Daarna het grootste effect op herhaling en feitelijkheid, zonder de schrijfopdracht aan te raken. Zo zien we wat de invoer alleen al doet. | Met V0 dezelfde achttien pagina's opnieuw laten schrijven, zonder nieuwe brief (ongeveer $0,20 per pagina) |
+| **3. Pagina-definitie en set** | V6, V7, V8, V18, V20 | Raakt het rapport, dus pas na de invoer: anders verandert er te veel tegelijk. | Rapporten opnieuw op de bestaande metingen (geen nieuwe meting nodig, het rapport leest opgeslagen data), dan een nieuwe maand van twee pagina's per klant |
+| **4. Na het schrijven** | V13, V14, V15, V21 punt 3, en T1 uit het vervolgplan | Als de invoer schoon is, is pas te zien wat de controle nog toevoegt. | T1 (eerste en herschreven versie naast elkaar), daarna T2 |
 | **5. Onderzoek en meting** | V9, V10, V11, V16 | Verandert wat er gemeten en aanbevolen wordt; eigen verificatie op opgeslagen data, zoals groep 2 van het vervolgplan al zei. | Bij de volgende nieuwe klant van de testmethode |
 
 De verificatie volgt `docs/contentkwaliteit-testmethode.md` §8: dezelfde beoordelaar, hetzelfde
@@ -544,6 +721,8 @@ verbeteren).
 | **B-e** | Niet herschrijven bij alleen een ongedekte zin; die wordt geel. De versiekeuze op nieuwe ongedekte zinnen in plaats van op het aantal (V15) | Ja. K4 punt 3 pas na T1 | §6.6 en §6.7 (de beslisregel) |
 | **B-f** | Een beheeractie om een pagina opnieuw te laten schrijven met dezelfde invoer, alleen voor verificatie (V0) | Ja, alleen voor de eigenaar en consultants | §3 regel 7 (geen tweede route): dit plant geen pagina en is geen klantroute, maar het is jouw uitleg van die regel |
 | **B-g** | "Verhalen" wordt vier vakken en bezwaren worden paren met een antwoord (V5) | Ja | §6.3 (het tekstvak Verhalen) |
+| **B-h** | Na het schrijven ziet de ondernemer welke harde gegevens van zijn huidige pagina niet meer in de nieuwe tekst staan (V21 punt 3) | Ja. Een controle op harde feiten, geen oordeel over de tekst, en hij houdt niets tegen | §6.5 en §6.9 (een lijst op het goedkeuringsscherm, zoals de gele zinnen) |
+| **B-i** | Meetvragen worden over alle clusters van een merk ontdubbeld (V18) | Ja. Bestaande clusters blijven zoals ze zijn; alleen nieuwe clusters meten anders | De meting: de merkscore telt een vraag voortaan één keer |
 
 ---
 
@@ -563,6 +742,8 @@ Om de valkuil van de vorige keten te vermijden, en omdat de opdracht vraagt om a
   weten welke vraag ertoe doet (V8), niet minder vragen.
 - **Geen andere modellen voor het schrijven.** Het schrijven is niet de zwakke schakel. Alleen het
   rapport krijgt meer denktijd (V6), omdat daar de keuze valt welke pagina's er komen.
+- **Geen reviewscore in de gestructureerde gegevens.** De 5,0 van de slotenmaker is verleidelijk, maar Google staat een beoordeling die een bedrijf over zichzelf op de eigen site zet niet toe in deze gegevens. V23 houdt het bij feiten: adres, telefoon, werkgebied, openingstijden.
+- **Geen automatisch samenvoegen van clusters.** V18 waarschuwt; de consultant beslist. Twee clusters die op elkaar lijken, kunnen een bewuste keuze zijn.
 - **Methodepunten horen niet in de app.** M1 tot en met M5 en K5 van het vervolgplan gaan over de
   testmethode; die blijven daar.
 
@@ -578,10 +759,11 @@ Om de valkuil van de vorige keten te vermijden, en omdat de opdracht vraagt om a
 | K4 (de controle voegt niets toe) | V14 en V15 | Aangescherpt: ook de beslisregel bij alleen een ongedekte zin, en de versiekeuze. Punt 3 blijft na T1 |
 | K5 (sjabloonversie 3) | Blijft in de testmethode | Geen pijplijnwerk |
 | Nieuw | V0, V1, V2, V3, V3a, V5, V6, V8, V9, V10, V11, V12, V16 | Uit de invoer en uitvoer van de stappen zelf, niet uit de feedback alleen |
+| Nieuw, tweede ronde | V17 tot en met V23 | Uit de clusters, de kansen, het plan, de vragen, de verbeterpagina's en het opleveren |
 
 ## 9. Kosten
 
 Geen enkel voorstel voegt een AI-aanroep toe. Het rapport met meer denktijd kost per cluster een paar
 dollarcent extra, op een meetronde van ongeveer $1. V15 scheelt herschrijvingen (in ronde 1 drie van
-de tien, rond $0,05 per stuk). V4 punt 4 maakt de brief en de schrijfinvoer iets korter. Per saldo
+de tien, rond $0,05 per stuk). V4 punt 4 maakt de brief en de schrijfinvoer iets korter. V18 scheelt meetkosten: een vraag die nu in drie clusters staat, wordt één keer gemeten. V21 punt 2 maakt de invoer bij een lange verbeterpagina iets groter. Per saldo
 blijven de kosten per pagina ruim onder de grens van $0,50 uit B4.
