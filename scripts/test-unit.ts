@@ -295,12 +295,8 @@ import {
 import { activiteit, ALLE_TAAKSOORTEN, TAAK_TEKST } from "@/lib/activity";
 import { beperkSectie, groepeerPerSectie, wachtrijRegel } from "@/lib/wachtrij";
 import type { WorkItem } from "@/lib/work";
-import {
-  ADMIN_SECTIES,
-  ONBOARDING_TAKEN,
-  doorlooptijden,
-  duurSeconden,
-} from "@/lib/onboarding-insight";
+import { buildOnboardingStatus, statusZin } from "@/lib/pipeline/onboarding-status";
+import type { ResearchStep } from "@/lib/pipeline/research-steps";
 import {
   besteEnZwakste,
   ctr as gscCtr,
@@ -11110,7 +11106,6 @@ group("de afgeschermde routes zijn ook echt afgeschermd", () => {
   // Elke route die alleen voor beheerders is, moet `isStaff` aanroepen. Vergeet
   // er eentje dat, dan is het adres gewoon te raden.
   const afgeschermd = [
-    "app/(app)/merk/[id]/admin/page.tsx",
     "app/(app)/merk/[id]/admin/onboarding/page.tsx",
     "app/(app)/merk/[id]/admin/toewijzen/page.tsx",
     "app/(app)/beheer/page.tsx",
@@ -11145,14 +11140,14 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  // Zes over dít merk (Onboardinggesprek, 0-meting, Aanbodboom, Diagnose,
+  // Vijf over dít merk (Onboardinggesprek, 0-meting, Aanbodboom,
   // Concurrenten indelen, Toewijzen) plus "Alle merken" en "Koppelingen" over
   // de app als geheel. "Concurrenten indelen" kwam er op 2 september 2026 bij
   // (plan analytics-herontwerp.md, C1): zie de uitzondering bij
   // `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
   // Het Kwaliteitslab (0091) stond er tot 28 september 2026 als negende bij;
   // het scherm was al weg en de link gaf een 404. Zie `GRENS_PER_HOOFDSTUK`.
-  ok("een beheerder heeft acht Admin-bestemmingen", adminItems.length === 8);
+  ok("een beheerder heeft zeven Admin-bestemmingen", adminItems.length === 7);
   ok(
     "en het verdwenen Kwaliteitslab staat er niet meer in",
     !adminItems.some((i) => i.href === "/beheer/kwaliteit"),
@@ -11166,9 +11161,8 @@ group("de zijbalk verraadt niets aan een klant", () => {
     adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboardinggesprek"),
   );
   ok(
-    "met Diagnose ernaast, en niet nog een keer 'Onboarding-inzicht'",
-    adminItems.some((i) => i.label === "Diagnose") &&
-      !adminItems.some((i) => i.label === "Onboarding-inzicht"),
+    "Diagnose is verdwenen en opgegaan in de onboardingsessie (30 september 2026)",
+    !adminItems.some((i) => i.label === "Diagnose" || i.label === "Onboarding-inzicht"),
   );
   ok("allemaal gemarkeerd", adminItems.every((i) => i.staffOnly === true));
   ok(
@@ -11178,49 +11172,69 @@ group("de zijbalk verraadt niets aan een klant", () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-console.log("\nDiagnose (Admin)");
+console.log("\nStatus van de onboarding");
 
-group("de doorlooptijden houden ketenvolgorde", () => {
-  const taken = [
-    tk("profile_synthesis", "done", "2026-08-01T10:10:00Z", "2026-08-01T10:10:30Z"),
-    tk("profile_discover", "done", "2026-08-01T10:00:00Z", "2026-08-01T10:01:00Z"),
-    tk("profile_research", "error", "2026-08-01T10:02:00Z", null),
-    // Geen onboardingtaak: hoort hier niet in.
-    tk("measure_prompt", "done", "2026-08-01T11:00:00Z", "2026-08-01T11:00:05Z"),
-  ];
-  const t = doorlooptijden(taken);
+group("de teller telt precies wat eronder staat", () => {
+  const stap = (job: string, state: ResearchStep["state"], result: string | null = null): ResearchStep => ({
+    job: job as ResearchStep["job"],
+    label: job,
+    state,
+    result,
+  });
+  const alleStappen = (state: ResearchStep["state"]): ResearchStep[] =>
+    [
+      "profile_light_scan",
+      "profile_discover",
+      "profile_research",
+      "profile_offering",
+      "profile_market",
+      "technical_audit",
+      "propose_topics",
+      "profile_llm_baseline",
+      "profile_synthesis",
+    ].map((j) => stap(j, state, state === "klaar" ? "gevonden" : null));
+  const invoer = (over: Partial<Parameters<typeof assessReadiness>[0]> = {}) => ({
+    profileId: "p1",
+    steps: alleStappen("klaar"),
+    pages: 31,
+    offerings: 12,
+    topics: 8,
+    auditChecks: 20,
+    baselineRows: 5,
+    dossier: true,
+    openFactRequests: 0,
+    scopeKnown: true,
+    scopeDetail: "landelijk",
+    packagePages: null as number | null,
+    assigned: false,
+    ...over,
+  });
 
-  // ⚠️ Op ketenvolgorde en niet op tijd. Wie ziet dat een stap ontbreekt weet
-  // dan meteen dat de staart is blijven hangen; op tijd sorteren verbergt dat,
-  // want een taak die nooit draaide heeft geen tijd.
-  ok(
-    "op ketenvolgorde",
-    t.map((x) => x.type).join(",") === "profile_discover,profile_research,profile_synthesis",
-  );
-  ok("een taak buiten de onboarding valt weg", !t.some((x) => x.type === "measure_prompt"));
-  ok("de doorlooptijd is in seconden", t[0].secondenr === 60);
-  // Conventie 3: zonder eindtijd is de duur onbekend, niet nul.
-  ok("een taak zonder eindtijd heeft geen duur", t[1].secondenr === null);
-  ok("en houdt zijn status", t[1].status === "error");
+  // Het geval dat de consultant zag: alles wat blokkeert staat klaar, drie
+  // punten voor het gesprek nog niet. Balk en zin mogen dan geen 100% zeggen.
+  const i1 = invoer();
+  const s1 = buildOnboardingStatus(i1.steps, assessReadiness(i1));
+  ok("elke regel staat in precies één groep", s1.totaal === s1.groepen.reduce((n, g) => n + g.totaal, 0));
+  ok("negen onderzoekstaken, één werkgebied, drie afspraken", s1.totaal === 13);
+  ok("het onderzoek is helemaal klaar", s1.groepen[0].klaar === 9 && s1.groepen[0].totaal === 9);
+  ok("maar de teller zegt niet dat alles klaar is", s1.klaar < s1.totaal && !s1.allesKlaar);
+  ok("niets blokkeert het dossier", s1.nodigOpen.length === 0);
+  ok("de open punten zijn de afspraken", s1.optioneelOpen.length === 3);
+  ok("de zin noemt de open punten", statusZin(s1, "X").includes("staan nog 3 punten open"));
 
-  ok("een lege lijst geeft een lege lijst", doorlooptijden([]).length === 0);
-  ok("geen starttijd geeft null", duurSeconden(null, "2026-08-01T10:00:00Z") === null);
-  ok("een negatieve duur geeft null", duurSeconden("2026-08-01T10:00:00Z", "2026-08-01T09:00:00Z") === null);
+  const i2 = invoer({ packagePages: 10, assigned: true });
+  const s2 = buildOnboardingStatus(i2.steps, assessReadiness(i2));
+  ok("alles klaar telt als alles klaar", s2.allesKlaar && s2.klaar === s2.totaal);
 
-  function tk(type: string, status: string, started: string | null, finished: string | null) {
-    return { type, status, started_at: started, finished_at: finished, attempts: 1, last_error: null };
-  }
-});
+  // Een taak die klaar meldde zonder dat er iets staat, is niet klaar.
+  const i3 = invoer({ offerings: 0 });
+  const s3 = buildOnboardingStatus(i3.steps, assessReadiness(i3));
+  ok("een lege aanbodboom blokkeert, ook als de taak klaar meldde", s3.nodigOpen.some((r) => r.label === "Aanbod in kaart"));
 
-group("de negen secties zijn die van de klant", () => {
-  ok("negen secties", ADMIN_SECTIES.length === 9);
-  ok(
-    "in Nova's volgorde",
-    ADMIN_SECTIES.map((s) => s.naam).join(" · ") ===
-      "Bedrijf · Contact · Talen · Positionering · Doelgroep · Stem · Woorden · Auteur · Onderwerpen",
-  );
-  ok("negen onboardingtaken", ONBOARDING_TAKEN.length === 9);
-  ok("allemaal echte taaksoorten", ONBOARDING_TAKEN.every((t) => TAAK_TEKST[t] !== undefined));
+  // Draait er nog iets, dan is dat geen bevinding.
+  const i4 = invoer({ steps: alleStappen("bezig"), pages: 0, offerings: 0, topics: 0, auditChecks: 0, baselineRows: 0, dossier: false, scopeKnown: false });
+  const s4 = buildOnboardingStatus(i4.steps, assessReadiness(i4));
+  ok("tijdens het onderzoek loopt het", s4.loopt && statusZin(s4, "X").includes("nog bezig"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -19524,7 +19538,6 @@ group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
   ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/admin/feiten/page.tsx").includes('.not("kennis_ids", "is", null)'));
   // Sinds K7 staan de botsingen tussen kennisitems op hetzelfde conflictscherm,
   // dus de teller op het beheerscherm telt ze mee.
-  ok("de teller op het beheerscherm telt ook de botsingen in de kennis (K7)", !leesBestand("app/(app)/merk/[id]/admin/page.tsx").includes('.is("kennis_ids", null)'));
 });
 
 // ── K3: het terugvullen ─────────────────────────────────────────────────────

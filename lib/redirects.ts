@@ -97,6 +97,8 @@ export const DOORVERWIJZINGEN: Doorverwijzing[] = [
     destination: "/merk/:id/merkprofiel/bewerken",
     permanent: true,
   },
+  // Diagnose is op 30 september 2026 opgegaan in het onboardinggesprek.
+  { source: "/merk/:id/admin", destination: "/merk/:id/admin/onboarding", permanent: true },
   { source: "/profielen/:id/plan", destination: "/merk/:id/strategie/plan", permanent: true },
   { source: "/profielen/:id/techniek", destination: "/merk/:id/analytics", permanent: true },
   {

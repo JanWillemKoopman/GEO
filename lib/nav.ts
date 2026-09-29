@@ -107,7 +107,7 @@ export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
  * en die is met deze tabel scherper dan eerst.
  */
 /**
- * ⚠️ **Admin staat sinds 2 september 2026 op acht, en dat is de vierde
+ * ⚠️ **Admin stond van 2 september 2026 tot 30 september 2026 op acht, sindsdien op zeven, en dat is de vierde
  * uitzondering.** Het herontwerp van Analytics (`docs/tasks/analytics-herontwerp.md`,
  * C1) haalt het entiteitenbeheer (329 rijen bij het grootste merk) van
  * Concurrenten af: dat was beheerwerk in een leesscherm, en zoeken/filteren op
@@ -122,6 +122,10 @@ export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
  * Kwaliteitslab (`/beheer/kwaliteit`). Het scherm verdween met de ombouw van de
  * contentketen (`docs/tasks/contentketen-opnieuw.md`), het menu-item bleef nog
  * een tijd als dode link staan en is toen ook weggehaald. Terug op acht.
+ *
+ * ⚠️ **Diagnose verdween op 30 september 2026** en is opgegaan in het
+ * statusoverzicht van het onboardinggesprek (`lib/pipeline/onboarding-status.ts`).
+ * Admin staat daarmee op zeven.
  */
 export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   Overzicht: 3,
@@ -131,7 +135,7 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   Strategie: 3,
   Analytics: 4,
   Merkdossier: 3,
-  Admin: 8,
+  Admin: 7,
 };
 
 /**
@@ -361,12 +365,6 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
           {
             href: `/merk/${brandId}/admin/aanbodboom`,
             label: "Aanbodboom",
-            hoofdstuk: "Admin" as const,
-            staffOnly: true,
-          },
-          {
-            href: `/merk/${brandId}/admin`,
-            label: "Diagnose",
             hoofdstuk: "Admin" as const,
             staffOnly: true,
           },
