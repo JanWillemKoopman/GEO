@@ -12,40 +12,19 @@ import {
   GEBRUIK_LABEL,
   KENNIS_FILTERS,
   STATUS_LABEL,
+  bronKort,
+  gebruikVan,
   groepenVoorFilter,
   handelingenVoor,
   herkomstZin,
-  standVan,
+  isTeBevestigenVermoeden,
+  soortLabel,
   telPerFilter,
   type KennisFilter,
   type KennisTab,
   type OverzichtActie,
   type OverzichtItem,
 } from "@/lib/kennis/overzicht";
-
-const KNOP: Record<OverzichtActie, string> = {
-  bevestigen: "Bevestigen",
-  aanpassen: "Aanpassen",
-  afwijzen: "Klopt niet",
-  niet_op_site: "Niet op de site",
-};
-
-/** Eén kleur per stand, en nooit alleen kleur: het woord staat erin. */
-const STAND_CHIP: Record<Exclude<KennisFilter, "alles">, string> = {
-  bevestigd: "chip chip-success",
-  site: "chip chip-neutral",
-  klant: "chip chip-info",
-  vermoeden: "chip chip-warning",
-  afgewezen: "chip chip-outline",
-};
-
-const STAND_LABEL: Record<Exclude<KennisFilter, "alles">, string> = {
-  bevestigd: STATUS_LABEL.bevestigd,
-  site: STATUS_LABEL.waargenomen,
-  klant: STATUS_LABEL.verklaard,
-  vermoeden: STATUS_LABEL.afgeleid,
-  afgewezen: "Afgewezen",
-};
 
 const LEEG: Record<KennisTab, string> = {
   feiten: "Nog geen feiten. Het onderzoek van de website en het onboardinggesprek vullen dit.",
@@ -55,40 +34,59 @@ const LEEG: Record<KennisTab, string> = {
 /**
  * Het werkblad van één tabblad op "Feiten en kennis".
  *
- * Van boven naar beneden: een zin die zegt wat er staat en wat op een oordeel
- * wacht, een filter, en dan één ingeklapt blok per onderwerp. Een blok opent een
- * tabel met drie kolommen (wat, hoe zeker, waar vandaan) en een regel opent zijn
- * details en knoppen. Zo blijft de eerste indruk kort, ook bij honderd items.
+ * ── HET UITGANGSPUNT (30 september 2026) ────────────────────────────────────
  *
- * ⚠️ De handelingen zijn die van het oude kennisoverzicht (K7) en lopen langs
- * dezelfde route, die zelf nog eens controleert wie het mag (conventie 6, besluit
- * V6). Welke knoppen er staan, zegt `handelingenVoor()`.
+ * Wat hier staat komt ergens vandaan en wordt gebruikt bij het schrijven, tenzij
+ * de consultant het afkeurt. Daarom draagt elke regel rechts drie knoppen: klopt
+ * (alleen bij een vermoeden), aanpassen en afkeuren. Wat het onderzoek alleen
+ * dacht (een vermoeden, zonder citaat van de site) gaat niet mee tot iemand het
+ * bevestigt; de regel `magInBlokA()` staat ook in de database (conventie 1) en
+ * het scherm zegt per regel of hij meegaat en zo niet waarom (`gebruikVan()`).
  *
- * Het filter zet de blokken open die iets overhouden: wie "Vermoedens" kiest wil
- * ze zien, niet eerst nog elk onderwerp openklikken. Bij "Alles" is alles dicht.
+ * Afkeuren is niet wissen: het item blijft bewaard, telt nergens meer mee en
+ * komt niet stil terug bij de volgende onderzoeksronde. "Terugzetten" draait het
+ * terug. Aanpassen maakt een nieuwe versie; de oude blijft in de geschiedenis.
+ *
+ * ── DE OPBOUW ───────────────────────────────────────────────────────────────
+ *
+ * Een zin die zegt wat er gebruikt wordt, een filter, en één ingeklapt blok per
+ * onderwerp met een tabel: wat, bron, gebruikt, en de knoppen. Een regel opent
+ * zijn herkomst en citaat. Een filter zet de blokken open die iets overhouden.
+ *
+ * Schrijven loopt via de API-route (conventie 6), die zelf nog eens controleert
+ * wie het mag (besluit V6) en welke handeling bij welk item kan.
  */
 export function KennisWerkblad({
   profileId,
   tab,
   items,
+  alleenLezen = false,
 }: {
   profileId: string;
   tab: KennisTab;
   items: OverzichtItem[];
+  /**
+   * De klant leest mee (30 september 2026): dezelfde tabbladen, filter en
+   * tabel, maar geen knoppen. De route achter de knoppen is ook alleen voor
+   * medewerkers, dus dit is netheid en geen slot.
+   */
+  alleenLezen?: boolean;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<KennisFilter>("alles");
   const [open, setOpen] = useState<string | null>(null);
   const [bewerkt, setBewerkt] = useState<{ id: string; tekst: string } | null>(null);
   const [bezig, setBezig] = useState<string | null>(null);
+  const [bulkVraag, setBulkVraag] = useState<string | null>(null);
+  const [laatsteAfgekeurd, setLaatsteAfgekeurd] = useState<{ id: string; tekst: string } | null>(null);
   const [probleem, setProbleem] = useState<UserFacingError | null>(null);
 
-  const telling = telPerFilter(items);
-  const groepen = groepenVoorFilter(items, filter);
+  const nu = new Date();
+  const telling = telPerFilter(items, nu);
+  const groepen = groepenVoorFilter(items, filter, nu);
 
-  async function doe(itemId: string, actie: OverzichtActie, bewering?: string) {
-    setBezig(itemId);
-    setProbleem(null);
+  /** Eén handeling op de server. Geeft terug of het gelukt is; het scherm ververst de aanroeper. */
+  async function stuur(itemId: string, actie: OverzichtActie, bewering?: string): Promise<boolean> {
     try {
       const res = await fetch(`/api/profiles/${profileId}/kennis/${itemId}`, {
         method: "POST",
@@ -97,19 +95,44 @@ export function KennisWerkblad({
       });
       if (!res.ok) {
         setProbleem(problemFromResponse(await res.json().catch(() => null)));
-        return;
+        return false;
       }
-      setBewerkt(null);
-      setOpen(null);
-      router.refresh();
+      return true;
     } catch (err) {
       setProbleem(networkProblem(err));
-    } finally {
-      setBezig(null);
+      return false;
     }
   }
 
-  if (telling.alles === 0 && telling.afgewezen === 0) {
+  async function doe(item: OverzichtItem, actie: OverzichtActie, bewering?: string) {
+    setBezig(item.id);
+    setProbleem(null);
+    const gelukt = await stuur(item.id, actie, bewering);
+    setBezig(null);
+    if (!gelukt) return;
+    setBewerkt(null);
+    setOpen(null);
+    // Na een afkeuring blijft "ongedaan maken" staan tot de volgende handeling.
+    setLaatsteAfgekeurd(actie === "afwijzen" ? { id: item.id, tekst: item.bewering } : null);
+    router.refresh();
+  }
+
+  async function bevestigAlle(ids: string[]) {
+    setBezig("bulk");
+    setProbleem(null);
+    setBulkVraag(null);
+    // Na elkaar en niet tegelijk: elke bevestiging schrijft ook een gebeurtenis
+    // en kan de kopie op het profiel raken. Bij de eerste fout stopt het, en wat
+    // al gelukt is blijft bevestigd.
+    for (const id of ids) {
+      if (!(await stuur(id, "bevestigen"))) break;
+    }
+    setBezig(null);
+    setLaatsteAfgekeurd(null);
+    router.refresh();
+  }
+
+  if (telling.alles === 0 && telling.afgekeurd === 0) {
     return <p className="text-sm text-muted">{LEEG[tab]}</p>;
   }
 
@@ -119,9 +142,29 @@ export function KennisWerkblad({
     <div className="flex flex-col gap-4">
       {probleem && <ErrorNotice error={probleem} />}
 
-      <p className="text-sm text-secondary">
-        {zin(tab, telling.alles, telling.bevestigd, telling.vermoeden)}
-      </p>
+      <p className="text-sm text-secondary">{zin(tab, telling)}</p>
+
+      {!alleenLezen && laatsteAfgekeurd && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[var(--radius-xl)] bg-[var(--bg-surface-raised)] px-3 py-2 text-sm">
+          <span className="min-w-0 flex-1 truncate">Afgekeurd: &ldquo;{laatsteAfgekeurd.tekst}&rdquo;</span>
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            disabled={bezig !== null}
+            onClick={() => {
+              const id = laatsteAfgekeurd.id;
+              setLaatsteAfgekeurd(null);
+              setBezig(id);
+              stuur(id, "terugzetten").then((gelukt) => {
+                setBezig(null);
+                if (gelukt) router.refresh();
+              });
+            }}
+          >
+            Ongedaan maken
+          </button>
+        </div>
+      )}
 
       {zichtbaar.length > 1 && (
         <FilterChipGroep label="Toon">
@@ -135,6 +178,7 @@ export function KennisWerkblad({
                 setFilter(f);
                 setOpen(null);
                 setBewerkt(null);
+                setBulkVraag(null);
               }}
             />
           ))}
@@ -145,109 +189,234 @@ export function KennisWerkblad({
         <p className="text-sm text-muted">Hier staat niets onder dit filter.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {groepen.map((g) => (
-            // De sleutel bevat het filter: een blok onthoudt zijn open-stand
-            // alleen bij het eerste tonen, dus een ander filter moet hem
-            // opnieuw laten beginnen.
-            <CollapsibleSection
-              key={`${tab}-${filter}-${g.domein}`}
-              title={g.kop}
-              badge={String(g.items.length)}
-              defaultOpen={filter !== "alles"}
-              compact
-              card
-            >
-              <table className="tabel tabel-klikbaar">
-                <thead>
-                  <tr>
-                    <th scope="col">Wat we weten</th>
-                    <th scope="col">Zekerheid</th>
-                    <th scope="col" className="hidden sm:table-cell">
-                      Waar vandaan
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.items.map((item) => {
-                    const stand = standVan(item);
-                    const isOpen = open === item.id;
-                    return (
-                      <Fragment key={item.id}>
-                        <tr
-                          aria-selected={isOpen || undefined}
-                          onClick={() => {
-                            setOpen(isOpen ? null : item.id);
-                            setBewerkt(null);
-                          }}
+          {groepen.map((g) => {
+            const vermoedens = g.items.filter(isTeBevestigenVermoeden);
+            return (
+              // De sleutel bevat het filter: een blok onthoudt zijn open-stand
+              // alleen bij het eerste tonen, dus een ander filter moet hem
+              // opnieuw laten beginnen.
+              <CollapsibleSection
+                key={`${tab}-${filter}-${g.domein}`}
+                title={g.kop}
+                badge={String(g.items.length)}
+                defaultOpen={filter !== "alles"}
+                compact
+                card
+              >
+                {!alleenLezen && vermoedens.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+                    {bulkVraag === g.domein ? (
+                      <>
+                        <span className="text-secondary">
+                          {vermoedens.length === 1
+                            ? "Dit vermoeden bevestigen? Het gaat dan mee naar de schrijver."
+                            : `Deze ${vermoedens.length} vermoedens bevestigen? Ze gaan dan mee naar de schrijver.`}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-outline btn-sm"
+                          disabled={bezig !== null}
+                          onClick={() => bevestigAlle(vermoedens.map((v) => v.id))}
                         >
-                          <td className="w-full">
-                            <button
-                              type="button"
-                              className="flex w-full items-start gap-2 text-left"
-                              aria-expanded={isOpen}
-                              onClick={(e) => {
-                                // De rij regelt het openen zelf; zonder dit
-                                // klapt hij twee keer om en dus weer dicht.
-                                e.stopPropagation();
-                                setOpen(isOpen ? null : item.id);
-                                setBewerkt(null);
-                              }}
-                            >
-                              <span
-                                className="mt-0.5 shrink-0 text-secondary"
-                                style={{ transform: isOpen ? "rotate(90deg)" : undefined }}
+                          Ja, bevestig
+                        </button>
+                        <button type="button" className="btn-ghost btn-sm" onClick={() => setBulkVraag(null)}>
+                          Annuleren
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-ghost btn-sm"
+                        disabled={bezig !== null}
+                        onClick={() => setBulkVraag(g.domein)}
+                      >
+                        {vermoedens.length === 1 ? "Bevestig het vermoeden" : `Bevestig alle ${vermoedens.length} vermoedens`}
+                      </button>
+                    )}
+                  </div>
+                )}
+                <table className="tabel tabel-klikbaar">
+                  <thead>
+                    <tr>
+                      <th scope="col">Wat we weten</th>
+                      <th scope="col" className="hidden sm:table-cell">
+                        Bron
+                      </th>
+                      <th scope="col" className="hidden sm:table-cell">
+                        Gebruikt
+                      </th>
+                      {!alleenLezen && (
+                        <th scope="col">
+                          <span className="sr-only">Acties</span>
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.items.map((item) => {
+                      const isOpen = open === item.id || bewerkt?.id === item.id;
+                      const gebruik = gebruikVan(item, nu);
+                      const acties = handelingenVoor(item);
+                      const label = soortLabel(item.soort);
+                      const wisselOpen = () => {
+                        setOpen(isOpen ? null : item.id);
+                        setBewerkt(null);
+                      };
+                      return (
+                        <Fragment key={item.id}>
+                          <tr aria-selected={isOpen || undefined} onClick={wisselOpen}>
+                            <td className="w-full">
+                              <button
+                                type="button"
+                                className="flex w-full items-start gap-2 text-left"
+                                aria-expanded={isOpen}
+                                onClick={(e) => {
+                                  // De rij regelt het openen zelf; zonder dit
+                                  // klapt hij twee keer om en dus weer dicht.
+                                  e.stopPropagation();
+                                  wisselOpen();
+                                }}
                               >
-                                <Icon naam="verder" size={14} />
-                              </span>
-                              <span className={isOpen ? "" : "line-clamp-2"}>{item.bewering}</span>
-                            </button>
-                          </td>
-                          <td className="whitespace-nowrap">
-                            <span className={STAND_CHIP[stand]}>{STAND_LABEL[stand]}</span>
-                          </td>
-                          <td className="hidden text-secondary sm:table-cell">{bronKort(item)}</td>
-                        </tr>
-                        {isOpen && (
-                          <tr>
-                            <td colSpan={3} className="!pt-0">
-                              <Detail
-                                item={item}
-                                bezig={bezig === item.id}
-                                bewerkt={bewerkt?.id === item.id ? bewerkt.tekst : null}
-                                onBewerk={(tekst) => setBewerkt(tekst === null ? null : { id: item.id, tekst })}
-                                onDoe={(actie, bewering) => doe(item.id, actie, bewering)}
-                              />
+                                <span
+                                  className="mt-0.5 shrink-0 text-secondary"
+                                  style={{ transform: isOpen ? "rotate(90deg)" : undefined }}
+                                >
+                                  <Icon naam="verder" size={14} />
+                                </span>
+                                <span className="flex min-w-0 flex-col">
+                                  {label && <span className="text-xs text-muted">{label}</span>}
+                                  <span className={isOpen ? "" : "line-clamp-2"}>{item.bewering}</span>
+                                </span>
+                              </button>
                             </td>
+                            <td className="hidden whitespace-nowrap text-secondary sm:table-cell">{bronKort(item.bron)}</td>
+                            <td className="hidden whitespace-nowrap sm:table-cell">
+                              {gebruik.gebruikt ? gebruik.reden : <span className="text-muted">{neeZin(gebruik.reden, alleenLezen)}</span>}
+                            </td>
+                            {!alleenLezen && (
+                            <td className="whitespace-nowrap text-right">
+                              <span className="inline-flex items-center gap-1">
+                                {isTeBevestigenVermoeden(item) && (
+                                  <Knop
+                                    icoon="klaar"
+                                    titel="Klopt: bevestigen, dan gaat het mee naar de schrijver"
+                                    uit={bezig !== null}
+                                    onKlik={() => doe(item, "bevestigen")}
+                                  />
+                                )}
+                                {acties.includes("aanpassen") && (
+                                  <Knop
+                                    icoon="bewerken"
+                                    titel="Aanpassen"
+                                    uit={bezig !== null}
+                                    onKlik={() => {
+                                      setOpen(null);
+                                      setBewerkt({ id: item.id, tekst: item.bewering });
+                                    }}
+                                  />
+                                )}
+                                {acties.includes("afwijzen") && (
+                                  <Knop
+                                    icoon="prullenbak"
+                                    titel="Klopt niet: afkeuren. Het blijft bewaard en gaat niet naar de schrijver"
+                                    uit={bezig !== null}
+                                    onKlik={() => doe(item, "afwijzen")}
+                                  />
+                                )}
+                                {acties.includes("terugzetten") && (
+                                  <Knop
+                                    icoon="herstel"
+                                    titel="Terugzetten"
+                                    uit={bezig !== null}
+                                    onKlik={() => doe(item, "terugzetten")}
+                                  />
+                                )}
+                              </span>
+                            </td>
+                            )}
                           </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </CollapsibleSection>
-          ))}
+                          {isOpen && (
+                            <tr>
+                              <td colSpan={alleenLezen ? 3 : 4} className="!pt-0">
+                                <Detail
+                                  item={item}
+                                  reden={gebruik.gebruikt ? null : gebruik.reden}
+                                  alleenLezen={alleenLezen}
+                                  bezig={bezig === item.id}
+                                  bewerkt={bewerkt?.id === item.id ? bewerkt.tekst : null}
+                                  onBewerk={(tekst) => setBewerkt(tekst === null ? null : { id: item.id, tekst })}
+                                  onDoe={(actie, bewering) => doe(item, actie, bewering)}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </CollapsibleSection>
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
+/** Een pictogramknop in de rij. Stopt de klik, anders opent en sluit de rij mee. */
+function Knop({
+  icoon,
+  titel,
+  uit,
+  onKlik,
+}: {
+  icoon: "klaar" | "bewerken" | "prullenbak" | "herstel";
+  titel: string;
+  uit: boolean;
+  onKlik: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="icon-btn"
+      title={titel}
+      aria-label={titel}
+      disabled={uit}
+      onClick={(e) => {
+        e.stopPropagation();
+        onKlik();
+      }}
+    >
+      <Icon naam={icoon} size={16} />
+    </button>
+  );
+}
+
 function Detail({
   item,
+  reden,
+  alleenLezen,
   bezig,
   bewerkt,
   onBewerk,
   onDoe,
 }: {
   item: OverzichtItem;
+  /** Waarom dit niet naar de schrijver gaat, of `null` als het wel gaat. */
+  reden: string | null;
+  alleenLezen: boolean;
   bezig: boolean;
   /** De tekst in het invoerveld, of `null` als er niet bewerkt wordt. */
   bewerkt: string | null;
   onBewerk: (tekst: string | null) => void;
   onDoe: (actie: OverzichtActie, bewering?: string) => void;
 }) {
-  const acties = handelingenVoor(item);
+  const acties = alleenLezen ? [] : handelingenVoor(item);
+  // Wat de iconen niet dekken: bevestigen van iets wat geen vermoeden is, en
+  // "niet op de site". Aanpassen en afkeuren staan al rechts in de rij.
+  const extra = acties.filter((a) => (a === "bevestigen" && !isTeBevestigenVermoeden(item)) || a === "niet_op_site");
   return (
     <div className="vlak vlak-gevuld flex flex-col gap-2">
       {bewerkt !== null && (
@@ -259,13 +428,22 @@ function Detail({
         />
       )}
       <p className="text-xs text-muted">
-        {herkomstZin(item)} {GEBRUIK_LABEL[item.gebruik] ?? item.gebruik}.
+        {STATUS_LABEL[item.status] ?? item.status}. {herkomstZin(item)} {GEBRUIK_LABEL[item.gebruik] ?? item.gebruik}.
       </p>
       {item.citaat && item.status === "waargenomen" && (
         <p className="text-xs text-secondary">Op de site: &ldquo;{item.citaat}&rdquo;</p>
       )}
-      {item.blokkade && <p className="text-xs text-secondary">{item.blokkade}</p>}
-      {acties.length > 0 && (
+      {reden === "Vermoeden" && (
+        <p className="text-xs text-secondary">
+          {alleenLezen
+            ? "Dit is een vermoeden van het onderzoek, zonder citaat van de site. ORBIT ENGINE gebruikt het pas nadat het bevestigd is."
+            : "Dit is een vermoeden van het onderzoek, zonder citaat van de site. Het gaat pas mee naar de schrijver als je het bevestigt."}
+        </p>
+      )}
+      {/* De zin over de conflictlijst is voor de consultant: de klant weet niet
+          wat dat is. */}
+      {!alleenLezen && item.blokkade && <p className="text-xs text-secondary">{item.blokkade}</p>}
+      {(bewerkt !== null || extra.length > 0) && (
         <div className="flex flex-wrap gap-2">
           {bewerkt !== null ? (
             <>
@@ -282,15 +460,9 @@ function Detail({
               </button>
             </>
           ) : (
-            acties.map((a) => (
-              <button
-                key={a}
-                type="button"
-                className={a === "bevestigen" ? "btn-outline btn-sm" : "btn-ghost btn-sm"}
-                disabled={bezig}
-                onClick={() => (a === "aanpassen" ? onBewerk(item.bewering) : onDoe(a))}
-              >
-                {KNOP[a]}
+            extra.map((a) => (
+              <button key={a} type="button" className="btn-ghost btn-sm" disabled={bezig} onClick={() => onDoe(a)}>
+                {a === "bevestigen" ? "Bevestigen" : "Niet op de site"}
               </button>
             ))
           )}
@@ -300,18 +472,25 @@ function Detail({
   );
 }
 
-/** "De website" in de tabel, zonder datum: de datum staat in de details. */
-function bronKort(item: OverzichtItem): string {
-  const zin = herkomstZin({ bron: item.bron });
-  // "Uit de website." wordt "De website".
-  const kaal = zin.replace(/^Uit /, "").replace(/\.$/, "");
-  return kaal.charAt(0).toUpperCase() + kaal.slice(1);
+/** "Nee, vermoeden": het antwoord in de kolom Gebruikt, met de reden erbij. */
+function neeZin(reden: string, alleenLezen: boolean): string {
+  if (reden === "Niet gebruikt") return "Nee";
+  if (reden === "Botsing" && alleenLezen) return "Nee, wordt nagekeken";
+  return `Nee, ${reden.toLowerCase()}`;
 }
 
-function zin(tab: KennisTab, totaal: number, bevestigd: number, vermoedens: number): string {
+/** De zin boven het werkblad: wat gaat mee naar de schrijver, en wat niet en waarom. */
+function zin(tab: KennisTab, t: { alles: number; gebruikt: number; niet: number; vermoedens: number }): string {
   const soort = tab === "feiten" ? "feiten" : "stukken kennis";
   const enkel = tab === "feiten" ? "feit" : "stuk kennis";
-  const kop = `${totaal} ${totaal === 1 ? enkel : soort}, waarvan ${bevestigd} bevestigd.`;
-  if (vermoedens === 0) return kop;
-  return `${kop} ${vermoedens} ${vermoedens === 1 ? "vermoeden wacht" : "vermoedens wachten"} op jouw oordeel en gaan tot die tijd niet naar de schrijver.`;
+  const kop = `${t.alles} ${t.alles === 1 ? enkel : soort}. ${t.gebruikt} ${t.gebruikt === 1 ? "wordt" : "worden"} gebruikt bij het schrijven.`;
+  if (t.niet === 0) return kop;
+  const rest = `${t.niet} niet`;
+  const waarom =
+    t.vermoedens > 0
+      ? t.vermoedens === t.niet
+        ? `omdat ${t.niet === 1 ? "het een vermoeden is" : "het vermoedens zijn"} die nog niemand bevestigde`
+        : `waarvan ${t.vermoedens} ${t.vermoedens === 1 ? "vermoeden" : "vermoedens"} die nog niemand bevestigde`
+      : "omdat ze alleen intern gelden";
+  return `${kop} ${rest}, ${waarom}.`;
 }

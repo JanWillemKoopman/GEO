@@ -494,6 +494,7 @@ const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
   Concurrenten: "concurrenten",
   "Mijn reputatie": "reputatie",
   Merkdossier: "merkprofiel",
+  "Feiten en kennis": "goedkeuring",
 };
 
 /** De belofte in één zin, zichtbaar naast de titel (schrijfstijl.md §4: kop is de belofte, subkop is één zin uitleg). */
@@ -509,6 +510,7 @@ const KICKER: Record<string, string> = {
   Concurrenten: "Wie er nog meer genoemd wordt, en waar jij staat.",
   "Mijn reputatie": "Niet óf je genoemd wordt, maar hoé.",
   Merkdossier: "Wie je bent volgens ORBIT ENGINE, en of dat klopt.",
+  "Feiten en kennis": "Alles wat ORBIT ENGINE over je bedrijf weet, en waar het vandaan komt.",
 };
 
 /**
@@ -797,6 +799,27 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           Klopt er iets in je dossier niet meer, bijvoorbeeld een nieuwe dienst of een ander
           werkgebied? Werk het hier bij. Dat werkt door in de volgende meetronde en in nieuwe
           content, niet met terugwerkende kracht in wat er al geschreven is.
+        </Tip>
+      </>
+    ),
+    "Feiten en kennis": (
+      <>
+        <p className="text-secondary">
+          Alles wat ORBIT ENGINE over je bedrijf weet, op één plek. Elke regel zegt waar hij
+          vandaan komt: je website, een antwoord van jou, of het gesprek met je consultant.
+        </p>
+        <Kader
+          label="Wat je hier ziet"
+          items={[
+            "Twee tabbladen. Feiten gaan over wie je bent, wat je aanbiedt, je bewijs en wat niet op je site mag. Kennis gaat over je klanten, wat je anders doet, je verhalen en je toon.",
+            "In de kolom Gebruikt staat of ORBIT ENGINE de regel meeneemt bij het schrijven van je pagina's. Wat van je site komt of wat jij zei, gaat mee.",
+            "Een vermoeden is iets wat het onderzoek denkt maar niet met een citaat van je site kan aanwijzen. Dat gebruikt ORBIT ENGINE pas nadat het bevestigd is.",
+            "Met de filters boven de lijst zie je in één keer wat wordt gebruikt, wat niet, en wat is afgekeurd.",
+          ]}
+        />
+        <Tip>
+          Klopt er iets niet? Zeg het je consultant. Die past het aan of keurt het af, en dan gebruikt
+          ORBIT ENGINE het niet meer bij het schrijven.
         </Tip>
       </>
     ),
