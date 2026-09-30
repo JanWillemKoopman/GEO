@@ -605,8 +605,9 @@ als die laag terugkomt.
 meetronde is nog niet aan de gebruiker gemeld. Nodig sinds de resultatenpagina van een cluster is
 weggehaald (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`): die pagina was ook het
 wachtscherm en dus de enige plek die merkte dat een meting klaar was. Dat is nu een melding
-rechtsonder in beeld (`components/cluster-melder.tsx`), en zonder deze kolom zou die melding bij elke
-schermopening opnieuw verschijnen.
+rechtsonder in beeld (tot 29 september 2026 `components/cluster-melder.tsx`), en zonder deze kolom
+zou die melding bij elke schermopening opnieuw verschijnen. Sinds migratie 0131 leest niets de kolom
+meer: de melding "meting klaar" komt uit `notificaties`.
 
 `enqueueMeasurement()` (`lib/jobs/queue.ts`) zet de kolom terug op `null`, en alleen op het moment
 dat er echt nieuwe meettaken bijkomen. Zou hij dat ook doen bij een ronde die niets in te plannen
@@ -854,3 +855,21 @@ dit maakt de tabel gelijk. Additief en idempotent. Op productie toegepast op 30 
 Tabel `staff_invites` (e-mail, hash van het token, verloopt na 14 dagen, geaccepteerd, ingetrokken), zelfde
 vorm als `account_invites` maar zonder account. Accepteren maakt een rij in `staff_users` met rol
 `consultant`. RLS aan, geen policies. Additief en idempotent. Op productie toegepast op 30 september 2026.
+
+## 0133: notificaties
+
+Twee tabellen en dertien triggers. `notificaties` heeft één rij per gebeurtenis waar de gebruiker
+van hoort te weten (soort, object, een paar namen in `gegevens`, en `aantal` voor gebeurtenissen die
+in bosjes komen), `notificaties_gezien` één tijdstip per gebruiker tot wanneer alles gelezen is. De
+triggers hangen aan de plek waar een gebeurtenis zichtbaar wordt (`profiles`, `analyses`,
+`visibility_scores`, `reputation_runs`, `technical_audits`, `cluster_discovery_runs`,
+`content_pieces`, `content_impact`, `jobs`, `fact_requests`, `account_invites`) en schrijven via
+`notificatie_meld()`, dat vragen, beantwoorde vragen en kenniswijzigingen binnen een uur samenvoegt.
+Elke trigger vangt zijn eigen fout af: een melding mag de schrijfactie eronder nooit tegenhouden. De
+tekst, de kleur en de link staan in `lib/notificaties.ts`. RLS: lezen via `readable_profile_ids()`
+en `user_account_ids()`, beheerdersmeldingen alleen voor staf; schrijven alleen via de triggers en
+de service role. Op productie toegepast op 29 september 2026, nog onder de naam `0131_notificaties` (in de
+migratietabel van Supabase heet hij zo), en daarna hernummerd omdat `0131` en `0132` op `main`
+al door de rollen en de consultantuitnodigingen bezet waren. Nagerekend met een teruggedraaide
+transactie (een meting op `gereed` gaf `meting_klaar`, drie beantwoorde vragen van één merk gaven
+één rij met `aantal` 3).

@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
  *   • de voorgestelde pagina's  → Strategie → Contentplan, als voorraad
  *
  * Wat de pagina als enige deed, is vervangen door iets dat niet aan een scherm
- * hangt: melden dat de meting klaar is. Dat doet `components/cluster-melder.tsx`
+ * hangt: melden dat de meting klaar is. Dat doet `components/notificaties.tsx`
  * nu, waar je ook bent in de app.
  *
  * ⚠️ Wat er bewust NIET mee verhuisd is: het off-site werk (de acties buiten je
