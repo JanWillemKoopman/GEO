@@ -925,7 +925,7 @@ import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan } from "@/lib/kennis/betwist";
 import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
-import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib/kennis/overzicht";
+import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, tabVoorDomein, leesTab, standVan, pastInFilter, telPerFilter, itemsVoorTab, groepenVoorFilter, DOMEIN_KOP, FEITEN_DOMEINEN, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam, siteLinksVoorOnderwerp, zusterPaginas } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -8149,7 +8149,7 @@ group("welk menu-item licht op", () => {
   const dossier = {
     href: "/merk/abc/merkprofiel",
     label: "Merkdossier",
-    hoofdstuk: "Merkdossier" as const,
+    hoofdstuk: "Mijn bedrijf" as const,
     icoon: "taken" as const,
   };
   ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
@@ -9911,6 +9911,11 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
     "/profielen/:id/search-console": "/merk/:id/analytics/zoekverkeer",
     "/profielen/:id/beheer": "/merk/:id/admin/toewijzen",
   };
+
+  // Het kennisoverzicht en de tegenstrijdige feiten zijn op 30 september 2026
+  // samengevoegd en hun schermen zijn weg: een bladwijzer moet blijven werken.
+  verwacht["/merk/:id/admin/kennis"] = "/merk/:id/merkprofiel/feiten-en-kennis";
+  verwacht["/merk/:id/admin/feiten"] = "/merk/:id/merkprofiel/feiten-en-kennis";
 
   const regels = DOORVERWIJZINGEN;
   const perBron = new Map(regels.map((r) => [r.source, r]));
@@ -18959,11 +18964,85 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
 
   // Besluit V6: de klant ziet het kennisoverzicht niet. Scherm en route geven
   // een niet-medewerker een 404, en de handelingen gaan alleen via de route.
-  const scherm = leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx");
+  const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
   const route = leesBestand("app/api/profiles/[id]/kennis/[itemId]/route.ts");
   ok("het scherm is alleen voor medewerkers", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
   ok("de route ook, met een 404", /if \(!\(await isStaff\(user\.id\)\)\) return NextResponse\.json\(\{ error: "Niet gevonden\." \}, \{ status: 404 \}\)/.test(route));
   ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
+});
+
+group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", () => {
+  let n = 0;
+  const k = (bewering: string, extra: Partial<OverzichtItem> = {}): OverzichtItem => ({
+    id: `fk${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering,
+    status: "verklaard",
+    bron: "klant",
+    gebruik: "content",
+    ...extra,
+  });
+
+  // Elk domein hoort op precies één tabblad, en de indeling laat er geen weg.
+  const domeinen = Object.keys(DOMEIN_KOP);
+  ok("elk domein van het kennisoverzicht heeft een tabblad", domeinen.every((d) => ["feiten", "kennis"].includes(tabVoorDomein(d))));
+  eq("Feiten: het bedrijf, het aanbod, het bewijs en de grenzen", domeinen.filter((d) => tabVoorDomein(d) === "feiten").join(","), "identiteit,aanbod,bewijs,grens");
+  eq("Kennis: de rest", domeinen.filter((d) => tabVoorDomein(d) === "kennis").join(","), "doelgroep,positionering,verhaal,stem,geleerd");
+  eq("een onbekend domein valt in Kennis en verdwijnt niet", tabVoorDomein("nieuw-domein"), "kennis");
+  ok("de vier feitendomeinen bestaan echt", FEITEN_DOMEINEN.every((d) => domeinen.includes(d)));
+
+  eq("geen tabblad in het adres: Feiten", leesTab(undefined), "feiten");
+  eq("een onzin-tabblad: Feiten", leesTab("iets"), "feiten");
+  eq("?tab=kennis: Kennis", leesTab("kennis"), "kennis");
+
+  // De stand: een woord per item, en afgewezen gaat vóór alles.
+  eq("bevestigd", standVan(k("a", { status: "bevestigd" })), "bevestigd");
+  eq("gezien op de site", standVan(k("a", { status: "waargenomen" })), "site");
+  eq("volgens de klant", standVan(k("a", { status: "verklaard" })), "klant");
+  eq("een vermoeden", standVan(k("a", { status: "afgeleid", gebruik: "intern" })), "vermoeden");
+  eq("afgewezen wint van bevestigd", standVan(k("a", { status: "bevestigd", afgewezen_op: "2026-09-27" })), "afgewezen");
+  ok("'alles' telt een afgewezen item niet mee", !pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "alles"));
+  ok("maar het filter 'afgewezen' toont het wel", pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "afgewezen"));
+
+  const items = [
+    k("Prijs vanaf 45 euro", { domein: "aanbod", status: "bevestigd" }),
+    k("Werkt in Gouda", { domein: "identiteit", status: "waargenomen" }),
+    k("Nooit gratis zeggen", { domein: "grens", gebruik: "verboden" }),
+    k("Klanten twijfelen over de prijs", { domein: "doelgroep", status: "afgeleid", gebruik: "intern" }),
+    k("Warm en nuchter", { domein: "stem" }),
+    k("Oud", { domein: "aanbod", vervangen_door: "x" }),
+    k("Verkeerd", { domein: "aanbod", afgewezen_op: "2026-09-27" }),
+  ];
+  const feiten = itemsVoorTab(items, "feiten");
+  const kennis = itemsVoorTab(items, "kennis");
+  eq("Feiten bevat vier items, een vervangen versie telt niet", String(feiten.length), "4");
+  eq("Kennis bevat er twee", String(kennis.length), "2");
+  eq("samen is het alles wat leeft", String(feiten.length + kennis.length), String(items.filter((i) => !i.vervangen_door).length));
+  const t = telPerFilter(feiten);
+  eq("de telling van Feiten: alles zonder afgewezen", `${t.alles}/${t.bevestigd}/${t.site}/${t.klant}/${t.vermoeden}/${t.afgewezen}`, "3/1/1/1/0/1");
+  eq("de telling van Kennis: één vermoeden", String(telPerFilter(kennis).vermoeden), "1");
+  eq("een filter laat alleen zijn stand over", groepenVoorFilter(feiten, "bevestigd").flatMap((g) => g.items.map((i) => i.bewering)).join("|"), "Prijs vanaf 45 euro");
+  ok("onder 'alles' staat het afgewezen item niet", !groepenVoorFilter(feiten, "alles").some((g) => g.items.some((i) => i.bewering === "Verkeerd")));
+  eq("een leeg filter geeft geen lege blokken", String(groepenVoorFilter(kennis, "bevestigd").length), "0");
+
+  // Het scherm: alleen medewerkers, en de oude twee schermen zijn echt weg.
+  const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
+  ok("het scherm geeft een niet-medewerker een 404", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
+  ok("het toont de botsingen boven de tabbladen zodra er een openstaat", scherm.indexOf("conflicten.length > 0 &&") < scherm.indexOf("<Tabs"));
+  ok("het kennisoverzicht als eigen scherm bestaat niet meer", !existsSync("app/(app)/merk/[id]/admin/kennis/page.tsx"));
+  ok("de tegenstrijdige feiten als eigen scherm ook niet", !existsSync("app/(app)/merk/[id]/admin/feiten/page.tsx"));
+
+  // Het menu: de namen zijn gewisseld en het nieuwe item staat eronder.
+  const staf = brandNav("abc", true).filter((i) => i.hoofdstuk === "Mijn bedrijf");
+  const klant = brandNav("abc", false).filter((i) => i.hoofdstuk === "Mijn bedrijf");
+  eq("de kop heet Mijn bedrijf en er staan twee regels onder, Merkdossier eerst", staf.map((i) => i.label).join("|"), "Merkdossier|Feiten en kennis");
+  ok("Merkdossier wijst nog naar het oude adres", staf[0]?.href === "/merk/abc/merkprofiel/bewerken");
+  ok("Feiten en kennis heeft zijn eigen adres", staf[1]?.href === "/merk/abc/merkprofiel/feiten-en-kennis");
+  eq("een klant ziet alleen Merkdossier: de kennislaag is voor hem dicht (V6, V11)", klant.map((i) => i.label).join("|"), "Merkdossier");
+  ok("Feiten en kennis draagt het teken 'alleen jij'", staf[1]?.staffOnly === true);
+  ok("de kop Merkdossier bestaat niet meer", !(HOOFDSTUKKEN as readonly string[]).includes("Merkdossier"));
+  ok("het menu wijst niet meer naar de twee oude schermen", [...brandNav("abc", true)].every((i) => !/\/admin\/(kennis|feiten)$/.test(i.href)));
 });
 
 group("tegenstrijdigheden houden kennis bij de schrijver weg (K7, sinds K8 deel 2 alleen botsingen)", () => {
@@ -19273,7 +19352,7 @@ group("V10: werkgebied in plaatsen, niet in streken", () => {
   eq("landelijk: geen werkgebiedpunt", String(werkgebiedPunten({ service_scope: "landelijk", service_regions: ["Randstad"], business_model: "retailer" }).length), "0");
   ok("een onbekend bedrijfsmodel is een open punt", werkgebiedPunten({ service_scope: null, service_regions: [], business_model: null }).some((p) => p.punt.startsWith("Wat voor bedrijf")));
   ok("de onderzoeksopdracht vraagt plaatsen", leesBestand("lib/pipeline/profile-research.ts").includes("zet je in serviceRegions de PLAATSEN"));
-  ok("het kennisoverzicht toont ze eerst", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("...werkgebiedPunten("));
+  ok("het kennisoverzicht toont ze eerst", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes("...werkgebiedPunten("));
 });
 
 group("V9: klussen van de site worden verhalen", () => {
@@ -19754,7 +19833,7 @@ group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
   ok("de conflictlijst kent de kennislaag", sql.includes("add column if not exists kennis_ids uuid[]"));
   ok("geen drop table en geen drop column", !/drop\s+(table|column)/i.test(sql));
   // Sinds K8 deel 2 toont het feitenscherm alleen nog botsingen in de kennislaag.
-  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/admin/feiten/page.tsx").includes('.not("kennis_ids", "is", null)'));
+  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes('.not("kennis_ids", "is", null)'));
   // Sinds K7 staan de botsingen tussen kennisitems op hetzelfde conflictscherm,
   // dus de teller op het beheerscherm telt ze mee.
 });
@@ -21064,7 +21143,7 @@ group("A3: één bron van vragen (besluit V3)", () => {
   eq("de punten van de samenvatting en het aanbod, zonder opsomteken en zonder dubbele", punten.map((p) => `${p.bron}:${p.punt}`).join(" | "),
     "samenvatting:Hoeveel fysiotherapeuten werken er? | samenvatting:Welke specialisaties per vestiging? | aanbod:De tarieven van de specialisaties ontbreken.");
   eq("zonder verslag niets", String(openPuntenUitOnderzoek([{ facet: "synthese", raw_json: null }]).length), "0");
-  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("openPuntenUitOnderzoek("));
+  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes("openPuntenUitOnderzoek("));
   const vraagSchrijvers = codebestanden()
     .filter((p) => !p.startsWith("scripts/"))
     .filter((p) => /from\(\s*["'`]fact_requests["'`]\s*\)\s*\.\s*(insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));

@@ -13245,3 +13245,34 @@ niet kan slepen.
 Getest: `tsc --noEmit`, `test:unit` (5150), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in een
 browser (conventie 10): het menu met schermen, de samengeklapte regels en de knop zijn gebouwd en op
 code getest, niet met een echt scherm.
+
+## 30 september 2026 (3): "Feiten en kennis" op één scherm, en de namen Mijn bedrijf en Merkdossier gewisseld
+
+De eigenaar zag het kennisoverzicht (`admin/kennis`) nergens in het menu. Klopte: het hing samen met
+`admin/feiten` (tegenstrijdigheden) aan Diagnose, dat die dag verdween, en was daarna alleen nog via twee
+tekstlinks op het onboardinggesprek te vinden. Twee Admin-schermen zonder menuregel voor het belangrijkste
+wat er over een klant te weten valt.
+
+- **Eén scherm:** `/merk/[id]/merkprofiel/feiten-en-kennis`, onder de kop "Mijn bedrijf", onder
+  "Merkdossier". De schermen `admin/kennis` en `admin/feiten` zijn weg en verwijzen permanent door
+  (`lib/redirects.ts`). De gegevens, regels en de vier handelingen (bevestigen, aanpassen, klopt niet, niet
+  op de site) zijn ongewijzigd; alleen de indeling is nieuw.
+- **Twee tabbladen, per domein ingedeeld** (`lib/kennis/overzicht.ts`, `tabVoorDomein`). Feiten is het
+  bedrijf, het aanbod, het bewijs en de grenzen; Kennis is klanten en bezwaren, positionering, verhalen,
+  stem en wat eerdere pagina's opleverden. Op domein en niet op `soort`, want `soort` is pas gevuld nadat
+  de sitefeiten zijn ingedeeld en blijft leeg bij een antwoord van de klant. Een nieuw domein valt in
+  Kennis, zodat niets van het scherm verdwijnt.
+- **Per tabblad:** een zin met het aantal en wat op een oordeel wacht, een filter (Alles, Bevestigd, Van de
+  site, Volgens de klant, Vermoedens, Afgewezen), en een ingeklapt blok per onderwerp met een tabel. Een
+  regel opent zijn herkomst, citaat en knoppen. Een filter zet de blokken open die iets overhouden.
+- **Tegenstrijdigheden** staan boven de tabbladen zodra er een openstaat (ze houden een pagina tegen), en
+  ingeklapt onderaan als er geen is. De open punten van het onderzoek en wat een wijziging raakte staan
+  ingeklapt onderaan.
+- **Namen gewisseld:** de kop heet nu "Mijn bedrijf" en de bestemming daaronder "Merkdossier"
+  (`/merkprofiel/bewerken`, adres ongewijzigd).
+- ⚠️ **Alleen voor medewerkers**, ondanks de plek onder een klantkop. Besluit V6 en V11 houden de kennislaag
+  dicht voor de klant. Een klant ziet onder "Mijn bedrijf" alleen "Merkdossier". Wil de eigenaar dat de klant
+  dit ook ziet, dan is dat een nieuw besluit: de RLS van `klantkennis` en de routes zijn dan aan de beurt.
+
+Getest: `tsc --noEmit`, `test:unit` (5193), `test:chain` (847) en `build` groen. ⚠️ Niet bekeken in een
+browser (conventie 10): het scherm is gebouwd en op code getest, niet met echte klantdata.

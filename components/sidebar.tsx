@@ -164,10 +164,11 @@ function Hoofdstuk({
   // Overzicht ("Hoe sta je ervoor") heeft er maar één. Een kop met één kind
   // eronder is twee regels lezen voor één klik, en de kop zelf is geen link.
   // Nu is het één regel zonder kop.
-  // Merkdossier is de uitzondering (30 september 2026): het is een kop met
-  // "Mijn bedrijf" eronder, net als Clusters, Strategie en Analytics, zodat er
-  // later dossieronderdelen bij kunnen zonder dat de balk van vorm verandert.
-  if (kop.items.length === 1 && !kop.afgeschermd && kop.naam !== "Merkdossier") {
+  // "Mijn bedrijf" is de uitzondering (30 september 2026): het is een kop met
+  // "Merkdossier" eronder (en voor medewerkers "Feiten en kennis"), net als
+  // Clusters, Strategie en Analytics, zodat er later onderdelen bij kunnen
+  // zonder dat de balk van vorm verandert.
+  if (kop.items.length === 1 && !kop.afgeschermd && kop.naam !== "Mijn bedrijf") {
     return (
       <div className={eerste ? "" : "mt-4"}>
         <Item item={kop.items[0]} active={navActief(pathname, kop.items[0])} onClick={onClick} />
