@@ -1,64 +1,62 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/icon";
+import { useNotificatiePaneel } from "@/components/notificatie-paneel";
+import type { NotificatieKleur } from "@/lib/notificaties";
 
 /**
- * Broodroostermeldingen.
+ * Broodroostermeldingen: het kleine blokje rechtsonder.
  *
- * ── WAAROM DIT ER MOEST KOMEN ───────────────────────────────────────────────
+ * ── WAAROM HET ER IS ────────────────────────────────────────────────────────
  *
- * De app kende maar één manier om iets te melden: een kaart die ergens in de
- * pagina verschijnt. Dat werkt voor een uitslag, niet voor een gebeurtenis. Het
- * merkonderzoek duurt ~7,5 minuut, en juist het moment waarop het klaar is ging
- * ongemarkeerd voorbij: de panelen ploften erin na een `router.refresh()` en wie
- * net even wegkeek zag alleen dat het scherm veranderd was.
+ * De app kende tot augustus 2026 maar één manier om iets te melden: een kaart
+ * ergens in de pagina. Dat werkt voor een uitslag, niet voor een gebeurtenis.
+ * Het merkonderzoek duurt ~7,5 minuut, en juist het moment waarop het klaar is
+ * ging ongemarkeerd voorbij.
  *
- * ── DE VORM KOMT VAN NOVA ───────────────────────────────────────────────────
+ * ── DE VORM SINDS 29 SEPTEMBER 2026 ─────────────────────────────────────────
  *
- * Overgenomen uit de gecompileerde CSS van nova.inspace.io (geanalyseerd op
- * 10 augustus 2026), zodat een melding hier hetzelfde aanvoelt als daar:
+ * Tot die dag stond hier een blok van minstens 451 pixels breed rechtsboven,
+ * met een titel én een omschrijving. De eigenaar vond het te groot en te
+ * nadrukkelijk. Nu:
  *
- *   toast-in        0,15s ease-out, van translateX(1rem) + opacity 0
- *   toast-out       0,12s ease-in, alleen opacity
- *   toast-progress  scaleX(1) → scaleX(0), lineair, over de hele levensduur
+ *   - rechtsonder op een breed scherm, onderaan boven de onderbalk op een
+ *     telefoon;
+ *   - één regel: de titel. Klikbaar als er een pagina is die er meer over zegt;
+ *   - daaronder "Bekijk alle notificaties", dat de lijst rechts opent
+ *     (`components/notificaties.tsx`);
+ *   - drie kleuren, als stip vóór de titel en als streep die leegloopt:
+ *     groen gelukt, oranje goed om te weten, rood mis of actie nodig;
+ *   - verdwijnt altijd vanzelf. Rood blijft langer staan (8 tegen 4,5
+ *     seconden), en met de muis erop staat de klok stil zodat de link te
+ *     halen is.
  *
- * Die laatste is het detail dat het af maakt: een streepje dat leegloopt zegt
- * "deze melding gaat vanzelf weg" zonder één woord uitleg. Nova zet hem onder
- * elke toast, en het is de reden dat je er niet op hoeft te klikken.
+ * `description` bestaat nog in de invoer, want ruim zestig aanroepen geven er
+ * een mee, vaak met de reden van een fout van de server. Hij staat niet meer in
+ * beeld maar als tekst bij het aanwijzen, en voor een schermlezer.
  *
- * Titel én omschrijving, altijd, ook dat is Nova (`updateSuccessTitle` +
- * `updateSuccessDescription` in hun i18n). De titel zegt wát er gebeurde, de
- * regel eronder wat het voor jou betekent. Eén regel alleen leest als een
- * systeemmelding.
- *
- * Bewust met de hand geschreven en niet Radix erbij: dit is de enige overlay
- * die de app nodig heeft, en hij is ~120 regels.
+ * Bewust met de hand geschreven en niet Radix erbij: dit is één overlay van
+ * ongeveer 150 regels.
  */
 
 /**
- * ⚠️ "waarschuwing" is er sinds 17 augustus 2026 bij gekomen, voor precies één
- * geval: een bulkactie die gedeeltelijk lukte (kwaliteitslat K5). Zo'n uitkomst
- * in het groen tonen is oneerlijk, want er bleef iets staan; hem in het rood
- * tonen ook, want het meeste ging goed. `--intent-warning` betekent letterlijk
- * "kijk hier even naar", en dat is precies de boodschap.
+ * Vier namen voor drie kleuren. "info" en "waarschuwing" zijn allebei oranje:
+ * beide betekenen "goed om te weten", en een vierde kleur maakt het verschil
+ * tussen de drie die ertoe doen alleen maar vager. De namen blijven omdat ruim
+ * zestig aanroepen ze gebruiken.
  */
 export type ToastIntent = "succes" | "fout" | "info" | "waarschuwing";
 
 export interface ToastInput {
   title: string;
-  /** Eén regel: wat betekent dit voor de gebruiker? */
+  /** Niet meer in beeld; wel bij het aanwijzen en voor een schermlezer. */
   description?: string;
   intent?: ToastIntent;
-  /** Milliseconden. Een fout blijft standaard staan tot je hem wegklikt. */
+  /** Waar een klik op de titel naartoe gaat, zo precies mogelijk. */
+  href?: string | null;
+  /** Milliseconden. Standaard 4,5 seconden, bij een fout 8. */
   duration?: number;
 }
 
@@ -67,6 +65,23 @@ interface ToastItem extends ToastInput {
   duration: number;
   leaving: boolean;
 }
+
+const KLEUR_VAN: Record<ToastIntent, NotificatieKleur> = {
+  succes: "groen",
+  fout: "rood",
+  info: "oranje",
+  waarschuwing: "oranje",
+};
+
+/** Omgekeerd, voor meldingen uit de notificatielijst. */
+export function intentVoorKleur(kleur: NotificatieKleur): ToastIntent {
+  return kleur === "groen" ? "succes" : kleur === "rood" ? "fout" : "waarschuwing";
+}
+
+const DUUR_STANDAARD = 4500;
+const DUUR_FOUT = 8000;
+/** Meer dan drie tegelijk is een muur, geen melding. De oudste gaat eerst weg. */
+const MAX_IN_BEELD = 3;
 
 const ToastContext = createContext<((t: ToastInput) => void) | null>(null);
 
@@ -90,34 +105,28 @@ let volgendeId = 0;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
-  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
+  const uitloop = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
   const remove = useCallback((id: number) => {
     // Eerst de uitloop-animatie (0,12s), dan pas uit de lijst. Anders klapt de
-    // rij eronder omhoog vóórdat de melding zelf verdwenen is.
+    // rij erboven omlaag vóórdat de melding zelf verdwenen is.
     setItems((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+    if (uitloop.current.has(id)) return;
     const t = setTimeout(() => {
       setItems((list) => list.filter((x) => x.id !== id));
-      timers.current.delete(id);
+      uitloop.current.delete(id);
     }, 120);
-    timers.current.set(id, t);
+    uitloop.current.set(id, t);
   }, []);
 
-  const push = useCallback(
-    (input: ToastInput) => {
-      const id = volgendeId++;
-      const duration = input.duration ?? (input.intent === "fout" ? 0 : 6000);
-      setItems((list) => [...list, { ...input, id, duration, leaving: false }]);
-      if (duration > 0) {
-        const t = setTimeout(() => remove(id), duration);
-        timers.current.set(id, t);
-      }
-    },
-    [remove],
-  );
+  const push = useCallback((input: ToastInput) => {
+    const id = volgendeId++;
+    const duration = input.duration && input.duration > 0 ? input.duration : input.intent === "fout" ? DUUR_FOUT : DUUR_STANDAARD;
+    setItems((list) => [...list, { ...input, id, duration, leaving: false }].slice(-MAX_IN_BEELD));
+  }, []);
 
   useEffect(() => {
-    const map = timers.current;
+    const map = uitloop.current;
     return () => map.forEach(clearTimeout);
   }, []);
 
@@ -129,12 +138,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* `aria-live="polite"` op de regio, niet op de losse melding: een
           schermlezer leest dan elke nieuwe melding voor zonder dat we per
           melding een live-regio aan- en uitzetten. */}
-      <div
-        className="no-print pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 p-4 sm:inset-x-auto sm:right-0 sm:top-0 sm:items-end"
-        role="region"
-        aria-label="Meldingen"
-        aria-live="polite"
-      >
+      <div className="toast-regio no-print" role="region" aria-label="Meldingen" aria-live="polite">
         {items.map((t) => (
           <ToastCard key={t.id} toast={t} onClose={() => remove(t.id)} />
         ))}
@@ -143,52 +147,66 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* De streep die leegloopt draagt de betekenis; de rand blijft neutraal, zoals
-   bij elk ander zwevend vlak. Tot 23 september 2026 kreeg "info" hier de
-   accentkleur (via de oude `intelligence`-naam) en "succes" de stijgkleur:
-   informatie is grijs (§2.5) en gelukt is succes, geen richting (§2.6). */
-const STREEP: Record<ToastIntent, string> = {
-  succes: "var(--intent-success-solid)",
-  fout: "var(--intent-danger-solid)",
-  info: "var(--intent-info-solid)",
-  waarschuwing: "var(--intent-warning-solid)",
-};
-
 function ToastCard({ toast, onClose }: { toast: ToastItem; onClose: () => void }) {
-  const intent = toast.intent ?? "info";
+  const kleur = KLEUR_VAN[toast.intent ?? "info"];
+  const { openen } = useNotificatiePaneel();
+  const [stil, setStil] = useState(false);
+  const resterend = useRef(toast.duration);
+
+  // De klok per melding, zodat hij kan stilstaan zolang de muis erop staat.
+  useEffect(() => {
+    if (stil || toast.leaving) return;
+    const start = Date.now();
+    const t = setTimeout(onClose, resterend.current);
+    return () => {
+      clearTimeout(t);
+      resterend.current = Math.max(0, resterend.current - (Date.now() - start));
+    };
+  }, [stil, toast.leaving, onClose]);
 
   return (
     <div
-      className="toast-card pointer-events-auto"
+      className="toast-card"
+      data-kleur={kleur}
       data-leaving={toast.leaving ? "" : undefined}
+      onMouseEnter={() => setStil(true)}
+      onMouseLeave={() => setStil(false)}
+      onFocus={() => setStil(true)}
+      onBlur={() => setStil(false)}
+      title={toast.description}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="text-sm font-medium">{toast.title}</p>
-          {toast.description && (
-            <p className="text-sm text-secondary">{toast.description}</p>
-          )}
-        </div>
+      <span className="toast-stip" aria-hidden />
+      <div className="toast-tekst">
+        {toast.href ? (
+          <Link href={toast.href} className="toast-titel toast-titel-link" onClick={onClose}>
+            {toast.title}
+          </Link>
+        ) : (
+          <p className="toast-titel">{toast.title}</p>
+        )}
+        {toast.description && <span className="sr-only">{toast.description}</span>}
         <button
           type="button"
-          onClick={onClose}
-          className="icon-btn icon-btn-sm -m-1"
-          aria-label="Melding sluiten"
+          className="toast-alles"
+          onClick={() => {
+            onClose();
+            openen();
+          }}
         >
-          <Icon naam="sluiten" size={16} />
+          Bekijk alle notificaties
         </button>
       </div>
-
-      {toast.duration > 0 && (
-        <span
-          className="toast-progress"
-          style={{
-            background: STREEP[intent],
-            animationDuration: `${toast.duration}ms`,
-          }}
-          aria-hidden
-        />
-      )}
+      <button type="button" onClick={onClose} className="toast-sluit" aria-label="Melding sluiten">
+        <Icon naam="sluiten" size={14} />
+      </button>
+      <span
+        className="toast-progress"
+        style={{
+          animationDuration: `${toast.duration}ms`,
+          animationPlayState: stil ? "paused" : "running",
+        }}
+        aria-hidden
+      />
     </div>
   );
 }

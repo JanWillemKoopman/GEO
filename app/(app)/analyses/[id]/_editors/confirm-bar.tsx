@@ -58,7 +58,7 @@ export function ConfirmBar({
     //
     // Nu ga je terug naar je clusteroverzicht, met één melding rechtsonder dat
     // de meting loopt. De uitslag komt je later vanzelf achterna
-    // (`components/cluster-melder.tsx`).
+    // (`components/notificaties.tsx`).
     //
     // Buiten de try: bevestigen is al gelukt op de server, dus een fout hier
     // (bv. tijdens router.refresh) mag niet als "bevestigen mislukt" ogen.

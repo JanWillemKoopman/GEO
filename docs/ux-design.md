@@ -939,7 +939,8 @@ augustus 2026 alsnog omgedraaid naar vier losse tabbladen.
 de eerste drie hoofdstukken naar Analytics, dat al een clusterfilter had. Op 22 september 2026 ging
 de rest: de conclusie naar Analytics, de vragen naar Openstaande vragen, de voorgestelde pagina's
 naar het Contentplan. Wat het scherm als enige deed, melden dat de meting klaar is, hangt nu niet
-meer aan een scherm maar aan een melding rechtsonder (`components/cluster-melder.tsx`). Het blok
+meer aan een scherm maar aan een melding rechtsonder (sinds 29 september 2026 een van de
+notificaties, `components/notificaties.tsx`). Het blok
 hierboven blijft staan omdat tientallen commentaarblokken in de code naar "hoofdstuk 01" t/m
 "hoofdstuk 04" verwijzen, en dat waren deze vier.
 

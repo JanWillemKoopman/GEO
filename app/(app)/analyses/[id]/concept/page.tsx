@@ -44,7 +44,7 @@ export const metadata = { title: "Concept beoordelen" };
  * ⚠️ Dit is het ENIGE wachtscherm dat overblijft, en dat is met opzet: hier
  * wacht je op iets wat jíj daarna moet doen. Op de meting daarna wacht je
  * nergens op, die loopt door op de server en meldt zichzelf
- * (`components/cluster-melder.tsx`).
+ * (`components/notificaties.tsx`).
  */
 export default async function ConceptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

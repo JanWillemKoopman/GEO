@@ -59,6 +59,7 @@
  * server, en beide lezen deze tabel.
  */
 import {
+  Bell,
   Ellipsis,
   GripVertical,
   Info,
@@ -218,7 +219,12 @@ export type IcoonNaam =
   // een universele conventie en geen eigen keuze, en de twee functies staan
   // nooit naast elkaar op een scherm, dus er is niets om te verwarren.
   | "wachtwoordtonen"
-  | "wachtwoordverbergen";
+  | "wachtwoordverbergen"
+  // ── Notificaties (29 september 2026) ────────────────────────────────────
+  // Het belletje rechtsboven dat de lijst met meldingen opent
+  // (`components/notificaties.tsx`). Een bel is de conventie; een eigen
+  // tekening zou alleen uitleg kosten.
+  | "notificaties";
 
 export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── DE ZEVEN HOOFDSTUKKEN ───────────────────────────────────────────────
@@ -420,4 +426,5 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // ── Het inlogtoneel ───────────────────────────────────────────────────────
   wachtwoordtonen: Eye,
   wachtwoordverbergen: EyeOff,
+  notificaties: Bell,
 };

@@ -895,12 +895,14 @@ import {
 import { decideStep, budgetUsd, RUN_BUDGET_EUR, STEP_COST_USD } from "@/lib/reputation/budget";
 import { isNewerVersionAvailable } from "@/lib/deployment";
 import {
-  moetMelden,
-  maakMelding,
-  teMelden,
-  MAX_MELDINGEN,
-  type ClusterStand,
-} from "@/lib/cluster-melding";
+  maakNotificatie,
+  nieuwTeTonen,
+  telOngelezen,
+  toonSleutel,
+  wanneer,
+  MAX_TEGELIJK,
+  type NotificatieRij,
+} from "@/lib/notificaties";
 import {
   kiesConcurrenten,
   variantSleutel,
@@ -9871,7 +9873,11 @@ group("de shell van 29 september 2026: zijbalk over de volle hoogte, doorzichtig
   }
   const css = leesBestand("app/globals.css");
   const topbar = css.slice(css.indexOf(".topbar {"), css.indexOf("}", css.indexOf(".topbar {")));
-  ok("de bovenbalk is doorzichtig zonder rand", topbar.includes("background-color: transparent") && !topbar.includes("border"));
+  // Sinds 30 september 2026 niet meer doorzichtig maar vast lichtgrijs, en
+  // alleen in de lichte stand: in de donkere stand de grond van de pagina.
+  ok("de bovenbalk heeft zijn eigen kleur via een token, zonder rand", topbar.includes("background-color: var(--topbar-bg)") && !topbar.includes("border"));
+  ok("lichtgrijs in de lichte stand", /--topbar-bg: #f2f2f2;/.test(css));
+  ok("de grond van de pagina in de donkere stand", (css.match(/--topbar-bg: var\(--bg-base\);/g) ?? []).length === 2);
   ok("er is geen ingeklapte zijbalk meer", !css.includes("sidebar-w-collapsed") && !css.includes(".sidebar-smal"));
   const kiezer = leesBestand("components/brand-switcher.tsx");
   ok("bij één merk toont de kiezer niets", kiezer.includes("if (brands.length === 1) return null;"));
@@ -17558,105 +17564,125 @@ group("bepaalGemisteVragen: eerst binnen een bron, dan tussen de bronnen", () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// De melding als een cluster klaar is (22 september 2026)
+// Notificaties (29 september 2026, migratie 0133)
 //
-// Het clusterresultaat heeft geen eigen scherm meer
-// (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). Deze module bepaalt
-// in plaats daarvan of er iets te melden valt en wat erin staat, en dat is de
-// enige plek waar de klant nog hoort dat zijn meting klaar is. Gaat dit stil
-// stuk, dan merkt niemand het, ook de klant niet.
+// De database legt vast dát er iets gebeurde; `lib/notificaties.ts` maakt er een
+// zin, een kleur en een link van. Vervangt de clustermelding van 22 september:
+// "meting klaar" is nu één van de soorten. Gaat een link stil stuk, dan komt de
+// klant op de verkeerde pagina uit zonder dat iemand het merkt.
 // ─────────────────────────────────────────────────────────────────────────────
-group("cluster-melding: één melding per ronde, en alleen als de ronde klaar is", () => {
-  const basis: ClusterStand = {
-    id: "c1",
-    naam: "Cv-ketel onderhoud",
-    status: "gereed",
-    resultaatGezienAt: null,
-    zichtbaarheid: 34,
-    openVragen: 6,
-    voorgesteld: 4,
+function notRij(over: Partial<NotificatieRij> & { soort: string }): NotificatieRij {
+  return {
+    id: "n1",
+    profile_id: "p1",
+    account_id: null,
+    object_id: "o1",
+    gegevens: {},
+    aantal: 1,
+    alleen_beheer: false,
+    aangemaakt_op: "2026-09-29T10:00:00.000Z",
+    ...over,
   };
+}
 
-  ok("een afgerond, nog niet gemeld cluster wordt gemeld", moetMelden(basis));
-  ok(
-    "dezelfde uitslag een tweede keer niet",
-    !moetMelden({ ...basis, resultaatGezienAt: "2026-09-22T10:00:00Z" }),
-  );
-  ok("een lopende meting nog niet", !moetMelden({ ...basis, status: "meten" }));
-  // `gemeten` betekent: score binnen, rapport nog niet. Juist dat rapport
-  // levert de vragen en de voorgestelde pagina's waar de melding over gaat.
-  ok("en 'score binnen, rapport volgt' ook niet", !moetMelden({ ...basis, status: "gemeten" }));
-  ok("een mislukte ronde wél", moetMelden({ ...basis, status: "mislukt" }));
+group("notificaties: zin, kleur en link per soort", () => {
+  const meting = maakNotificatie(notRij({ soort: "meting_klaar", gegevens: { naam: "Zonnepanelen" } }));
+  eq("meting klaar noemt het cluster", meting?.titel ?? "", "Meting van Zonnepanelen is klaar");
+  eq("meting klaar is groen", meting?.kleur ?? "", "groen");
+  eq("en wijst naar Analytics, gefilterd op dat cluster", meting?.href ?? "", "/merk/p1/analytics?cluster=o1");
 
-  const gelukt = maakMelding(basis);
-  eq("de titel die de eigenaar vroeg", gelukt.titel, "Cluster succesvol gemeten");
-  ok(
-    "met de drie cijfers in één regel",
-    gelukt.regel.includes("34% zichtbaarheid") &&
-      gelukt.regel.includes("6 openstaande vragen") &&
-      gelukt.regel.includes("4 voorgestelde pagina's"),
-    gelukt.regel,
-  );
-  ok("en de naam van het cluster erbij", gelukt.regel.startsWith("Cv-ketel onderhoud:"), gelukt.regel);
+  const mislukt = maakNotificatie(notRij({ soort: "meting_mislukt", gegevens: { naam: "Zonnepanelen" } }));
+  eq("een vastgelopen meting is rood", mislukt?.kleur ?? "", "rood");
 
-  // Conventie 3: onbekend is beter dan verkeerd. Een cluster zonder score krijgt
-  // geen 0%, want 0% betekent "gemeten en nergens genoemd".
-  const zonderScore = maakMelding({ ...basis, zichtbaarheid: null });
-  ok("geen score wordt 'nog geen score' en geen 0%", zonderScore.regel.includes("nog geen score"), zonderScore.regel);
-  ok("en dus nergens een 0%", !zonderScore.regel.includes("0%"), zonderScore.regel);
+  const klaar = maakNotificatie(notRij({ soort: "pagina_klaar", gegevens: { titel: "Warmtepomp kopen" } }));
+  eq("een pagina die klaar is noemt de titel", klaar?.titel ?? "", '"Warmtepomp kopen" is klaar om te lezen');
+  eq("en wijst naar die pagina zelf", klaar?.href ?? "", "/merk/p1/strategie/bibliotheek/o1");
 
-  // Enkelvoud en meervoud: dit getal staat vaak op 1.
-  const eenVanElk = maakMelding({ ...basis, openVragen: 1, voorgesteld: 1 });
-  ok(
-    "enkelvoud bij één vraag en één pagina",
-    eenVanElk.regel.includes("1 openstaande vraag") && eenVanElk.regel.includes("1 voorgestelde pagina."),
-    eenVanElk.regel,
-  );
+  const zonderTitel = maakNotificatie(notRij({ soort: "pagina_klaar" }));
+  eq("zonder titel een zin die nog klopt", zonderTitel?.titel ?? "", "Een pagina is klaar om te lezen");
+  const versie = maakNotificatie(notRij({ soort: "nieuwe_versie" }));
+  eq("en midden in de zin met kleine letter", versie?.titel ?? "", "Nieuwe versie van een pagina staat klaar");
 
-  const niets = maakMelding({ ...basis, openVragen: 0, voorgesteld: 0 });
-  ok(
-    "nul is hier een echte nul en geen onbekend",
-    niets.regel.includes("geen openstaande vragen") && niets.regel.includes("nog geen voorgestelde pagina"),
-    niets.regel,
-  );
+  const nietGevonden = maakNotificatie(notRij({ soort: "publicatie_niet_gevonden", gegevens: { titel: "X" } }));
+  eq("niet teruggevonden op de site is rood", nietGevonden?.kleur ?? "", "rood");
 
-  const mislukt = maakMelding({ ...basis, status: "mislukt" });
-  eq("een mislukking heeft zijn eigen soort", mislukt.soort, "mislukt");
-  ok("met de clusternaam in de titel", mislukt.titel.includes("Cv-ketel onderhoud"), mislukt.titel);
+  const eenVraag = maakNotificatie(notRij({ soort: "nieuwe_vragen" }));
+  const vijfVragen = maakNotificatie(notRij({ soort: "nieuwe_vragen", aantal: 5 }));
+  eq("één nieuwe vraag", eenVraag?.titel ?? "", "Er staat een nieuwe vraag voor je klaar");
+  eq("samengevoegde vragen tellen op", vijfVragen?.titel ?? "", "Er staan 5 nieuwe vragen voor je klaar");
+  eq("vragen wachten op de klant: rood", vijfVragen?.kleur ?? "", "rood");
+  eq("naar de openstaande vragen", vijfVragen?.href ?? "", "/merk/p1/strategie/vragen");
+
+  const kennisEen = maakNotificatie(notRij({ soort: "kennis_raakt_paginas", gegevens: { titel: "Dakkapel" } }));
+  const kennisVeel = maakNotificatie(notRij({ soort: "kennis_raakt_paginas", aantal: 12 }));
+  eq("kennis die één pagina raakt wijst naar die pagina", kennisEen?.href ?? "", "/merk/p1/strategie/bibliotheek/o1");
+  eq("kennis die er twaalf raakt wijst naar de bibliotheek", kennisVeel?.href ?? "", "/merk/p1/strategie/bibliotheek");
+  eq("en telt ze", kennisVeel?.titel ?? "", "Nieuwe bedrijfskennis raakt 12 pagina's");
+
+  const omhoog = maakNotificatie(notRij({ soort: "zichtbaarheid_omhoog", gegevens: { naam: "Lease", van: 22, naar: 41 } }));
+  eq("stijging met beide cijfers", omhoog?.titel ?? "", "Zichtbaarheid van Lease gestegen van 22% naar 41%");
+  eq("stijgen is groen", omhoog?.kleur ?? "", "groen");
+  const omlaag = maakNotificatie(notRij({ soort: "zichtbaarheid_omlaag", gegevens: { naam: "Lease", van: 41 } }));
+  eq("zonder beide cijfers geen cijfers", omlaag?.titel ?? "", "Zichtbaarheid van Lease flink gedaald");
+  eq("dalen is oranje, geen foutmelding (§2.6)", omlaag?.kleur ?? "", "oranje");
+
+  const blokkade = maakNotificatie(notRij({ soort: "audit_blokkade", gegevens: { blokkades: 1 } }));
+  eq("één blokkade, enkelvoud", blokkade?.titel ?? "", "Je site heeft 1 blokkade voor AI-assistenten");
+
+  const gsc = maakNotificatie(notRij({ soort: "gsc_fout" }));
+  eq("Search Console-fout wijst naar de koppeling van dit merk", gsc?.href ?? "", "/instellingen/koppelingen/p1");
+
+  const collega = maakNotificatie(notRij({ soort: "collega_aangemeld", profile_id: null, account_id: "a1", gegevens: { email: "piet@voorbeeld.nl" } }));
+  eq("een collega hoort bij het account, niet bij een merk", collega?.href ?? "", "/instellingen");
+
+  ok("een onbekende soort valt stil weg in plaats van 'undefined' te tonen", maakNotificatie(notRij({ soort: "bestaat_niet" })) === null);
 });
 
-group("teMelden: hooguit drie meldingen, maar alles wordt weggezet", () => {
-  const maak = (i: number): ClusterStand => ({
-    id: `c${i}`,
-    naam: `Cluster ${i}`,
-    status: "gereed",
-    resultaatGezienAt: null,
-    zichtbaarheid: 20 + i,
-    openVragen: i,
-    voorgesteld: i,
-  });
+group("notificaties: geen gedachtestreepjes en één regel", () => {
+  const soorten = [
+    "onderzoek_klaar", "onderzoek_mislukt", "gsc_cijfers", "gsc_fout", "reputatie_klaar", "reputatie_mislukt",
+    "audit_klaar", "audit_blokkade", "meting_klaar", "meting_mislukt", "zichtbaarheid_omhoog", "zichtbaarheid_omlaag",
+    "ontdekken_klaar", "ontdekken_mislukt", "pagina_klaar", "nieuwe_versie", "pagina_live", "publicatie_niet_gevonden",
+    "publicatie_herinnering", "effect_gemeten", "schrijven_mislukt", "nieuwe_vragen", "vragen_herinnering",
+    "vragen_beantwoord", "kennis_raakt_paginas", "collega_aangemeld", "budget_op",
+  ];
+  const alle = soorten.map((soort) => maakNotificatie(notRij({ soort })));
+  ok("elke soort uit migratie 0133 heeft een tekst", alle.every((m) => m !== null));
+  ok("geen gedachtestreepje (schrijfstijl §10)", alle.every((m) => !/[—–]/.test(m?.titel ?? "")));
+  ok("geen 'undefined' of 'null' in een zin", alle.every((m) => !/undefined|null/.test(m?.titel ?? "")));
+  ok("korte regels: nergens langer dan 60 tekens zonder namen", alle.every((m) => (m?.titel.length ?? 0) <= 60));
+  ok("elke soort in de code staat ook in de migratie", soorten.every((s) => leesBestand("supabase/migrations/0133_notificaties.sql").includes(`'${s}'`) || s === "budget_op"));
+  ok("het dagbudget meldt zich vanuit de code", leesBestand("lib/spend-limit.ts").includes('p_soort: "budget_op"'));
+});
 
-  const vijf = [maak(1), maak(2), maak(3), maak(4), maak(5)];
-  const uit = teMelden(vijf);
+group("notificaties: wat als kleine melding in beeld springt", () => {
+  const m = (id: string, tijd: string) => ({ id, titel: id, kleur: "groen" as const, href: null, aangemaaktOp: tijd });
+  const lijst = [
+    m("oud", "2026-09-29T08:00:00.000Z"),
+    m("a", "2026-09-29T10:01:00.000Z"),
+    m("b", "2026-09-29T10:02:00.000Z"),
+    m("c", "2026-09-29T10:03:00.000Z"),
+    m("d", "2026-09-29T10:04:00.000Z"),
+  ];
+  const sinds = "2026-09-29T10:00:00.000Z";
+  const nieuw = nieuwTeTonen(lijst, sinds, new Set());
+  eq2("wat vóór het openen van de app gebeurde niet", nieuw.filter((x) => x.id === "oud").length, 0);
+  eq2(`hooguit ${MAX_TEGELIJK} tegelijk`, nieuw.length, MAX_TEGELIJK);
+  eq("de nieuwste blijven, oud naar nieuw", nieuw.map((x) => x.id).join(","), "b,c,d");
+  const getoond = new Set(nieuw.map(toonSleutel));
+  eq2("wat al getoond is niet nog een keer", nieuwTeTonen(lijst, sinds, getoond).filter((x) => x.id !== "a").length, 0);
+  const opgeteld = [m("b", "2026-09-29T10:09:00.000Z")];
+  eq2("een samengevoegde melding met een nieuwe tijd wel weer", nieuwTeTonen(opgeteld, sinds, getoond).length, 1);
 
-  eq2("er verschijnen er hooguit drie in beeld", uit.meldingen.length, MAX_MELDINGEN);
-  // ⚠️ Dit is het punt van de test: alle vijf gaan als gezien weg. Zou alleen
-  // het drietal weggezet worden, dan komen de andere twee bij elke volgende
-  // ronde van de melder opnieuw terug, en dan klikt de klant een muur weg die
-  // nooit opdroogt.
-  eq2("maar alle vijf worden als gemeld weggezet", uit.gezien.length, 5);
+  eq2("zonder gezien-tijdstip is alles ongelezen", telOngelezen(lijst, null), 5);
+  eq2("na 10:02 gezien: twee ongelezen", telOngelezen(lijst, "2026-09-29T10:02:00.000Z"), 2);
 
-  const gemengd = teMelden([
-    maak(1),
-    { ...maak(2), status: "meten" },
-    { ...maak(3), resultaatGezienAt: "2026-09-22T08:00:00Z" },
-  ]);
-  eq2("een lopende en een al gemelde ronde tellen niet mee", gemengd.meldingen.length, 1);
-  eq2("en worden ook niet weggezet", gemengd.gezien.length, 1);
-  eq("het is het juiste cluster", gemengd.gezien[0] ?? "", "c1");
-
-  const leeg = teMelden([]);
-  eq2("zonder clusters valt er niets te melden", leeg.meldingen.length, 0);
+  const nu = new Date("2026-09-29T12:00:00.000Z");
+  eq("zojuist", wanneer("2026-09-29T11:59:40.000Z", nu), "zojuist");
+  eq("minuten", wanneer("2026-09-29T11:48:00.000Z", nu), "12 min geleden");
+  eq("uren", wanneer("2026-09-29T09:00:00.000Z", nu), "3 uur geleden");
+  eq("gisteren", wanneer("2026-09-28T10:00:00.000Z", nu), "gisteren");
+  eq("dagen", wanneer("2026-09-25T10:00:00.000Z", nu), "4 dagen geleden");
 });
 
 // ════════════════════════════════════════════════════════════════════════════
