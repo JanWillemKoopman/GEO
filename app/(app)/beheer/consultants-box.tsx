@@ -25,20 +25,26 @@ export function ConsultantsBox({
   const toast = useToast();
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [voornaam, setVoornaam] = useState("");
+  const [achternaam, setAchternaam] = useState("");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [intrekken, setIntrekken] = useState<string | null>(null);
 
   async function nodigUit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || busy) return;
+    if (!email.trim() || !voornaam.trim() || !achternaam.trim() || busy) return;
     setBusy(true);
     setLink(null);
     try {
       const res = await fetch("/api/staff/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({
+          email: email.trim(),
+          firstName: voornaam.trim(),
+          lastName: achternaam.trim(),
+        }),
       });
       const json = (await res.json().catch(() => null)) as
         | { link?: string; error?: string }
@@ -58,6 +64,8 @@ export function ConsultantsBox({
         description: "Kopieer de link hieronder en stuur hem naar de consultant.",
       });
       setEmail("");
+      setVoornaam("");
+      setAchternaam("");
       router.refresh();
     } catch {
       toast({
@@ -145,19 +153,45 @@ export function ConsultantsBox({
         </div>
       )}
 
-      <form onSubmit={nodigUit} className="flex flex-col gap-2 sm:flex-row">
-        <input
-          className="field flex-1"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="naam@outerorbit.nl"
-          aria-label="E-mailadres van de consultant"
-          disabled={busy}
-        />
-        <button type="submit" className="btn-primary shrink-0" disabled={busy || !email.trim()}>
-          {busy ? "Bezig…" : "Consultant uitnodigen"}
-        </button>
+      <form onSubmit={nodigUit} className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            className="field flex-1"
+            value={voornaam}
+            onChange={(e) => setVoornaam(e.target.value)}
+            placeholder="Voornaam"
+            aria-label="Voornaam van de consultant"
+            autoComplete="off"
+            disabled={busy}
+          />
+          <input
+            className="field flex-1"
+            value={achternaam}
+            onChange={(e) => setAchternaam(e.target.value)}
+            placeholder="Achternaam"
+            aria-label="Achternaam van de consultant"
+            autoComplete="off"
+            disabled={busy}
+          />
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            className="field flex-1"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="naam@outerorbit.nl"
+            aria-label="E-mailadres van de consultant"
+            disabled={busy}
+          />
+          <button
+            type="submit"
+            className="btn-primary shrink-0"
+            disabled={busy || !email.trim() || !voornaam.trim() || !achternaam.trim()}
+          >
+            {busy ? "Bezig…" : "Consultant uitnodigen"}
+          </button>
+        </div>
       </form>
 
       {link && (

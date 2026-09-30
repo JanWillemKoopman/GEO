@@ -3,7 +3,7 @@ import { getUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { membershipsOf } from "@/lib/accounts";
 import { createInvite } from "@/lib/invites";
-import { mayInvite } from "@/lib/invite-rules";
+import { mayInvite, naamOk, schoonNaam } from "@/lib/invite-rules";
 import { publicEnv } from "@/lib/env";
 import type { AccountRole } from "@/lib/types/database";
 
@@ -46,9 +46,9 @@ export async function POST(
     );
   }
 
-  let body: { email?: string; role?: string };
+  let body: { email?: string; firstName?: string; lastName?: string; role?: string };
   try {
-    body = (await request.json()) as { email?: string; role?: string };
+    body = (await request.json()) as { email?: string; firstName?: string; lastName?: string; role?: string };
   } catch {
     return NextResponse.json({ error: "Ongeldig verzoek." }, { status: 400 });
   }
@@ -61,11 +61,19 @@ export async function POST(
     return NextResponse.json({ error: "Vul een geldig e-mailadres in." }, { status: 400 });
   }
 
+  const firstName = schoonNaam(body.firstName);
+  const lastName = schoonNaam(body.lastName);
+  if (!naamOk(firstName, lastName)) {
+    return NextResponse.json({ error: "Vul een voornaam en een achternaam in." }, { status: 400 });
+  }
+
   const role: AccountRole = body.role === "admin" ? "admin" : "member";
 
   const result = await createInvite({
     accountId,
     email,
+    firstName,
+    lastName,
     role,
     invitedBy: user.id,
   });
@@ -86,6 +94,8 @@ export async function POST(
     invite: {
       id: result.invite.id,
       email: result.invite.email,
+      firstName: result.invite.first_name,
+      lastName: result.invite.last_name,
       role: result.invite.role,
       expires_at: result.invite.expires_at,
     },
