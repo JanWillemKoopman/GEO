@@ -874,6 +874,12 @@ al door de rollen en de consultantuitnodigingen bezet waren. Nagerekend met een 
 transactie (een meting op `gereed` gaf `meting_klaar`, drie beantwoorde vragen van één merk gaven
 één rij met `aantal` 3).
 
+## 0135: bron upload voor de kennislaag
+
+Verruimt `klantkennis_bron_check` met de waarde `upload` (Handmatige upload op "Feiten en kennis").
+Toegepast op productie op 30 september 2026, in de migratietabel van Supabase onder de naam
+`kennis_bron_upload`. Eerst als 0134 bedacht en hernummerd omdat die op `main` al bezet was.
+
 ## 0134: superuser is lid van elk account
 
 Functie `superuser_lid_maken()` en trigger `accounts_superuser_lid` op `accounts`: de superuser

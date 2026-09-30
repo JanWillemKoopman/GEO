@@ -38,7 +38,7 @@ export type Domein = (typeof DOMEINEN)[number];
 export const STATUSSEN = ["waargenomen", "verklaard", "bevestigd", "afgeleid"] as const;
 export type KennisStatus = (typeof STATUSSEN)[number];
 
-export const BRONNEN = ["website", "klant", "gesprek", "document", "extern", "meting", "ai"] as const;
+export const BRONNEN = ["website", "klant", "gesprek", "document", "upload", "extern", "meting", "ai"] as const;
 export type KennisBron = (typeof BRONNEN)[number];
 
 export const GEBRUIK = ["content", "intern", "verboden"] as const;
@@ -276,7 +276,8 @@ export function magOvergaan(
  * Welke status een nieuw item van deze actor en bron hooguit mag krijgen. Voor
  * K2 (`legVast()`): een model levert altijd afgeleid; de code waargenomen of
  * afgeleid, en verklaard alleen als hij iets overneemt wat een mens zei (een
- * antwoord, het gesprek, een geplakt document, zoals het terugvullen van K3);
+ * antwoord, het gesprek, een geplakt document of een handmatige upload, zoals
+ * het terugvullen van K3);
  * een mens alles behalve bevestigd (bevestigen is een eigen handeling met
  * `bevestig()`).
  */
@@ -284,6 +285,6 @@ export function magNieuwMetStatus(status: KennisStatus, door: Actor, bron: Kenni
   if (door === "model") return status === "afgeleid";
   if (status === "bevestigd") return false;
   if (bron === "ai") return status === "afgeleid" || status === "waargenomen";
-  if (status === "verklaard") return bron === "klant" || bron === "gesprek" || bron === "document";
+  if (status === "verklaard") return bron === "klant" || bron === "gesprek" || bron === "document" || bron === "upload";
   return true;
 }

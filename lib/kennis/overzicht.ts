@@ -64,6 +64,7 @@ const BRON_LABEL: Record<string, string> = {
   klant: "een antwoord van de klant",
   gesprek: "het gesprek",
   document: "een document",
+  upload: "een handmatige upload",
   extern: "een externe bron",
   meting: "een meting",
   ai: "het onderzoek door ORBIT ENGINE",
@@ -295,6 +296,7 @@ const BRON_KORT: Record<string, string> = {
   klant: "Klant",
   gesprek: "Gesprek",
   document: "Document",
+  upload: "Handmatige upload",
   extern: "Extern",
   meting: "Meting",
   ai: "Onderzoek",
@@ -311,13 +313,26 @@ export function itemsVoorTab(items: readonly OverzichtItem[], tab: KennisTab): O
 }
 
 /**
- * De items van een tabblad onder één filter, per domein. Binnen een domein
- * staat bevestigd bovenaan en vermoedens onderaan, zoals op het oude
- * kennisoverzicht, en daarna alfabetisch zodat de volgorde bij elke verversing
- * gelijk blijft.
+ * Nieuw boven oud, op het moment dat het item is vastgelegd (30 september 2026).
+ * Bij gelijke tijd beslist het id, zodat de volgorde bij elke verversing gelijk
+ * blijft: een upload legt tientallen items in dezelfde seconde vast. Een item
+ * zonder datum staat onderaan, want onbekend is niet nieuw.
+ */
+export function nieuwNaarOud(a: Pick<OverzichtItem, "id" | "vastgelegd_op">, b: Pick<OverzichtItem, "id" | "vastgelegd_op">): number {
+  const tijd = (i: Pick<OverzichtItem, "vastgelegd_op">) => (i.vastgelegd_op ? new Date(i.vastgelegd_op).getTime() : Number.NEGATIVE_INFINITY);
+  const verschil = tijd(b) - tijd(a);
+  if (verschil !== 0 && !Number.isNaN(verschil)) return verschil;
+  return a.id.localeCompare(b.id);
+}
+
+/**
+ * De items van een tabblad onder één filter, per domein. Binnen een domein staat
+ * het nieuwste bovenaan. Dat verving "bevestigd eerst" van het oude
+ * kennisoverzicht: de eigenaar wil na een upload meteen zien wat erbij kwam, en
+ * of iets gebruikt wordt staat nu in de kolom Gebruikt.
  */
 export function groepenVoorFilter(items: readonly OverzichtItem[], filter: KennisFilter, nu: Date = new Date()): OverzichtGroep[] {
-  return groepeer(items.filter((i) => pastInFilter(i, filter, nu)));
+  return groepeer(items.filter((i) => pastInFilter(i, filter, nu))).map((g) => ({ ...g, items: [...g.items].sort(nieuwNaarOud) }));
 }
 
 // ── De open punten van het onderzoek (A3) ────────────────────────────────────

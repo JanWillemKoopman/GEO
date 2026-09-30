@@ -6,6 +6,7 @@ import { CollapsibleSection } from "@/components/collapsible-section";
 import { ErrorNotice, problemFromResponse, networkProblem } from "@/components/error-notice";
 import { FilterChip, FilterChipGroep } from "@/components/filterchip";
 import { Icon } from "@/components/icon";
+import { formatDateShort } from "@/lib/format";
 import type { UserFacingError } from "@/lib/errors";
 import {
   FILTER_LABEL,
@@ -50,7 +51,8 @@ const LEEG: Record<KennisTab, string> = {
  * ── DE OPBOUW ───────────────────────────────────────────────────────────────
  *
  * Een zin die zegt wat er gebruikt wordt, een filter, en één ingeklapt blok per
- * onderwerp met een tabel: wat, bron, gebruikt, en de knoppen. Een regel opent
+ * onderwerp met een tabel: wat, bron, datum, gebruikt (Ja of Nee, het waarom staat in
+ * de geopende regel), en de knoppen. Nieuw staat boven oud (`nieuwNaarOud`). Een regel opent
  * zijn herkomst en citaat. Een filter zet de blokken open die iets overhouden.
  *
  * Schrijven loopt via de API-route (conventie 6), die zelf nog eens controleert
@@ -244,6 +246,9 @@ export function KennisWerkblad({
                         Bron
                       </th>
                       <th scope="col" className="hidden sm:table-cell">
+                        Toegevoegd
+                      </th>
+                      <th scope="col" className="hidden sm:table-cell">
                         Gebruikt
                       </th>
                       {!alleenLezen && (
@@ -291,8 +296,11 @@ export function KennisWerkblad({
                               </button>
                             </td>
                             <td className="hidden whitespace-nowrap text-secondary sm:table-cell">{bronKort(item.bron)}</td>
+                            <td className="hidden whitespace-nowrap text-secondary sm:table-cell">
+                              {item.vastgelegd_op ? datumMetJaar(item.vastgelegd_op) : ""}
+                            </td>
                             <td className="hidden whitespace-nowrap sm:table-cell">
-                              {gebruik.gebruikt ? gebruik.reden : <span className="text-muted">{neeZin(gebruik.reden, alleenLezen)}</span>}
+                              {gebruik.gebruikt ? "Ja" : <span className="text-muted">Nee</span>}
                             </td>
                             {!alleenLezen && (
                             <td className="whitespace-nowrap text-right">
@@ -338,7 +346,7 @@ export function KennisWerkblad({
                           </tr>
                           {isOpen && (
                             <tr>
-                              <td colSpan={alleenLezen ? 3 : 4} className="!pt-0">
+                              <td colSpan={alleenLezen ? 4 : 5} className="!pt-0">
                                 <Detail
                                   item={item}
                                   reden={gebruik.gebruikt ? null : gebruik.reden}
@@ -440,9 +448,18 @@ function Detail({
             : "Dit is een vermoeden van het onderzoek, zonder citaat van de site. Het gaat pas mee naar de schrijver als je het bevestigt."}
         </p>
       )}
+      {/* De kolom Gebruikt zegt alleen Ja of Nee; het waarom staat hier. Het
+          vermoeden heeft zijn eigen zin hierboven. */}
+      {reden === "Verlopen" && (
+        <p className="text-xs text-secondary">De geldigheidsdatum is voorbij, dus ORBIT ENGINE gebruikt dit niet meer bij het schrijven.</p>
+      )}
+      {reden === "Afgekeurd" && <p className="text-xs text-secondary">Afgekeurd: het blijft bewaard, maar ORBIT ENGINE gebruikt het niet.</p>}
       {/* De zin over de conflictlijst is voor de consultant: de klant weet niet
           wat dat is. */}
       {!alleenLezen && item.blokkade && <p className="text-xs text-secondary">{item.blokkade}</p>}
+      {alleenLezen && reden === "Botsing" && (
+        <p className="text-xs text-secondary">Dit botst met een ander gegeven en wordt nagekeken. Zolang gebruikt ORBIT ENGINE het niet.</p>
+      )}
       {(bewerkt !== null || extra.length > 0) && (
         <div className="flex flex-wrap gap-2">
           {bewerkt !== null ? (
@@ -472,11 +489,9 @@ function Detail({
   );
 }
 
-/** "Nee, vermoeden": het antwoord in de kolom Gebruikt, met de reden erbij. */
-function neeZin(reden: string, alleenLezen: boolean): string {
-  if (reden === "Niet gebruikt") return "Nee";
-  if (reden === "Botsing" && alleenLezen) return "Nee, wordt nagekeken";
-  return `Nee, ${reden.toLowerCase()}`;
+/** "30 sep 2026": het jaar erbij, want een upload kan maanden oud zijn. */
+function datumMetJaar(iso: string): string {
+  return `${formatDateShort(iso)} ${new Date(iso).getFullYear()}`;
 }
 
 /** De zin boven het werkblad: wat gaat mee naar de schrijver, en wat niet en waarom. */
