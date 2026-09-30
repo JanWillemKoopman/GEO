@@ -43,7 +43,7 @@ export function AccountBox({
   // aanvraag de deur uit is. Zie `components/use-refresh.ts`.
   const wacht = busy || refreshing;
   const [opzegDialoog, setOpzegDialoog] = useState(false);
-  const [form, setForm] = useState({
+  const begin = {
     legal_name: account.legal_name ?? "",
     address: account.address ?? "",
     postal_code: account.postal_code ?? "",
@@ -54,7 +54,11 @@ export function AccountBox({
     invoice_email: account.invoice_email ?? "",
     contact_person: account.contact_person ?? "",
     contact_phone: account.contact_phone ?? "",
-  });
+  };
+  const [form, setForm] = useState(begin);
+  // "Opslaan" doet alleen iets als er iets veranderd is; een knop die altijd
+  // aan staat laat twijfelen of het al bewaard is.
+  const gewijzigd = (Object.keys(begin) as (keyof typeof begin)[]).some((k) => form[k] !== begin[k]);
 
   const actief = isActiveAccount(account);
   const maand = monthsSinceStart(account);
@@ -170,9 +174,12 @@ export function AccountBox({
 
       {mayEdit && (
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={wacht}>
+          <button type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={wacht || !gewijzigd}>
             {wacht ? "Bezig…" : "Opslaan"}
           </button>
+          {!gewijzigd && !wacht && (
+            <span className="text-sm text-muted">Alles staat bij.</span>
+          )}
           {actief && (
             <button
               type="button"

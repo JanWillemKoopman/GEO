@@ -493,6 +493,7 @@ import {
   readinessHeadline,
 } from "@/lib/pipeline/profile-readiness";
 import { isActiveAccount, monthsSinceStart } from "@/lib/account-status";
+import { kiesAccount } from "@/lib/account-keuze";
 import {
   inviteState,
   passwordRules,
@@ -17944,6 +17945,23 @@ group("UX-audit P1.2, P1.4, P1.10: één woord per begrip", () => {
   ok("Alle merken opent op Alle merken", leesBestand("app/(app)/beheer/page.tsx").includes('title="Alle merken"'));
   const ui = [...tsxOnder("app"), ...tsxOnder("components")].map(leesBestand).join("\n");
   ok("geen customer success manager meer in de schermen", !/customer success manager/i.test(ui));
+});
+
+group("Mijn account: één account tegelijk", () => {
+  const a = [
+    { id: "b", created_at: "2026-02-01" },
+    { id: "a", created_at: "2026-01-01" },
+    { id: "c", created_at: "2026-03-01" },
+  ];
+  ok("geen accounts geeft niets", kiesAccount({ accounts: [], eigenIds: [] }) === null);
+  ok("de kiezer gaat voor", kiesAccount({ accounts: a, gevraagd: "c", merkAccountId: "b", eigenIds: ["a"] })?.id === "c");
+  ok("dan het account van het merk", kiesAccount({ accounts: a, merkAccountId: "b", eigenIds: ["a"] })?.id === "b");
+  ok("dan je eigen account", kiesAccount({ accounts: a, eigenIds: ["c"] })?.id === "c");
+  ok("dan het oudste", kiesAccount({ accounts: a, eigenIds: [] })?.id === "a");
+  ok("een onbekend gevraagd account wordt genegeerd", kiesAccount({ accounts: a, gevraagd: "x", eigenIds: [] })?.id === "a");
+  const pagina = leesBestand("app/(app)/instellingen/page.tsx");
+  ok("de pagina toont geen blok per account meer", !pagina.includes("teams.map"));
+  ok("opslaan wacht op een wijziging", leesBestand("app/(app)/instellingen/account-box.tsx").includes("disabled={wacht || !gewijzigd}"));
 });
 
 group("UX-audit P1.1, P1.3, P1.5, P2.9, P2.11: startscherm, eerlijke knoppen, clusterstroom", () => {
