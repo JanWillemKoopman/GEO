@@ -1986,6 +1986,18 @@ textarea.field {
 .werkruimte {
   --header-h: 0px;
 }
+:root,
+:root[data-theme="light"] {
+  --topbar-bg-light: #f1f1f1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --topbar-bg-light: var(--bg-base);
+  }
+}
+:root[data-theme="dark"] {
+  --topbar-bg-light: var(--bg-base);
+}
 @media (max-width: 1023px) {
   .werkruimte {
     --header-h: var(--topbar-h);
@@ -1994,7 +2006,7 @@ textarea.field {
     position: sticky;
     top: 0;
     z-index: 30;
-    background-color: var(--bg-base);
+    background-color: var(--topbar-bg-light);
     border-bottom: var(--border-width-xs) solid var(--line-muted);
   }
 }
