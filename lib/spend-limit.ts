@@ -139,7 +139,7 @@ export async function checkBudget(accountId: string | null): Promise<SpendVerdic
 }
 
 /**
- * Een beheerdersmelding zodra de rem erop gaat (migratie 0131). Eén per dag per
+ * Een beheerdersmelding zodra de rem erop gaat (migratie 0133). Eén per dag per
  * account: `notificatie_meld` voegt binnen 24 uur samen, want wie drie keer op
  * een geblokkeerde knop drukt heeft niets aan drie meldingen.
  *

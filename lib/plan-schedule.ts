@@ -82,6 +82,32 @@ export function monthCalendar(
   };
 }
 
+/**
+ * De naam van een planmaand zoals de gebruiker hem kent: "Oktober 2026".
+ *
+ * Tot 30 september 2026 stond op het bord "Maand 4" met de kalendermaand klein
+ * ernaast. Een klant denkt in oktober, niet in het vierde maandnummer sinds de
+ * start. Besluit 7 ("maand 4 sinds de start, nooit van 12") blijft staan: er
+ * staat nergens een looptijd. Onbekende start: "Maand 4" (conventie 3).
+ */
+export function maandTitel(startedOn: string, monthNumber: number): string {
+  const k = monthCalendar(startedOn, monthNumber);
+  if (!k) return `Maand ${monthNumber}`;
+  return k.label.charAt(0).toUpperCase() + k.label.slice(1);
+}
+
+/**
+ * De maand zoals je hem in een zin zegt: "oktober", en alleen met het jaar erbij
+ * als dat niet dit jaar is ("januari 2027"). Voor de knop "Plan in oktober" op
+ * een pagina-idee (30 september 2026). Onbekende start: "maand 4" (conventie 3).
+ */
+export function maandKort(startedOn: string, monthNumber: number, now: Date = new Date()): string {
+  const k = monthCalendar(startedOn, monthNumber);
+  if (!k) return `maand ${monthNumber}`;
+  const naam = k.label.toLowerCase();
+  return k.jaar === now.getFullYear() ? naam.replace(/\s+\d{4}$/, "") : naam;
+}
+
 /** Is maand `monthNumber` de maand waarin we vandaag leven? */
 export function isRunningMonth(
   startedOn: string,

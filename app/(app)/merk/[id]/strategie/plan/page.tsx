@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
+import { laadIdeeVenster } from "@/lib/pagina-idee-data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadPlan } from "@/lib/plans";
 import { backlogCount } from "@/lib/plan-backlog-data";
@@ -77,20 +78,10 @@ export default async function PlanPage({
 
   const kansen = bundle ? 0 : await backlogCount(admin, id);
 
-  // N5: de kennisitems waar de consultant een handmatige kans aan kan hangen.
-  // Alleen opgehaald als er ook iets mee te doen valt (staff, en er is een plan).
-  const { data: kennisRows } =
-    staff && bundle
-      ? await admin
-          .from("klantkennis")
-          .select("id, soort, bewering")
-          .eq("profile_id", id)
-          .in("soort", ["dienst", "werkgebied"])
-          .is("vervangen_door", null)
-          .is("afgewezen_op", null)
-          .order("soort")
-      : { data: [] };
-  const kennisOpties = (kennisRows ?? []) as { id: string; soort: string; bewering: string }[];
+  // Het venster "Nieuw pagina-idee" (N5, sinds 30 september 2026 een venster in
+  // plaats van een formulier boven de lijst). Alleen voor de consultant, en
+  // alleen als er een plan is.
+  const ideeVenster = staff && bundle ? await laadIdeeVenster(admin, id) : null;
 
   // Blok A punt 7: de link naar eerdere voorstellen alleen tonen als die er
   // ook echt zijn. Eén telling in plaats van de volle `loadPlanVersions()`:
@@ -172,7 +163,7 @@ export default async function PlanPage({
             kansBewijs={bundle.kansBewijs}
             kansNietGemeten={bundle.kansNietGemeten}
             // N5: alleen de consultant zet een handmatige kans klaar.
-            kennisOpties={staff ? kennisOpties : undefined}
+            ideeVenster={ideeVenster}
           />
         ) : modus === "kalender" ? (
           <PlanCalendarView

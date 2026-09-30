@@ -1214,6 +1214,30 @@ async function main(): Promise<void> {
     const geaccepteerd = await acceptInvite(uitnodiging!.token, "Wachtwoord1");
     ok("met een geldig wachtwoord komt de klant binnen", geaccepteerd.ok);
 
+    // ── Een consultant uitnodigen (30 september 2026, migratie 0132) ──────────
+    // Zelfde link en zelfde scherm, maar de uitkomst is een rij in `staff_users`
+    // en geen lidmaatschap van een account.
+    const { createStaffInvite } = await import("@/lib/invites");
+    const consultantAdres = `consultant-${Date.now()}@voorbeeld.nl`;
+    const staf = await createStaffInvite({ email: consultantAdres.toUpperCase(), invitedBy: userId });
+    ok("een consultantuitnodiging wordt aangemaakt", staf !== null);
+    const stafGevonden = await lookupInvite(staf!.token);
+    ok("de link herkent hem als consultant", stafGevonden.soort === "consultant" && stafGevonden.state === "geldig");
+    ok("een klantlink blijft een klantlink", (await lookupInvite(uitnodiging!.token)).soort === "klant");
+    const stafGeaccepteerd = await acceptInvite(staf!.token, "Wachtwoord1");
+    ok("de consultant komt binnen", stafGeaccepteerd.ok);
+    const { rows: stafRij } = await db.client.query(
+      `select s.role from public.staff_users s join auth.users u on u.id = s.user_id where u.email = $1`,
+      [consultantAdres.toLowerCase()],
+    );
+    ok("hij staat in de staftabel als consultant", stafRij.length === 1 && stafRij[0].role === "consultant");
+    const { rows: stafLid } = await db.client.query(
+      `select 1 from public.account_users au join auth.users u on u.id = au.user_id where u.email = $1`,
+      [consultantAdres.toLowerCase()],
+    );
+    ok("en hoort bij geen enkel klantaccount", stafLid.length === 0);
+    ok("de link is daarna verbruikt", (await lookupInvite(staf!.token)).state === "gebruikt");
+
     const { rows: nieuweGebruiker } = await db.client.query(
       `select id from auth.users where email = $1`,
       [klantAdres.toLowerCase()],
@@ -8667,6 +8691,20 @@ async function main(): Promise<void> {
         JSON.stringify(stukRows[0]),
       );
       ok("scenario 34, B33: zonder keuze wordt een handmatige kans een artikel, zoals voorheen", stukRows[0].type === "article", String(stukRows[0].type));
+
+      // 30 september 2026: de doelvragen van een eigen idee komen aan bij de
+      // brief en de schrijver. Tot die dag zocht de keten ze alleen via een
+      // aanbeveling uit een rapport, en die heeft een eigen idee niet.
+      const { laadPagina: laadEigenIdee, laadDoelvragen: doelvragenVanIdee } = await import("@/lib/pagina/context");
+      const { rows: stukId } = await db.client.query("select content_piece_id from public.planned_pages where id = $1", [planPaginaId]);
+      const eigenIdee = await laadEigenIdee(admin as never, stukId[0].content_piece_id as string);
+      ok("scenario 34: de pagina weet dat hij een eigen idee is", eigenIdee?.eigenIdeeAnalyse === schaduwAnalyseId, String(eigenIdee?.eigenIdeeAnalyse));
+      const vragenVanIdee = await doelvragenVanIdee(admin as never, eigenIdee!.sourceRef, [], eigenIdee!.eigenIdeeAnalyse);
+      eqc(
+        "scenario 34: de doelvragen van de consultant gaan mee naar de brief, zonder verzonnen antwoord",
+        vragenVanIdee.map((v) => `${v.vraag}|${v.antwoord ?? "-"}`).join(" ; "),
+        "Wat kost dakisolatie in Oisterwijk?|- ; Welke subsidie geldt er voor dakisolatie?|-",
+      );
 
       // B33: de consultant kiest de soort. De kaart draagt hem, het paginatype
       // volgt voor de contentmix, en de kans kent hem voor het kennisgat (N6).

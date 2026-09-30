@@ -36,6 +36,8 @@ export type Onderzoeksniveau = "web" | "web_en_zoekresultaten";
 export interface Paginasoort {
   label: string;
   keuze: string;
+  /** Eén regel onder de keuze in het venster "Nieuw pagina-idee": wat deze soort pagina doet. */
+  uitleg: string;
   beschrijving: string | null;
   onderzoek: Onderzoeksniveau;
 }
@@ -44,12 +46,14 @@ export const SOORTEN: Record<ContentType, Paginasoort> = {
   landing: {
     label: "dienstpagina",
     keuze: "Dienst- of productpagina",
+    uitleg: "Verkoopt een dienst of product",
     beschrijving: null,
     onderzoek: "web",
   },
   article: {
     label: "artikel met uitleg",
     keuze: "Artikel of blog",
+    uitleg: "Legt een onderwerp uit",
     beschrijving:
       "Een artikel beantwoordt een vraag die iemand heeft terwijl hij zich oriënteert, vaak nog voordat hij een bedrijf zoekt. De lezer wil het onderwerp begrijpen en een goed antwoord krijgen. Het bedrijf komt aan het woord waar het iets eigens te zeggen heeft, niet in elke alinea.",
     onderzoek: "web_en_zoekresultaten",
@@ -57,6 +61,7 @@ export const SOORTEN: Record<ContentType, Paginasoort> = {
   gids: {
     label: "gids",
     keuze: "Gids",
+    uitleg: "Helpt stap voor stap",
     beschrijving:
       "Een gids helpt de lezer iets van begin tot eind te doen of te beslissen. Hij wil weten wat erbij komt kijken, wat hij eerst doet en waar hij op moet letten, zodat hij daarna zelf verder kan. Het bedrijf komt aan het woord waar het iets eigens te zeggen heeft, niet in elke alinea.",
     onderzoek: "web_en_zoekresultaten",
@@ -64,6 +69,7 @@ export const SOORTEN: Record<ContentType, Paginasoort> = {
   faq: {
     label: "pagina met veelgestelde vragen",
     keuze: "Veelgestelde vragen",
+    uitleg: "Beantwoordt losse vragen",
     beschrijving:
       "Een pagina met veelgestelde vragen beantwoordt de vragen die mensen echt over dit onderwerp stellen. De lezer zoekt één antwoord en wil het meteen vinden: elke vraag krijgt een kort, direct antwoord dat ook los gelezen klopt.",
     onderzoek: "web_en_zoekresultaten",
@@ -71,6 +77,7 @@ export const SOORTEN: Record<ContentType, Paginasoort> = {
   comparison: {
     label: "vergelijkingspagina",
     keuze: "Vergelijking",
+    uitleg: "Helpt kiezen tussen opties",
     beschrijving:
       "Een vergelijking helpt de lezer kiezen tussen mogelijkheden: soorten, oplossingen of aanpakken. Hij wil de verschillen eerlijk naast elkaar zien en weten wat bij zijn situatie past. Vergelijk nooit met andere bedrijven bij naam.",
     onderzoek: "web_en_zoekresultaten",

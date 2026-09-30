@@ -14,7 +14,7 @@ import { nieuwTeTonen, toonSleutel, wanneer, type Notificatie } from "@/lib/noti
  *
  * ── WAAR ZE VANDAAN KOMEN ──────────────────────────────────────────────────
  *
- * De database legt elke gebeurtenis vast (migratie 0131), `lib/notificaties.ts`
+ * De database legt elke gebeurtenis vast (migratie 0133), `lib/notificaties.ts`
  * maakt er een zin, een kleur en een link van, en `/api/notificaties` geeft ze
  * hier af. Dit onderdeel vraagt elke 20 seconden of er iets bij is, zolang het
  * tabblad zichtbaar is. Dat is dezelfde maat als de clustermelder die hier

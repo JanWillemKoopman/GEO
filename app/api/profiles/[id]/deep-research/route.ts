@@ -6,6 +6,7 @@ import { getOwnedProfile } from "@/lib/profiles";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { mayTriggerCost, COST_DENIED } from "@/lib/cost-guard";
 import { checkBudgetForProfile } from "@/lib/spend-limit";
+import { MAX_PAGES_HARD_CAP } from "@/lib/crawler";
 
 /**
  * Onderzoek opnieuw draaien (docs/tasks/onboarding-2.0.md §8, punt 3).
@@ -39,10 +40,19 @@ import { checkBudgetForProfile } from "@/lib/spend-limit";
  * gebruiken wanneer het nodig is.
  */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+
+  // Optioneel: hoeveel pagina's er gelezen worden. Onbekend of onzin wordt
+  // `undefined` (het maximum), nooit een gok (conventie 3).
+  const body = (await request.json().catch(() => ({}))) as { maxPages?: unknown };
+  const gevraagd = Math.round(Number(body.maxPages));
+  const maxPages =
+    Number.isFinite(gevraagd) && gevraagd >= 5
+      ? Math.min(gevraagd, MAX_PAGES_HARD_CAP)
+      : undefined;
 
   const user = await getUser();
   if (!user)
@@ -91,7 +101,7 @@ export async function POST(
 
   await enqueue(admin, {
     type: "profile_discover",
-    payload: {},
+    payload: maxPages ? { maxPages } : {},
     profileId: id,
     // Zonder de datum in de sleutel zou een tweede ronde als duplicaat gelden
     // van de eerste, de partiële dedupe-index kijkt alleen naar queued/running,

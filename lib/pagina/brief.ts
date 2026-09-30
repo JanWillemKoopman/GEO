@@ -197,7 +197,7 @@ export async function maakBrief(admin: Admin, pieceId: string): Promise<BriefUit
   // en alle eerdere antwoorden, en ziet zo zelf wat er ontbreekt.
   const [bedrijf, doelvragen, eerdere, tekst, namen, definitie] = await Promise.all([
     laadBedrijf(admin, pagina),
-    laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten),
+    laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten, pagina.eigenIdeeAnalyse),
     eerdereVragen(admin, pagina.profileId),
     huidigeTekst(admin, pagina),
     merkNamen(admin, pagina.profileId, merk.naam),

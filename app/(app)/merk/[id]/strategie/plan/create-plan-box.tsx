@@ -90,8 +90,8 @@ export function CreatePlanBox({
         description:
           tekort > 0
             ? `${MONTHS_AHEAD} maanden. Maand ${maandNummer} begint met ${gepland} van de ${quota} pagina's: er zijn nog niet ` +
-              `genoeg gemeten kansen voor de rest. Meet een cluster erbij, dan vult de voorraad zich aan.`
-            : `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand ${maandNummer} wacht op vrijgave.`,
+              `genoeg gemeten pagina-ideeën voor de rest. Meet een cluster erbij, dan vult de ideeënlijst zich aan.`
+            : `${MONTHS_AHEAD} maanden, ${quota} pagina's per maand. Maand ${maandNummer} wacht op de start.`,
       });
       refresh();
     } catch {
@@ -111,11 +111,11 @@ export function CreatePlanBox({
         <span className="mono-label">Nog geen contentplan</span>
         <p className="text-secondary">
           Een contentplan geeft je {MONTHS_AHEAD} maanden vooruit. ORBIT ENGINE vult
-          elke maand vanzelf met de sterkste kansen uit je metingen, jij keurt per
-          maand goed voordat er iets geschreven wordt. Is de voorraad nog dun, dan
+          elke maand vanzelf met de sterkste pagina-ideeën uit je metingen, jij keurt per
+          maand goed voordat er iets geschreven wordt. Is de ideeënlijst nog dun, dan
           is een maand korter dan je pakket in plaats van gevuld met verzonnen
           onderwerpen; zodra er meer gemeten is, vult hij vanzelf verder aan. Je
-          geeft per maand vrij, en ORBIT ENGINE begint tien dagen voor elke
+          start elke maand, en ORBIT ENGINE begint tien dagen voor elke
           publicatiedatum met schrijven.
         </p>
 

@@ -1,4 +1,4 @@
--- 0131: notificaties, één lijst met wat er in de app gebeurd is.
+-- 0133: notificaties, één lijst met wat er in de app gebeurd is.
 --
 -- Tot 29 september 2026 kende de app twee soorten meldingen: een zwevend blok
 -- rechtsboven dat verscheen na een klik van de gebruiker zelf, en één melding
@@ -59,7 +59,7 @@ create index if not exists notificaties_soort_idx
   on public.notificaties (soort, aangemaakt_op desc);
 
 comment on table public.notificaties is
-  'Eén rij per gebeurtenis waar de gebruiker van hoort te weten. Aangemaakt door triggers (en notificatie_meld vanuit de code); tekst, kleur en link in lib/notificaties.ts. Migratie 0131.';
+  'Eén rij per gebeurtenis waar de gebruiker van hoort te weten. Aangemaakt door triggers (en notificatie_meld vanuit de code); tekst, kleur en link in lib/notificaties.ts. Migratie 0133.';
 
 -- Tot wanneer iemand alles gezien heeft. Eén tijdstip per gebruiker in plaats
 -- van een vinkje per rij: openen van de lijst zet alles tegelijk op gelezen,

@@ -11,6 +11,8 @@ import { MONTH_STATUS_META, PLAN_STATUS_META, planRunningDate } from "@/lib/plan
 import { sharedNotice } from "@/lib/plan-overview";
 import {
   monthCalendar,
+  maandTitel,
+  maandKort,
   isRunningMonth,
   isPastMonth,
   formatDagNL,
@@ -31,10 +33,13 @@ import {
 import { CONTENT_TYPES, soortVanPlanPagina, writeDecision, writeBlockNotice, type TopicWritingState } from "@/lib/plan-writing";
 import { SOORTEN } from "@/lib/pagina/soorten";
 import { canMove } from "@/lib/plan-order";
+import { bordGroepen, restRegel } from "@/lib/plan-bord";
+import { voorgesteldeMaand } from "@/lib/pagina-idee";
 import { kiesVoorBulk, OVERSLAAN_TEKST } from "@/lib/plan-bulk";
 import type { ContentPlan, ContentType, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
-import { HandmatigeKansFormulier, type KennisOptie } from "./handmatige-kans-formulier";
+import { NieuwPaginaIdee } from "@/components/pagina/nieuw-pagina-idee";
+import type { IdeeVenster } from "@/lib/pagina-idee-data";
 
 /**
  * Het contentplan: een voorraad links, twaalf maanden rechts.
@@ -85,8 +90,17 @@ import { HandmatigeKansFormulier, type KennisOptie } from "./handmatige-kans-for
  * vraagt om een statuschip naast de maandtitel en een primaire knop rechts in de
  * maandkop, en die stonden er allebei al.
  *
- * De rekenkunde staat in `lib/plan-backlog.ts`, `lib/plan-schedule.ts` en
- * `lib/plan-overview.ts`, alle drie puur en getest (conventie 2).
+ * ── WAT ER OP 30 SEPTEMBER 2026 BIJ IS GEKOMEN ──────────────────────────────
+ *
+ * Eén woord per ding (pagina-idee, ideeënlijst, een maand starten), drie maanden
+ * open in plaats van twaalf (`lib/plan-bord.ts`), een knop "Plan in oktober" op
+ * elk idee, en een menu met schermen: hooguit vier keuzes op het eerste, en de
+ * lijst met maanden pas na "Verplaatsen". Slepen bleef bestaan. De redenen
+ * staan in `docs/ux-design.md`.
+ *
+ * De rekenkunde staat in `lib/plan-backlog.ts`, `lib/plan-schedule.ts`,
+ * `lib/plan-bord.ts` en `lib/plan-overview.ts`, alle vier puur en getest
+ * (conventie 2).
  */
 
 /** Wat er op dit moment onder de muis hangt. */
@@ -118,7 +132,7 @@ export function PlanView({
   kansUitleg = {},
   kansBewijs = {},
   kansNietGemeten = {},
-  kennisOpties,
+  ideeVenster,
 }: {
   /** N6: per kans wat nog ontbreekt. Alleen gevuld voor de consultant. */
   kaartZin?: Record<string, string | null>;
@@ -128,8 +142,8 @@ export function PlanView({
   kansBewijs?: Record<string, string[]>;
   /** N5: een kans zonder gemeten cluster (handmatig, besluit V2). */
   kansNietGemeten?: Record<string, boolean>;
-  /** N5: kennisitems voor het formulier. Alleen gevuld voor de consultant. */
-  kennisOpties?: KennisOptie[];
+  /** Het venster "Nieuw pagina-idee", alleen voor de consultant (null of weggelaten: geen knop). */
+  ideeVenster?: IdeeVenster | null;
   /**
    * De ene stand per plan-pagina (`lib/pagina-stand.ts`, 23 september 2026).
    * Het plan toonde tot die dag zijn eigen labels ("Tekst klaar voor akkoord"),
@@ -164,6 +178,8 @@ export function PlanView({
   const [sleep, setSleep] = useState<Sleep | null>(null);
   const [sleepDoel, setSleepDoel] = useState<string | null>(null);
   const [dicht, setDicht] = useState<Record<string, boolean>>({});
+  // De samenklapte groepen van de maanden die niet in beeld staan (`bordGroepen()`).
+  const [restOpen, setRestOpen] = useState<Record<string, boolean>>({});
   const [uitgeklapt, setUitgeklapt] = useState<Record<string, boolean>>({});
 
   const funnelNaam = useMemo(() => new Map(funnels.map((f) => [f.id, f.label])), [funnels]);
@@ -229,6 +245,30 @@ export function PlanView({
     [months, echt, plan.started_on, maandVan, onderwerp],
   );
 
+  // 30 september 2026: de eerste drie maanden die nog komen staan open, de rest
+  // dicht als één regel (`lib/plan-bord.ts`). Een maand waar iets op de klant
+  // wacht staat altijd open.
+  const groepen = bordGroepen(maanden, (m) => ({
+    id: m.month.id,
+    voorbij: m.voorbij,
+    vraagtActie: m.month.status === "ter_goedkeuring" || m.inhoud.some((p) => p.status === "ter_goedkeuring"),
+  }));
+
+  // De maand die "Plan in oktober" voorstelt: de eerste die nog komt en plek heeft.
+  const voorstelMaand = (() => {
+    const v = voorgesteldeMaand(
+      maanden.map((m) => ({
+        id: m.month.id,
+        titel: maandTitel(plan.started_on, m.month.month_number),
+        aantal: m.inhoud.length,
+        voorbij: m.voorbij,
+      })),
+      plan.pages_per_month,
+    );
+    const m = v ? maanden.find((x) => x.month.id === v.id) : null;
+    return m ? { id: m.month.id, kort: maandKort(plan.started_on, m.month.month_number) } : null;
+  })();
+
   const eerstvolgende = useMemo(() => {
     const vandaag = new Date().toISOString().slice(0, 10);
     return (
@@ -280,7 +320,21 @@ export function PlanView({
   }
 
   async function inplannen(pageId: string, maandId: string, index: number | null) {
-    await stuur(pageId, { actie: "inplannen", maandId, index });
+    const gelukt = await stuur(pageId, { actie: "inplannen", maandId, index });
+    // Staat de gekozen maand dicht onder "Toon", dan verdwijnt de pagina uit het
+    // beeld. Zeg dan waar hij naartoe ging: de enige keer dat een geslaagde
+    // handeling niet in het scherm zelf te zien is (zie `stuur()`).
+    const staatDicht = groepen.some(
+      (g) => g.soort === "rest" && !(restOpen[g.sleutel] ?? false) && g.maanden.some((m) => m.month.id === maandId),
+    );
+    const maand = maanden.find((m) => m.month.id === maandId);
+    if (gelukt && staatDicht && maand) {
+      toast({
+        intent: "succes",
+        title: `Ingepland in ${maandTitel(plan.started_on, maand.month.month_number).toLowerCase()}`,
+        description: "Die maand staat dicht. Klik op de regel met de maanden om hem te openen.",
+      });
+    }
   }
 
   async function naarVoorraad(pageId: string) {
@@ -398,7 +452,7 @@ export function PlanView({
         const los = j?.zonderOnderwerp ?? 0;
         toast({
           intent: los > 0 ? "waarschuwing" : "succes",
-          title: n > 0 ? `De vragen voor ${n === 1 ? "1 pagina" : `${n} pagina's`} worden klaargezet` : "Maand vrijgegeven",
+          title: n > 0 ? `De vragen voor ${n === 1 ? "1 pagina" : `${n} pagina's`} worden klaargezet` : "Maand gestart",
           description:
             (n > 0 ? "Binnen een paar minuten staan ze onder Openstaande vragen." : "") +
             (los > 0
@@ -513,190 +567,12 @@ export function PlanView({
 
   const maandKeuzes: MaandKeuze[] = maanden.map((m) => ({
     id: m.month.id,
-    label: `Maand ${m.month.month_number}${m.kalender ? ` · ${m.kalender}` : ""}`,
+    label: maandTitel(plan.started_on, m.month.month_number),
     voorbij: m.voorbij,
   }));
 
-  return (
-    <div className="flex flex-col gap-5">
-      {/* ── De feiten van het plan, één regel ────────────────────────────── */}
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-sm text-secondary">
-            <span className="mono-label">pakket {plan.pages_per_month} per maand</span>
-            <span className="mx-2 text-muted">·</span>
-            {echt.length} ingepland
-            <span className="mx-2 text-muted">·</span>
-            {backlog.length} content beschikbaar
-            {eerstvolgende && (
-              <>
-                <span className="mx-2 text-muted">·</span>
-                volgende publicatie {formatDagNL(eerstvolgende)}
-              </>
-            )}
-          </span>
-        </div>
-        {/* Besluit 18: opnieuw opzetten raakt het hele jaar, dus alleen de
-            beheerder. De klant ziet de knop niet, want hij zou een 403 geven. */}
-        {staff && (
-          <button
-            type="button"
-            className="btn-ghost btn-sm"
-            onClick={() => setOpnieuwDialog(true)}
-            disabled={busy === "plan"}
-          >
-            Opnieuw opzetten
-          </button>
-        )}
-      </div>
-
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,23rem)_minmax(0,1fr)]">
-        {/* ── Links: de voorraad ─────────────────────────────────────────── */}
-        <div
-          className="flex flex-col gap-4 lg:sticky lg:top-4"
-          onDragOver={(e) => {
-            if (sleep?.uitMaand) {
-              e.preventDefault();
-              setSleepDoel("voorraad");
-            }
-          }}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node)) setSleepDoel(null);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            setSleepDoel(null);
-            if (sleep?.uitMaand) void naarVoorraad(sleep.pageId);
-            setSleep(null);
-          }}
-        >
-          <section
-            className="card flex flex-col overflow-hidden"
-            style={{
-              padding: 0,
-              maxHeight: "calc(100vh - 8rem)",
-              ...(sleepDoel === "voorraad"
-                ? { borderColor: "var(--border-selected)", background: "var(--interactive-hover)" }
-                : {}),
-            }}
-          >
-            <div className="flex flex-col gap-2 px-4 pb-3 pt-4">
-              <div className="flex items-baseline justify-between gap-2">
-                {/* `.type-body-emphasis` en niet een kale Tailwind-tekstgrootte: de
-                    typografie loopt via de `type-`-klassen uit `app/globals.css`. (Tot
-                    stap 9 van de redesign was `text-base` hier ook nog een echte val, zie
-                    de toelichting bij `@theme inline` in dat bestand; die val is inmiddels
-                    weg.) */}
-                <h2 className="type-body-emphasis">In te plannen content</h2>
-                <span className="mono-label">
-                  {zichtbareVoorraad.length === backlog.length
-                    ? `${backlog.length}`
-                    : `${zichtbareVoorraad.length} van ${backlog.length}`}
-                </span>
-              </div>
-              {kennisOpties && (
-                <HandmatigeKansFormulier profileId={profileId} kennisOpties={kennisOpties} />
-              )}
-
-              {backlog.length > 0 && (
-                <>
-                  <input
-                    className="field field-sm"
-                    value={filters.zoek}
-                    onChange={(e) => setFilters((f) => ({ ...f, zoek: e.target.value }))}
-                    placeholder="Zoeken"
-                    aria-label="Zoek in de voorraad"
-                  />
-                  <div className="flex flex-wrap gap-1.5">
-                    {clusters.length > 1 && (
-                      <select
-                        className="field field-sm field-select w-auto"
-                        value={filters.cluster}
-                        onChange={(e) => setFilters((f) => ({ ...f, cluster: e.target.value }))}
-                        aria-label="Filter op cluster"
-                      >
-                        <option value="">Alle clusters</option>
-                        {clusters.map((c) => (
-                          <option key={c.naam} value={c.naam}>
-                            {c.naam} ({c.aantal})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <Segment
-                      actief={filters.handeling === ""}
-                      onClick={() => setFilters((f) => ({ ...f, handeling: "" }))}
-                    >
-                      Alles
-                    </Segment>
-                    <Segment
-                      actief={filters.handeling === "nieuw"}
-                      onClick={() => setFilters((f) => ({ ...f, handeling: "nieuw" }))}
-                    >
-                      Nieuw
-                    </Segment>
-                    <Segment
-                      actief={filters.handeling === "verbeteren"}
-                      onClick={() => setFilters((f) => ({ ...f, handeling: "verbeteren" }))}
-                    >
-                      Verbeteren
-                    </Segment>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {backlog.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-secondary">
-                Hier komen je contentitems te staan die je kunt inplannen in je contentkalender.
-                Op dit moment zijn er geen items beschikbaar.
-              </p>
-            ) : zichtbareVoorraad.length === 0 ? (
-              <div className="flex flex-col items-start gap-1 px-4 pb-4">
-                <span className="text-sm text-secondary">Niets in deze selectie.</span>
-                <button
-                  type="button"
-                  className="text-sm text-secondary hover:underline"
-                  onClick={() => setFilters(LEGE_BACKLOG_FILTERS)}
-                >
-                  Toon alle {backlog.length} kansen
-                </button>
-              </div>
-            ) : (
-              <ul className="flex-1 overflow-y-auto">
-                {zichtbareVoorraad.map((item) => (
-                  <BacklogRij
-                    key={item.id}
-                    item={item}
-                    gat={gatZin(kaartZin, item.kansId ?? null)}
-                    kansUitleg={item.kansId ? (kansUitleg[item.kansId] ?? null) : null}
-                    bewijs={item.kansId ? (kansBewijs[item.kansId] ?? []) : []}
-                    nietGemeten={item.kansId ? (kansNietGemeten[item.kansId] ?? false) : false}
-                    maanden={maandKeuzes}
-                    busy={busy === item.id}
-                    open={uitgeklapt[item.id] ?? false}
-                    onToggle={() =>
-                      setUitgeklapt((u) => ({ ...u, [item.id]: !(u[item.id] ?? false) }))
-                    }
-                    onSleepStart={() =>
-                      setSleep({ pageId: item.id, titel: item.title, uitMaand: null })
-                    }
-                    onSleepEinde={() => {
-                      setSleep(null);
-                      setSleepDoel(null);
-                    }}
-                    onKies={(maandId) => void inplannen(item.id, maandId, null)}
-                    onVerwijder={() => setRemoveKans(item)}
-                  />
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
-        <div className="flex flex-col gap-3">
-          {maanden.map(({ month, inhoud, gedeeld, kalender, lopend, voorbij }) => {
+  /** Eén maand als kaart: kop, chips, knoppen en de pagina's erin. */
+  const maandKaart = ({ month, inhoud, gedeeld, lopend, voorbij }: (typeof maanden)[number]) => {
             const meta = MONTH_STATUS_META[month.status];
             // Een lege maand die niet loopt, begint dicht: twaalf lege
             // dropzones onder elkaar zijn twaalf keer dezelfde uitnodiging.
@@ -762,10 +638,11 @@ export function PlanView({
                       className="flex items-center gap-2 text-sm font-medium hover:underline"
                     >
                       <Icon naam={open ? "openen" : "verder"} size={14} />
-                      {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
-                      Maand {month.month_number}
+                      {/* 30 september 2026: de maand bij zijn naam ("Oktober 2026")
+                          in plaats van "Maand 4" met de naam klein ernaast. Besluit 7
+                          blijft: nergens "van 12". */}
+                      {maandTitel(plan.started_on, month.month_number)}
                     </button>
-                    {kalender && <span className="mono-label">{kalender}</span>}
                     {lopend && <span className="chip chip-info">Deze maand</span>}
                     {/* ⚠️ Bij een lege, dichtgeklapte maand geen chip. "Concept"
                         was daar het zwaarste element van de regel terwijl het
@@ -839,10 +716,10 @@ export function PlanView({
                           onClick={() => setMonthDialog(month)}
                           disabled={busy === month.id}
                         >
-                          Vrijgeven
+                          Start deze maand
                         </button>
                       ) : (
-                        <span className="text-sm text-secondary">Vrijgeven via je consultant</span>
+                        <span className="text-sm text-secondary">Je consultant start deze maand</span>
                       )
                     )}
                   </div>
@@ -867,7 +744,7 @@ export function PlanView({
                       className="border-t px-4 py-5 text-center text-xs text-muted"
                       style={{ borderColor: "var(--border-subtle)" }}
                     >
-                      Sleep hier een kans uit de voorraad naartoe
+                      Sleep hier een pagina-idee naartoe
                     </p>
                   ) : (
                     <ul>
@@ -924,6 +801,215 @@ export function PlanView({
                     </ul>
                   ))}
               </section>
+            );
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* ── De feiten van het plan, één regel ────────────────────────────── */}
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm text-secondary">
+            {/* 30 september 2026: "pakket 3 per maand" werd "3 pagina's per maand",
+                en "content beschikbaar" werd "pagina-ideeën" (één woord per ding). */}
+            <span className="mono-label">{plan.pages_per_month} {plan.pages_per_month === 1 ? "pagina" : "pagina's"} per maand</span>
+            <span className="mx-2 text-muted">·</span>
+            {echt.length} ingepland
+            <span className="mx-2 text-muted">·</span>
+            {backlog.length} {backlog.length === 1 ? "pagina-idee" : "pagina-ideeën"}
+            {eerstvolgende && (
+              <>
+                <span className="mx-2 text-muted">·</span>
+                volgende publicatie {formatDagNL(eerstvolgende)}
+              </>
+            )}
+          </span>
+        </div>
+        {/* Besluit 18: opnieuw opzetten raakt het hele jaar, dus alleen de
+            beheerder. De klant ziet de knop niet, want hij zou een 403 geven. */}
+        {staff && (
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            onClick={() => setOpnieuwDialog(true)}
+            disabled={busy === "plan"}
+          >
+            Opnieuw opzetten
+          </button>
+        )}
+      </div>
+
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,23rem)_minmax(0,1fr)]">
+        {/* ── Links: de voorraad ─────────────────────────────────────────── */}
+        <div
+          className="flex flex-col gap-4 lg:sticky lg:top-4"
+          onDragOver={(e) => {
+            if (sleep?.uitMaand) {
+              e.preventDefault();
+              setSleepDoel("voorraad");
+            }
+          }}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setSleepDoel(null);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setSleepDoel(null);
+            if (sleep?.uitMaand) void naarVoorraad(sleep.pageId);
+            setSleep(null);
+          }}
+        >
+          <section
+            className="card flex flex-col overflow-hidden"
+            style={{
+              padding: 0,
+              maxHeight: "calc(100vh - 8rem)",
+              ...(sleepDoel === "voorraad"
+                ? { borderColor: "var(--border-selected)", background: "var(--interactive-hover)" }
+                : {}),
+            }}
+          >
+            <div className="flex flex-col gap-2 px-4 pb-3 pt-4">
+              <div className="flex items-baseline justify-between gap-2">
+                {/* `.type-body-emphasis` en niet een kale Tailwind-tekstgrootte: de
+                    typografie loopt via de `type-`-klassen uit `app/globals.css`. (Tot
+                    stap 9 van de redesign was `text-base` hier ook nog een echte val, zie
+                    de toelichting bij `@theme inline` in dat bestand; die val is inmiddels
+                    weg.) */}
+                <h2 className="type-body-emphasis">Ideeënlijst</h2>
+                <span className="mono-label">
+                  {zichtbareVoorraad.length === backlog.length
+                    ? `${backlog.length}`
+                    : `${zichtbareVoorraad.length} van ${backlog.length}`}
+                </span>
+              </div>
+              {ideeVenster && (
+                <NieuwPaginaIdee
+                  profileId={profileId}
+                  kennisOpties={ideeVenster.kennisOpties}
+                  maanden={ideeVenster.maanden}
+                  perMaand={ideeVenster.perMaand}
+                  knop="rustig"
+                />
+              )}
+
+              {backlog.length > 0 && (
+                <>
+                  <input
+                    className="field field-sm"
+                    value={filters.zoek}
+                    onChange={(e) => setFilters((f) => ({ ...f, zoek: e.target.value }))}
+                    placeholder="Zoeken"
+                    aria-label="Zoek in de ideeënlijst"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {clusters.length > 1 && (
+                      <select
+                        className="field field-sm field-select w-auto"
+                        value={filters.cluster}
+                        onChange={(e) => setFilters((f) => ({ ...f, cluster: e.target.value }))}
+                        aria-label="Filter op cluster"
+                      >
+                        <option value="">Alle clusters</option>
+                        {clusters.map((c) => (
+                          <option key={c.naam} value={c.naam}>
+                            {c.naam} ({c.aantal})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <Segment
+                      actief={filters.handeling === ""}
+                      onClick={() => setFilters((f) => ({ ...f, handeling: "" }))}
+                    >
+                      Alles
+                    </Segment>
+                    <Segment
+                      actief={filters.handeling === "nieuw"}
+                      onClick={() => setFilters((f) => ({ ...f, handeling: "nieuw" }))}
+                    >
+                      Nieuw
+                    </Segment>
+                    <Segment
+                      actief={filters.handeling === "verbeteren"}
+                      onClick={() => setFilters((f) => ({ ...f, handeling: "verbeteren" }))}
+                    >
+                      Verbeteren
+                    </Segment>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {backlog.length === 0 ? (
+              <p className="px-4 pb-4 text-sm text-secondary">
+                Hier komen de pagina-ideeën die je kunt inplannen. Op dit moment zijn er geen.
+              </p>
+            ) : zichtbareVoorraad.length === 0 ? (
+              <div className="flex flex-col items-start gap-1 px-4 pb-4">
+                <span className="text-sm text-secondary">Niets in deze selectie.</span>
+                <button
+                  type="button"
+                  className="text-sm text-secondary hover:underline"
+                  onClick={() => setFilters(LEGE_BACKLOG_FILTERS)}
+                >
+                  Toon alle {backlog.length} pagina-ideeën
+                </button>
+              </div>
+            ) : (
+              <ul className="flex-1 overflow-y-auto">
+                {zichtbareVoorraad.map((item) => (
+                  <BacklogRij
+                    key={item.id}
+                    item={item}
+                    gat={gatZin(kaartZin, item.kansId ?? null)}
+                    kansUitleg={item.kansId ? (kansUitleg[item.kansId] ?? null) : null}
+                    bewijs={item.kansId ? (kansBewijs[item.kansId] ?? []) : []}
+                    nietGemeten={item.kansId ? (kansNietGemeten[item.kansId] ?? false) : false}
+                    maanden={maandKeuzes}
+                    voorstel={voorstelMaand}
+                    busy={busy === item.id}
+                    open={uitgeklapt[item.id] ?? false}
+                    onToggle={() =>
+                      setUitgeklapt((u) => ({ ...u, [item.id]: !(u[item.id] ?? false) }))
+                    }
+                    onSleepStart={() =>
+                      setSleep({ pageId: item.id, titel: item.title, uitMaand: null })
+                    }
+                    onSleepEinde={() => {
+                      setSleep(null);
+                      setSleepDoel(null);
+                    }}
+                    onKies={(maandId) => void inplannen(item.id, maandId, null)}
+                    onVerwijder={() => setRemoveKans(item)}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
+        <div className="flex flex-col gap-3">
+          {groepen.map((g) => {
+            if (g.soort === "maand") return maandKaart(g.maand);
+            const titels = g.maanden.map((m) => maandTitel(plan.started_on, m.month.month_number));
+            const paginas = g.maanden.reduce((som, m) => som + m.inhoud.length, 0);
+            const open = restOpen[g.sleutel] ?? false;
+            return (
+              <div key={`rest-${g.sleutel}`} className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setRestOpen((r) => ({ ...r, [g.sleutel]: !open }))}
+                  className="flex items-center gap-2 px-1 py-1 text-left text-sm text-secondary hover:underline"
+                >
+                  <Icon naam={open ? "openen" : "verder"} size={14} />
+                  <span>{restRegel(titels, paginas)}</span>
+                  <span className="text-xs text-muted">{open ? "Verberg" : "Toon"}</span>
+                </button>
+                {open && g.maanden.map((m) => maandKaart(m))}
+              </div>
             );
           })}
         </div>
@@ -1017,13 +1103,13 @@ export function PlanView({
       <ConfirmDialog
         open={removeDialog !== null || removeKans !== null}
         title="Definitief verwijderen"
-        body={`"${removeDialog?.title ?? removeKans?.title ?? ""}" verdwijnt uit het plan én uit de voorraad.${
-          removeDialog ? ' Wil je hem alleen uit deze maand halen, kies dan "terug naar de voorraad".' : ""
+        body={`"${removeDialog?.title ?? removeKans?.title ?? ""}" verdwijnt uit het plan én uit de ideeënlijst.${
+          removeDialog ? ' Wil je hem alleen uit deze maand halen, kies dan "terug naar de ideeënlijst".' : ""
         }`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
           description:
-            "Deze kans komt niet vanzelf terug, ook niet als het cluster opnieuw gemeten wordt.",
+            "Dit pagina-idee komt niet vanzelf terug, ook niet als het cluster opnieuw gemeten wordt.",
         }}
         confirmLabel="Definitief verwijderen"
         confirmingLabel="Bezig…"
@@ -1045,7 +1131,7 @@ export function PlanView({
         title="Meld dat alles live staat"
         body={`Je markeert ${
           echt.filter((p) => p.plan_month_id === bulkDialog?.id && p.status === "goedgekeurd").length
-        } goedgekeurde pagina's van maand ${bulkDialog?.month_number ?? ""} als live, elk op het adres dat in het plan staat. Pagina's zonder adres of zonder akkoord blijven staan, en je krijgt te horen welke.`}
+        } goedgekeurde pagina's van ${bulkDialog ? maandTitel(plan.started_on, bulkDialog.month_number).toLowerCase() : ""} als live, elk op het adres dat in het plan staat. Pagina's zonder adres of zonder akkoord blijven staan, en je krijgt te horen welke.`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
           description:
@@ -1096,16 +1182,16 @@ export function PlanView({
       {/* ── Maand vrijgeven ─────────────────────────────────────────────── */}
       <ConfirmDialog
         open={monthDialog !== null}
-        title={`Maand ${monthDialog?.month_number ?? ""} vrijgeven`}
+        title={`${monthDialog ? maandTitel(plan.started_on, monthDialog.month_number) : ""} starten`}
         body={vrijgeefTekst(
           echt.filter((p) => p.plan_month_id === monthDialog?.id),
         )}
         irreversible={{
           title: "Dit zet het werk in gang",
           description:
-            "Elke pagina die geschreven wordt kost geld. Haal pagina's terug naar de voorraad als ze er nog niet in horen. Geschreven wordt er pas als de vragen van een pagina gedaan zijn.",
+            "Elke pagina die geschreven wordt kost geld. Haal pagina's terug naar de ideeënlijst als ze er nog niet in horen. Geschreven wordt er pas als de vragen van een pagina gedaan zijn.",
         }}
-        confirmLabel="Vrijgeven"
+        confirmLabel="Start deze maand"
         confirmingLabel="Bezig…"
         busy={busy === monthDialog?.id}
         onCancel={() => setMonthDialog(null)}
@@ -1117,7 +1203,7 @@ export function PlanView({
         open={opnieuwDialog}
         title="Het plan opnieuw opzetten"
         // Punt 32: de pagina's uit de nog niet vrijgegeven maanden gaan terug naar de voorraad.
-        body={`Je krijgt twaalf verse maanden terug, meteen gevuld met de sterkste kansen. De pagina's uit maanden die nog niet vrijgegeven zijn, gaan eerst terug naar de voorraad en tellen dus mee. Wat al vrijgegeven is, loopt door.`}
+        body={`Je krijgt twaalf verse maanden terug, meteen gevuld met de sterkste pagina-ideeën. De pagina's uit maanden die nog niet gestart zijn, gaan eerst terug naar de ideeënlijst en tellen dus mee. Wat al gestart is, loopt door.`}
         irreversible={{
           title: "Wat er blijft en wat er weggaat",
           description:
@@ -1164,6 +1250,21 @@ export function PlanView({
  * sluit het menu bij scrollen buiten het menu zelf. Dat is ook wat de meeste
  * mensen verwachten van een menu dat ze open lieten staan.
  */
+/**
+ * Wat een menu zijn inhoud meegeeft: sluiten, en welk scherm er open staat.
+ *
+ * ⚠️ Sinds 30 september 2026 heeft een menu schermen. Het menu van een pagina
+ * telde tot vijftien keuzes onder elkaar (twaalf maanden, datum, volgorde,
+ * soort, verwijderen). Nu staan er hooguit vier op het eerste scherm, en de
+ * lijst met maanden komt pas na "Verplaatsen". `scherm` is "hoofd" of de naam
+ * die de aanroeper zelf kiest.
+ */
+interface MenuHulp {
+  sluit: () => void;
+  scherm: string;
+  ga: (scherm: string) => void;
+}
+
 function RijMenu({
   label,
   busy,
@@ -1171,9 +1272,10 @@ function RijMenu({
 }: {
   label: string;
   busy: boolean;
-  children: (sluit: () => void) => React.ReactNode;
+  children: (hulp: MenuHulp) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [scherm, setScherm] = useState("hoofd");
   const [plek, setPlek] = useState<{ top: number; right: number; hoogte: number } | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const paneel = useRef<HTMLDivElement>(null);
@@ -1238,7 +1340,10 @@ function RijMenu({
         aria-expanded={open}
         disabled={busy}
         onClick={() => {
-          if (!open) meten();
+          if (!open) {
+            meten();
+            setScherm("hoofd");
+          }
           setOpen((o) => !o);
         }}
         className="icon-btn"
@@ -1260,7 +1365,7 @@ function RijMenu({
               maxHeight: plek.hoogte,
             }}
           >
-            {children(() => setOpen(false))}
+            {children({ sluit: () => setOpen(false), scherm, ga: setScherm })}
           </div>,
           document.body,
         )}
@@ -1271,10 +1376,13 @@ function RijMenu({
 function MenuKnop({
   onClick,
   danger = false,
+  meer = false,
   children,
 }: {
   onClick: () => void;
   danger?: boolean;
+  /** Opent een volgend scherm van het menu, en toont dat met een pijltje. */
+  meer?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -1285,6 +1393,21 @@ function MenuKnop({
       className={`menu-item${danger ? " menu-item-gevaar" : ""}`}
     >
       {children}
+      {meer && (
+        <span aria-hidden="true" className="text-muted" style={{ marginLeft: "auto" }}>
+          ›
+        </span>
+      )}
+    </button>
+  );
+}
+
+/** Terug naar het eerste scherm van het menu. */
+function MenuTerug({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" role="menuitem" onClick={onClick} className="menu-item">
+      <span aria-hidden="true">‹</span>
+      Terug
     </button>
   );
 }
@@ -1305,6 +1428,7 @@ function BacklogRij({
   bewijs,
   nietGemeten,
   maanden,
+  voorstel,
   busy,
   open,
   onToggle,
@@ -1323,6 +1447,8 @@ function BacklogRij({
   /** N5: een handmatige kans zonder gemeten cluster. */
   nietGemeten: boolean;
   maanden: MaandKeuze[];
+  /** "Plan in oktober": de eerste maand die nog komt en plek heeft, of null. */
+  voorstel: { id: string; kort: string } | null;
   busy: boolean;
   open: boolean;
   onToggle: () => void;
@@ -1353,18 +1479,16 @@ function BacklogRij({
         >
           {item.title}
         </button>
-        {/* Eén meta-regel in plaats van drie chips: de herkomst, wat het
-            oplevert en wat voor werk het is. Conventie 3: bij een onbekende
-            potentie staat er geen getal, ook geen nul. */}
-        <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
-          {item.cluster && <span className="truncate">{item.cluster}</span>}
-          {item.cluster && potentie && <span>·</span>}
-          {potentie && <span>{potentie}</span>}
-          <span>·</span>
-          <span>{item.handeling === "verbeteren" ? "verbeteren" : "nieuw"}</span>
+        {/* Eén meta-regel: wat voor werk het is, en waar het idee vandaan
+            komt. Het cluster en de potentie staan sinds 30 september 2026
+            achter "Waarom dit idee?": dat zijn onze woorden, niet die van de
+            klant, en op de eerste regel waren ze ruis. Conventie 3 blijft:
+            bij een onbekende potentie staat er geen getal, ook geen nul. */}
+        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted">
+          <span>{item.handeling === "verbeteren" ? "bestaande pagina verbeteren" : "nieuwe pagina"}</span>
           {nietGemeten && (
             <span className="chip chip-neutral" style={{ marginLeft: 2 }}>
-              Niet gemeten
+              Idee van je consultant
             </span>
           )}
           {reden && (
@@ -1373,8 +1497,35 @@ function BacklogRij({
             </span>
           )}
         </span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
+          {/* De ene handeling die een idee nodig heeft, zonder menu of slepen:
+              de maand staat er al in. Slepen en "Andere maand" blijven bestaan. */}
+          {voorstel && (
+            <button
+              type="button"
+              className="btn-outline btn-sm"
+              disabled={busy}
+              onClick={() => onKies(voorstel.id)}
+            >
+              Plan in {voorstel.kort}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={open}
+            className="w-fit text-xs text-secondary hover:underline"
+          >
+            {open ? "Minder" : "Waarom dit idee?"}
+          </button>
+        </div>
         {open && (
-          <div className="flex flex-col gap-1 pt-1">
+          <div className="flex flex-col gap-1">
+            {(item.cluster || potentie) && (
+              <span className="text-xs text-secondary">
+                {[item.cluster ? `Uit het cluster ${item.cluster}` : null, potentie].filter(Boolean).join(" · ")}
+              </span>
+            )}
             {raakt && <span className="text-xs text-secondary">{raakt}</span>}
             {item.why && (
               <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>
@@ -1404,33 +1555,42 @@ function BacklogRij({
       </div>
 
       <RijMenu label={`Wat wil je met "${item.title}" doen?`} busy={busy}>
-        {(sluit) => (
-          <>
-            <MenuKop>Plan in</MenuKop>
-            {maanden.map((m) => (
+        {({ sluit, scherm, ga }) =>
+          scherm === "maand" ? (
+            <>
+              <MenuTerug onClick={() => ga("hoofd")} />
+              <MenuScheiding />
+              <MenuKop>Plan in</MenuKop>
+              {maanden.map((m) => (
+                <MenuKnop
+                  key={m.id}
+                  onClick={() => {
+                    sluit();
+                    onKies(m.id);
+                  }}
+                >
+                  {m.label}
+                  {m.voorbij ? " (voorbij)" : ""}
+                </MenuKnop>
+              ))}
+            </>
+          ) : (
+            <>
+              <MenuKnop meer onClick={() => ga("maand")}>
+                Andere maand
+              </MenuKnop>
               <MenuKnop
-                key={m.id}
+                danger
                 onClick={() => {
                   sluit();
-                  onKies(m.id);
+                  onVerwijder();
                 }}
               >
-                {m.label}
-                {m.voorbij ? " (voorbij)" : ""}
+                Definitief verwijderen
               </MenuKnop>
-            ))}
-            <MenuScheiding />
-            <MenuKnop
-              danger
-              onClick={() => {
-                sluit();
-                onVerwijder();
-              }}
-            >
-              Definitief verwijderen
-            </MenuKnop>
-          </>
-        )}
+            </>
+          )
+        }
       </RijMenu>
     </li>
   );
@@ -1655,45 +1815,29 @@ function PageRij({
           staat nu op het paginascherm, met de tekst en het adresveld erbij. */}
       {(magVerhuizen || page.status === "ter_goedkeuring") && (
         <RijMenu label={`Wat wil je met "${page.title}" doen?`} busy={busy}>
-          {(sluit) => (
-            <>
-              {/* ⚠️ Bovenaan en alleen voor de beheerder: dit is de enige keuze
-                  in dit menu die geld kost, en de enige die niet te herstellen
-                  is met nog een klik. Alleen bij een pagina die nog gepland
-                  staat; bij "schrijven" of "ter goedkeuring" is er al een tekst
-                  of een taak, en zou dit een tweede beloven. */}
-              {staff && magVerhuizen && (
+          {({ sluit, scherm, ga }) => {
+            // ── Verplaatsen: pas hier komt de lijst met maanden ──────────────
+            if (scherm === "verplaats") {
+              return (
                 <>
-                  <MenuKnop
-                    onClick={() => {
-                      sluit();
-                      onSchrijfNu();
-                    }}
-                  >
-                    Schrijf deze pagina nu
-                  </MenuKnop>
+                  <MenuTerug onClick={() => ga("hoofd")} />
                   <MenuScheiding />
-                </>
-              )}
-              {magSoortKiezen && (
-                <>
-                  <MenuKop>Soort pagina, nu: {SOORTEN[soort].keuze.toLowerCase()}</MenuKop>
-                  {CONTENT_TYPES.filter((t) => t !== soort).map((t) => (
-                    <MenuKnop
-                      key={t}
-                      onClick={() => {
-                        sluit();
-                        onSoort(t);
-                      }}
-                    >
-                      {SOORTEN[t].keuze}
-                    </MenuKnop>
-                  ))}
-                  <MenuScheiding />
-                </>
-              )}
-              {magVerhuizen && (kanOmhoog || kanOmlaag) && (
-                <>
+                  <MenuKop>Naar een andere maand</MenuKop>
+                  {maanden
+                    .filter((m) => m.id !== huidigeMaand)
+                    .map((m) => (
+                      <MenuKnop
+                        key={m.id}
+                        onClick={() => {
+                          sluit();
+                          onKies(m.id);
+                        }}
+                      >
+                        {m.label}
+                        {m.voorbij ? " (voorbij)" : ""}
+                      </MenuKnop>
+                    ))}
+                  {(kanOmhoog || kanOmlaag) && <MenuScheiding />}
                   {kanOmhoog && (
                     <MenuKnop
                       onClick={() => {
@@ -1715,56 +1859,96 @@ function PageRij({
                     </MenuKnop>
                   )}
                   <MenuScheiding />
-                </>
-              )}
-              {magVerhuizen && (
-                <>
-                  <MenuKnop
-                    onClick={() => {
-                      sluit();
-                      onDatum();
-                    }}
-                  >
-                    Datum aanpassen
-                  </MenuKnop>
-                  <MenuScheiding />
-                  <MenuKop>Verplaats naar</MenuKop>
-                  {maanden
-                    .filter((m) => m.id !== huidigeMaand)
-                    .map((m) => (
-                      <MenuKnop
-                        key={m.id}
-                        onClick={() => {
-                          sluit();
-                          onKies(m.id);
-                        }}
-                      >
-                        {m.label}
-                        {m.voorbij ? " (voorbij)" : ""}
-                      </MenuKnop>
-                    ))}
-                  <MenuScheiding />
                   <MenuKnop
                     onClick={() => {
                       sluit();
                       onNaarVoorraad();
                     }}
                   >
-                    Terug naar de voorraad
+                    Terug naar de ideeënlijst
                   </MenuKnop>
                 </>
-              )}
-              <MenuKnop
-                danger
-                onClick={() => {
-                  sluit();
-                  onRemove();
-                }}
-              >
-                Definitief verwijderen
-              </MenuKnop>
-            </>
-          )}
+              );
+            }
+
+            // ── De soort wijzigen ────────────────────────────────────────────
+            if (scherm === "soort") {
+              return (
+                <>
+                  <MenuTerug onClick={() => ga("hoofd")} />
+                  <MenuScheiding />
+                  <MenuKop>Nu: {SOORTEN[soort].keuze.toLowerCase()}</MenuKop>
+                  {CONTENT_TYPES.filter((t) => t !== soort).map((t) => (
+                    <MenuKnop
+                      key={t}
+                      onClick={() => {
+                        sluit();
+                        onSoort(t);
+                      }}
+                    >
+                      {SOORTEN[t].keuze}
+                    </MenuKnop>
+                  ))}
+                </>
+              );
+            }
+
+            // ── Het eerste scherm: hooguit vier keuzes ───────────────────────
+            // Verplaatsen, Andere dag, Soort wijzigen (alleen de consultant) en
+            // Definitief verwijderen. Tot 30 september 2026 stonden hier tot
+            // vijftien regels onder elkaar.
+            return (
+              <>
+                {/* ⚠️ Bovenaan en alleen voor de beheerder, en niet meegeteld: dit
+                    is de enige keuze in dit menu die geld kost, en de enige die
+                    niet te herstellen is met nog een klik. Alleen bij een pagina
+                    die nog gepland staat; bij "schrijven" of "ter goedkeuring" is
+                    er al een tekst of een taak, en zou dit een tweede beloven. */}
+                {staff && magVerhuizen && (
+                  <>
+                    <MenuKnop
+                      onClick={() => {
+                        sluit();
+                        onSchrijfNu();
+                      }}
+                    >
+                      Schrijf deze pagina nu
+                    </MenuKnop>
+                    <MenuScheiding />
+                  </>
+                )}
+                {magVerhuizen && (
+                  <>
+                    <MenuKnop meer onClick={() => ga("verplaats")}>
+                      Verplaatsen
+                    </MenuKnop>
+                    <MenuKnop
+                      onClick={() => {
+                        sluit();
+                        onDatum();
+                      }}
+                    >
+                      Andere dag
+                    </MenuKnop>
+                  </>
+                )}
+                {magSoortKiezen && (
+                  <MenuKnop meer onClick={() => ga("soort")}>
+                    Soort wijzigen
+                  </MenuKnop>
+                )}
+                <MenuKnop
+                  danger
+                  onClick={() => {
+                    sluit();
+                    onRemove();
+                  }}
+                >
+                  Definitief verwijderen
+                </MenuKnop>
+              </>
+            );
+          }}
         </RijMenu>
       )}
     </li>
@@ -1804,7 +1988,7 @@ function vrijgeefTekst(paginas: PlannedPage[]): string {
     .filter((d): d is string => Boolean(d))
     .sort()[0];
   const delen = [
-    `Na vrijgeven zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
+    `Na het starten zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
     // Punt 33: nooit een streefdatum in het verleden.
     streefzin(eerste, new Date().toISOString()),
     "Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.",

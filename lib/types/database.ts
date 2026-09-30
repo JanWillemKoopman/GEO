@@ -280,7 +280,7 @@ export interface Analysis {
    * Was van 22 tot 29 september 2026 het geheugen dat voorkomt dat dezelfde
    * uitslag bij elke schermopening opnieuw als melding verschijnt.
    * `enqueueMeasurement()` leegt hem nog, maar niets leest hem meer: de
-   * melding "meting klaar" komt sindsdien uit `notificaties` (migratie 0131),
+   * melding "meting klaar" komt sindsdien uit `notificaties` (migratie 0133),
    * dat per gebeurtenis één rij heeft en dus geen vinkje nodig heeft.
    */
   resultaat_gezien_at: string | null;

@@ -844,7 +844,19 @@ exists` met dezelfde vorm. Leeg betekent: de soort volgt uit `page_type` (`soort
 `lib/plan-writing.ts`). Besluit B33 in `docs/tasks/contentketen-opnieuw.md` §2. Op productie
 toegepast op 29 september 2026.
 
-## 0131: notificaties
+## 0131: rollen superuser en consultant
+
+Zet `staff_users.role` op `superuser` voor `koopman.janwillem@gmail.com` en op `consultant` voor alle
+andere staf, en maakt `consultant` de standaardwaarde. De app leidt de rol zelf af (`lib/roles.ts`);
+dit maakt de tabel gelijk. Additief en idempotent. Op productie toegepast op 30 september 2026.
+
+## 0132: uitnodigingen voor consultants
+
+Tabel `staff_invites` (e-mail, hash van het token, verloopt na 14 dagen, geaccepteerd, ingetrokken), zelfde
+vorm als `account_invites` maar zonder account. Accepteren maakt een rij in `staff_users` met rol
+`consultant`. RLS aan, geen policies. Additief en idempotent. Op productie toegepast op 30 september 2026.
+
+## 0133: notificaties
 
 Twee tabellen en dertien triggers. `notificaties` heeft één rij per gebeurtenis waar de gebruiker
 van hoort te weten (soort, object, een paar namen in `gegevens`, en `aantal` voor gebeurtenissen die
@@ -856,6 +868,8 @@ triggers hangen aan de plek waar een gebeurtenis zichtbaar wordt (`profiles`, `a
 Elke trigger vangt zijn eigen fout af: een melding mag de schrijfactie eronder nooit tegenhouden. De
 tekst, de kleur en de link staan in `lib/notificaties.ts`. RLS: lezen via `readable_profile_ids()`
 en `user_account_ids()`, beheerdersmeldingen alleen voor staf; schrijven alleen via de triggers en
-de service role. Op productie toegepast op 29 september 2026 en nagerekend met een teruggedraaide
+de service role. Op productie toegepast op 29 september 2026, nog onder de naam `0131_notificaties` (in de
+migratietabel van Supabase heet hij zo), en daarna hernummerd omdat `0131` en `0132` op `main`
+al door de rollen en de consultantuitnodigingen bezet waren. Nagerekend met een teruggedraaide
 transactie (een meting op `gereed` gaf `meting_klaar`, drie beantwoorde vragen van één merk gaven
 één rij met `aantal` 3).

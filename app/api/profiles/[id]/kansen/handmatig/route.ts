@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { voegHandmatigeKansToe } from "@/lib/kansen/handmatig";
 import { KANS_HANDELINGEN, type KansHandeling } from "@/lib/kansen/prioriteit";
 import { isContentType } from "@/lib/plan-writing";
+import { assignToMonth } from "@/lib/plans";
+import { bereidVoor } from "@/lib/pagina/start";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     geldtVoor?: string[];
     doelvragen?: string[];
     contentType?: string;
+    /** Het venster "Nieuw pagina-idee": meteen in deze maand zetten. Leeg = de ideeënlijst. */
+    maandId?: string | null;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -61,5 +65,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   });
 
   if (!uitkomst.ok) return NextResponse.json({ error: uitkomst.probleem }, { status: 409 });
-  return NextResponse.json({ ok: true, kansId: uitkomst.kansId });
+
+  // Meteen inplannen, met dezelfde regels en dezelfde voorbereiding als het
+  // inplannen op het bord (`plan/pages/[pageId]`, actie "inplannen"). Lukt het
+  // niet, dan bestaat het idee toch: het staat dan in de ideeënlijst, en dat
+  // zegt het antwoord.
+  const maandId = typeof body.maandId === "string" ? body.maandId.trim() : "";
+  if (!maandId) return NextResponse.json({ ok: true, kansId: uitkomst.kansId, ingepland: false });
+  const { data: kaart } = await admin
+    .from("planned_pages")
+    .select("id")
+    .eq("kans_id", uitkomst.kansId)
+    .eq("profile_id", id)
+    .maybeSingle();
+  const pageId = (kaart as { id?: string } | null)?.id;
+  if (!pageId) return NextResponse.json({ ok: true, kansId: uitkomst.kansId, ingepland: false });
+  const plaatsing = await assignToMonth(admin, { profileId: id, pageId, monthId: maandId, index: null });
+  if (!plaatsing.ok) {
+    return NextResponse.json({ ok: true, kansId: uitkomst.kansId, ingepland: false, melding: plaatsing.probleem });
+  }
+  try {
+    await bereidVoor(admin, [pageId]);
+  } catch (err) {
+    console.error(`Voorbereiding van plan-pagina ${pageId} mislukte, de ochtendronde pakt hem op:`, err);
+  }
+  return NextResponse.json({ ok: true, kansId: uitkomst.kansId, ingepland: true });
 }

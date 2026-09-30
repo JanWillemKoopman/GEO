@@ -108,7 +108,7 @@ export function planStap(input: StapInput): string {
     // Niet "jouw vrijgave": vrijgeven doet de consultant (`plan_goedkeuren`
     // in `lib/cost-rules.ts`), en in hetzelfde blok staat dat ook. Twee
     // tegenstrijdige zinnen in één oogopslag (kwaliteitsdoorlichting, punt 34).
-    return "Deze maand wacht op vrijgave door je consultant. Laat weten of je akkoord bent, daarna begint ORBIT ENGINE te schrijven.";
+    return "Deze maand wacht op de start door je consultant. Laat weten of je akkoord bent, daarna begint ORBIT ENGINE te schrijven.";
   }
   return "Je hoeft nu niets. ORBIT ENGINE schrijft door en legt elke tekst aan je voor.";
 }
@@ -159,7 +159,7 @@ export function maandRegel(input: {
       ? (() => {
           const nogNodig = input.pakket - input.paginas;
           const zin = nogNodig === 1 ? "één pagina" : `${nogNodig} pagina's`;
-          return ` Nog ${zin} nodig om je pakket van ${input.pakket} te halen: er zijn nog niet genoeg gemeten kansen.`;
+          return ` Nog ${zin} nodig om aan je ${input.pakket} per maand te komen: er zijn nog niet genoeg gemeten pagina-ideeën.`;
         })()
       : "";
 

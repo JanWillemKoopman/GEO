@@ -51,7 +51,11 @@ export function WorkspaceChrome({
   activeBrand: BrandOption | null;
   /** Beheerder? Dan komt het CSM-paneel in de zijbalk (fase 8). */
   staff: boolean;
-  /** Hoeveel vragen er open staan. Zet het bolletje in de zijbalk aan. */
+  /**
+   * Hoeveel vragen er open staan. Voedt het bolletje in de onderbalk op mobiel;
+   * de teller rechts in de bovenbalk komt als `openQuestions` binnen. De zijbalk
+   * droeg tot 29 september 2026 hetzelfde stipje en doet dat niet meer.
+   */
   openVragen: number;
   /** `isTelefoon()`, bepaald op de server (`lib/apparaat.ts`, stap 5). Beslist
    *  welke van de twee volledig verschillende opbouwen rendert. */
@@ -143,7 +147,6 @@ export function WorkspaceChrome({
           logo={logo}
           profiel={profiel}
           staff={staff}
-          openVragen={openVragen}
         />
       </aside>
 
@@ -163,7 +166,6 @@ export function WorkspaceChrome({
                 onSelectBrand={onSelectBrand}
                 profiel={profiel}
                 staff={staff}
-                openVragen={openVragen}
               />
               {logo}
             </div>

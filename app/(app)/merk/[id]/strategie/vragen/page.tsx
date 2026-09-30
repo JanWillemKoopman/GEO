@@ -93,7 +93,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
 
   const beschrijving =
     aantal === 0
-      ? "Er staan geen vragen open. De volgende vragen komen als je een nieuwe maand in het contentplan vrijgeeft."
+      ? "Er staan geen vragen open. De volgende vragen komen als er een nieuwe maand in het contentplan start."
       : `${aantal === 1 ? "Er staat 1 vraag" : `Er staan ${aantal} vragen`} open${
           eerste ? `. De eerste graag vóór ${formatDag(eerste)}.` : "."
         }`;
@@ -163,7 +163,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
           <span className="type-body-emphasis">Niets open</span>
           <p className="text-secondary">
             ORBIT ENGINE heeft alles wat het nu nodig heeft. De volgende vragen komen als je een nieuwe
-            maand in het contentplan vrijgeeft.
+            maand in het contentplan start.
           </p>
         </div>
       )}

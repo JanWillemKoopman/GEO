@@ -1,6 +1,5 @@
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { RerunResearchButton } from "./rerun-research-button";
-import { ManualPagesBox } from "./manual-pages-box";
 import { OfferingsEditor } from "./offerings-editor";
 import { ConfidenceChip } from "@/components/confidence-chip";
 import {
@@ -97,10 +96,10 @@ export function OfferingsPanel({
           staat, dan kun je het hieronder alvast zelf vastleggen.
         </p>
         <OfferingsEditor profileId={profileId} offerings={offerings} removedOfferings={removedOfferings} />
-        <RerunResearchButton profileId={profileId} />
         {/* Juist bij een lege boom is dit de nuttigste knop: dan is de crawl
-            niets tegengekomen en weet jij wél waar het aanbod staat. */}
-        <ManualPagesBox profileId={profileId} pages={manualPages} />
+            niets tegengekomen en weet jij wél waar het aanbod staat, en die
+            adressen vul je in het paneel achter deze knop in. */}
+        <RerunResearchButton profileId={profileId} manualPages={manualPages} />
       </div>
     );
   }
@@ -149,9 +148,7 @@ export function OfferingsPanel({
 
       {/* De knop staat hier en niet ergens in de instellingen: als de crawl dun
           was of het aanbod klopt niet, is dit de plek waar je dat ziet. */}
-      <RerunResearchButton profileId={profileId} />
-
-      <ManualPagesBox profileId={profileId} pages={manualPages} />
+      <RerunResearchButton profileId={profileId} manualPages={manualPages} />
 
       {inventory && (
         <CollapsibleSection title="Hoeveel heeft ORBIT ENGINE van je site gelezen?">

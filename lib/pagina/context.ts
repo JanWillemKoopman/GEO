@@ -40,6 +40,12 @@ export interface PaginaBasis {
   planPaginaId: string | null;
   publicatiedatum: string | null;
   sourceRef: string | null;
+  /**
+   * Een eigen pagina-idee van de consultant (N5, `lib/kansen/handmatig.ts`):
+   * de schaduwanalyse waarin zijn doelvragen als prompts staan. `null` bij een
+   * kans uit een rapport, die zijn doelvragen via `sourceRef` vindt.
+   */
+  eigenIdeeAnalyse: string | null;
 }
 
 export interface MerkBasis {
@@ -69,7 +75,7 @@ export async function laadPagina(admin: Admin, pieceId: string): Promise<PaginaB
     admin.from("analyses").select("profile_id").eq("id", s.analysis_id as string).maybeSingle(),
     admin
       .from("planned_pages")
-      .select("id, why, target_intent, source_ref, scheduled_for")
+      .select("id, why, target_intent, source_ref, scheduled_for, kans_id, source_analysis_id")
       .eq("content_piece_id", pieceId)
       .limit(1)
       .maybeSingle(),
@@ -77,6 +83,16 @@ export async function laadPagina(admin: Admin, pieceId: string): Promise<PaginaB
   const profileId = (analyse as { profile_id?: string | null } | null)?.profile_id;
   if (!profileId) return null;
   const p = (plan ?? null) as Record<string, unknown> | null;
+
+  // Een eigen idee: een kans zonder gemeten cluster (`kansen.analysis_id` leeg,
+  // besluit V2). Tot 30 september 2026 kwamen zijn doelvragen nergens aan: de
+  // brief zocht ze alleen via de aanbeveling (`sourceRef`), en die heeft een
+  // eigen idee niet. Zo bleef een veld dat de consultant invulde zonder effect.
+  let eigenIdeeAnalyse: string | null = null;
+  if (p?.kans_id && !p.source_ref && p.source_analysis_id) {
+    const { data: kans } = await admin.from("kansen").select("analysis_id").eq("id", p.kans_id as string).maybeSingle();
+    if (kans && !(kans as { analysis_id?: string | null }).analysis_id) eigenIdeeAnalyse = p.source_analysis_id as string;
+  }
 
   return {
     pieceId,
@@ -95,6 +111,7 @@ export async function laadPagina(admin: Admin, pieceId: string): Promise<PaginaB
     planPaginaId: (p?.id as string | null) ?? null,
     publicatiedatum: (p?.scheduled_for as string | null) ?? null,
     sourceRef: (p?.source_ref as string | null) ?? null,
+    eigenIdeeAnalyse,
   };
 }
 
@@ -213,7 +230,21 @@ export async function laadPaginaDefinitie(
  * namen van concurrenten. `sourceRef` is `<rapport-id>#<volgnummer>` van de
  * aanbeveling (migratie 0065).
  */
-export async function laadDoelvragen(admin: Admin, sourceRef: string | null, concurrenten: string[]): Promise<Doelvraag[]> {
+export async function laadDoelvragen(
+  admin: Admin,
+  sourceRef: string | null,
+  concurrenten: string[],
+  eigenIdeeAnalyse: string | null = null,
+): Promise<Doelvraag[]> {
+  // Een eigen idee: de vragen die de consultant opgaf, zonder antwoord van een
+  // AI-assistent, want ze zijn nog niet gemeten (N5). Onbekend, niet leeg.
+  if (!sourceRef && eigenIdeeAnalyse) {
+    const { data } = await admin.from("prompts").select("text").eq("analysis_id", eigenIdeeAnalyse).order("created_at", { ascending: true });
+    return ((data ?? []) as { text: string | null }[])
+      .map((r) => (r.text ?? "").trim())
+      .filter(Boolean)
+      .map((vraag) => ({ vraag, antwoord: null }));
+  }
   if (!sourceRef) return [];
   const [reportId, nr] = sourceRef.split("#");
   const volgnummer = Number(nr);

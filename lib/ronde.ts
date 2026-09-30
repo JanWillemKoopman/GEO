@@ -246,11 +246,11 @@ function plannen(paginas: MaandPlanPagina[], heeftPlan: boolean): Stap {
       detail: "wachten op je akkoord",
       klaar: false,
       aanZet: "jij",
-      wat: `geef de ${aantal} van deze maand vrij in je contentplan`,
+      wat: `start deze maand in je contentplan, met ${aantal}`,
     };
   }
   if (paginas.every((p) => p.maandStatus === "goedgekeurd")) {
-    return { ...basis, stand: aantal, detail: "vrijgegeven", klaar: true, aanZet: "jij", wat: "" };
+    return { ...basis, stand: aantal, detail: "gestart", klaar: true, aanZet: "jij", wat: "" };
   }
   // Concept of afgewezen: het plan ligt bij ons, niet bij de klant.
   return {

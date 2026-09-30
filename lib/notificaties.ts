@@ -3,7 +3,7 @@
  *
  * ── WAAROM DIT BESTAAT (29 SEPTEMBER 2026) ──────────────────────────────────
  *
- * De database legt vast dát er iets gebeurde (migratie 0131: triggers op de
+ * De database legt vast dát er iets gebeurde (migratie 0133: triggers op de
  * tabellen waar de gebeurtenis zichtbaar wordt). Deze module maakt er de zin
  * van die de gebruiker leest. Zo is een tekstwijziging een codewijziging met
  * een test, en geen migratie.

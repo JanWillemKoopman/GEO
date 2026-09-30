@@ -103,16 +103,22 @@ export function ClusterBalk({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={basis} className={inPrullenbak ? "btn-outline btn-sm" : "btn-primary btn-sm"}>
-          Alle clusters ({aantalActief})
-        </Link>
-        <Link
-          href={`${basis}?weergave=prullenbak`}
-          className={inPrullenbak ? "btn-primary btn-sm" : "btn-outline btn-sm"}
-        >
-          <Icon naam="prullenbak" size={14} />
-          Prullenbak ({aantalPrullenbak})
-        </Link>
+        <nav className="segment w-fit" aria-label="Weergave van de clusters">
+          <Link
+            href={basis}
+            aria-current={inPrullenbak ? undefined : "page"}
+            className="segment-item"
+          >
+            Alle clusters ({aantalActief})
+          </Link>
+          <Link
+            href={`${basis}?weergave=prullenbak`}
+            aria-current={inPrullenbak ? "page" : undefined}
+            className="segment-item"
+          >
+            Prullenbak ({aantalPrullenbak})
+          </Link>
+        </nav>
 
         {/* Rechts op dezelfde regel. `ml-auto` duwt het duo naar de rand zolang
             er ruimte is, en op een smal scherm valt het eronder in plaats van

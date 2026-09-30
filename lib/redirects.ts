@@ -103,6 +103,19 @@ export const DOORVERWIJZINGEN: Doorverwijzing[] = [
     destination: "/merk/:id/analytics?tabel=concurrenten",
     permanent: true,
   },
+  // Het kennisoverzicht en de tegenstrijdige feiten waren twee Admin-schermen
+  // zonder menuregel. Ze zijn op 30 september 2026 samengevoegd op "Feiten en
+  // kennis", met de botsingen als kop erboven.
+  {
+    source: "/merk/:id/admin/kennis",
+    destination: "/merk/:id/merkprofiel/feiten-en-kennis",
+    permanent: true,
+  },
+  {
+    source: "/merk/:id/admin/feiten",
+    destination: "/merk/:id/merkprofiel/feiten-en-kennis",
+    permanent: true,
+  },
   // Diagnose is op 30 september 2026 opgegaan in het onboardinggesprek.
   { source: "/merk/:id/admin", destination: "/merk/:id/admin/onboarding", permanent: true },
   { source: "/profielen/:id/plan", destination: "/merk/:id/strategie/plan", permanent: true },
@@ -120,9 +133,9 @@ export const DOORVERWIJZINGEN: Doorverwijzing[] = [
   { source: "/profielen/:id/beheer", destination: "/merk/:id/admin/toewijzen", permanent: true },
 
   // Het merkdossier zelf, als laatste: `:id` matcht alles wat hierboven nog
-  // niet gevangen is. Wijst sinds 1 september 2026 naar de 0-meting onder
-  // Admin, waar dat leesscherm naartoe verhuisde.
-  { source: "/profielen/:id", destination: "/merk/:id/admin/0-meting", permanent: true },
+  // niet gevangen is. Wees van 1 september tot 30 september 2026 naar de
+  // 0-meting onder Admin; die pagina is weggehaald, nu de Aanbodboom.
+  { source: "/profielen/:id", destination: "/merk/:id/admin/aanbodboom", permanent: true },
 
   // Voorgestelde clusters hingen aan een querystring in plaats van aan het pad,
   // en zijn sinds fase 3 het derde blok op de clusterlijst zelf (besluit 6: twee

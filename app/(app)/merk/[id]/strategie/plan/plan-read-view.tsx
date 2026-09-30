@@ -9,7 +9,7 @@ import {
   type StatusTone,
 } from "@/lib/plan-status";
 import { contentHref, formatDagNL } from "@/lib/plan-overview";
-import { monthCalendar, isRunningMonth, maandIsVol } from "@/lib/plan-schedule";
+import { monthCalendar, isRunningMonth, maandIsVol, maandTitel } from "@/lib/plan-schedule";
 import { leesMaandKeuze, maandRegel, planStap, telStatussen } from "@/lib/plan-read";
 import type { TopicWritingState } from "@/lib/plan-writing";
 import type { ContentPlan, PlanMonth, PlannedPage } from "@/lib/types/database";
@@ -132,8 +132,7 @@ export function PlanReadView({
                   className="flex flex-wrap items-baseline justify-between gap-2 border-b border-[var(--border-subtle)] pb-2 last:border-0 last:pb-0"
                 >
                   <span className="text-sm font-medium">
-                    Maand {m.monthNumber}
-                    {kalender && <span className="text-muted"> · {kalender.label}</span>}
+                    {maandTitel(plan.started_on, m.monthNumber)}
                   </span>
                   <span className="mono-label">
                     {aantal === 0
@@ -202,8 +201,8 @@ function MaandKaart({
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="type-body-emphasis">
-            {lopend ? "Deze maand" : `Maand ${month.month_number}`}
-            {kalender && <span className="text-muted"> · {kalender.label}</span>}
+            {lopend ? "Deze maand" : maandTitel(plan.started_on, month.month_number)}
+            {lopend && kalender && <span className="text-muted"> · {kalender.label}</span>}
           </h2>
           <span className={maandChip(maandMeta.tone)}>{maandMeta.label}</span>
         </div>
@@ -287,12 +286,13 @@ function MaandKaart({
       {magVrijgeven && month.status !== "goedgekeurd" && telling.echt > 0 && (
         <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-4">
           <p className="text-sm text-secondary">
-            Zolang deze maand niet vrijgegeven is, schrijft ORBIT ENGINE er niets van.
+            Zolang deze maand niet gestart is, schrijft ORBIT ENGINE er niets van.
           </p>
           <ReleaseMonthButton
             profileId={profileId}
             monthId={month.id}
             monthNumber={month.month_number}
+            maandNaam={maandTitel(plan.started_on, month.month_number)}
             paginas={telling.echt}
             eersteDatum={eerste?.scheduled_for ?? null}
             staff={staff}

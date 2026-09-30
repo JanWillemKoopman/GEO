@@ -1971,9 +1971,26 @@ textarea.field {
    `backdrop-filter`, en een doorschijnende balk boven een tabel die eronder
    doorschuift is precies waar dat effect onrustig wordt. */
 .topbar {
-  position: relative;
   height: var(--topbar-h);
-  background-color: transparent;
+  background-color: var(--topbar-bg);
+  position: relative;
+}
+/* Sinds 30 september 2026 een vaste lichtgrijze balk (#f2f2f2, keuze van de
+   eigenaar) in plaats van doorzichtig. Alleen in de lichte stand: in de
+   donkere stand zou dezelfde kleur een lichte strook boven een zwart scherm
+   zijn, dus daar is hij de grond van de pagina, zoals in de versie van
+   dezelfde ochtend (#f1f1f1, alleen licht). */
+:root,
+:root[data-theme="light"] {
+  --topbar-bg: #f2f2f2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --topbar-bg: var(--bg-base);
+  }
+}
+:root[data-theme="dark"] {
+  --topbar-bg: var(--bg-base);
 }
 /* ⚠️ Vanaf 29 september 2026 is de bovenbalk op desktop (vanaf lg) volledig
    doorzichtig, zonder rand, en plakt hij niet meer: er staat alleen nog de
@@ -3365,10 +3382,15 @@ a.notificatie-rij:hover {
 }
 
 /* ── Het bolletje bij "openstaande vragen" (28 augustus 2026) ───────────────
-   Staat rechts in de bovenbalk en achter het menu-item, dus naast ÉLK scherm van
-   de app. Daarom ademt hij traag: vier seconden per gang, van de groene tint uit
-   het systeem naar een donkerder variant ervan en terug. Snel knipperen is een
-   alarm, en dit is een uitnodiging, er staat werk klaar dat geen haast heeft.
+   Staat rechts in de bovenbalk en op mobiel in de onderbalk, dus naast ÉLK
+   scherm van de app. Daarom ademt hij traag: vier seconden per gang, van de
+   groene tint uit het systeem naar een donkerder variant ervan en terug. Snel
+   knipperen is een alarm, en dit is een uitnodiging, er staat werk klaar dat
+   geen haast heeft.
+
+   ⚠️ Achter het menu-item in de zijbalk stond hij ook, tot 29 september 2026.
+   Daar is hij op verzoek van de eigenaar weg; de teller in de bovenbalk noemt
+   het aantal voluit en blijft de plek waar dit signaal staat.
 
    ⚠️ Geen `box-shadow`-puls zoals `.live-dot`. Die zegt "er gebeurt nu iets",
    en dit zegt "er wacht iets op jou". Twee verschillende beloftes horen twee

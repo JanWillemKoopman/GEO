@@ -135,15 +135,15 @@ export default async function BewerkenPage({
 
       {/* K7: wat hier wordt opgeslagen, komt als "volgens de klant" in de
           kennislaag (K5). Bevestigen, afwijzen en van de site halen doet de
-          consultant op het kennisoverzicht; de klant ziet dat niet (V6), dus de
+          consultant onder Feiten en kennis; de klant ziet dat niet (V6), dus de
           velden hier blijven de plek waar hij zelf iets vertelt. */}
       {staf && (
         <div className="card flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-secondary">
-            Alleen jij ziet dit. Wat hier wordt opgeslagen, staat ook op het kennisoverzicht; daar bevestig je het of wijs je het af.
+            Alleen jij ziet dit. Wat hier wordt opgeslagen, staat ook onder Feiten en kennis; daar bevestig je het of wijs je het af.
           </p>
-          <Link href={`/merk/${id}/admin/kennis`} className="btn-outline btn-sm">
-            Kennisoverzicht
+          <Link href={`/merk/${id}/merkprofiel/feiten-en-kennis`} className="btn-outline btn-sm">
+            Feiten en kennis
           </Link>
         </div>
       )}

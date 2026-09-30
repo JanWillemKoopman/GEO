@@ -84,8 +84,9 @@ export default async function AanbodboomPage({
     .map((p) => ({ url: p.url, title: p.title }));
 
   return (
-    // `wil-lezen`: formulierpatroon (§8.6/§8.8), 720px in plaats van 1440.
-    <div className="flex flex-col gap-6 wil-lezen">
+    // Geen `wil-lezen`: de boom is een werkscherm en hoort net zo breed als de
+    // rest van Admin (1440px).
+    <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Admin"
         title="Aanbodboom"

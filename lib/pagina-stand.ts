@@ -230,7 +230,7 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
           aanZet: null,
           toon: "neutraal",
           fase: 0,
-          zin: "Zodra je deze maand vrijgeeft, zetten we de vragen voor deze pagina klaar.",
+          zin: "Zodra deze maand gestart is, zetten we de vragen voor deze pagina klaar.",
           handeling: null,
         },
         { streefdatum: streef },

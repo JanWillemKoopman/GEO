@@ -30,6 +30,7 @@ import type { AuditCheck } from "@/lib/audit/technical";
 import type { Analysis, ContentPiece, FactRequest } from "@/lib/types/database";
 import { activeOnly } from "@/lib/archive";
 import { formatDateShort } from "@/lib/format";
+import { maandTitel } from "@/lib/plan-schedule";
 
 type Db = SupabaseClient;
 
@@ -136,7 +137,7 @@ interface WorkSources {
   /** content_piece_id's waarvoor al een effect berekend is. */
   measuredPieceIds: Set<string>;
   /** Per profiel de maanden van het lopende contentplan die op vrijgave wachten. */
-  planMonthsByProfile: Map<string, { id: string; monthNumber: number }[]>;
+  planMonthsByProfile: Map<string, { id: string; monthNumber: number; titel: string }[]>;
   /**
    * Per profiel de pagina's die op akkoord wachten zonder gekoppelde
    * `content_pieces`-rij ("de tekst hangt niet aan deze regel", zie
@@ -249,7 +250,7 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
     // Het lopende plan per profiel: nodig om de vrij te geven maand te vinden.
     // `gestopt` telt niet mee, net als overal elders waar het lopende plan
     // wordt gelezen (`lib/plans.ts`, `loadPlan()`).
-    db.from("content_plans").select("id, profile_id").in("profile_id", profileIds).neq("status", "gestopt"),
+    db.from("content_plans").select("id, profile_id, started_on").in("profile_id", profileIds).neq("status", "gestopt"),
     db
       .from("planned_pages")
       .select("id, profile_id, title")
@@ -261,6 +262,9 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
   const planIds = ((activePlanRows ?? []) as { id: string; profile_id: string }[]).map((p) => p.id);
   const profileByPlanId = new Map(
     ((activePlanRows ?? []) as { id: string; profile_id: string }[]).map((p) => [p.id, p.profile_id]),
+  );
+  const startVanPlan = new Map(
+    ((activePlanRows ?? []) as { id: string; started_on: string | null }[]).map((p) => [p.id, p.started_on]),
   );
 
   // Twee stappen, want welke maanden ertoe doen hangt af van welke plannen
@@ -274,12 +278,14 @@ async function fetchSources(db: Db, analyses: Analysis[]): Promise<WorkSources> 
           .eq("status", "ter_goedkeuring")
       : { data: [] };
 
-  const planMonthsByProfile = new Map<string, { id: string; monthNumber: number }[]>();
+  const planMonthsByProfile = new Map<string, { id: string; monthNumber: number; titel: string }[]>();
   for (const row of (monthRows ?? []) as { id: string; plan_id: string; month_number: number }[]) {
     const profileId = profileByPlanId.get(row.plan_id);
     if (!profileId) continue;
     const list = planMonthsByProfile.get(profileId) ?? [];
-    list.push({ id: row.id, monthNumber: row.month_number });
+    // De maand bij naam (30 september 2026), zoals op het contentplan zelf.
+    const start = startVanPlan.get(row.plan_id);
+    list.push({ id: row.id, monthNumber: row.month_number, titel: start ? maandTitel(start, row.month_number) : `Maand ${row.month_number}` });
     planMonthsByProfile.set(profileId, list);
   }
 
@@ -404,9 +410,9 @@ export function deriveWork(sources: WorkSources): WorkItem[] {
           id: `contentmaand:${maand.id}`,
           kind: "contentmaand",
           state: "nu",
-          typeLabel: "Contentmaand vrijgeven",
-          title: `Maand ${maand.monthNumber} van je contentplan`,
-          why: "De pagina's voor deze maand staan klaar. Geef akkoord, dan gaat ORBIT ENGINE ze schrijven en volgens planning publiceren.",
+          typeLabel: "Contentmaand starten",
+          title: `${maand.titel} van je contentplan`,
+          why: "De pagina's voor deze maand staan klaar. Start de maand, dan gaat ORBIT ENGINE ze voorbereiden en schrijven.",
           urgency: URGENCY.contentmaand,
           href: `/merk/${analysis.profile_id}/strategie/plan`,
           actionLabel: "Naar het contentplan",

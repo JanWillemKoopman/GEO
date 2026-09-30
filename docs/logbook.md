@@ -13168,6 +13168,115 @@ tegen productie (conventie 10): de velden van de organische resultaten en van "A
 ook" komen uit de documentatie van DataForSEO en zijn nog niet tegen een echte respons gecontroleerd,
 en of de teksten er beter van worden is nog niet gemeten. Zie `docs/tasks/paginasoorten-en-zoekresultaten.md`.
 
+## 30 september 2026: nieuw pagina-idee, en één woord per ding in het contentplan
+
+Opdracht van de eigenaar na een UX-voorstel: punt 1 (één woord per ding) en punt 3 (een eigen
+pagina-idee toevoegen als rustig venster in de bibliotheek) direct doorvoeren; het bord blijft voor
+de klant zichtbaar.
+
+- **Woorden.** Op het planscherm heette hetzelfde ding vijf dingen: "kans", "content", "content item",
+  "voorraad" en "pagina". Nu: pagina-idee en ideeënlijst. "Vrijgeven" werd "een maand starten" (knop
+  "Start deze maand", status "Gestart"), "Maand 4" werd "Oktober 2026" (besluit 7 blijft: nergens
+  "van 12"), "pakket 3 per maand" werd "3 pagina's per maand", "Niet gemeten" werd "Idee van je
+  consultant". "Kans" blijft op het overzicht, waar het breder is dan een pagina. Het cluster en de
+  potentie van een idee staan achter "Waarom dit idee?". Woordenlijst in `docs/schrijfstijl.md` §11.
+- **Het venster.** Drie vragen in plaats van zes velden, de soort als tegels, de rest onder "Meer
+  opties", en meteen een voorgestelde maand. In de bibliotheek rechtsboven en op het bord, alleen
+  voor de consultant. Het oude formulier (`handmatige-kans-formulier.tsx`) is weg.
+- **Een fout gevonden en gerepareerd.** De doelvragen van een eigen idee bereikten de brief en de
+  schrijver niet: `laadDoelvragen()` zocht ze alleen via de aanbeveling uit een rapport, en die heeft
+  een eigen idee niet. Het veld deed dus niets, terwijl het venster er juist om vraagt (en ik het de
+  eigenaar op 29 september verkeerd had uitgelegd). Nu leest de keten bij een eigen idee de vragen uit
+  zijn schaduwanalyse (`eigenIdeeAnalyse` in `lib/pagina/context.ts`), zonder een antwoord van een
+  AI-assistent erbij, want ze zijn nog niet gemeten. Ze gaan daarmee ook mee als zoekopdracht naar
+  Google (B34).
+
+Getest: `tsc --noEmit`, `test:unit` (5126), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in
+een browser (conventie 10): het venster en de nieuwe woorden zijn gebouwd en getest op code.
+
+---
+
+## 29 september 2026: het bolletje achter "Openstaande vragen" is uit de zijbalk
+
+Op verzoek van de eigenaar. Achter dat ene menu-item stond een groen, traag ademend stipje zodra er
+vragen openstonden (besloten 28 augustus 2026, zie hierboven). Dat is eruit; `Sidebar` draagt
+`openVragen` niet meer, en `NavLade` geeft het niet meer door.
+
+**Het signaal zelf blijft bestaan, op twee plekken.** De teller rechts in de bovenbalk
+(`OpenQuestionsBadge`) noemt het aantal voluit, en op mobiel draagt de onderbalk hetzelfde stipje.
+De reden dat het menu-item destijds geen getal kreeg (twee keer hetzelfde cijfer op één scherm laat
+de lezer zoeken welke de echte is) blijft dus staan; alleen de tweede, getalloze markering vervalt.
+`.vraag-dot` in `globals.css` blijft, want die twee gebruiken hem.
+
+Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
+
+## 30 september 2026: drie rollen, Toegang in plaats van Toewijzen, 0-meting eenvoudiger, Onderzoek opnieuw met paginaaantal
+
+**Rollen.** De app kent nu drie rollen (`lib/roles.ts`): superuser (alleen `koopman.janwillem@gmail.com`, vast in code en met een bevestigd adres, dus nergens in te stellen), consultant (een rij in `staff_users`, migratie 0131, kan alles wat staf al kon) en klant (via een uitnodiging). "Lid" en "Beheerder" zijn uit het scherm gehaald: het verschil was alleen wie collega's mag uitnodigen, en dat doet de consultant. De kolom `account_users.role` blijft bestaan. Op productie stonden 4 staf-rijen, allemaal `superuser`; nu 1 superuser en 3 consultants (testaccounts).
+
+**Toegang.** `/admin/toewijzen` heet nu "Toegang". De keuzelijst met bestaande accounts is weg (hij liet je een merk aan het verkeerde account hangen). Eén e-mailveld: hangt het merk nog aan geen klant, dan maakt het eerste adres het klantaccount aan; daarna nodigt elk adres uit bij dat account. De lijst toont wie toegang heeft, met een rol per adres.
+
+**Onderzoek opnieuw** vraagt nu hoeveel pagina's er gelezen worden (5 tot 150, `profile_discover.maxPages`) en heeft het veld voor extra adressen. De knop "Pagina's toevoegen" is weg.
+
+**0-meting**: drie vragen met een antwoord (kent hij het merk, genoemd bij een koopvraag, iets onjuist), bron en datum erbij. Het dossier en de concurrentenlijst zijn van dit scherm gehaald: ze staan al bij Merkdossier en Concurrenten indelen.
+
+**Later op dezelfde dag: 0-meting weggehaald, consultants uitnodigen.** De 0-meting (`/admin/0-meting`) is verwijderd op verzoek van de eigenaar: hij gebruikt hem niet en de data was dun (één AI-assistent, 3 tot 9 koopvragen per merk). De kennistest zelf blijft draaien en de antwoorden blijven in `profile_llm_baseline` staan; alleen het scherm is weg. Het oude adres `/profielen/:id` en de links vanuit Alle merken en de onboarding wijzen nu naar de Aanbodboom. Admin heeft daarmee zes bestemmingen. De superuser nodigt consultants uit op `/beheer` met dezelfde werkwijze als bij klanten (link die je zelf doorstuurt, twee weken geldig, één keer te zien): migratie 0132 (`staff_invites`), dezelfde `/uitnodiging/[token]`-pagina, accepteren maakt een rij in `staff_users`.
+
+Bewust nog niet gebouwd, op verzoek van de eigenaar: per consultant alleen de eigen klanten tonen (alle staf ziet nu alle merken), en collega-uitnodigingen door klanten uitzetten. Ook een consultant weer weghalen kan nog niet vanuit de app.
+
+## 30 september 2026 (2): een rustiger bord
+
+Opdracht van de eigenaar: punt 4 van het UX-voorstel uitvoeren. De eigenaar vond het planscherm zelf al
+ingewikkeld; het bord toonde twaalf maanden onder elkaar, en elke pagina had een menu met tot vijftien
+keuzes.
+
+- **Drie maanden open.** De eerste drie maanden die nog komen staan open, de rest dicht als één regel
+  per aaneengesloten stuk met het aantal pagina's erin. Een maand waar iets op de klant wacht blijft
+  altijd open. De klant ziet het bord nog steeds (eigenaar: "De klant mag dit bord wel zien").
+- **"Plan in oktober"** op elk idee, met de eerste maand die nog komt en plek heeft al ingevuld.
+- **Een menu met schermen:** hooguit vier keuzes op het eerste scherm, de lijst met maanden pas na
+  "Verplaatsen".
+
+Eén afwijking van het voorstel, om niets kwijt te raken: "Een plek eerder" en "Een plek later" (het
+enige middel om de volgorde te wijzigen zonder muis) en "Terug naar de ideeënlijst" stonden niet in de
+vier keuzes van het voorstel. Ze staan nu achter Verplaatsen. Zonder dat verdween de volgorde voor wie
+niet kan slepen.
+
+Getest: `tsc --noEmit`, `test:unit` (5150), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in een
+browser (conventie 10): het menu met schermen, de samengeklapte regels en de knop zijn gebouwd en op
+code getest, niet met een echt scherm.
+
+## 30 september 2026 (3): "Feiten en kennis" op één scherm, en de namen Mijn bedrijf en Merkdossier gewisseld
+
+De eigenaar zag het kennisoverzicht (`admin/kennis`) nergens in het menu. Klopte: het hing samen met
+`admin/feiten` (tegenstrijdigheden) aan Diagnose, dat die dag verdween, en was daarna alleen nog via twee
+tekstlinks op het onboardinggesprek te vinden. Twee Admin-schermen zonder menuregel voor het belangrijkste
+wat er over een klant te weten valt.
+
+- **Eén scherm:** `/merk/[id]/merkprofiel/feiten-en-kennis`, onder de kop "Mijn bedrijf", onder
+  "Merkdossier". De schermen `admin/kennis` en `admin/feiten` zijn weg en verwijzen permanent door
+  (`lib/redirects.ts`). De gegevens, regels en de vier handelingen (bevestigen, aanpassen, klopt niet, niet
+  op de site) zijn ongewijzigd; alleen de indeling is nieuw.
+- **Twee tabbladen, per domein ingedeeld** (`lib/kennis/overzicht.ts`, `tabVoorDomein`). Feiten is het
+  bedrijf, het aanbod, het bewijs en de grenzen; Kennis is klanten en bezwaren, positionering, verhalen,
+  stem en wat eerdere pagina's opleverden. Op domein en niet op `soort`, want `soort` is pas gevuld nadat
+  de sitefeiten zijn ingedeeld en blijft leeg bij een antwoord van de klant. Een nieuw domein valt in
+  Kennis, zodat niets van het scherm verdwijnt.
+- **Per tabblad:** een zin met het aantal en wat op een oordeel wacht, een filter (Alles, Bevestigd, Van de
+  site, Volgens de klant, Vermoedens, Afgewezen), en een ingeklapt blok per onderwerp met een tabel. Een
+  regel opent zijn herkomst, citaat en knoppen. Een filter zet de blokken open die iets overhouden.
+- **Tegenstrijdigheden** staan boven de tabbladen zodra er een openstaat (ze houden een pagina tegen), en
+  ingeklapt onderaan als er geen is. De open punten van het onderzoek en wat een wijziging raakte staan
+  ingeklapt onderaan.
+- **Namen gewisseld:** de kop heet nu "Mijn bedrijf" en de bestemming daaronder "Merkdossier"
+  (`/merkprofiel/bewerken`, adres ongewijzigd).
+- ⚠️ **Alleen voor medewerkers**, ondanks de plek onder een klantkop. Besluit V6 en V11 houden de kennislaag
+  dicht voor de klant. Een klant ziet onder "Mijn bedrijf" alleen "Merkdossier". Wil de eigenaar dat de klant
+  dit ook ziet, dan is dat een nieuw besluit: de RLS van `klantkennis` en de routes zijn dan aan de beurt.
+
+Getest: `tsc --noEmit`, `test:unit` (5193), `test:chain` (847) en `build` groen. ⚠️ Niet bekeken in een
+browser (conventie 10): het scherm is gebouwd en op code getest, niet met echte klantdata.
+
 ## 29 september 2026 (4): notificaties, klein rechtsonder en een lijst achter een belletje
 
 De eigenaar vond het meldingsblok rechtsboven te groot (minstens 451 pixels breed, titel plus
@@ -13178,7 +13287,7 @@ die na publicatie niet op de site teruggevonden werd, ging ongemerkt voorbij.
 
 Gebouwd, na een genummerde lijst van 50 momenten waarvan de eigenaar alles akkoord gaf:
 
-- **Migratie 0131**: tabel `notificaties`, gevuld door dertien triggers op de plek waar een
+- **Migratie 0133**: tabel `notificaties`, gevuld door dertien triggers op de plek waar een
   gebeurtenis zichtbaar wordt, en `notificaties_gezien` met één tijdstip per gebruiker. Triggers en
   niet de code, omdat bijvoorbeeld `content_pieces.status` op vier plekken op `ready` gaat; een
   trigger mist er geen. Elke trigger vangt zijn eigen fout af. Vragen, beantwoorde vragen en

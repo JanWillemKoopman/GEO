@@ -121,13 +121,13 @@ export const MONTH_STATUS_META: Record<
     tone: "neutraal",
   },
   ter_goedkeuring: {
-    label: "Wacht op vrijgave",
+    label: "Wacht op de start",
     running: "Wacht op jou",
     whoseTurn: "klant",
     tone: "wacht",
   },
   goedgekeurd: {
-    label: "Vrijgegeven",
+    label: "Gestart",
     running: "Loopt",
     whoseTurn: null,
     tone: "klaar",

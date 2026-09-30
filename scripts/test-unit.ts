@@ -498,6 +498,7 @@ import {
   passwordOk,
   mayInvite,
 } from "@/lib/invite-rules";
+import { rolVan, isSuperuserEmail, SUPERUSER_EMAIL } from "@/lib/roles";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import { MONTHS_AHEAD, DEFAULT_FUNNELS } from "@/lib/plan-constants";
 import {
@@ -546,6 +547,9 @@ import {
   type PageForWriting,
 } from "@/lib/plan-writing";
 import { SOORTEN as PAGINASOORTEN, soortVan } from "@/lib/pagina/soorten";
+import { voorgesteldeMaand, schoneDoelvragen } from "@/lib/pagina-idee";
+import { maandTitel, maandKort } from "@/lib/plan-schedule";
+import { bordGroepen, restRegel, MAANDEN_IN_BEELD } from "@/lib/plan-bord";
 import { leesZoekresultaten } from "@/lib/ai-overview/parse-serp";
 import {
   zoekopdrachtenVoor,
@@ -923,7 +927,7 @@ import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan } from "@/lib/kennis/betwist";
 import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
-import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib/kennis/overzicht";
+import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, tabVoorDomein, leesTab, standVan, pastInFilter, telPerFilter, itemsVoorTab, groepenVoorFilter, DOMEIN_KOP, FEITEN_DOMEINEN, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam, siteLinksVoorOnderwerp, zusterPaginas } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -5883,10 +5887,10 @@ group("Hoe lang de voorraad meegaat (werkpakket C §5.2)", () => {
   ok("een tempo van nul is geen deler", estimateBacklogMonths(7, 0) === null);
   ok("een negatief tempo ook niet", estimateBacklogMonths(7, -1) === null);
 
-  ok("enkelvoud bij één maand", backlogDurationLabel(3, 4) === "Bij dit tempo duurt de voorraad nog 1 maand.");
+  ok("enkelvoud bij één maand", backlogDurationLabel(3, 4) === "Bij dit tempo duurt de ideeënlijst nog 1 maand.");
   ok(
     "meervoud bij meer maanden",
-    backlogDurationLabel(9, 4) === "Bij dit tempo duurt de voorraad nog 3 maanden.",
+    backlogDurationLabel(9, 4) === "Bij dit tempo duurt de ideeënlijst nog 3 maanden.",
   );
   ok("geen voorraad levert geen zin op", backlogDurationLabel(0, 4) === null);
 });
@@ -6839,6 +6843,23 @@ group("wie mag uitnodigen", () => {
   ok("een beheerder van ORBIT ENGINE mag altijd", mayInvite(null, true) === true);
   ok("een lid van ORBIT ENGINE-staf ook", mayInvite("member", true) === true);
   ok("zonder rol en zonder staf niet", mayInvite(null, false) === false);
+});
+
+group("de drie rollen", () => {
+  ok("het vaste adres met bevestiging is superuser",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: true, inStaffTabel: false }) === "superuser");
+  ok("hoofdletters en spaties maken niets uit", isSuperuserEmail("  Koopman.JanWillem@Gmail.com "));
+  // Een onbevestigd adres bewijst niets: anders zou een registratie op dit adres genoeg zijn.
+  ok("zonder bevestiging geen superuser",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: false, inStaffTabel: false }) === "klant");
+  ok("staf zonder het vaste adres is consultant",
+    rolVan({ email: "anna@outerorbit.nl", emailBevestigd: true, inStaffTabel: true }) === "consultant");
+  ok("de superuser wint van een rij in de staftabel",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: true, inStaffTabel: true }) === "superuser");
+  ok("een gewone gebruiker is klant",
+    rolVan({ email: "klant@bedrijf.nl", emailBevestigd: true, inStaffTabel: false }) === "klant");
+  ok("geen adres is klant",
+    rolVan({ email: null, emailBevestigd: false, inStaffTabel: false }) === "klant");
 });
 
 group("monthsSinceStart", () => {
@@ -7825,7 +7846,7 @@ group("het contentplan zoals de klant het leest", () => {
     terGoedkeuring: 0,
     teplaatsen: 0,
   });
-  ok("en vrijgeven blijft over", vrijgeven.includes("vrijgave"));
+  ok("en de start van de maand blijft over", vrijgeven.includes("wacht op de start"));
   const leeg = planStap({ maandStatus: "concept", paginas: 0, terGoedkeuring: 0, teplaatsen: 0 });
   ok("een lege maand zegt bij wie hij moet zijn", leeg.includes("consultant"));
   const rustig = planStap({
@@ -7881,7 +7902,7 @@ group("het contentplan zoals de klant het leest", () => {
   ok(
     "minder dan het pakket krijgt een tekortzin met het exacte aantal erbij (blok A punt 5)",
     maandRegel({ paginas: 2, geplaatst: 0, eersteDatum: null, pakket: 5 }) ===
-      "2 pagina's deze maand. Nog 3 pagina's nodig om je pakket van 5 te halen: er zijn nog niet genoeg gemeten kansen.",
+      "2 pagina's deze maand. Nog 3 pagina's nodig om aan je 5 per maand te komen: er zijn nog niet genoeg gemeten pagina-ideeën.",
   );
   ok(
     "enkelvoud bij precies één pagina tekort",
@@ -7980,7 +8001,7 @@ group("de maand: vijf stappen, geteld over deze kalendermaand", () => {
   ok("publiceren telt live tegen het plan", stap(udenhout, "publiceren").stand === "0 van de 14 live");
   ok("en zegt dat er iets klaarstaat", stap(udenhout, "publiceren").detail === "2 teksten staan klaar");
   ok("hermeten legt uit wanneer het begint", stap(udenhout, "hermeten").detail === "start na je eerste publicatie");
-  ok("de zin wijst de klant aan", udenhout.zin.startsWith("Jij bent aan zet: geef de 14 pagina's van deze maand vrij"));
+  ok("de zin wijst de klant aan", udenhout.zin.startsWith("Jij bent aan zet: start deze maand in je contentplan, met 14 pagina's"));
   ok("en er gebeurde in augustus niets", udenhout.vorigeMaand === null);
 
   // ── Geen mengsel van maanden ───────────────────────────────────────────────
@@ -8130,7 +8151,7 @@ group("welk menu-item licht op", () => {
   const dossier = {
     href: "/merk/abc/merkprofiel",
     label: "Merkdossier",
-    hoofdstuk: "Merkdossier" as const,
+    hoofdstuk: "Mijn bedrijf" as const,
     icoon: "taken" as const,
   };
   ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
@@ -9852,7 +9873,11 @@ group("de shell van 29 september 2026: zijbalk over de volle hoogte, doorzichtig
   }
   const css = leesBestand("app/globals.css");
   const topbar = css.slice(css.indexOf(".topbar {"), css.indexOf("}", css.indexOf(".topbar {")));
-  ok("de bovenbalk is doorzichtig zonder rand", topbar.includes("background-color: transparent") && !topbar.includes("border"));
+  // Sinds 30 september 2026 niet meer doorzichtig maar vast lichtgrijs, en
+  // alleen in de lichte stand: in de donkere stand de grond van de pagina.
+  ok("de bovenbalk heeft zijn eigen kleur via een token, zonder rand", topbar.includes("background-color: var(--topbar-bg)") && !topbar.includes("border"));
+  ok("lichtgrijs in de lichte stand", /--topbar-bg: #f2f2f2;/.test(css));
+  ok("de grond van de pagina in de donkere stand", (css.match(/--topbar-bg: var\(--bg-base\);/g) ?? []).length === 2);
   ok("er is geen ingeklapte zijbalk meer", !css.includes("sidebar-w-collapsed") && !css.includes(".sidebar-smal"));
   const kiezer = leesBestand("components/brand-switcher.tsx");
   ok("bij één merk toont de kiezer niets", kiezer.includes("if (brands.length === 1) return null;"));
@@ -9880,7 +9905,7 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
   const verwacht: Record<string, string> = {
     "/profielen/nieuw": "/merk/nieuw",
     "/profielen": "/merk",
-    "/profielen/:id": "/merk/:id/admin/0-meting",
+    "/profielen/:id": "/merk/:id/admin/aanbodboom",
     "/profielen/:id/merkprofiel": "/merk/:id/merkprofiel/bewerken",
     "/profielen/:id/profielgegevens": "/merk/:id/merkprofiel/bewerken",
     "/profielen/:id/aanvullen": "/merk/:id/strategie/vragen",
@@ -9892,6 +9917,11 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
     "/profielen/:id/search-console": "/merk/:id/analytics/zoekverkeer",
     "/profielen/:id/beheer": "/merk/:id/admin/toewijzen",
   };
+
+  // Het kennisoverzicht en de tegenstrijdige feiten zijn op 30 september 2026
+  // samengevoegd en hun schermen zijn weg: een bladwijzer moet blijven werken.
+  verwacht["/merk/:id/admin/kennis"] = "/merk/:id/merkprofiel/feiten-en-kennis";
+  verwacht["/merk/:id/admin/feiten"] = "/merk/:id/merkprofiel/feiten-en-kennis";
 
   const regels = DOORVERWIJZINGEN;
   const perBron = new Map(regels.map((r) => [r.source, r]));
@@ -10652,7 +10682,7 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "contentplan: eerst de maand, dan de losse pagina",
     contentplan.subkoppen.map((s) => s.subkop).join(",") ===
-      "Contentmaand vrijgeven (definitief maken),Losse geplande pagina's goedkeuren",
+      "Contentmaand starten,Losse geplande pagina's goedkeuren",
   );
 
   const bibliotheek = overzicht.secties.find((s) => s.kop === "Bibliotheek")!;
@@ -11170,14 +11200,14 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  // Vijf over dít merk (Onboardinggesprek, 0-meting, Aanbodboom,
+  // Vijf over dít merk (Onboardinggesprek, Aanbodboom,
   // Concurrenten indelen, Toewijzen) plus "Alle merken" en "Koppelingen" over
   // de app als geheel. "Concurrenten indelen" kwam er op 2 september 2026 bij
   // (plan analytics-herontwerp.md, C1): zie de uitzondering bij
   // `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
   // Het Kwaliteitslab (0091) stond er tot 28 september 2026 als negende bij;
   // het scherm was al weg en de link gaf een 404. Zie `GRENS_PER_HOOFDSTUK`.
-  ok("een beheerder heeft zeven Admin-bestemmingen", adminItems.length === 7);
+  ok("een beheerder heeft zes Admin-bestemmingen", adminItems.length === 6);
   ok(
     "en het verdwenen Kwaliteitslab staat er niet meer in",
     !adminItems.some((i) => i.href === "/beheer/kwaliteit"),
@@ -17534,7 +17564,7 @@ group("bepaalGemisteVragen: eerst binnen een bron, dan tussen de bronnen", () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Notificaties (29 september 2026, migratie 0131)
+// Notificaties (29 september 2026, migratie 0133)
 //
 // De database legt vast dát er iets gebeurde; `lib/notificaties.ts` maakt er een
 // zin, een kleur en een link van. Vervangt de clustermelding van 22 september:
@@ -17617,11 +17647,11 @@ group("notificaties: geen gedachtestreepjes en één regel", () => {
     "vragen_beantwoord", "kennis_raakt_paginas", "collega_aangemeld", "budget_op",
   ];
   const alle = soorten.map((soort) => maakNotificatie(notRij({ soort })));
-  ok("elke soort uit migratie 0131 heeft een tekst", alle.every((m) => m !== null));
+  ok("elke soort uit migratie 0133 heeft een tekst", alle.every((m) => m !== null));
   ok("geen gedachtestreepje (schrijfstijl §10)", alle.every((m) => !/[—–]/.test(m?.titel ?? "")));
   ok("geen 'undefined' of 'null' in een zin", alle.every((m) => !/undefined|null/.test(m?.titel ?? "")));
   ok("korte regels: nergens langer dan 60 tekens zonder namen", alle.every((m) => (m?.titel.length ?? 0) <= 60));
-  ok("elke soort in de code staat ook in de migratie", soorten.every((s) => leesBestand("supabase/migrations/0131_notificaties.sql").includes(`'${s}'`) || s === "budget_op"));
+  ok("elke soort in de code staat ook in de migratie", soorten.every((s) => leesBestand("supabase/migrations/0133_notificaties.sql").includes(`'${s}'`) || s === "budget_op"));
   ok("het dagbudget meldt zich vanuit de code", leesBestand("lib/spend-limit.ts").includes('p_soort: "budget_op"'));
 });
 
@@ -17956,7 +17986,7 @@ group("UX-audit P1.3, nagekomen: een maand vrijgeven zegt vooraf wie dat doet", 
   const knop = leesBestand("app/(app)/merk/[id]/strategie/plan/release-month-button.tsx");
   ok("zonder recht de melding van de kostenpoort, geen knop", knop.includes("if (!staff)") && knop.includes("COST_DENIED.plan_goedkeuren"));
   const bord = leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx");
-  ok("ook op het bord alleen een knop voor wie het mag", bord.includes("Vrijgeven via je consultant"));
+  ok("ook op het bord alleen een knop voor wie het mag", bord.includes("Je consultant start deze maand"));
 });
 
 group("Elke AI-aanroep bewaart wat erin ging (migratie 0112, 23 september 2026)", () => {
@@ -18960,11 +18990,85 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
 
   // Besluit V6: de klant ziet het kennisoverzicht niet. Scherm en route geven
   // een niet-medewerker een 404, en de handelingen gaan alleen via de route.
-  const scherm = leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx");
+  const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
   const route = leesBestand("app/api/profiles/[id]/kennis/[itemId]/route.ts");
   ok("het scherm is alleen voor medewerkers", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
   ok("de route ook, met een 404", /if \(!\(await isStaff\(user\.id\)\)\) return NextResponse\.json\(\{ error: "Niet gevonden\." \}, \{ status: 404 \}\)/.test(route));
   ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
+});
+
+group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", () => {
+  let n = 0;
+  const k = (bewering: string, extra: Partial<OverzichtItem> = {}): OverzichtItem => ({
+    id: `fk${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering,
+    status: "verklaard",
+    bron: "klant",
+    gebruik: "content",
+    ...extra,
+  });
+
+  // Elk domein hoort op precies één tabblad, en de indeling laat er geen weg.
+  const domeinen = Object.keys(DOMEIN_KOP);
+  ok("elk domein van het kennisoverzicht heeft een tabblad", domeinen.every((d) => ["feiten", "kennis"].includes(tabVoorDomein(d))));
+  eq("Feiten: het bedrijf, het aanbod, het bewijs en de grenzen", domeinen.filter((d) => tabVoorDomein(d) === "feiten").join(","), "identiteit,aanbod,bewijs,grens");
+  eq("Kennis: de rest", domeinen.filter((d) => tabVoorDomein(d) === "kennis").join(","), "doelgroep,positionering,verhaal,stem,geleerd");
+  eq("een onbekend domein valt in Kennis en verdwijnt niet", tabVoorDomein("nieuw-domein"), "kennis");
+  ok("de vier feitendomeinen bestaan echt", FEITEN_DOMEINEN.every((d) => domeinen.includes(d)));
+
+  eq("geen tabblad in het adres: Feiten", leesTab(undefined), "feiten");
+  eq("een onzin-tabblad: Feiten", leesTab("iets"), "feiten");
+  eq("?tab=kennis: Kennis", leesTab("kennis"), "kennis");
+
+  // De stand: een woord per item, en afgewezen gaat vóór alles.
+  eq("bevestigd", standVan(k("a", { status: "bevestigd" })), "bevestigd");
+  eq("gezien op de site", standVan(k("a", { status: "waargenomen" })), "site");
+  eq("volgens de klant", standVan(k("a", { status: "verklaard" })), "klant");
+  eq("een vermoeden", standVan(k("a", { status: "afgeleid", gebruik: "intern" })), "vermoeden");
+  eq("afgewezen wint van bevestigd", standVan(k("a", { status: "bevestigd", afgewezen_op: "2026-09-27" })), "afgewezen");
+  ok("'alles' telt een afgewezen item niet mee", !pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "alles"));
+  ok("maar het filter 'afgewezen' toont het wel", pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "afgewezen"));
+
+  const items = [
+    k("Prijs vanaf 45 euro", { domein: "aanbod", status: "bevestigd" }),
+    k("Werkt in Gouda", { domein: "identiteit", status: "waargenomen" }),
+    k("Nooit gratis zeggen", { domein: "grens", gebruik: "verboden" }),
+    k("Klanten twijfelen over de prijs", { domein: "doelgroep", status: "afgeleid", gebruik: "intern" }),
+    k("Warm en nuchter", { domein: "stem" }),
+    k("Oud", { domein: "aanbod", vervangen_door: "x" }),
+    k("Verkeerd", { domein: "aanbod", afgewezen_op: "2026-09-27" }),
+  ];
+  const feiten = itemsVoorTab(items, "feiten");
+  const kennis = itemsVoorTab(items, "kennis");
+  eq("Feiten bevat vier items, een vervangen versie telt niet", String(feiten.length), "4");
+  eq("Kennis bevat er twee", String(kennis.length), "2");
+  eq("samen is het alles wat leeft", String(feiten.length + kennis.length), String(items.filter((i) => !i.vervangen_door).length));
+  const t = telPerFilter(feiten);
+  eq("de telling van Feiten: alles zonder afgewezen", `${t.alles}/${t.bevestigd}/${t.site}/${t.klant}/${t.vermoeden}/${t.afgewezen}`, "3/1/1/1/0/1");
+  eq("de telling van Kennis: één vermoeden", String(telPerFilter(kennis).vermoeden), "1");
+  eq("een filter laat alleen zijn stand over", groepenVoorFilter(feiten, "bevestigd").flatMap((g) => g.items.map((i) => i.bewering)).join("|"), "Prijs vanaf 45 euro");
+  ok("onder 'alles' staat het afgewezen item niet", !groepenVoorFilter(feiten, "alles").some((g) => g.items.some((i) => i.bewering === "Verkeerd")));
+  eq("een leeg filter geeft geen lege blokken", String(groepenVoorFilter(kennis, "bevestigd").length), "0");
+
+  // Het scherm: alleen medewerkers, en de oude twee schermen zijn echt weg.
+  const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
+  ok("het scherm geeft een niet-medewerker een 404", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
+  ok("het toont de botsingen boven de tabbladen zodra er een openstaat", scherm.indexOf("conflicten.length > 0 &&") < scherm.indexOf("<Tabs"));
+  ok("het kennisoverzicht als eigen scherm bestaat niet meer", !existsSync("app/(app)/merk/[id]/admin/kennis/page.tsx"));
+  ok("de tegenstrijdige feiten als eigen scherm ook niet", !existsSync("app/(app)/merk/[id]/admin/feiten/page.tsx"));
+
+  // Het menu: de namen zijn gewisseld en het nieuwe item staat eronder.
+  const staf = brandNav("abc", true).filter((i) => i.hoofdstuk === "Mijn bedrijf");
+  const klant = brandNav("abc", false).filter((i) => i.hoofdstuk === "Mijn bedrijf");
+  eq("de kop heet Mijn bedrijf en er staan twee regels onder, Merkdossier eerst", staf.map((i) => i.label).join("|"), "Merkdossier|Feiten en kennis");
+  ok("Merkdossier wijst nog naar het oude adres", staf[0]?.href === "/merk/abc/merkprofiel/bewerken");
+  ok("Feiten en kennis heeft zijn eigen adres", staf[1]?.href === "/merk/abc/merkprofiel/feiten-en-kennis");
+  eq("een klant ziet alleen Merkdossier: de kennislaag is voor hem dicht (V6, V11)", klant.map((i) => i.label).join("|"), "Merkdossier");
+  ok("Feiten en kennis draagt het teken 'alleen jij'", staf[1]?.staffOnly === true);
+  ok("de kop Merkdossier bestaat niet meer", !(HOOFDSTUKKEN as readonly string[]).includes("Merkdossier"));
+  ok("het menu wijst niet meer naar de twee oude schermen", [...brandNav("abc", true)].every((i) => !/\/admin\/(kennis|feiten)$/.test(i.href)));
 });
 
 group("tegenstrijdigheden houden kennis bij de schrijver weg (K7, sinds K8 deel 2 alleen botsingen)", () => {
@@ -19274,7 +19378,7 @@ group("V10: werkgebied in plaatsen, niet in streken", () => {
   eq("landelijk: geen werkgebiedpunt", String(werkgebiedPunten({ service_scope: "landelijk", service_regions: ["Randstad"], business_model: "retailer" }).length), "0");
   ok("een onbekend bedrijfsmodel is een open punt", werkgebiedPunten({ service_scope: null, service_regions: [], business_model: null }).some((p) => p.punt.startsWith("Wat voor bedrijf")));
   ok("de onderzoeksopdracht vraagt plaatsen", leesBestand("lib/pipeline/profile-research.ts").includes("zet je in serviceRegions de PLAATSEN"));
-  ok("het kennisoverzicht toont ze eerst", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("...werkgebiedPunten("));
+  ok("het kennisoverzicht toont ze eerst", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes("...werkgebiedPunten("));
 });
 
 group("V9: klussen van de site worden verhalen", () => {
@@ -19755,7 +19859,7 @@ group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
   ok("de conflictlijst kent de kennislaag", sql.includes("add column if not exists kennis_ids uuid[]"));
   ok("geen drop table en geen drop column", !/drop\s+(table|column)/i.test(sql));
   // Sinds K8 deel 2 toont het feitenscherm alleen nog botsingen in de kennislaag.
-  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/admin/feiten/page.tsx").includes('.not("kennis_ids", "is", null)'));
+  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes('.not("kennis_ids", "is", null)'));
   // Sinds K7 staan de botsingen tussen kennisitems op hetzelfde conflictscherm,
   // dus de teller op het beheerscherm telt ze mee.
 });
@@ -21065,7 +21169,7 @@ group("A3: één bron van vragen (besluit V3)", () => {
   eq("de punten van de samenvatting en het aanbod, zonder opsomteken en zonder dubbele", punten.map((p) => `${p.bron}:${p.punt}`).join(" | "),
     "samenvatting:Hoeveel fysiotherapeuten werken er? | samenvatting:Welke specialisaties per vestiging? | aanbod:De tarieven van de specialisaties ontbreken.");
   eq("zonder verslag niets", String(openPuntenUitOnderzoek([{ facet: "synthese", raw_json: null }]).length), "0");
-  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("openPuntenUitOnderzoek("));
+  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes("openPuntenUitOnderzoek("));
   const vraagSchrijvers = codebestanden()
     .filter((p) => !p.startsWith("scripts/"))
     .filter((p) => /from\(\s*["'`]fact_requests["'`]\s*\)\s*\.\s*(insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));
@@ -21356,6 +21460,106 @@ group("B34: de zoekresultaten schrijven nooit in de kennislaag", () => {
   ok("de bestanden bestaan", bestanden.every(bestaatBestand));
   ok("geen van hen schrijft in klantkennis", bestanden.every((p) => !schrijftInKlantkennis(leesBestand(p))));
   ok("en importeert de schrijfingang van de kennislaag niet", bestanden.every((p) => !importeertModule(leesBestand(p), ["lib/kennis/vastleggen"])));
+});
+
+// ── Het venster "Nieuw pagina-idee" en één woord per ding (30 september 2026) ──
+console.log("\nNieuw pagina-idee en de woorden van het contentplan");
+
+group("het venster stelt een maand voor", () => {
+  const m = (id: string, aantal: number, voorbij = false) => ({ id, titel: id, aantal, voorbij });
+  eq("de eerste maand met plek, voorbije tellen niet", voorgesteldeMaand([m("sep", 0, true), m("okt", 3), m("nov", 1)], 3)?.id ?? "", "nov");
+  eq("alles vol: de eerste die nog komt", voorgesteldeMaand([m("okt", 3), m("nov", 4)], 3)?.id ?? "", "okt");
+  ok("geen maanden: geen voorstel, het idee gaat naar de ideeënlijst", voorgesteldeMaand([], 3) === null && voorgesteldeMaand([m("sep", 0, true)], 3) === null);
+  eq("doelvragen: getrimd, geen lege en geen dubbele", schoneDoelvragen(["  Wat kost het? ", "", "wat kost het?", "Hoe lang  duurt het?"]).join(" | "), "Wat kost het? | Hoe lang duurt het?");
+});
+
+group("de maand heet zoals de klant hem kent", () => {
+  eq("maand 1 van een plan dat in september begint", maandTitel("2026-09-12", 1), "September 2026");
+  eq("over de jaargrens", maandTitel("2026-09-12", 5), "Januari 2027");
+  eq("onbekende start: het maandnummer, geen gok", maandTitel("geen datum", 4), "Maand 4");
+  ok("en nergens \"van 12\" (besluit 7)", !maandTitel("2026-09-12", 4).includes("van"));
+});
+
+group("het contentplan gebruikt één woord per ding", () => {
+  const bestanden = [
+    "app/(app)/merk/[id]/strategie/plan/plan-view.tsx",
+    "app/(app)/merk/[id]/strategie/plan/plan-read-view.tsx",
+    "app/(app)/merk/[id]/strategie/plan/release-month-button.tsx",
+    "app/(app)/merk/[id]/strategie/plan/create-plan-box.tsx",
+    "app/(app)/merk/[id]/strategie/bibliotheek/page.tsx",
+    "components/pagina/nieuw-pagina-idee.tsx",
+  ];
+  // Alleen tekst voor de gebruiker: regels met commentaar tellen niet mee.
+  const tekst = bestanden
+    .map((p) => leesBestand(p).replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((r) => !/^\s*\/\//.test(r)).join("\n"))
+    .join("\n");
+  for (const oud of ["In te plannen content", "content beschikbaar", "contentitems", "Niet gemeten", "Kans toevoegen", "Geef deze maand vrij", ">Vrijgeven<", "confirmLabel=\"Vrijgeven\"", "uit de voorraad", "naar de voorraad", "pakket {plan"]) {
+    ok(`niet meer: "${oud}"`, !tekst.includes(oud));
+  }
+  ok("het oude formulier is weg", !bestaatBestand("app/(app)/merk/[id]/strategie/plan/handmatige-kans-formulier.tsx"));
+  ok("de bibliotheek en het bord gebruiken hetzelfde venster", leesBestand("app/(app)/merk/[id]/strategie/bibliotheek/page.tsx").includes("<NieuwPaginaIdee") && leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx").includes("<NieuwPaginaIdee"));
+});
+
+group("het venster: drie vragen, de soort als tegels, de rest onder Meer opties", () => {
+  const v = leesBestand("components/pagina/nieuw-pagina-idee.tsx");
+  ok("drie genummerde vragen", ["Waar gaat de pagina over?", "Wat voor pagina wordt het?", "Welke vragen stellen mensen hierover?"].every((t) => v.includes(t)));
+  ok("de soort als keuzegroep met de uitleg uit het register", v.includes('role="radiogroup"') && v.includes("SOORTEN[t].uitleg"));
+  ok("elke soort heeft een regel uitleg", CONTENT_TYPES.every((t) => PAGINASOORTEN[t].uitleg.trim().length > 0 && !/[—–]/.test(PAGINASOORTEN[t].uitleg)));
+  ok("geen keuzelijst waarin je met Ctrl moet klikken", !v.includes("multiple"));
+  ok("verbeteren, lezer en dienst onder Meer opties", v.includes("<details") && v.indexOf("<details") < v.indexOf("Voor wie is de pagina?"));
+  ok("en meteen een maand, met een voorstel", v.includes("(voorgesteld)") && v.includes("Nog niet inplannen, zet het in de ideeënlijst"));
+});
+
+// ── Een rustiger bord (30 september 2026, punt 4 van het UX-voorstel) ──────
+console.log("\nEen rustiger bord: drie maanden open, één menu met schermen");
+
+group("het bord: de eerste drie maanden die nog komen staan open", () => {
+  type M = { id: string; voorbij: boolean; vraagtActie: boolean };
+  const maanden = (aantal: number, voorbij: number[] = [], actie: number[] = []): M[] =>
+    Array.from({ length: aantal }, (_, i) => ({ id: `m${i + 1}`, voorbij: voorbij.includes(i), vraagtActie: actie.includes(i) }));
+  const lees = (m: M) => m;
+  const beeld = (g: ReturnType<typeof bordGroepen<M>>) =>
+    g.map((x) => (x.soort === "maand" ? x.maand.id : `[${x.maanden.map((m) => m.id).join(",")}]`)).join(" ");
+
+  eq("drie in beeld is de afspraak", String(MAANDEN_IN_BEELD), "3");
+  eq("een vers plan: drie open, negen in één regel", beeld(bordGroepen(maanden(12), lees)), "m1 m2 m3 [m4,m5,m6,m7,m8,m9,m10,m11,m12]");
+  eq("een voorbije maand telt niet mee en staat in een eigen regel", beeld(bordGroepen(maanden(12, [0]), lees)), "[m1] m2 m3 m4 [m5,m6,m7,m8,m9,m10,m11,m12]");
+  eq("iets dat op de klant wacht blijft open, ook ver weg", beeld(bordGroepen(maanden(12, [], [7]), lees)), "m1 m2 m3 [m4,m5,m6,m7] m8 [m9,m10,m11,m12]");
+  eq("ook een voorbije maand met een tekst voor akkoord", beeld(bordGroepen(maanden(6, [0, 1], [0]), lees)), "m1 [m2] m3 m4 m5 [m6]");
+  eq("een korter plan staat helemaal open", beeld(bordGroepen(maanden(2), lees)), "m1 m2");
+  eq("geen maanden geeft niets", beeld(bordGroepen([], lees)), "");
+  eq("elke maand komt precies één keer voor", String(bordGroepen(maanden(12, [0], [9]), lees).reduce((n, g) => n + (g.soort === "maand" ? 1 : g.maanden.length), 0)), "12");
+  const rest = bordGroepen(maanden(12), lees).find((g) => g.soort === "rest");
+  ok("een groep heeft de sleutel van zijn eerste maand", rest?.soort === "rest" && rest.sleutel === "m4");
+});
+
+group("de regel van een samengeklapte groep", () => {
+  eq("meer maanden", restRegel(["November 2026", "December 2026", "Juni 2027"], 14), "November 2026 tot en met juni 2027: 14 pagina's");
+  eq("één maand met één pagina", restRegel(["Augustus 2026"], 1), "Augustus 2026: 1 pagina");
+  eq("leeg zegt het zo", restRegel(["Juli 2027", "Juni 2028"], 0), "Juli 2027 tot en met juni 2028: nog leeg");
+  ok("geen gedachtestreepje in de regel", !/[—–]/.test(restRegel(["A 2026", "B 2027"], 2)));
+});
+
+group("Plan in oktober: de maand zoals je hem in een zin zegt", () => {
+  const nu = new Date("2026-09-30T10:00:00Z");
+  eq("dit jaar zonder jaartal", maandKort("2026-09-12", 2, nu), "oktober");
+  eq("een ander jaar met jaartal", maandKort("2026-09-12", 5, nu), "januari 2027");
+  eq("onbekende start: het maandnummer, geen gok", maandKort("geen datum", 4, nu), "maand 4");
+});
+
+group("het bord: het menu van een pagina heeft schermen", () => {
+  // Alleen code: de kop van het bestand beschrijft ook het menu van 26 augustus.
+  const v = leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+  ok("de knop op een idee noemt de maand", v.includes("Plan in {voorstel.kort}"));
+  ok("het eerste scherm heeft Verplaatsen, Andere dag, Soort wijzigen en Verwijderen", ["Verplaatsen", "Andere dag", "Soort wijzigen", "Definitief verwijderen"].every((t) => v.includes(t)));
+  ok("de oude regels zijn weg", !v.includes("Datum aanpassen") && !v.includes("Verplaats naar") && !v.includes("Soort pagina, nu"));
+  const verplaats = v.indexOf('scherm === "verplaats"');
+  const lijst = v.indexOf(".filter((m) => m.id !== huidigeMaand)");
+  ok("de lijst met maanden staat pas op het scherm Verplaatsen", verplaats > 0 && lijst > verplaats);
+  ok("een menu kent een terugknop", v.includes("function MenuTerug"));
+  ok("een idee heeft Andere maand en Verwijderen", v.includes('ga("maand")') && v.includes("Andere maand"));
+  ok("de maanden buiten beeld staan achter een regel die opent", v.includes("restRegel(titels, paginas)") && v.includes("aria-expanded={open}"));
+  ok("slepen blijft bestaan", v.includes("onDropHier") && v.includes("draggable"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

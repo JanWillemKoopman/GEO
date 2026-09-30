@@ -1266,6 +1266,55 @@ aparte, grotere opdracht, zie `docs/tasks/roadmap.md`.
 de UITLEG eronder is anders. Een pagina met een écht gemeten stijging of daling toont deze zin
 sowieso niet, want die verschijnt alleen bij `verdict === "gelijk"`.
 
+### Nieuw pagina-idee, en één woord per ding in het contentplan (30 september 2026)
+
+Vervangt de sectie hierboven over het formulier van de handmatige kans. Aanleiding: de eigenaar
+vond het planscherm zelf al ingewikkeld. Op één scherm heette hetzelfde ding "kans", "content",
+"content item", "voorraad" en "pagina", de maand heette "Maand 4" met de echte naam klein ernaast,
+en het formulier voor een eigen idee was een klein knopje in de kop van de lijst met zes velden,
+waaronder een keuzelijst waarin je met Ctrl meer moest kiezen.
+
+- **De woorden** staan in `docs/schrijfstijl.md` §11: pagina-idee, ideeënlijst, een maand starten,
+  de maand bij naam (`maandTitel()` in `lib/plan-schedule.ts`), "3 pagina's per maand", "Idee van je
+  consultant". Een broncodecontrole in `scripts/test-unit.ts` houdt de oude woorden uit de schermen
+  van het contentplan en de bibliotheek.
+- **Het venster "Nieuw pagina-idee"** (`components/pagina/nieuw-pagina-idee.tsx`) staat als hoofdknop
+  rechtsboven de bibliotheek en als rustige knop boven de ideeënlijst op het bord, alleen voor de
+  consultant (de route is van de beheerder, N5). Drie genummerde vragen met elk hooguit één zin
+  uitleg: waar gaat de pagina over, wat voor pagina wordt het (vijf tegels met één regel uitleg uit
+  `SOORTEN` in `lib/pagina/soorten.ts`), welke vragen stellen mensen hierover (losse regels, tot acht).
+  Wat je meestal niet nodig hebt, staat onder "Meer opties": een bestaande pagina verbeteren, voor wie,
+  welke dienst of welk werkgebied (vinkjes in plaats van een meervoudige keuzelijst). Onderaan de maand,
+  met een voorstel (`voorgesteldeMaand()` in `lib/pagina-idee.ts`): de eerste maand die nog komt en
+  plek heeft. Zo hoeft een los idee niet via het bord.
+- **Op een kaart in de ideeënlijst** staat op de eerste regel alleen nog wat voor werk het is ("nieuwe
+  pagina" of "bestaande pagina verbeteren") en het label. Het cluster en de potentie staan achter
+  "Waarom dit idee?".
+
+**Het bord is rustiger (punt 4 van hetzelfde voorstel, ook 30 september 2026).**
+
+- **Drie maanden open in plaats van twaalf** (`bordGroepen()` in `lib/plan-bord.ts`): de eerste drie
+  maanden die nog komen. De rest staat dicht als één regel per aaneengesloten stuk, zoals "November 2026
+  tot en met juni 2027: 14 pagina's", en klapt open met één klik op die regel. Het zijn dezelfde
+  maandkaarten als altijd. ⚠️ Een maand waar iets op de klant wacht (een tekst voor akkoord, of een
+  maand die nog gestart moet worden) staat altijd open, hoe ver weg of voorbij ook.
+- **"Plan in oktober" op elk idee** in de ideeënlijst: de eerste maand die nog komt en plek heeft
+  (`voorgesteldeMaand()`, dezelfde regel als het venster "Nieuw pagina-idee"). Eén klik, geen menu en
+  geen slepen. Staat de gekozen maand dicht, dan zegt een melding waar de pagina heen ging.
+- **Een menu met schermen.** Het menu van een pagina telde tot vijftien regels. Nu staan er op het
+  eerste scherm hooguit vier: Verplaatsen, Andere dag, Soort wijzigen (alleen de consultant) en
+  Definitief verwijderen. "Schrijf deze pagina nu" staat er voor de consultant nog bovenop, apart, want
+  dat is de enige keuze die geld kost. De lijst met maanden, "Een plek eerder" en "Een plek later" en
+  "Terug naar de ideeënlijst" staan pas achter Verplaatsen; de andere soorten achter Soort wijzigen.
+  Een idee heeft alleen "Andere maand" (de lijst met maanden) en "Definitief verwijderen".
+- **Wat bleef.** Slepen naar een van de open maanden, en alles wat het menu al kon: het staat alleen
+  een scherm dieper. Wie naar een maand in een dichte regel wil slepen, klapt die eerst open, of kiest
+  "Andere maand".
+
+Nog niet gedaan: de vier stappen (idee, gepland, jouw beurt, live) als één route door bibliotheek en
+plan (punt 2 van het voorstel). Dat verandert twee schermen en wacht op een ontwerp dat de eigenaar
+kan aanklikken.
+
 ## 6. Eén werkmodel
 
 `lib/work.ts` is de enige statusmachine voor "werk". Daarvoor bestond werk in vijf vormen die

@@ -31,7 +31,7 @@ geen samenvatting maar een tweede waarheid op een plek waar niemand hem zoekt.
 de wachtrij: `POST /api/analyses/[id]/confirm` plant hem zelf in, en dat deed hij al sinds
 optimalisatie.md 1.5. Het wachtscherm voegde daar niets aan toe behalve kijktijd.
 
-> ⚠️ **Sinds 29 september 2026 ingehaald door de notificaties** (migratie 0131,
+> ⚠️ **Sinds 29 september 2026 ingehaald door de notificaties** (migratie 0133,
 > `lib/notificaties.ts`, `components/notificaties.tsx`). "Meting klaar" is nu één van de soorten
 > melding: één regel, groen, met een link naar Analytics gefilterd op het cluster. De drie cijfers
 > staan daar en niet meer in de melding, want een melding is sindsdien één regel. De clustermelder,

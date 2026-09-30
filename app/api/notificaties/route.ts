@@ -6,7 +6,7 @@ import { maakNotificatie, telOngelezen, type Notificatie, type NotificatieRij } 
 
 /**
  * GET /api/notificaties?merk=<id>: de meldingen voor de lijst en de kleine
- * melding rechtsonder (migratie 0131, `lib/notificaties.ts`).
+ * melding rechtsonder (migratie 0133, `lib/notificaties.ts`).
  *
  * Lezen via de gewone client en niet via de service role: de RLS-regel op
  * `notificaties` laat alleen merken en accounts door waar deze gebruiker bij

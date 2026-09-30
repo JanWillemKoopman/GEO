@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 /**
  * POST /api/notificaties/gezien: de lijst is geopend, alles tot nu is gelezen.
  *
- * Eén tijdstip per gebruiker (`notificaties_gezien`, migratie 0131). De enige
+ * Eén tijdstip per gebruiker (`notificaties_gezien`, migratie 0133). De enige
  * rij die hier geschreven wordt is die van de ingelogde gebruiker zelf, dus de
  * eigendomscontrole is het `user.id` uit de sessie (conventie 6).
  */
