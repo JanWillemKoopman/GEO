@@ -7,6 +7,9 @@ import { EmptyState } from "@/components/empty-state";
 import { laadPaginas } from "@/lib/pagina-data";
 import { groepVan } from "@/lib/pagina-lijst";
 import { LibraryView } from "./library-view";
+import { isStaff } from "@/lib/staff";
+import { laadIdeeVenster } from "@/lib/pagina-idee-data";
+import { NieuwPaginaIdee } from "@/components/pagina/nieuw-pagina-idee";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Bibliotheek" };
@@ -43,6 +46,9 @@ export default async function BibliotheekPage({
   if (!profile) notFound();
 
   const rows = (await laadPaginas(admin, id)).filter((r) => groepVan(r.stand) !== null);
+  // "Nieuw pagina-idee" (30 september 2026): alleen voor de consultant, want de
+  // route is van de beheerder (N5), en alleen als er een plan is om het in te zetten.
+  const venster = (await isStaff(gebruiker.id)) ? await laadIdeeVenster(admin, id) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,6 +56,16 @@ export default async function BibliotheekPage({
         eyebrow="Strategie"
         title="Bibliotheek"
         description="Alle pagina's van dit merk, van de eerste vragen tot het gemeten effect."
+        action={
+          venster ? (
+            <NieuwPaginaIdee
+              profileId={id}
+              kennisOpties={venster.kennisOpties}
+              maanden={venster.maanden}
+              perMaand={venster.perMaand}
+            />
+          ) : undefined
+        }
       />
 
       {rows.length === 0 ? (
@@ -57,7 +73,7 @@ export default async function BibliotheekPage({
           title="Nog geen pagina's"
           action={{ href: `/merk/${id}/strategie/plan`, label: "Naar het contentplan" }}
         >
-          Pagina&apos;s verschijnen hier zodra je een maand in het contentplan vrijgeeft. Dan zetten we
+          Pagina&apos;s verschijnen hier zodra een maand in het contentplan gestart is. Dan zetten we
           de vragen voor die maand klaar, en daarna schrijven we de pagina&apos;s.
         </EmptyState>
       ) : (

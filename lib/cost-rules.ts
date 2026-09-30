@@ -118,7 +118,7 @@ export const COST_DENIED: Record<CostlyAction, string> = {
   content_schrijven:
     "Het schrijven wordt door je consultant bij Outer Orbit in gang gezet. Jij bepaalt wél wat er geschreven wordt: kies de pagina's en de rest gaat vanzelf.",
   plan_goedkeuren:
-    "Deze maand goedkeuren doet je consultant bij Outer Orbit samen met jou. Laat weten dat je akkoord bent.",
+    "Een maand starten doet je consultant bij Outer Orbit samen met jou. Laat weten dat je akkoord bent.",
   // ⚠️ Dit is de belangrijkste van de zeven, want het is de enige handeling die
   // een LOS PRODUCT in gang zet dat de klant apart koopt. De toon is dus geen
   // afwijzing maar een uitnodiging: hij mag het zien, hij weet nu dat het

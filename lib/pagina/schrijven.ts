@@ -155,7 +155,7 @@ export async function laadSchrijfbasis(admin: Admin, pieceId: string): Promise<S
     stemVan(admin, merk, pagina.profileId, site),
     klantinput(admin, pieceId),
     burenInCluster(admin, pagina),
-    laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten),
+    laadDoelvragen(admin, pagina.sourceRef, merk.concurrenten, pagina.eigenIdeeAnalyse),
     laadPaginaDefinitie(admin, pagina.sourceRef),
   ]);
   const onderzoek = (pagina.briefJson as BriefJson | null)?.onderzoek ?? null;

@@ -256,7 +256,7 @@ export function backlogDurationLabel(
   const maanden = estimateBacklogMonths(backlogSize, pagesPerMonth);
   if (maanden === null) return null;
   return maanden === 1
-    ? "Bij dit tempo duurt de voorraad nog 1 maand."
-    : `Bij dit tempo duurt de voorraad nog ${maanden} maanden.`;
+    ? "Bij dit tempo duurt de ideeënlijst nog 1 maand."
+    : `Bij dit tempo duurt de ideeënlijst nog ${maanden} maanden.`;
 }
 

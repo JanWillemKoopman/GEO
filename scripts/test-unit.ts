@@ -546,6 +546,8 @@ import {
   type PageForWriting,
 } from "@/lib/plan-writing";
 import { SOORTEN as PAGINASOORTEN, soortVan } from "@/lib/pagina/soorten";
+import { voorgesteldeMaand, schoneDoelvragen } from "@/lib/pagina-idee";
+import { maandTitel } from "@/lib/plan-schedule";
 import { leesZoekresultaten } from "@/lib/ai-overview/parse-serp";
 import {
   zoekopdrachtenVoor,
@@ -5881,10 +5883,10 @@ group("Hoe lang de voorraad meegaat (werkpakket C §5.2)", () => {
   ok("een tempo van nul is geen deler", estimateBacklogMonths(7, 0) === null);
   ok("een negatief tempo ook niet", estimateBacklogMonths(7, -1) === null);
 
-  ok("enkelvoud bij één maand", backlogDurationLabel(3, 4) === "Bij dit tempo duurt de voorraad nog 1 maand.");
+  ok("enkelvoud bij één maand", backlogDurationLabel(3, 4) === "Bij dit tempo duurt de ideeënlijst nog 1 maand.");
   ok(
     "meervoud bij meer maanden",
-    backlogDurationLabel(9, 4) === "Bij dit tempo duurt de voorraad nog 3 maanden.",
+    backlogDurationLabel(9, 4) === "Bij dit tempo duurt de ideeënlijst nog 3 maanden.",
   );
   ok("geen voorraad levert geen zin op", backlogDurationLabel(0, 4) === null);
 });
@@ -7823,7 +7825,7 @@ group("het contentplan zoals de klant het leest", () => {
     terGoedkeuring: 0,
     teplaatsen: 0,
   });
-  ok("en vrijgeven blijft over", vrijgeven.includes("vrijgave"));
+  ok("en de start van de maand blijft over", vrijgeven.includes("wacht op de start"));
   const leeg = planStap({ maandStatus: "concept", paginas: 0, terGoedkeuring: 0, teplaatsen: 0 });
   ok("een lege maand zegt bij wie hij moet zijn", leeg.includes("consultant"));
   const rustig = planStap({
@@ -7879,7 +7881,7 @@ group("het contentplan zoals de klant het leest", () => {
   ok(
     "minder dan het pakket krijgt een tekortzin met het exacte aantal erbij (blok A punt 5)",
     maandRegel({ paginas: 2, geplaatst: 0, eersteDatum: null, pakket: 5 }) ===
-      "2 pagina's deze maand. Nog 3 pagina's nodig om je pakket van 5 te halen: er zijn nog niet genoeg gemeten kansen.",
+      "2 pagina's deze maand. Nog 3 pagina's nodig om aan je 5 per maand te komen: er zijn nog niet genoeg gemeten pagina-ideeën.",
   );
   ok(
     "enkelvoud bij precies één pagina tekort",
@@ -7978,7 +7980,7 @@ group("de maand: vijf stappen, geteld over deze kalendermaand", () => {
   ok("publiceren telt live tegen het plan", stap(udenhout, "publiceren").stand === "0 van de 14 live");
   ok("en zegt dat er iets klaarstaat", stap(udenhout, "publiceren").detail === "2 teksten staan klaar");
   ok("hermeten legt uit wanneer het begint", stap(udenhout, "hermeten").detail === "start na je eerste publicatie");
-  ok("de zin wijst de klant aan", udenhout.zin.startsWith("Jij bent aan zet: geef de 14 pagina's van deze maand vrij"));
+  ok("de zin wijst de klant aan", udenhout.zin.startsWith("Jij bent aan zet: start deze maand in je contentplan, met 14 pagina's"));
   ok("en er gebeurde in augustus niets", udenhout.vorigeMaand === null);
 
   // ── Geen mengsel van maanden ───────────────────────────────────────────────
@@ -10650,7 +10652,7 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "contentplan: eerst de maand, dan de losse pagina",
     contentplan.subkoppen.map((s) => s.subkop).join(",") ===
-      "Contentmaand vrijgeven (definitief maken),Losse geplande pagina's goedkeuren",
+      "Contentmaand starten,Losse geplande pagina's goedkeuren",
   );
 
   const bibliotheek = overzicht.secties.find((s) => s.kop === "Bibliotheek")!;
@@ -17934,7 +17936,7 @@ group("UX-audit P1.3, nagekomen: een maand vrijgeven zegt vooraf wie dat doet", 
   const knop = leesBestand("app/(app)/merk/[id]/strategie/plan/release-month-button.tsx");
   ok("zonder recht de melding van de kostenpoort, geen knop", knop.includes("if (!staff)") && knop.includes("COST_DENIED.plan_goedkeuren"));
   const bord = leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx");
-  ok("ook op het bord alleen een knop voor wie het mag", bord.includes("Vrijgeven via je consultant"));
+  ok("ook op het bord alleen een knop voor wie het mag", bord.includes("Je consultant start deze maand"));
 });
 
 group("Elke AI-aanroep bewaart wat erin ging (migratie 0112, 23 september 2026)", () => {
@@ -21334,6 +21336,54 @@ group("B34: de zoekresultaten schrijven nooit in de kennislaag", () => {
   ok("de bestanden bestaan", bestanden.every(bestaatBestand));
   ok("geen van hen schrijft in klantkennis", bestanden.every((p) => !schrijftInKlantkennis(leesBestand(p))));
   ok("en importeert de schrijfingang van de kennislaag niet", bestanden.every((p) => !importeertModule(leesBestand(p), ["lib/kennis/vastleggen"])));
+});
+
+// ── Het venster "Nieuw pagina-idee" en één woord per ding (30 september 2026) ──
+console.log("\nNieuw pagina-idee en de woorden van het contentplan");
+
+group("het venster stelt een maand voor", () => {
+  const m = (id: string, aantal: number, voorbij = false) => ({ id, titel: id, aantal, voorbij });
+  eq("de eerste maand met plek, voorbije tellen niet", voorgesteldeMaand([m("sep", 0, true), m("okt", 3), m("nov", 1)], 3)?.id ?? "", "nov");
+  eq("alles vol: de eerste die nog komt", voorgesteldeMaand([m("okt", 3), m("nov", 4)], 3)?.id ?? "", "okt");
+  ok("geen maanden: geen voorstel, het idee gaat naar de ideeënlijst", voorgesteldeMaand([], 3) === null && voorgesteldeMaand([m("sep", 0, true)], 3) === null);
+  eq("doelvragen: getrimd, geen lege en geen dubbele", schoneDoelvragen(["  Wat kost het? ", "", "wat kost het?", "Hoe lang  duurt het?"]).join(" | "), "Wat kost het? | Hoe lang duurt het?");
+});
+
+group("de maand heet zoals de klant hem kent", () => {
+  eq("maand 1 van een plan dat in september begint", maandTitel("2026-09-12", 1), "September 2026");
+  eq("over de jaargrens", maandTitel("2026-09-12", 5), "Januari 2027");
+  eq("onbekende start: het maandnummer, geen gok", maandTitel("geen datum", 4), "Maand 4");
+  ok("en nergens \"van 12\" (besluit 7)", !maandTitel("2026-09-12", 4).includes("van"));
+});
+
+group("het contentplan gebruikt één woord per ding", () => {
+  const bestanden = [
+    "app/(app)/merk/[id]/strategie/plan/plan-view.tsx",
+    "app/(app)/merk/[id]/strategie/plan/plan-read-view.tsx",
+    "app/(app)/merk/[id]/strategie/plan/release-month-button.tsx",
+    "app/(app)/merk/[id]/strategie/plan/create-plan-box.tsx",
+    "app/(app)/merk/[id]/strategie/bibliotheek/page.tsx",
+    "components/pagina/nieuw-pagina-idee.tsx",
+  ];
+  // Alleen tekst voor de gebruiker: regels met commentaar tellen niet mee.
+  const tekst = bestanden
+    .map((p) => leesBestand(p).replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((r) => !/^\s*\/\//.test(r)).join("\n"))
+    .join("\n");
+  for (const oud of ["In te plannen content", "content beschikbaar", "contentitems", "Niet gemeten", "Kans toevoegen", "Geef deze maand vrij", ">Vrijgeven<", "confirmLabel=\"Vrijgeven\"", "uit de voorraad", "naar de voorraad", "pakket {plan"]) {
+    ok(`niet meer: "${oud}"`, !tekst.includes(oud));
+  }
+  ok("het oude formulier is weg", !bestaatBestand("app/(app)/merk/[id]/strategie/plan/handmatige-kans-formulier.tsx"));
+  ok("de bibliotheek en het bord gebruiken hetzelfde venster", leesBestand("app/(app)/merk/[id]/strategie/bibliotheek/page.tsx").includes("<NieuwPaginaIdee") && leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx").includes("<NieuwPaginaIdee"));
+});
+
+group("het venster: drie vragen, de soort als tegels, de rest onder Meer opties", () => {
+  const v = leesBestand("components/pagina/nieuw-pagina-idee.tsx");
+  ok("drie genummerde vragen", ["Waar gaat de pagina over?", "Wat voor pagina wordt het?", "Welke vragen stellen mensen hierover?"].every((t) => v.includes(t)));
+  ok("de soort als keuzegroep met de uitleg uit het register", v.includes('role="radiogroup"') && v.includes("SOORTEN[t].uitleg"));
+  ok("elke soort heeft een regel uitleg", CONTENT_TYPES.every((t) => PAGINASOORTEN[t].uitleg.trim().length > 0 && !/[—–]/.test(PAGINASOORTEN[t].uitleg)));
+  ok("geen keuzelijst waarin je met Ctrl moet klikken", !v.includes("multiple"));
+  ok("verbeteren, lezer en dienst onder Meer opties", v.includes("<details") && v.indexOf("<details") < v.indexOf("Voor wie is de pagina?"));
+  ok("en meteen een maand, met een voorstel", v.includes("(voorgesteld)") && v.includes("Nog niet inplannen, zet het in de ideeënlijst"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

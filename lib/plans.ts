@@ -677,7 +677,7 @@ export async function createPlan(
     return {
       ok: false,
       problems: [
-        "Er zijn nog geen gemeten kansen om in te plannen. Meet eerst een cluster: ORBIT ENGINE haalt de kansen daarna uit het rapport.",
+        "Er zijn nog geen gemeten pagina-ideeën om in te plannen. Meet eerst een cluster: ORBIT ENGINE haalt de pagina-ideeën daarna uit het rapport.",
       ],
     };
   }
@@ -1131,7 +1131,7 @@ export async function setPageDate(
   if (!kaart.plan_month_id) {
     return {
       ok: false,
-      probleem: "Deze kans staat in de voorraad. Plan hem eerst in een maand.",
+      probleem: "Dit pagina-idee staat in de ideeënlijst. Plan het eerst in een maand.",
     };
   }
   if (kaart.status !== "gepland") {

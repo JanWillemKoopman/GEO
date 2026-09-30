@@ -8668,6 +8668,20 @@ async function main(): Promise<void> {
       );
       ok("scenario 34, B33: zonder keuze wordt een handmatige kans een artikel, zoals voorheen", stukRows[0].type === "article", String(stukRows[0].type));
 
+      // 30 september 2026: de doelvragen van een eigen idee komen aan bij de
+      // brief en de schrijver. Tot die dag zocht de keten ze alleen via een
+      // aanbeveling uit een rapport, en die heeft een eigen idee niet.
+      const { laadPagina: laadEigenIdee, laadDoelvragen: doelvragenVanIdee } = await import("@/lib/pagina/context");
+      const { rows: stukId } = await db.client.query("select content_piece_id from public.planned_pages where id = $1", [planPaginaId]);
+      const eigenIdee = await laadEigenIdee(admin as never, stukId[0].content_piece_id as string);
+      ok("scenario 34: de pagina weet dat hij een eigen idee is", eigenIdee?.eigenIdeeAnalyse === schaduwAnalyseId, String(eigenIdee?.eigenIdeeAnalyse));
+      const vragenVanIdee = await doelvragenVanIdee(admin as never, eigenIdee!.sourceRef, [], eigenIdee!.eigenIdeeAnalyse);
+      eqc(
+        "scenario 34: de doelvragen van de consultant gaan mee naar de brief, zonder verzonnen antwoord",
+        vragenVanIdee.map((v) => `${v.vraag}|${v.antwoord ?? "-"}`).join(" ; "),
+        "Wat kost dakisolatie in Oisterwijk?|- ; Welke subsidie geldt er voor dakisolatie?|-",
+      );
+
       // B33: de consultant kiest de soort. De kaart draagt hem, het paginatype
       // volgt voor de contentmix, en de kans kent hem voor het kennisgat (N6).
       const vergelijking = await voegHandmatigeKansToe(admin as never, {

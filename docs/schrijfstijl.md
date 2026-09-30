@@ -120,6 +120,16 @@ waar het naartoe gaat dragen hetzelfde woord, en "vragen" betekent nooit twee di
 | concurrent | rival, competitor |
 | onderzoek | scan, crawl (behalve in technische audit-context) |
 | niet gelukt | mislukt |
+| pagina-idee (een pagina die nog geschreven kan worden, in het contentplan) | kans, content, content item, contentitem |
+| ideeënlijst (de pagina-ideeën die nog in geen maand staan) | voorraad, backlog, "In te plannen content" |
+| een maand starten, de maand is gestart | vrijgeven, vrijgave, vrijgegeven |
+| de maand bij naam: "Oktober 2026" | "Maand 4", "maand 4 van 12" |
+| 3 pagina's per maand | pakket 3 per maand |
+| idee van je consultant | handmatige kans, niet gemeten |
+
+"Kans" blijft op het overzicht bestaan, in de bredere betekenis van alles wat je zichtbaarheid kan
+verbeteren (ook een technische blokkade of een onderwerp dat nog niet gemeten is). In het contentplan
+en de bibliotheek gaat het altijd om een pagina, en dan is het een pagina-idee (30 september 2026).
 
 ### 12. Bij een storing: wie lost het op, en wat kun je intussen
 Nova's eigen app-teksten (niet de marketingsite) doen dit consequent bij elke tijdelijke

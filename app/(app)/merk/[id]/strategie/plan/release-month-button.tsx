@@ -20,6 +20,7 @@ export function ReleaseMonthButton({
   profileId,
   monthId,
   monthNumber,
+  maandNaam,
   paginas,
   eersteDatum,
   staff,
@@ -27,6 +28,8 @@ export function ReleaseMonthButton({
   profileId: string;
   monthId: string;
   monthNumber: number;
+  /** De naam van de maand ("Oktober 2026", `maandTitel()`), voor de dialoog en de melding. */
+  maandNaam: string;
   paginas: number;
   /**
    * De vroegste publicatiedatum in deze maand, of `null`. Daaruit volgt de
@@ -75,7 +78,7 @@ export function ReleaseMonthButton({
       const los = j?.zonderOnderwerp ?? 0;
       toast({
         intent: los > 0 ? "waarschuwing" : "succes",
-        title: `Maand ${monthNumber} vrijgegeven`,
+        title: `${maandNaam} is gestart`,
         description:
           "De vragen voor deze maand staan binnen een paar minuten onder Openstaande vragen." +
           (los > 0
@@ -103,16 +106,16 @@ export function ReleaseMonthButton({
         onClick={() => setOpen(true)}
         disabled={wacht}
       >
-        Geef deze maand vrij
+        Start deze maand
       </button>
 
       <ConfirmDialog
         open={open}
-        title={`Maand ${monthNumber} vrijgeven`}
+        title={`${maandNaam} starten`}
         // Sinds 23 september 2026 (`docs/tasks/contentflow-een-lijn.md` §3.1):
         // vrijgeven zet eerst de vragen klaar; geschreven wordt er pas als die
         // gedaan zijn. De oude zin beloofde dat het schrijven meteen begon.
-        body={`Na vrijgeven zetten we binnen een paar minuten de vragen voor ${
+        body={`Na het starten zetten we binnen een paar minuten de vragen voor ${
           paginas === 1 ? "deze pagina" : `deze ${paginas} pagina's`
         } klaar, onder Openstaande vragen.${
           // Punt 33: nooit een streefdatum in het verleden.
@@ -123,7 +126,7 @@ export function ReleaseMonthButton({
           description:
             "Elke pagina die geschreven wordt kost geld. Klopt de indeling niet, overleg dan eerst met je consultant.",
         }}
-        confirmLabel="Vrijgeven"
+        confirmLabel="Start deze maand"
         confirmingLabel="Bezig…"
         busy={wacht}
         onCancel={() => setOpen(false)}

@@ -1265,6 +1265,35 @@ aparte, grotere opdracht, zie `docs/tasks/roadmap.md`.
 de UITLEG eronder is anders. Een pagina met een écht gemeten stijging of daling toont deze zin
 sowieso niet, want die verschijnt alleen bij `verdict === "gelijk"`.
 
+### Nieuw pagina-idee, en één woord per ding in het contentplan (30 september 2026)
+
+Vervangt de sectie hierboven over het formulier van de handmatige kans. Aanleiding: de eigenaar
+vond het planscherm zelf al ingewikkeld. Op één scherm heette hetzelfde ding "kans", "content",
+"content item", "voorraad" en "pagina", de maand heette "Maand 4" met de echte naam klein ernaast,
+en het formulier voor een eigen idee was een klein knopje in de kop van de lijst met zes velden,
+waaronder een keuzelijst waarin je met Ctrl meer moest kiezen.
+
+- **De woorden** staan in `docs/schrijfstijl.md` §11: pagina-idee, ideeënlijst, een maand starten,
+  de maand bij naam (`maandTitel()` in `lib/plan-schedule.ts`), "3 pagina's per maand", "Idee van je
+  consultant". Een broncodecontrole in `scripts/test-unit.ts` houdt de oude woorden uit de schermen
+  van het contentplan en de bibliotheek.
+- **Het venster "Nieuw pagina-idee"** (`components/pagina/nieuw-pagina-idee.tsx`) staat als hoofdknop
+  rechtsboven de bibliotheek en als rustige knop boven de ideeënlijst op het bord, alleen voor de
+  consultant (de route is van de beheerder, N5). Drie genummerde vragen met elk hooguit één zin
+  uitleg: waar gaat de pagina over, wat voor pagina wordt het (vijf tegels met één regel uitleg uit
+  `SOORTEN` in `lib/pagina/soorten.ts`), welke vragen stellen mensen hierover (losse regels, tot acht).
+  Wat je meestal niet nodig hebt, staat onder "Meer opties": een bestaande pagina verbeteren, voor wie,
+  welke dienst of welk werkgebied (vinkjes in plaats van een meervoudige keuzelijst). Onderaan de maand,
+  met een voorstel (`voorgesteldeMaand()` in `lib/pagina-idee.ts`): de eerste maand die nog komt en
+  plek heeft. Zo hoeft een los idee niet via het bord.
+- **Op een kaart in de ideeënlijst** staat op de eerste regel alleen nog wat voor werk het is ("nieuwe
+  pagina" of "bestaande pagina verbeteren") en het label. Het cluster en de potentie staan achter
+  "Waarom dit idee?".
+
+Nog niet gedaan, en bewust niet stil meegenomen: de vier stappen (idee, gepland, jouw beurt, live) als
+één route door bibliotheek en plan, en het bord terug naar drie open maanden met een knop "Plan in" naast
+het slepen. Die wachten op een ontwerp dat de eigenaar kan aanklikken.
+
 ## 6. Eén werkmodel
 
 `lib/work.ts` is de enige statusmachine voor "werk". Daarvoor bestond werk in vijf vormen die

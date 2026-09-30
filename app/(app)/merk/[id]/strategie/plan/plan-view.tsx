@@ -11,6 +11,7 @@ import { MONTH_STATUS_META, PLAN_STATUS_META, planRunningDate } from "@/lib/plan
 import { sharedNotice } from "@/lib/plan-overview";
 import {
   monthCalendar,
+  maandTitel,
   isRunningMonth,
   isPastMonth,
   formatDagNL,
@@ -34,7 +35,8 @@ import { canMove } from "@/lib/plan-order";
 import { kiesVoorBulk, OVERSLAAN_TEKST } from "@/lib/plan-bulk";
 import type { ContentPlan, ContentType, FunnelStage, PlanMonth, PlannedPage } from "@/lib/types/database";
 import { Icon } from "@/components/icon";
-import { HandmatigeKansFormulier, type KennisOptie } from "./handmatige-kans-formulier";
+import { NieuwPaginaIdee } from "@/components/pagina/nieuw-pagina-idee";
+import type { IdeeVenster } from "@/lib/pagina-idee-data";
 
 /**
  * Het contentplan: een voorraad links, twaalf maanden rechts.
@@ -118,7 +120,7 @@ export function PlanView({
   kansUitleg = {},
   kansBewijs = {},
   kansNietGemeten = {},
-  kennisOpties,
+  ideeVenster,
 }: {
   /** N6: per kans wat nog ontbreekt. Alleen gevuld voor de consultant. */
   kaartZin?: Record<string, string | null>;
@@ -128,8 +130,8 @@ export function PlanView({
   kansBewijs?: Record<string, string[]>;
   /** N5: een kans zonder gemeten cluster (handmatig, besluit V2). */
   kansNietGemeten?: Record<string, boolean>;
-  /** N5: kennisitems voor het formulier. Alleen gevuld voor de consultant. */
-  kennisOpties?: KennisOptie[];
+  /** Het venster "Nieuw pagina-idee", alleen voor de consultant (null of weggelaten: geen knop). */
+  ideeVenster?: IdeeVenster | null;
   /**
    * De ene stand per plan-pagina (`lib/pagina-stand.ts`, 23 september 2026).
    * Het plan toonde tot die dag zijn eigen labels ("Tekst klaar voor akkoord"),
@@ -398,7 +400,7 @@ export function PlanView({
         const los = j?.zonderOnderwerp ?? 0;
         toast({
           intent: los > 0 ? "waarschuwing" : "succes",
-          title: n > 0 ? `De vragen voor ${n === 1 ? "1 pagina" : `${n} pagina's`} worden klaargezet` : "Maand vrijgegeven",
+          title: n > 0 ? `De vragen voor ${n === 1 ? "1 pagina" : `${n} pagina's`} worden klaargezet` : "Maand gestart",
           description:
             (n > 0 ? "Binnen een paar minuten staan ze onder Openstaande vragen." : "") +
             (los > 0
@@ -513,7 +515,7 @@ export function PlanView({
 
   const maandKeuzes: MaandKeuze[] = maanden.map((m) => ({
     id: m.month.id,
-    label: `Maand ${m.month.month_number}${m.kalender ? ` · ${m.kalender}` : ""}`,
+    label: maandTitel(plan.started_on, m.month.month_number),
     voorbij: m.voorbij,
   }));
 
@@ -523,11 +525,13 @@ export function PlanView({
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm text-secondary">
-            <span className="mono-label">pakket {plan.pages_per_month} per maand</span>
+            {/* 30 september 2026: "pakket 3 per maand" werd "3 pagina's per maand",
+                en "content beschikbaar" werd "pagina-ideeën" (één woord per ding). */}
+            <span className="mono-label">{plan.pages_per_month} {plan.pages_per_month === 1 ? "pagina" : "pagina's"} per maand</span>
             <span className="mx-2 text-muted">·</span>
             {echt.length} ingepland
             <span className="mx-2 text-muted">·</span>
-            {backlog.length} content beschikbaar
+            {backlog.length} {backlog.length === 1 ? "pagina-idee" : "pagina-ideeën"}
             {eerstvolgende && (
               <>
                 <span className="mx-2 text-muted">·</span>
@@ -587,15 +591,21 @@ export function PlanView({
                     stap 9 van de redesign was `text-base` hier ook nog een echte val, zie
                     de toelichting bij `@theme inline` in dat bestand; die val is inmiddels
                     weg.) */}
-                <h2 className="type-body-emphasis">In te plannen content</h2>
+                <h2 className="type-body-emphasis">Ideeënlijst</h2>
                 <span className="mono-label">
                   {zichtbareVoorraad.length === backlog.length
                     ? `${backlog.length}`
                     : `${zichtbareVoorraad.length} van ${backlog.length}`}
                 </span>
               </div>
-              {kennisOpties && (
-                <HandmatigeKansFormulier profileId={profileId} kennisOpties={kennisOpties} />
+              {ideeVenster && (
+                <NieuwPaginaIdee
+                  profileId={profileId}
+                  kennisOpties={ideeVenster.kennisOpties}
+                  maanden={ideeVenster.maanden}
+                  perMaand={ideeVenster.perMaand}
+                  knop="rustig"
+                />
               )}
 
               {backlog.length > 0 && (
@@ -605,7 +615,7 @@ export function PlanView({
                     value={filters.zoek}
                     onChange={(e) => setFilters((f) => ({ ...f, zoek: e.target.value }))}
                     placeholder="Zoeken"
-                    aria-label="Zoek in de voorraad"
+                    aria-label="Zoek in de ideeënlijst"
                   />
                   <div className="flex flex-wrap gap-1.5">
                     {clusters.length > 1 && (
@@ -648,8 +658,7 @@ export function PlanView({
 
             {backlog.length === 0 ? (
               <p className="px-4 pb-4 text-sm text-secondary">
-                Hier komen je contentitems te staan die je kunt inplannen in je contentkalender.
-                Op dit moment zijn er geen items beschikbaar.
+                Hier komen de pagina-ideeën die je kunt inplannen. Op dit moment zijn er geen.
               </p>
             ) : zichtbareVoorraad.length === 0 ? (
               <div className="flex flex-col items-start gap-1 px-4 pb-4">
@@ -659,7 +668,7 @@ export function PlanView({
                   className="text-sm text-secondary hover:underline"
                   onClick={() => setFilters(LEGE_BACKLOG_FILTERS)}
                 >
-                  Toon alle {backlog.length} kansen
+                  Toon alle {backlog.length} pagina-ideeën
                 </button>
               </div>
             ) : (
@@ -696,7 +705,7 @@ export function PlanView({
 
         {/* ── Rechts: de twaalf maanden ──────────────────────────────────── */}
         <div className="flex flex-col gap-3">
-          {maanden.map(({ month, inhoud, gedeeld, kalender, lopend, voorbij }) => {
+          {maanden.map(({ month, inhoud, gedeeld, lopend, voorbij }) => {
             const meta = MONTH_STATUS_META[month.status];
             // Een lege maand die niet loopt, begint dicht: twaalf lege
             // dropzones onder elkaar zijn twaalf keer dezelfde uitnodiging.
@@ -762,10 +771,11 @@ export function PlanView({
                       className="flex items-center gap-2 text-sm font-medium hover:underline"
                     >
                       <Icon naam={open ? "openen" : "verder"} size={14} />
-                      {/* Besluit 7: "maand 4 sinds de start", nooit "van 12". */}
-                      Maand {month.month_number}
+                      {/* 30 september 2026: de maand bij zijn naam ("Oktober 2026")
+                          in plaats van "Maand 4" met de naam klein ernaast. Besluit 7
+                          blijft: nergens "van 12". */}
+                      {maandTitel(plan.started_on, month.month_number)}
                     </button>
-                    {kalender && <span className="mono-label">{kalender}</span>}
                     {lopend && <span className="chip chip-info">Deze maand</span>}
                     {/* ⚠️ Bij een lege, dichtgeklapte maand geen chip. "Concept"
                         was daar het zwaarste element van de regel terwijl het
@@ -839,10 +849,10 @@ export function PlanView({
                           onClick={() => setMonthDialog(month)}
                           disabled={busy === month.id}
                         >
-                          Vrijgeven
+                          Start deze maand
                         </button>
                       ) : (
-                        <span className="text-sm text-secondary">Vrijgeven via je consultant</span>
+                        <span className="text-sm text-secondary">Je consultant start deze maand</span>
                       )
                     )}
                   </div>
@@ -867,7 +877,7 @@ export function PlanView({
                       className="border-t px-4 py-5 text-center text-xs text-muted"
                       style={{ borderColor: "var(--border-subtle)" }}
                     >
-                      Sleep hier een kans uit de voorraad naartoe
+                      Sleep hier een pagina-idee naartoe
                     </p>
                   ) : (
                     <ul>
@@ -1017,13 +1027,13 @@ export function PlanView({
       <ConfirmDialog
         open={removeDialog !== null || removeKans !== null}
         title="Definitief verwijderen"
-        body={`"${removeDialog?.title ?? removeKans?.title ?? ""}" verdwijnt uit het plan én uit de voorraad.${
-          removeDialog ? ' Wil je hem alleen uit deze maand halen, kies dan "terug naar de voorraad".' : ""
+        body={`"${removeDialog?.title ?? removeKans?.title ?? ""}" verdwijnt uit het plan én uit de ideeënlijst.${
+          removeDialog ? ' Wil je hem alleen uit deze maand halen, kies dan "terug naar de ideeënlijst".' : ""
         }`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
           description:
-            "Deze kans komt niet vanzelf terug, ook niet als het cluster opnieuw gemeten wordt.",
+            "Dit pagina-idee komt niet vanzelf terug, ook niet als het cluster opnieuw gemeten wordt.",
         }}
         confirmLabel="Definitief verwijderen"
         confirmingLabel="Bezig…"
@@ -1045,7 +1055,7 @@ export function PlanView({
         title="Meld dat alles live staat"
         body={`Je markeert ${
           echt.filter((p) => p.plan_month_id === bulkDialog?.id && p.status === "goedgekeurd").length
-        } goedgekeurde pagina's van maand ${bulkDialog?.month_number ?? ""} als live, elk op het adres dat in het plan staat. Pagina's zonder adres of zonder akkoord blijven staan, en je krijgt te horen welke.`}
+        } goedgekeurde pagina's van ${bulkDialog ? maandTitel(plan.started_on, bulkDialog.month_number).toLowerCase() : ""} als live, elk op het adres dat in het plan staat. Pagina's zonder adres of zonder akkoord blijven staan, en je krijgt te horen welke.`}
         irreversible={{
           title: "Dit kun je niet terugdraaien",
           description:
@@ -1096,16 +1106,16 @@ export function PlanView({
       {/* ── Maand vrijgeven ─────────────────────────────────────────────── */}
       <ConfirmDialog
         open={monthDialog !== null}
-        title={`Maand ${monthDialog?.month_number ?? ""} vrijgeven`}
+        title={`${monthDialog ? maandTitel(plan.started_on, monthDialog.month_number) : ""} starten`}
         body={vrijgeefTekst(
           echt.filter((p) => p.plan_month_id === monthDialog?.id),
         )}
         irreversible={{
           title: "Dit zet het werk in gang",
           description:
-            "Elke pagina die geschreven wordt kost geld. Haal pagina's terug naar de voorraad als ze er nog niet in horen. Geschreven wordt er pas als de vragen van een pagina gedaan zijn.",
+            "Elke pagina die geschreven wordt kost geld. Haal pagina's terug naar de ideeënlijst als ze er nog niet in horen. Geschreven wordt er pas als de vragen van een pagina gedaan zijn.",
         }}
-        confirmLabel="Vrijgeven"
+        confirmLabel="Start deze maand"
         confirmingLabel="Bezig…"
         busy={busy === monthDialog?.id}
         onCancel={() => setMonthDialog(null)}
@@ -1117,7 +1127,7 @@ export function PlanView({
         open={opnieuwDialog}
         title="Het plan opnieuw opzetten"
         // Punt 32: de pagina's uit de nog niet vrijgegeven maanden gaan terug naar de voorraad.
-        body={`Je krijgt twaalf verse maanden terug, meteen gevuld met de sterkste kansen. De pagina's uit maanden die nog niet vrijgegeven zijn, gaan eerst terug naar de voorraad en tellen dus mee. Wat al vrijgegeven is, loopt door.`}
+        body={`Je krijgt twaalf verse maanden terug, meteen gevuld met de sterkste pagina-ideeën. De pagina's uit maanden die nog niet gestart zijn, gaan eerst terug naar de ideeënlijst en tellen dus mee. Wat al gestart is, loopt door.`}
         irreversible={{
           title: "Wat er blijft en wat er weggaat",
           description:
@@ -1353,18 +1363,16 @@ function BacklogRij({
         >
           {item.title}
         </button>
-        {/* Eén meta-regel in plaats van drie chips: de herkomst, wat het
-            oplevert en wat voor werk het is. Conventie 3: bij een onbekende
-            potentie staat er geen getal, ook geen nul. */}
-        <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
-          {item.cluster && <span className="truncate">{item.cluster}</span>}
-          {item.cluster && potentie && <span>·</span>}
-          {potentie && <span>{potentie}</span>}
-          <span>·</span>
-          <span>{item.handeling === "verbeteren" ? "verbeteren" : "nieuw"}</span>
+        {/* Eén meta-regel: wat voor werk het is, en waar het idee vandaan
+            komt. Het cluster en de potentie staan sinds 30 september 2026
+            achter "Waarom dit idee?": dat zijn onze woorden, niet die van de
+            klant, en op de eerste regel waren ze ruis. Conventie 3 blijft:
+            bij een onbekende potentie staat er geen getal, ook geen nul. */}
+        <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted">
+          <span>{item.handeling === "verbeteren" ? "bestaande pagina verbeteren" : "nieuwe pagina"}</span>
           {nietGemeten && (
             <span className="chip chip-neutral" style={{ marginLeft: 2 }}>
-              Niet gemeten
+              Idee van je consultant
             </span>
           )}
           {reden && (
@@ -1373,8 +1381,21 @@ function BacklogRij({
             </span>
           )}
         </span>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="w-fit text-xs text-secondary hover:underline"
+        >
+          {open ? "Minder" : "Waarom dit idee?"}
+        </button>
         {open && (
-          <div className="flex flex-col gap-1 pt-1">
+          <div className="flex flex-col gap-1">
+            {(item.cluster || potentie) && (
+              <span className="text-xs text-secondary">
+                {[item.cluster ? `Uit het cluster ${item.cluster}` : null, potentie].filter(Boolean).join(" · ")}
+              </span>
+            )}
             {raakt && <span className="text-xs text-secondary">{raakt}</span>}
             {item.why && (
               <p className="text-xs text-secondary" style={{ lineHeight: 1.5 }}>
@@ -1750,7 +1771,7 @@ function PageRij({
                       onNaarVoorraad();
                     }}
                   >
-                    Terug naar de voorraad
+                    Terug naar de ideeënlijst
                   </MenuKnop>
                 </>
               )}
@@ -1804,7 +1825,7 @@ function vrijgeefTekst(paginas: PlannedPage[]): string {
     .filter((d): d is string => Boolean(d))
     .sort()[0];
   const delen = [
-    `Na vrijgeven zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
+    `Na het starten zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
     // Punt 33: nooit een streefdatum in het verleden.
     streefzin(eerste, new Date().toISOString()),
     "Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.",

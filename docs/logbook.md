@@ -13167,3 +13167,29 @@ Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
 tegen productie (conventie 10): de velden van de organische resultaten en van "Andere mensen vroegen
 ook" komen uit de documentatie van DataForSEO en zijn nog niet tegen een echte respons gecontroleerd,
 en of de teksten er beter van worden is nog niet gemeten. Zie `docs/tasks/paginasoorten-en-zoekresultaten.md`.
+
+## 30 september 2026: nieuw pagina-idee, en één woord per ding in het contentplan
+
+Opdracht van de eigenaar na een UX-voorstel: punt 1 (één woord per ding) en punt 3 (een eigen
+pagina-idee toevoegen als rustig venster in de bibliotheek) direct doorvoeren; het bord blijft voor
+de klant zichtbaar.
+
+- **Woorden.** Op het planscherm heette hetzelfde ding vijf dingen: "kans", "content", "content item",
+  "voorraad" en "pagina". Nu: pagina-idee en ideeënlijst. "Vrijgeven" werd "een maand starten" (knop
+  "Start deze maand", status "Gestart"), "Maand 4" werd "Oktober 2026" (besluit 7 blijft: nergens
+  "van 12"), "pakket 3 per maand" werd "3 pagina's per maand", "Niet gemeten" werd "Idee van je
+  consultant". "Kans" blijft op het overzicht, waar het breder is dan een pagina. Het cluster en de
+  potentie van een idee staan achter "Waarom dit idee?". Woordenlijst in `docs/schrijfstijl.md` §11.
+- **Het venster.** Drie vragen in plaats van zes velden, de soort als tegels, de rest onder "Meer
+  opties", en meteen een voorgestelde maand. In de bibliotheek rechtsboven en op het bord, alleen
+  voor de consultant. Het oude formulier (`handmatige-kans-formulier.tsx`) is weg.
+- **Een fout gevonden en gerepareerd.** De doelvragen van een eigen idee bereikten de brief en de
+  schrijver niet: `laadDoelvragen()` zocht ze alleen via de aanbeveling uit een rapport, en die heeft
+  een eigen idee niet. Het veld deed dus niets, terwijl het venster er juist om vraagt (en ik het de
+  eigenaar op 29 september verkeerd had uitgelegd). Nu leest de keten bij een eigen idee de vragen uit
+  zijn schaduwanalyse (`eigenIdeeAnalyse` in `lib/pagina/context.ts`), zonder een antwoord van een
+  AI-assistent erbij, want ze zijn nog niet gemeten. Ze gaan daarmee ook mee als zoekopdracht naar
+  Google (B34).
+
+Getest: `tsc --noEmit`, `test:unit` (5126), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in
+een browser (conventie 10): het venster en de nieuwe woorden zijn gebouwd en getest op code.

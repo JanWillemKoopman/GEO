@@ -66,10 +66,10 @@ export default async function PlanVersiesPage({
               <p className="text-sm text-secondary">
                 Pakket van {v.pagesPerMonth} pagina&apos;s per maand.{" "}
                 {v.maandenGoedgekeurd === 0
-                  ? "Geen enkele maand is ooit vrijgegeven."
+                  ? "Geen enkele maand is ooit gestart."
                   : v.maandenGoedgekeurd === 1
-                    ? "Eén maand is vrijgegeven."
-                    : `${v.maandenGoedgekeurd} van de ${v.maandenTotaal} maanden zijn vrijgegeven.`}{" "}
+                    ? "Eén maand is gestart."
+                    : `${v.maandenGoedgekeurd} van de ${v.maandenTotaal} maanden zijn gestart.`}{" "}
                 {v.paginasLive === 0
                   ? "Er staat niets uit dit voorstel live."
                   : v.paginasLive === 1

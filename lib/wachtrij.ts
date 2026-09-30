@@ -66,7 +66,7 @@ const SECTIE_PER_SOORT: Partial<Record<WorkKind, WachtrijKop>> = {
 const SUBKOP_PER_SOORT: Partial<Record<WorkKind, string>> = {
   goedkeuring: "Clusters bevestigen (onderzoek starten)",
   herstel: "Clusters herstellen na mislukte meting",
-  contentmaand: "Contentmaand vrijgeven (definitief maken)",
+  contentmaand: "Contentmaand starten",
   planpagina: "Losse geplande pagina's goedkeuren",
   feit: "Openstaande vraag beantwoorden",
 };
