@@ -96,6 +96,18 @@ export function maandTitel(startedOn: string, monthNumber: number): string {
   return k.label.charAt(0).toUpperCase() + k.label.slice(1);
 }
 
+/**
+ * De maand zoals je hem in een zin zegt: "oktober", en alleen met het jaar erbij
+ * als dat niet dit jaar is ("januari 2027"). Voor de knop "Plan in oktober" op
+ * een pagina-idee (30 september 2026). Onbekende start: "maand 4" (conventie 3).
+ */
+export function maandKort(startedOn: string, monthNumber: number, now: Date = new Date()): string {
+  const k = monthCalendar(startedOn, monthNumber);
+  if (!k) return `maand ${monthNumber}`;
+  const naam = k.label.toLowerCase();
+  return k.jaar === now.getFullYear() ? naam.replace(/\s+\d{4}$/, "") : naam;
+}
+
 /** Is maand `monthNumber` de maand waarin we vandaag leven? */
 export function isRunningMonth(
   startedOn: string,
