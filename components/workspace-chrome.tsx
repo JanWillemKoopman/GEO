@@ -41,6 +41,7 @@ export function WorkspaceChrome({
   signOutAction,
   logo,
   openQuestions,
+  notificaties,
   previewToggle,
   accountMenu,
   profiel,
@@ -67,6 +68,9 @@ export function WorkspaceChrome({
   logo: React.ReactNode;
   /** De teller "3 openstaande vragen". Leeg zodra er niets open staat. */
   openQuestions?: React.ReactNode;
+  /** Het belletje dat de lijst met notificaties opent. Rechtsboven, op de
+   *  telefoon naast het profiel. */
+  notificaties?: React.ReactNode;
   /** De wisselknop naar de klantweergave, `null` voor wie dat recht niet heeft. */
   previewToggle?: React.ReactNode;
   /** Het profielicoon in de bovenbalk van de telefoon. */
@@ -94,7 +98,15 @@ export function WorkspaceChrome({
   if (telefoon) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <MobileTopbar titel={titel} actie={accountMenu} />
+        <MobileTopbar
+          titel={titel}
+          actie={
+            <div className="flex items-center gap-1">
+              {notificaties}
+              {accountMenu}
+            </div>
+          }
+        />
 
         {/* 56px onderbalk plus zijn veilige zone: de inhoud moet daar nooit
             onder verdwijnen. `.stand` regelt zijn eigen zijmarge en bovenmarge
@@ -160,6 +172,7 @@ export function WorkspaceChrome({
 
             <div className="ml-auto flex shrink-0 items-center gap-1">
               {openQuestions}
+              {notificaties}
               {previewToggle}
             </div>
           </div>

@@ -166,14 +166,12 @@ export default async function OnboardingSessiePagina({
       />
 
       {/* De twee schermen die op Diagnose hingen (verdwenen op 30 september
-          2026). Een open tegenstrijdigheid houdt een pagina tegen, dus hier
-          blijven ze één klik weg. */}
+          2026) zijn samengevoegd op "Feiten en kennis". Een open
+          tegenstrijdigheid houdt een pagina tegen, dus hier blijft het één klik
+          weg. */}
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-        <Link href={`/merk/${id}/admin/feiten`} className="link">
-          Tegenstrijdige feiten
-        </Link>
-        <Link href={`/merk/${id}/admin/kennis`} className="link">
-          Kennisoverzicht
+        <Link href={`/merk/${id}/merkprofiel/feiten-en-kennis`} className="link">
+          Feiten en kennis
         </Link>
       </div>
 

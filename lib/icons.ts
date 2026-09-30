@@ -123,6 +123,7 @@ import {
   UserIdIcon,
   UserRoundedIcon,
   WidgetIcon,
+  BellIcon,
 } from "@solar-icons/react/bold";
 
 /**
@@ -328,4 +329,5 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   // ── Het inlogtoneel ───────────────────────────────────────────────────────
   wachtwoordtonen: EyeIcon,
   wachtwoordverbergen: EyeClosedIcon,
+  notificaties: BellIcon,
 };

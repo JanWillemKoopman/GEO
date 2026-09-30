@@ -17,7 +17,7 @@ import { useToast } from "@/components/toast";
  *
  * Nu kom je terug op je clusters, en zegt één melding wat er loopt en wat je
  * ervan gaat merken. De uitslag komt later vanzelf, waar je dan ook bent
- * (`components/cluster-melder.tsx`).
+ * (`components/notificaties.tsx`).
  *
  * ── WAAROM HET ADRES DAARNA SCHOONGEMAAKT WORDT ────────────────────────────
  *

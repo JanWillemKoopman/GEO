@@ -896,12 +896,14 @@ import {
 import { decideStep, budgetUsd, RUN_BUDGET_EUR, STEP_COST_USD } from "@/lib/reputation/budget";
 import { isNewerVersionAvailable } from "@/lib/deployment";
 import {
-  moetMelden,
-  maakMelding,
-  teMelden,
-  MAX_MELDINGEN,
-  type ClusterStand,
-} from "@/lib/cluster-melding";
+  maakNotificatie,
+  nieuwTeTonen,
+  telOngelezen,
+  toonSleutel,
+  wanneer,
+  MAX_TEGELIJK,
+  type NotificatieRij,
+} from "@/lib/notificaties";
 import {
   kiesConcurrenten,
   variantSleutel,
@@ -926,7 +928,7 @@ import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan } from "@/lib/kennis/betwist";
 import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
-import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, type OverzichtItem } from "@/lib/kennis/overzicht";
+import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, tabVoorDomein, leesTab, standVan, pastInFilter, telPerFilter, itemsVoorTab, groepenVoorFilter, DOMEIN_KOP, FEITEN_DOMEINEN, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam, siteLinksVoorOnderwerp, zusterPaginas } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -8150,7 +8152,7 @@ group("welk menu-item licht op", () => {
   const dossier = {
     href: "/merk/abc/merkprofiel",
     label: "Merkdossier",
-    hoofdstuk: "Merkdossier" as const,
+    hoofdstuk: "Mijn bedrijf" as const,
     icoon: "taken" as const,
   };
   ok("een kind laat de ouder niet oplichten", !navActief("/merk/abc/merkprofiel/bewerken", dossier));
@@ -9872,7 +9874,11 @@ group("de shell van 29 september 2026: zijbalk over de volle hoogte, doorzichtig
   }
   const css = leesBestand("app/globals.css");
   const topbar = css.slice(css.indexOf(".topbar {"), css.indexOf("}", css.indexOf(".topbar {")));
-  ok("de bovenbalk is doorzichtig zonder rand", topbar.includes("background-color: transparent") && !topbar.includes("border"));
+  // Sinds 30 september 2026 niet meer doorzichtig maar vast lichtgrijs, en
+  // alleen in de lichte stand: in de donkere stand de grond van de pagina.
+  ok("de bovenbalk heeft zijn eigen kleur via een token, zonder rand", topbar.includes("background-color: var(--topbar-bg)") && !topbar.includes("border"));
+  ok("lichtgrijs in de lichte stand", /--topbar-bg: #f2f2f2;/.test(css));
+  ok("de grond van de pagina in de donkere stand", (css.match(/--topbar-bg: var\(--bg-base\);/g) ?? []).length === 2);
   ok("er is geen ingeklapte zijbalk meer", !css.includes("sidebar-w-collapsed") && !css.includes(".sidebar-smal"));
   const kiezer = leesBestand("components/brand-switcher.tsx");
   ok("bij één merk toont de kiezer niets", kiezer.includes("if (brands.length === 1) return null;"));
@@ -9912,6 +9918,11 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
     "/profielen/:id/search-console": "/merk/:id/analytics/zoekverkeer",
     "/profielen/:id/beheer": "/merk/:id/admin/toewijzen",
   };
+
+  // Het kennisoverzicht en de tegenstrijdige feiten zijn op 30 september 2026
+  // samengevoegd en hun schermen zijn weg: een bladwijzer moet blijven werken.
+  verwacht["/merk/:id/admin/kennis"] = "/merk/:id/merkprofiel/feiten-en-kennis";
+  verwacht["/merk/:id/admin/feiten"] = "/merk/:id/merkprofiel/feiten-en-kennis";
 
   const regels = DOORVERWIJZINGEN;
   const perBron = new Map(regels.map((r) => [r.source, r]));
@@ -17554,105 +17565,125 @@ group("bepaalGemisteVragen: eerst binnen een bron, dan tussen de bronnen", () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// De melding als een cluster klaar is (22 september 2026)
+// Notificaties (29 september 2026, migratie 0133)
 //
-// Het clusterresultaat heeft geen eigen scherm meer
-// (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`). Deze module bepaalt
-// in plaats daarvan of er iets te melden valt en wat erin staat, en dat is de
-// enige plek waar de klant nog hoort dat zijn meting klaar is. Gaat dit stil
-// stuk, dan merkt niemand het, ook de klant niet.
+// De database legt vast dát er iets gebeurde; `lib/notificaties.ts` maakt er een
+// zin, een kleur en een link van. Vervangt de clustermelding van 22 september:
+// "meting klaar" is nu één van de soorten. Gaat een link stil stuk, dan komt de
+// klant op de verkeerde pagina uit zonder dat iemand het merkt.
 // ─────────────────────────────────────────────────────────────────────────────
-group("cluster-melding: één melding per ronde, en alleen als de ronde klaar is", () => {
-  const basis: ClusterStand = {
-    id: "c1",
-    naam: "Cv-ketel onderhoud",
-    status: "gereed",
-    resultaatGezienAt: null,
-    zichtbaarheid: 34,
-    openVragen: 6,
-    voorgesteld: 4,
+function notRij(over: Partial<NotificatieRij> & { soort: string }): NotificatieRij {
+  return {
+    id: "n1",
+    profile_id: "p1",
+    account_id: null,
+    object_id: "o1",
+    gegevens: {},
+    aantal: 1,
+    alleen_beheer: false,
+    aangemaakt_op: "2026-09-29T10:00:00.000Z",
+    ...over,
   };
+}
 
-  ok("een afgerond, nog niet gemeld cluster wordt gemeld", moetMelden(basis));
-  ok(
-    "dezelfde uitslag een tweede keer niet",
-    !moetMelden({ ...basis, resultaatGezienAt: "2026-09-22T10:00:00Z" }),
-  );
-  ok("een lopende meting nog niet", !moetMelden({ ...basis, status: "meten" }));
-  // `gemeten` betekent: score binnen, rapport nog niet. Juist dat rapport
-  // levert de vragen en de voorgestelde pagina's waar de melding over gaat.
-  ok("en 'score binnen, rapport volgt' ook niet", !moetMelden({ ...basis, status: "gemeten" }));
-  ok("een mislukte ronde wél", moetMelden({ ...basis, status: "mislukt" }));
+group("notificaties: zin, kleur en link per soort", () => {
+  const meting = maakNotificatie(notRij({ soort: "meting_klaar", gegevens: { naam: "Zonnepanelen" } }));
+  eq("meting klaar noemt het cluster", meting?.titel ?? "", "Meting van Zonnepanelen is klaar");
+  eq("meting klaar is groen", meting?.kleur ?? "", "groen");
+  eq("en wijst naar Analytics, gefilterd op dat cluster", meting?.href ?? "", "/merk/p1/analytics?cluster=o1");
 
-  const gelukt = maakMelding(basis);
-  eq("de titel die de eigenaar vroeg", gelukt.titel, "Cluster succesvol gemeten");
-  ok(
-    "met de drie cijfers in één regel",
-    gelukt.regel.includes("34% zichtbaarheid") &&
-      gelukt.regel.includes("6 openstaande vragen") &&
-      gelukt.regel.includes("4 voorgestelde pagina's"),
-    gelukt.regel,
-  );
-  ok("en de naam van het cluster erbij", gelukt.regel.startsWith("Cv-ketel onderhoud:"), gelukt.regel);
+  const mislukt = maakNotificatie(notRij({ soort: "meting_mislukt", gegevens: { naam: "Zonnepanelen" } }));
+  eq("een vastgelopen meting is rood", mislukt?.kleur ?? "", "rood");
 
-  // Conventie 3: onbekend is beter dan verkeerd. Een cluster zonder score krijgt
-  // geen 0%, want 0% betekent "gemeten en nergens genoemd".
-  const zonderScore = maakMelding({ ...basis, zichtbaarheid: null });
-  ok("geen score wordt 'nog geen score' en geen 0%", zonderScore.regel.includes("nog geen score"), zonderScore.regel);
-  ok("en dus nergens een 0%", !zonderScore.regel.includes("0%"), zonderScore.regel);
+  const klaar = maakNotificatie(notRij({ soort: "pagina_klaar", gegevens: { titel: "Warmtepomp kopen" } }));
+  eq("een pagina die klaar is noemt de titel", klaar?.titel ?? "", '"Warmtepomp kopen" is klaar om te lezen');
+  eq("en wijst naar die pagina zelf", klaar?.href ?? "", "/merk/p1/strategie/bibliotheek/o1");
 
-  // Enkelvoud en meervoud: dit getal staat vaak op 1.
-  const eenVanElk = maakMelding({ ...basis, openVragen: 1, voorgesteld: 1 });
-  ok(
-    "enkelvoud bij één vraag en één pagina",
-    eenVanElk.regel.includes("1 openstaande vraag") && eenVanElk.regel.includes("1 voorgestelde pagina."),
-    eenVanElk.regel,
-  );
+  const zonderTitel = maakNotificatie(notRij({ soort: "pagina_klaar" }));
+  eq("zonder titel een zin die nog klopt", zonderTitel?.titel ?? "", "Een pagina is klaar om te lezen");
+  const versie = maakNotificatie(notRij({ soort: "nieuwe_versie" }));
+  eq("en midden in de zin met kleine letter", versie?.titel ?? "", "Nieuwe versie van een pagina staat klaar");
 
-  const niets = maakMelding({ ...basis, openVragen: 0, voorgesteld: 0 });
-  ok(
-    "nul is hier een echte nul en geen onbekend",
-    niets.regel.includes("geen openstaande vragen") && niets.regel.includes("nog geen voorgestelde pagina"),
-    niets.regel,
-  );
+  const nietGevonden = maakNotificatie(notRij({ soort: "publicatie_niet_gevonden", gegevens: { titel: "X" } }));
+  eq("niet teruggevonden op de site is rood", nietGevonden?.kleur ?? "", "rood");
 
-  const mislukt = maakMelding({ ...basis, status: "mislukt" });
-  eq("een mislukking heeft zijn eigen soort", mislukt.soort, "mislukt");
-  ok("met de clusternaam in de titel", mislukt.titel.includes("Cv-ketel onderhoud"), mislukt.titel);
+  const eenVraag = maakNotificatie(notRij({ soort: "nieuwe_vragen" }));
+  const vijfVragen = maakNotificatie(notRij({ soort: "nieuwe_vragen", aantal: 5 }));
+  eq("één nieuwe vraag", eenVraag?.titel ?? "", "Er staat een nieuwe vraag voor je klaar");
+  eq("samengevoegde vragen tellen op", vijfVragen?.titel ?? "", "Er staan 5 nieuwe vragen voor je klaar");
+  eq("vragen wachten op de klant: rood", vijfVragen?.kleur ?? "", "rood");
+  eq("naar de openstaande vragen", vijfVragen?.href ?? "", "/merk/p1/strategie/vragen");
+
+  const kennisEen = maakNotificatie(notRij({ soort: "kennis_raakt_paginas", gegevens: { titel: "Dakkapel" } }));
+  const kennisVeel = maakNotificatie(notRij({ soort: "kennis_raakt_paginas", aantal: 12 }));
+  eq("kennis die één pagina raakt wijst naar die pagina", kennisEen?.href ?? "", "/merk/p1/strategie/bibliotheek/o1");
+  eq("kennis die er twaalf raakt wijst naar de bibliotheek", kennisVeel?.href ?? "", "/merk/p1/strategie/bibliotheek");
+  eq("en telt ze", kennisVeel?.titel ?? "", "Nieuwe bedrijfskennis raakt 12 pagina's");
+
+  const omhoog = maakNotificatie(notRij({ soort: "zichtbaarheid_omhoog", gegevens: { naam: "Lease", van: 22, naar: 41 } }));
+  eq("stijging met beide cijfers", omhoog?.titel ?? "", "Zichtbaarheid van Lease gestegen van 22% naar 41%");
+  eq("stijgen is groen", omhoog?.kleur ?? "", "groen");
+  const omlaag = maakNotificatie(notRij({ soort: "zichtbaarheid_omlaag", gegevens: { naam: "Lease", van: 41 } }));
+  eq("zonder beide cijfers geen cijfers", omlaag?.titel ?? "", "Zichtbaarheid van Lease flink gedaald");
+  eq("dalen is oranje, geen foutmelding (§2.6)", omlaag?.kleur ?? "", "oranje");
+
+  const blokkade = maakNotificatie(notRij({ soort: "audit_blokkade", gegevens: { blokkades: 1 } }));
+  eq("één blokkade, enkelvoud", blokkade?.titel ?? "", "Je site heeft 1 blokkade voor AI-assistenten");
+
+  const gsc = maakNotificatie(notRij({ soort: "gsc_fout" }));
+  eq("Search Console-fout wijst naar de koppeling van dit merk", gsc?.href ?? "", "/instellingen/koppelingen/p1");
+
+  const collega = maakNotificatie(notRij({ soort: "collega_aangemeld", profile_id: null, account_id: "a1", gegevens: { email: "piet@voorbeeld.nl" } }));
+  eq("een collega hoort bij het account, niet bij een merk", collega?.href ?? "", "/instellingen");
+
+  ok("een onbekende soort valt stil weg in plaats van 'undefined' te tonen", maakNotificatie(notRij({ soort: "bestaat_niet" })) === null);
 });
 
-group("teMelden: hooguit drie meldingen, maar alles wordt weggezet", () => {
-  const maak = (i: number): ClusterStand => ({
-    id: `c${i}`,
-    naam: `Cluster ${i}`,
-    status: "gereed",
-    resultaatGezienAt: null,
-    zichtbaarheid: 20 + i,
-    openVragen: i,
-    voorgesteld: i,
-  });
+group("notificaties: geen gedachtestreepjes en één regel", () => {
+  const soorten = [
+    "onderzoek_klaar", "onderzoek_mislukt", "gsc_cijfers", "gsc_fout", "reputatie_klaar", "reputatie_mislukt",
+    "audit_klaar", "audit_blokkade", "meting_klaar", "meting_mislukt", "zichtbaarheid_omhoog", "zichtbaarheid_omlaag",
+    "ontdekken_klaar", "ontdekken_mislukt", "pagina_klaar", "nieuwe_versie", "pagina_live", "publicatie_niet_gevonden",
+    "publicatie_herinnering", "effect_gemeten", "schrijven_mislukt", "nieuwe_vragen", "vragen_herinnering",
+    "vragen_beantwoord", "kennis_raakt_paginas", "collega_aangemeld", "budget_op",
+  ];
+  const alle = soorten.map((soort) => maakNotificatie(notRij({ soort })));
+  ok("elke soort uit migratie 0133 heeft een tekst", alle.every((m) => m !== null));
+  ok("geen gedachtestreepje (schrijfstijl §10)", alle.every((m) => !/[—–]/.test(m?.titel ?? "")));
+  ok("geen 'undefined' of 'null' in een zin", alle.every((m) => !/undefined|null/.test(m?.titel ?? "")));
+  ok("korte regels: nergens langer dan 60 tekens zonder namen", alle.every((m) => (m?.titel.length ?? 0) <= 60));
+  ok("elke soort in de code staat ook in de migratie", soorten.every((s) => leesBestand("supabase/migrations/0133_notificaties.sql").includes(`'${s}'`) || s === "budget_op"));
+  ok("het dagbudget meldt zich vanuit de code", leesBestand("lib/spend-limit.ts").includes('p_soort: "budget_op"'));
+});
 
-  const vijf = [maak(1), maak(2), maak(3), maak(4), maak(5)];
-  const uit = teMelden(vijf);
+group("notificaties: wat als kleine melding in beeld springt", () => {
+  const m = (id: string, tijd: string) => ({ id, titel: id, kleur: "groen" as const, href: null, aangemaaktOp: tijd });
+  const lijst = [
+    m("oud", "2026-09-29T08:00:00.000Z"),
+    m("a", "2026-09-29T10:01:00.000Z"),
+    m("b", "2026-09-29T10:02:00.000Z"),
+    m("c", "2026-09-29T10:03:00.000Z"),
+    m("d", "2026-09-29T10:04:00.000Z"),
+  ];
+  const sinds = "2026-09-29T10:00:00.000Z";
+  const nieuw = nieuwTeTonen(lijst, sinds, new Set());
+  eq2("wat vóór het openen van de app gebeurde niet", nieuw.filter((x) => x.id === "oud").length, 0);
+  eq2(`hooguit ${MAX_TEGELIJK} tegelijk`, nieuw.length, MAX_TEGELIJK);
+  eq("de nieuwste blijven, oud naar nieuw", nieuw.map((x) => x.id).join(","), "b,c,d");
+  const getoond = new Set(nieuw.map(toonSleutel));
+  eq2("wat al getoond is niet nog een keer", nieuwTeTonen(lijst, sinds, getoond).filter((x) => x.id !== "a").length, 0);
+  const opgeteld = [m("b", "2026-09-29T10:09:00.000Z")];
+  eq2("een samengevoegde melding met een nieuwe tijd wel weer", nieuwTeTonen(opgeteld, sinds, getoond).length, 1);
 
-  eq2("er verschijnen er hooguit drie in beeld", uit.meldingen.length, MAX_MELDINGEN);
-  // ⚠️ Dit is het punt van de test: alle vijf gaan als gezien weg. Zou alleen
-  // het drietal weggezet worden, dan komen de andere twee bij elke volgende
-  // ronde van de melder opnieuw terug, en dan klikt de klant een muur weg die
-  // nooit opdroogt.
-  eq2("maar alle vijf worden als gemeld weggezet", uit.gezien.length, 5);
+  eq2("zonder gezien-tijdstip is alles ongelezen", telOngelezen(lijst, null), 5);
+  eq2("na 10:02 gezien: twee ongelezen", telOngelezen(lijst, "2026-09-29T10:02:00.000Z"), 2);
 
-  const gemengd = teMelden([
-    maak(1),
-    { ...maak(2), status: "meten" },
-    { ...maak(3), resultaatGezienAt: "2026-09-22T08:00:00Z" },
-  ]);
-  eq2("een lopende en een al gemelde ronde tellen niet mee", gemengd.meldingen.length, 1);
-  eq2("en worden ook niet weggezet", gemengd.gezien.length, 1);
-  eq("het is het juiste cluster", gemengd.gezien[0] ?? "", "c1");
-
-  const leeg = teMelden([]);
-  eq2("zonder clusters valt er niets te melden", leeg.meldingen.length, 0);
+  const nu = new Date("2026-09-29T12:00:00.000Z");
+  eq("zojuist", wanneer("2026-09-29T11:59:40.000Z", nu), "zojuist");
+  eq("minuten", wanneer("2026-09-29T11:48:00.000Z", nu), "12 min geleden");
+  eq("uren", wanneer("2026-09-29T09:00:00.000Z", nu), "3 uur geleden");
+  eq("gisteren", wanneer("2026-09-28T10:00:00.000Z", nu), "gisteren");
+  eq("dagen", wanneer("2026-09-25T10:00:00.000Z", nu), "4 dagen geleden");
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -18960,11 +18991,85 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
 
   // Besluit V6: de klant ziet het kennisoverzicht niet. Scherm en route geven
   // een niet-medewerker een 404, en de handelingen gaan alleen via de route.
-  const scherm = leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx");
+  const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
   const route = leesBestand("app/api/profiles/[id]/kennis/[itemId]/route.ts");
   ok("het scherm is alleen voor medewerkers", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
   ok("de route ook, met een 404", /if \(!\(await isStaff\(user\.id\)\)\) return NextResponse\.json\(\{ error: "Niet gevonden\." \}, \{ status: 404 \}\)/.test(route));
   ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
+});
+
+group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", () => {
+  let n = 0;
+  const k = (bewering: string, extra: Partial<OverzichtItem> = {}): OverzichtItem => ({
+    id: `fk${++n}`,
+    domein: "aanbod",
+    soort: null,
+    bewering,
+    status: "verklaard",
+    bron: "klant",
+    gebruik: "content",
+    ...extra,
+  });
+
+  // Elk domein hoort op precies één tabblad, en de indeling laat er geen weg.
+  const domeinen = Object.keys(DOMEIN_KOP);
+  ok("elk domein van het kennisoverzicht heeft een tabblad", domeinen.every((d) => ["feiten", "kennis"].includes(tabVoorDomein(d))));
+  eq("Feiten: het bedrijf, het aanbod, het bewijs en de grenzen", domeinen.filter((d) => tabVoorDomein(d) === "feiten").join(","), "identiteit,aanbod,bewijs,grens");
+  eq("Kennis: de rest", domeinen.filter((d) => tabVoorDomein(d) === "kennis").join(","), "doelgroep,positionering,verhaal,stem,geleerd");
+  eq("een onbekend domein valt in Kennis en verdwijnt niet", tabVoorDomein("nieuw-domein"), "kennis");
+  ok("de vier feitendomeinen bestaan echt", FEITEN_DOMEINEN.every((d) => domeinen.includes(d)));
+
+  eq("geen tabblad in het adres: Feiten", leesTab(undefined), "feiten");
+  eq("een onzin-tabblad: Feiten", leesTab("iets"), "feiten");
+  eq("?tab=kennis: Kennis", leesTab("kennis"), "kennis");
+
+  // De stand: een woord per item, en afgewezen gaat vóór alles.
+  eq("bevestigd", standVan(k("a", { status: "bevestigd" })), "bevestigd");
+  eq("gezien op de site", standVan(k("a", { status: "waargenomen" })), "site");
+  eq("volgens de klant", standVan(k("a", { status: "verklaard" })), "klant");
+  eq("een vermoeden", standVan(k("a", { status: "afgeleid", gebruik: "intern" })), "vermoeden");
+  eq("afgewezen wint van bevestigd", standVan(k("a", { status: "bevestigd", afgewezen_op: "2026-09-27" })), "afgewezen");
+  ok("'alles' telt een afgewezen item niet mee", !pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "alles"));
+  ok("maar het filter 'afgewezen' toont het wel", pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "afgewezen"));
+
+  const items = [
+    k("Prijs vanaf 45 euro", { domein: "aanbod", status: "bevestigd" }),
+    k("Werkt in Gouda", { domein: "identiteit", status: "waargenomen" }),
+    k("Nooit gratis zeggen", { domein: "grens", gebruik: "verboden" }),
+    k("Klanten twijfelen over de prijs", { domein: "doelgroep", status: "afgeleid", gebruik: "intern" }),
+    k("Warm en nuchter", { domein: "stem" }),
+    k("Oud", { domein: "aanbod", vervangen_door: "x" }),
+    k("Verkeerd", { domein: "aanbod", afgewezen_op: "2026-09-27" }),
+  ];
+  const feiten = itemsVoorTab(items, "feiten");
+  const kennis = itemsVoorTab(items, "kennis");
+  eq("Feiten bevat vier items, een vervangen versie telt niet", String(feiten.length), "4");
+  eq("Kennis bevat er twee", String(kennis.length), "2");
+  eq("samen is het alles wat leeft", String(feiten.length + kennis.length), String(items.filter((i) => !i.vervangen_door).length));
+  const t = telPerFilter(feiten);
+  eq("de telling van Feiten: alles zonder afgewezen", `${t.alles}/${t.bevestigd}/${t.site}/${t.klant}/${t.vermoeden}/${t.afgewezen}`, "3/1/1/1/0/1");
+  eq("de telling van Kennis: één vermoeden", String(telPerFilter(kennis).vermoeden), "1");
+  eq("een filter laat alleen zijn stand over", groepenVoorFilter(feiten, "bevestigd").flatMap((g) => g.items.map((i) => i.bewering)).join("|"), "Prijs vanaf 45 euro");
+  ok("onder 'alles' staat het afgewezen item niet", !groepenVoorFilter(feiten, "alles").some((g) => g.items.some((i) => i.bewering === "Verkeerd")));
+  eq("een leeg filter geeft geen lege blokken", String(groepenVoorFilter(kennis, "bevestigd").length), "0");
+
+  // Het scherm: alleen medewerkers, en de oude twee schermen zijn echt weg.
+  const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
+  ok("het scherm geeft een niet-medewerker een 404", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
+  ok("het toont de botsingen boven de tabbladen zodra er een openstaat", scherm.indexOf("conflicten.length > 0 &&") < scherm.indexOf("<Tabs"));
+  ok("het kennisoverzicht als eigen scherm bestaat niet meer", !existsSync("app/(app)/merk/[id]/admin/kennis/page.tsx"));
+  ok("de tegenstrijdige feiten als eigen scherm ook niet", !existsSync("app/(app)/merk/[id]/admin/feiten/page.tsx"));
+
+  // Het menu: de namen zijn gewisseld en het nieuwe item staat eronder.
+  const staf = brandNav("abc", true).filter((i) => i.hoofdstuk === "Mijn bedrijf");
+  const klant = brandNav("abc", false).filter((i) => i.hoofdstuk === "Mijn bedrijf");
+  eq("de kop heet Mijn bedrijf en er staan twee regels onder, Merkdossier eerst", staf.map((i) => i.label).join("|"), "Merkdossier|Feiten en kennis");
+  ok("Merkdossier wijst nog naar het oude adres", staf[0]?.href === "/merk/abc/merkprofiel/bewerken");
+  ok("Feiten en kennis heeft zijn eigen adres", staf[1]?.href === "/merk/abc/merkprofiel/feiten-en-kennis");
+  eq("een klant ziet alleen Merkdossier: de kennislaag is voor hem dicht (V6, V11)", klant.map((i) => i.label).join("|"), "Merkdossier");
+  ok("Feiten en kennis draagt het teken 'alleen jij'", staf[1]?.staffOnly === true);
+  ok("de kop Merkdossier bestaat niet meer", !(HOOFDSTUKKEN as readonly string[]).includes("Merkdossier"));
+  ok("het menu wijst niet meer naar de twee oude schermen", [...brandNav("abc", true)].every((i) => !/\/admin\/(kennis|feiten)$/.test(i.href)));
 });
 
 group("tegenstrijdigheden houden kennis bij de schrijver weg (K7, sinds K8 deel 2 alleen botsingen)", () => {
@@ -19274,7 +19379,7 @@ group("V10: werkgebied in plaatsen, niet in streken", () => {
   eq("landelijk: geen werkgebiedpunt", String(werkgebiedPunten({ service_scope: "landelijk", service_regions: ["Randstad"], business_model: "retailer" }).length), "0");
   ok("een onbekend bedrijfsmodel is een open punt", werkgebiedPunten({ service_scope: null, service_regions: [], business_model: null }).some((p) => p.punt.startsWith("Wat voor bedrijf")));
   ok("de onderzoeksopdracht vraagt plaatsen", leesBestand("lib/pipeline/profile-research.ts").includes("zet je in serviceRegions de PLAATSEN"));
-  ok("het kennisoverzicht toont ze eerst", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("...werkgebiedPunten("));
+  ok("het kennisoverzicht toont ze eerst", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes("...werkgebiedPunten("));
 });
 
 group("V9: klussen van de site worden verhalen", () => {
@@ -19755,7 +19860,7 @@ group("de kennislaag: afwijzen (K2, migratie 0117)", () => {
   ok("de conflictlijst kent de kennislaag", sql.includes("add column if not exists kennis_ids uuid[]"));
   ok("geen drop table en geen drop column", !/drop\s+(table|column)/i.test(sql));
   // Sinds K8 deel 2 toont het feitenscherm alleen nog botsingen in de kennislaag.
-  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/admin/feiten/page.tsx").includes('.not("kennis_ids", "is", null)'));
+  ok("het feitenscherm ziet alleen botsingen in de kennislaag (K8 deel 2)", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes('.not("kennis_ids", "is", null)'));
   // Sinds K7 staan de botsingen tussen kennisitems op hetzelfde conflictscherm,
   // dus de teller op het beheerscherm telt ze mee.
 });
@@ -21065,7 +21170,7 @@ group("A3: één bron van vragen (besluit V3)", () => {
   eq("de punten van de samenvatting en het aanbod, zonder opsomteken en zonder dubbele", punten.map((p) => `${p.bron}:${p.punt}`).join(" | "),
     "samenvatting:Hoeveel fysiotherapeuten werken er? | samenvatting:Welke specialisaties per vestiging? | aanbod:De tarieven van de specialisaties ontbreken.");
   eq("zonder verslag niets", String(openPuntenUitOnderzoek([{ facet: "synthese", raw_json: null }]).length), "0");
-  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/admin/kennis/page.tsx").includes("openPuntenUitOnderzoek("));
+  ok("het kennisoverzicht toont ze", leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx").includes("openPuntenUitOnderzoek("));
   const vraagSchrijvers = codebestanden()
     .filter((p) => !p.startsWith("scripts/"))
     .filter((p) => /from\(\s*["'`]fact_requests["'`]\s*\)\s*\.\s*(insert|upsert)\s*\(/.test(codeZonderCommentaar(leesBestand(p))));

@@ -102,6 +102,11 @@ export const ICOON_NAMEN = [
   // nooit naast elkaar op een scherm, dus er is niets om te verwarren.
   "wachtwoordtonen",
   "wachtwoordverbergen",
+  // ── Notificaties (29 september 2026) ────────────────────────────────────
+  // Het belletje rechtsboven dat de lijst met meldingen opent
+  // (`components/notificaties.tsx`). Een bel is de conventie; een eigen
+  // tekening zou alleen uitleg kosten.
+  "notificaties",
 ] as const;
 
 export type IcoonNaam = (typeof ICOON_NAMEN)[number];

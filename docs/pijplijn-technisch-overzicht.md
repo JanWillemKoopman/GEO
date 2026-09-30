@@ -1000,7 +1000,7 @@ een groot deel van de latere tekstkwaliteit bepaald.
   `profile-readiness-panel.tsx` voor het statusoverzicht. De kennisronde (`lib/kansen/kennisronde.ts`,
   `kennisrondeVoorMerk()`) groepeert het kennisgat van elke kans die nog geschreven moet worden per domein,
   in de volgorde van het kansenscherm (`ordenKansen`, hoofdstap 9); geen model.
-- **De open punten van het onderzoek** staan op het kennisoverzicht (`/merk/[id]/admin/kennis`): eerst
+- **De open punten van het onderzoek** staan op "Feiten en kennis" (`/merk/[id]/merkprofiel/feiten-en-kennis`): eerst
   `werkgebiedPunten()` (`lib/kennis/overzicht.ts`, besluit V10), dan de open punten van de samenvatting en
   het aanbod (`openPuntenUitOnderzoek()`). Staat er een streek in het werkgebied van een lokaal bedrijf
   (`isStreek()`: "regio …", "… en omstreken", een provincie of een bekende streek als Alblasserwaard; een stad

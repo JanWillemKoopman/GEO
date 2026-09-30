@@ -59,7 +59,7 @@ export const HOOFDSTUKKEN = [
   "Clusters",
   "Strategie",
   "Analytics",
-  "Merkdossier",
+  "Mijn bedrijf",
   "Admin",
 ] as const;
 
@@ -134,7 +134,7 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   // hoofdstuk geworden, dus Strategie heeft er geen vier meer nodig.
   Strategie: 3,
   Analytics: 4,
-  Merkdossier: 3,
+  "Mijn bedrijf": 3,
   Admin: 7,
 };
 
@@ -297,12 +297,42 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     // Wat overblijft is deze ene bestemming, omgedoopt van "Bewerken" naar
     // "Merkdossier": het enige scherm waar de klant zelf nog iets aan zijn
     // profiel doet.
+    // ── DE NAMEN ZIJN OP 30 SEPTEMBER 2026 GEWISSELD ──────────────────────
+    //
+    // De kop heette "Merkdossier" en de bestemming eronder "Mijn bedrijf". Op
+    // verzoek van de eigenaar is dat omgedraaid: de kop is "Mijn bedrijf" (de
+    // plek waar het bedrijf van de klant woont) en de bestemming waar hij zijn
+    // profiel nakijkt en aanvult is "Merkdossier". Het adres blijft
+    // `/merkprofiel/bewerken`, want dat staat in mails en demolinks.
     {
       href: `/merk/${brandId}/merkprofiel/bewerken`,
-      label: "Mijn bedrijf",
-      hoofdstuk: "Merkdossier",
+      label: "Merkdossier",
+      hoofdstuk: "Mijn bedrijf",
       icoon: "merkprofiel" as const,
     },
+    // ── FEITEN EN KENNIS (30 september 2026) ──────────────────────────────
+    //
+    // Eén plek voor alles wat ORBIT ENGINE over het bedrijf weet. Het neemt de
+    // twee Admin-schermen over die daar al stonden zonder menuregel:
+    // `admin/kennis` (het kennisoverzicht) en `admin/feiten` (de
+    // tegenstrijdigheden). Die twee zijn weg en verwijzen door.
+    //
+    // ⚠️ Alleen voor medewerkers, ondanks de plek onder een klantkop. Besluit
+    // V6 en V11 van `docs/tasks/van-pijplijn-naar-kennissysteem.md`: de tabel
+    // `klantkennis` is voor de klant dicht (RLS) en bevat wat een model alleen
+    // denkt. Een klant met deze regel in zijn menu zou op een 404 uitkomen.
+    // De kop "Mijn bedrijf" blijft voor een klant een kop met één regel.
+    ...(staff
+      ? [
+          {
+            href: `/merk/${brandId}/merkprofiel/feiten-en-kennis`,
+            label: "Feiten en kennis",
+            hoofdstuk: "Mijn bedrijf" as const,
+            icoon: "goedkeuring" as const,
+            staffOnly: true,
+          },
+        ]
+      : []),
     // ⚠️ "Vraagt jouw input" stond hier tot 28 augustus 2026. Het heet nu
     // "Openstaande vragen" en staat onder Strategie, zie het blok hierboven.
 

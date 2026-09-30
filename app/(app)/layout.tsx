@@ -2,7 +2,8 @@ import { requireUser } from "@/lib/auth";
 import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
 import { DeploymentBanner } from "@/components/deployment-banner";
-import { ClusterMelder } from "@/components/cluster-melder";
+import { NotificatieMelder } from "@/components/notificaties";
+import { NotificatiePaneelProvider } from "@/components/notificatie-paneel";
 import { loadWorkspace } from "@/lib/workspace";
 import { isStaff, isStaffAccount } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
@@ -65,26 +66,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <ToastProvider>
-      <AppShell
-        user={user}
-        workspace={workspace}
-        staff={staff}
-        staffAccount={staffAccount}
-        openVragen={openVragen}
-      >
-        {children}
-      </AppShell>
-      {/* Eén keer voor de hele ingelogde app, niet per scherm: zie
-          components/deployment-banner.tsx (punt 25 uit
-          docs/tasks/nova-vergelijking-verbeterpunten.md). */}
-      <DeploymentBanner />
-      {/* Zegt het als een meting klaar is, op welk scherm je ook staat. Staat
-          hier en niet op het clusterscherm, want dat is juist het scherm waar
-          je niet op staat te wachten (22 september 2026, zie
-          components/cluster-melder.tsx). Zonder actief merk valt er niets te
-          melden. */}
-      {workspace.active && <ClusterMelder profileId={workspace.active.id} />}
-    </ToastProvider>
+    <NotificatiePaneelProvider>
+      <ToastProvider>
+        <AppShell
+          user={user}
+          workspace={workspace}
+          staff={staff}
+          staffAccount={staffAccount}
+          openVragen={openVragen}
+        >
+          {children}
+        </AppShell>
+        {/* Eén keer voor de hele ingelogde app, niet per scherm: zie
+            components/deployment-banner.tsx (punt 25 uit
+            docs/tasks/nova-vergelijking-verbeterpunten.md). */}
+        <DeploymentBanner />
+        {/* Haalt de notificaties op, laat nieuwe rechtsonder zien en draagt de
+            lijst die het belletje opent (29 september 2026, vervangt de
+            clustermelder). Ook zonder actief merk: een collega die zich
+            aanmeldt hoort bij het account, niet bij een merk. */}
+        <NotificatieMelder profileId={workspace.active?.id ?? null} />
+      </ToastProvider>
+    </NotificatiePaneelProvider>
   );
 }

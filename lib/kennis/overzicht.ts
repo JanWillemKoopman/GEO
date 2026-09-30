@@ -151,6 +151,97 @@ export function maakOverzicht(items: readonly OverzichtItem[]): Overzicht {
   };
 }
 
+// ── Feiten en kennis: twee tabbladen op één scherm (30 september 2026) ───────
+//
+// Het scherm `merkprofiel/feiten-en-kennis` verving `admin/kennis` en
+// `admin/feiten`. De eigenaar wil "Feiten" en "Kennis" als twee tabbladen. De
+// kennislaag kent geen onderscheid tussen die twee woorden, dus dit is de
+// indeling die we erop leggen, op het domein en niet op de soort: elk item heeft
+// een domein, terwijl `soort` pas na het indelen van de sitefeiten gevuld is
+// (`indelen.ts`) en bij een antwoord van de klant leeg blijft.
+//
+//   Feiten   wat je kunt nalopen tegen de werkelijkheid: wie het bedrijf is,
+//            wat het aanbiedt tegen welke prijs en termijn, welk bewijs er is,
+//            en wat niet op de site mag (de vier harde domeinen, waar de
+//            botsingen van `samenvoegen.ts` ook in optreden)
+//   Kennis   hoe het bedrijf zich verhoudt tot zijn markt: klanten en
+//            bezwaren, wat het anders doet, verhalen, stem en wat eerdere
+//            pagina's opleverden
+//
+// Een nieuw domein zonder plek hier valt in Kennis (`tabVoorDomein`), zodat
+// niets stilletjes van het scherm verdwijnt.
+
+export type KennisTab = "feiten" | "kennis";
+export const KENNIS_TABS: readonly KennisTab[] = ["feiten", "kennis"];
+
+export const FEITEN_DOMEINEN: readonly string[] = ["identiteit", "aanbod", "bewijs", "grens"];
+
+export function tabVoorDomein(domein: string): KennisTab {
+  return FEITEN_DOMEINEN.includes(domein) ? "feiten" : "kennis";
+}
+
+/** Een onbekende of ontbrekende `?tab=` valt terug op Feiten. */
+export function leesTab(waarde: string | null | undefined): KennisTab {
+  return waarde === "kennis" ? "kennis" : "feiten";
+}
+
+/**
+ * Het filter boven de lijst: één woord per stand van een item.
+ * "alles" is alles wat meetelt, dus zonder wat een mens afwees.
+ */
+export type KennisFilter = "alles" | "bevestigd" | "site" | "klant" | "vermoeden" | "afgewezen";
+export const KENNIS_FILTERS: readonly KennisFilter[] = ["alles", "bevestigd", "site", "klant", "vermoeden", "afgewezen"];
+
+export const FILTER_LABEL: Record<KennisFilter, string> = {
+  alles: "Alles",
+  bevestigd: "Bevestigd",
+  site: "Van de site",
+  klant: "Volgens de klant",
+  vermoeden: "Vermoedens",
+  afgewezen: "Afgewezen",
+};
+
+/** In welk filter valt dit item, buiten "alles"? */
+export function standVan(item: Pick<OverzichtItem, "status" | "afgewezen_op">): Exclude<KennisFilter, "alles"> {
+  if (isAfgewezen(item)) return "afgewezen";
+  if (item.status === "bevestigd") return "bevestigd";
+  if (item.status === "waargenomen") return "site";
+  if (item.status === "verklaard") return "klant";
+  return "vermoeden";
+}
+
+export function pastInFilter(item: Pick<OverzichtItem, "status" | "afgewezen_op">, filter: KennisFilter): boolean {
+  const stand = standVan(item);
+  return filter === "alles" ? stand !== "afgewezen" : stand === filter;
+}
+
+export type Telling = Record<KennisFilter, number>;
+
+export function telPerFilter(items: readonly Pick<OverzichtItem, "status" | "afgewezen_op">[]): Telling {
+  const t: Telling = { alles: 0, bevestigd: 0, site: 0, klant: 0, vermoeden: 0, afgewezen: 0 };
+  for (const i of items) {
+    const stand = standVan(i);
+    t[stand] += 1;
+    if (stand !== "afgewezen") t.alles += 1;
+  }
+  return t;
+}
+
+/** De items van één tabblad, zonder vervangen versies (geschiedenis, geen kennis). */
+export function itemsVoorTab(items: readonly OverzichtItem[], tab: KennisTab): OverzichtItem[] {
+  return items.filter((i) => !i.vervangen_door && tabVoorDomein(i.domein) === tab);
+}
+
+/**
+ * De items van een tabblad onder één filter, per domein. Binnen een domein
+ * staat bevestigd bovenaan en vermoedens onderaan, zoals op het oude
+ * kennisoverzicht, en daarna alfabetisch zodat de volgorde bij elke verversing
+ * gelijk blijft.
+ */
+export function groepenVoorFilter(items: readonly OverzichtItem[], filter: KennisFilter): OverzichtGroep[] {
+  return groepeer(items.filter((i) => pastInFilter(i, filter)));
+}
+
 // ── De open punten van het onderzoek (A3) ────────────────────────────────────
 
 export interface OpenPunt {
