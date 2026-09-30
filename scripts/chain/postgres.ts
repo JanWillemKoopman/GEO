@@ -95,7 +95,8 @@ const AUTH_STUB = `
   create schema if not exists auth;
   create table if not exists auth.users (
     id    uuid primary key,
-    email text
+    email text,
+    email_confirmed_at timestamptz
   );
   -- Supabase levert deze functies; de RLS-migratie (0002) verwijst ernaar.
   --

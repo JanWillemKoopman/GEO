@@ -68,19 +68,10 @@ export default async function ToewijzenPage({
     ? await Promise.all([membersOf(accountId, user.id), listPendingInvites(accountId)])
     : [[], []];
 
-  // Wie in dit account is eigenlijk een consultant? Die staat in `staff_users`
-  // en wordt hier niet als klant getoond.
-  const { data: stafRijen } = ledenRuw.length
-    ? await createAdminClient()
-        .from("staff_users")
-        .select("user_id")
-        .in("user_id", ledenRuw.map((l) => l.userId))
-    : { data: [] as { user_id: string }[] };
-  const stafIds = new Set((stafRijen ?? []).map((r) => r.user_id as string));
   const members = ledenRuw.map((l) => ({
     email: l.email,
     isYou: l.isYou,
-    rol: (isSuperuserEmail(l.email) ? "superuser" : stafIds.has(l.userId) ? "consultant" : "klant") as Rol,
+    rol: (isSuperuserEmail(l.email) ? "admin" : "klant") as Rol,
   }));
 
   // Een merk zonder cluster overdragen levert gegarandeerd een klant op die op
@@ -121,7 +112,7 @@ export default async function ToewijzenPage({
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Wie kan wat</span>
         <ul className="flex flex-col gap-1 text-sm text-secondary">
-          {(["superuser", "consultant", "klant"] as const).map((r) => (
+          {(["admin", "klant"] as const).map((r) => (
             <li key={r}>
               <strong className="text-[var(--text-primary)]">{ROL_LABEL[r]}.</strong> {ROL_UITLEG[r]}
             </li>

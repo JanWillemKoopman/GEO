@@ -13442,3 +13442,24 @@ andere vraagkaart, twee grijze etiketten per vraag en andere knoppen ("Opslaan" 
 
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen, en bekeken in een browser met
 voorbeelddata. ⚠️ Nog niet bekeken met echte klantdata (conventie 10): er staan hier geen Supabase-sleutels.
+
+## 30 september 2026: twee rollen, Admin en Klant
+
+**Besluit van de eigenaar.** Van drie rollen (superuser, consultant, klant) terug naar twee. De eigenaar is zelf
+superuser, consultant en ontwikkelaar, dus de consultantrol had geen gebruiker en kostte alleen een derde stand
+om te testen en uit te leggen. Ook het verschil tussen klant-`admin` en klant-`member` is weg.
+
+- **Admin** is het vaste, bevestigde adres uit `lib/roles.ts` en kan alles. **Klant** is elk lid van een account
+  en heeft de rechten van de oude klant-`admin`: accountgegevens wijzigen, account opzeggen, collega's
+  uitnodigen. Betaald werk (meting, schrijven, plan goedkeuren) blijft admin-werk (`lib/cost-rules.ts`).
+- Migratie 0135: alle rollen in `account_users` en `account_invites` zijn `admin`, en `is_staff()` telt alleen
+  nog de `superuser`-rij. De 3 oude consultant-testaccounts (`staff_users`) blijven staan maar zijn klant.
+- Weg uit de code: consultants uitnodigen (`/api/staff/invites`, `ConsultantsBox`, `createStaffInvite`) en de
+  tak `soort: "consultant"` in `lookupInvite`/`acceptInvite`. De tabel `staff_invites` blijft (additief).
+- De wisselknop rechtsboven is een segment met **Admin** en **Klant** (was een icoon met een "Klantweergave"-pil).
+- ⚠️ De ketentest gebruikte een staf-rij als bewijs van beheerder. Nu is het adres het bewijs, en de testdatabase
+  kreeg `auth.users.email_confirmed_at`. Daardoor bleek migratie 0134 in de test nooit te werken: de admin telt
+  nu mee in het aantal mensen bij "account verwijderen" (3 in plaats van 2). Dat aantal in het scherm telt de
+  admin dus ook mee; nog niet aangepast.
+- ⚠️ Nog niet bekeken in een browser als klant en als admin (conventie 10). Klantteksten die "je consultant bij
+  Outer Orbit" zeggen blijven staan: dat is de persoon achter het account, geen rol in de app.

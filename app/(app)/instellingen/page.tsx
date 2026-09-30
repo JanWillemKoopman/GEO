@@ -50,8 +50,8 @@ export default async function InstellingenPage() {
         <AccountBox
           key={`account-${t.account.id}`}
           account={t.account}
-          // Alleen een admin van dít account mag wijzigen; een member leest mee.
-          mayEdit={t.rol === "admin" || staff}
+          // Elke klant uit dít account mag wijzigen (één klantrol, migratie 0135).
+          mayEdit={t.rol !== null || staff}
         />
       ))}
 

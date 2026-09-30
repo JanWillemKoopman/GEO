@@ -886,3 +886,12 @@ Functie `superuser_lid_maken()` en trigger `accounts_superuser_lid` op `accounts
 (`koopman.janwillem@gmail.com`, bevestigd adres) wordt eigenaar (`admin`) van elk bestaand en elk nieuw
 account. Nodig omdat de klantweergave alleen leest wat `account_users` toestaat. Additief en idempotent.
 Op productie toegepast op 30 september 2026; nagerekend: 6 van 6 accounts.
+
+## 0135: twee rollen, Admin en Klant
+
+Alle `account_users.role` en `account_invites.role` worden `admin` (standaardwaarde ook), zodat elke klant
+dezelfde rechten heeft. `is_staff()` telt alleen nog een `staff_users`-rij met rol `superuser`, dus de drie
+oude consultant-testaccounts lezen via RLS niets meer buiten hun eigen account. `staff_users`,
+`staff_invites` en de kolom `account_users.role` blijven staan (migraties zijn additief). Idempotent. Op
+productie toegepast op 30 september 2026; nagerekend vooraf: 11 leden (allemaal al `admin`), 1 uitnodiging
+met `member`, en de superuser heeft zijn `superuser`-rij.

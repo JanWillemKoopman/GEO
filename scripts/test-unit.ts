@@ -6841,30 +6841,23 @@ group("wachtwoordregels", () => {
 });
 
 group("wie mag uitnodigen", () => {
-  // Een member kan meekijken en goedkeuren maar de kring niet uitbreiden. Bij
-  // een bureau is dat het verschil tussen een collega en de contractpartij.
-  ok("een accountbeheerder mag", mayInvite("admin", false) === true);
-  ok("een gewoon lid mag niet", mayInvite("member", false) === false);
-  ok("een beheerder van ORBIT ENGINE mag altijd", mayInvite(null, true) === true);
-  ok("een lid van ORBIT ENGINE-staf ook", mayInvite("member", true) === true);
-  ok("zonder rol en zonder staf niet", mayInvite(null, false) === false);
+  // Sinds 30 september 2026 is er één klantrol met alle rechten (migratie 0135).
+  ok("een klant uit het account mag", mayInvite("admin", false) === true);
+  ok("ook met de oude lidrol", mayInvite("member", false) === true);
+  ok("de admin mag altijd", mayInvite(null, true) === true);
+  ok("zonder lidmaatschap en zonder admin niet", mayInvite(null, false) === false);
 });
 
-group("de drie rollen", () => {
-  ok("het vaste adres met bevestiging is superuser",
-    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: true, inStaffTabel: false }) === "superuser");
+group("de twee rollen", () => {
+  ok("het vaste adres met bevestiging is admin",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: true }) === "admin");
   ok("hoofdletters en spaties maken niets uit", isSuperuserEmail("  Koopman.JanWillem@Gmail.com "));
   // Een onbevestigd adres bewijst niets: anders zou een registratie op dit adres genoeg zijn.
-  ok("zonder bevestiging geen superuser",
-    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: false, inStaffTabel: false }) === "klant");
-  ok("staf zonder het vaste adres is consultant",
-    rolVan({ email: "anna@outerorbit.nl", emailBevestigd: true, inStaffTabel: true }) === "consultant");
-  ok("de superuser wint van een rij in de staftabel",
-    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: true, inStaffTabel: true }) === "superuser");
-  ok("een gewone gebruiker is klant",
-    rolVan({ email: "klant@bedrijf.nl", emailBevestigd: true, inStaffTabel: false }) === "klant");
-  ok("geen adres is klant",
-    rolVan({ email: null, emailBevestigd: false, inStaffTabel: false }) === "klant");
+  ok("zonder bevestiging geen admin",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: false }) === "klant");
+  ok("een ander adres is klant, ook als het ooit staf was",
+    rolVan({ email: "anna@outerorbit.nl", emailBevestigd: true }) === "klant");
+  ok("geen adres is klant", rolVan({ email: null, emailBevestigd: false }) === "klant");
 });
 
 group("monthsSinceStart", () => {

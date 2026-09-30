@@ -23,49 +23,27 @@ export const isStaffAccount = cache(async (userId: string): Promise<boolean> => 
 });
 
 /**
- * De echte rol van deze gebruiker: superuser, consultant of klant.
+ * De echte rol van deze gebruiker: admin of klant.
  *
- * De superuser is het vaste adres uit `lib/roles.ts` (met een bevestigd
- * e-mailadres) en heeft geen rij in `staff_users` nodig. Een consultant is een
- * rij in `staff_users`. Faalt zacht naar `klant`: een storing mag nooit iemand
+ * De admin is het vaste adres uit `lib/roles.ts` (met een bevestigd
+ * e-mailadres). Er is geen tabel meer die het recht geeft: `staff_users` telt in
+ * de app niet meer mee. Faalt zacht naar `klant`: een storing mag nooit iemand
  * onbedoeld meer rechten geven.
  */
 export const echteRolVan = cache(async (userId: string): Promise<Rol> => {
   if (!userId) return "klant";
   try {
     const admin = createAdminClient();
-    const [{ data, error }, gebruiker] = await Promise.all([
-      admin.from("staff_users").select("user_id").eq("user_id", userId).maybeSingle(),
-      // Een storing hier haalt alleen het superuser-recht weg, niet dat van een
-      // consultant: die staat in de tabel hierboven.
-      admin.auth.admin
-        .getUserById(userId)
-        .then((r) => r.data)
-        .catch(() => null),
-    ]);
-    if (error) {
-      console.error("Beheerderscontrole mislukt:", error.message);
-      return "klant";
-    }
-    const email = gebruiker?.user?.email ?? null;
+    const { data } = await admin.auth.admin.getUserById(userId);
     return rolVan({
-      email,
-      emailBevestigd: Boolean(gebruiker?.user?.email_confirmed_at),
-      inStaffTabel: Boolean(data),
+      email: data?.user?.email ?? null,
+      emailBevestigd: Boolean(data?.user?.email_confirmed_at),
     });
   } catch (err) {
     console.error("Beheerderscontrole mislukt:", err);
     return "klant";
   }
 });
-
-/**
- * Is dit de superuser? Het ECHTE recht, niet beïnvloed door de klantweergave:
- * alleen bedoeld om consultants te beheren.
- */
-export async function isSuperuser(userId: string): Promise<boolean> {
-  return (await echteRolVan(userId)) === "superuser";
-}
 
 /** De naam van de cookie die de klantweergave aanzet. Waarde "1" of afwezig. */
 export const PREVIEW_COOKIE = "orbit_engine_klantweergave";

@@ -699,10 +699,10 @@ export function createShimClient(client: Client) {
         async createUser(input: { email: string; password?: string; email_confirm?: boolean }) {
           try {
             const { rows } = await client.query(
-              `insert into auth.users (id, email) values (gen_random_uuid(), $1) returning id, email`,
+              `insert into auth.users (id, email, email_confirmed_at) values (gen_random_uuid(), $1, now()) returning id, email, email_confirmed_at`,
               [input.email],
             );
-            return { data: { user: { id: rows[0].id, email: rows[0].email } }, error: null };
+            return { data: { user: { id: rows[0].id, email: rows[0].email, email_confirmed_at: rows[0].email_confirmed_at } }, error: null };
           } catch (err) {
             return {
               data: { user: null },
@@ -716,7 +716,7 @@ export function createShimClient(client: Client) {
         },
         async getUserById(id: string) {
           const { rows } = await client.query(
-            `select id, email from auth.users where id = $1`,
+            `select id, email, email_confirmed_at from auth.users where id = $1`,
             [id],
           );
           return { data: { user: rows[0] ?? null }, error: null };

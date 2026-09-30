@@ -42,7 +42,7 @@ export async function POST(
   }
   if (!mayInvite(lidmaatschap?.role ?? null, staff)) {
     return NextResponse.json(
-      { error: "Alleen een beheerder van dit account kan een uitnodiging intrekken." },
+      { error: "Alleen iemand uit dit account kan een uitnodiging intrekken." },
       { status: 403 },
     );
   }

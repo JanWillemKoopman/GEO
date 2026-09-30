@@ -38,7 +38,7 @@ export async function PATCH(
 
   const [memberships, staff] = await Promise.all([membershipsOf(user.id), isStaff(user.id)]);
   const rol = memberships.find((m) => m.accountId === id)?.role ?? null;
-  if (rol !== "admin" && !staff) {
+  if (rol === null && !staff) {
     // 404 en geen 403: bestaat het account niet voor jou, dan hoort het scherm
     // ook niet te bevestigen dát het bestaat.
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
