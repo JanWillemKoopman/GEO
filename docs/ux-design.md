@@ -1155,6 +1155,9 @@ invoerveld en de open punten uit het onderzoek. Voor de gebruiker is dat één
 ding, "moet ik iets aanvullen", dus staat het op één plek met de teller in de
 kop.
 
+⚠️ **Sinds 30 september 2026 is het één lijst met één filterrij** (Alles, Pagina's, Over je merk, per
+cluster) en overal dezelfde vraagkaart; zie `docs/logbook.md` voor die datum.
+
 ⚠️ **Sinds 28 augustus 2026 staan de clustervragen er óók op**, met een filter
 per cluster en een aparte knop voor de merkvragen. De scheiding van 14 augustus
 2026 (clustervragen bij hoofdstuk 03 van dat cluster) is daarmee opgeheven voor

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Antwoordveld } from "@/components/antwoordveld";
 import { Icon } from "@/components/icon";
 import { OPEN_VRAAG_MAX } from "@/lib/pagina/open-vraag-tekst";
-import { VERPLICHT_UITLEG } from "@/lib/feitenvraag";
+import { VERPLICHT_UITLEG, vraagVorm } from "@/lib/feitenvraag";
 
 /**
  * De vragen van een pagina (`docs/tasks/contentketen-opnieuw.md` §6.2).
@@ -108,11 +108,18 @@ export function Vraagkaart({
   vraag,
   stand,
   onKlaar,
+  overslaanUitleg,
 }: {
   profileId: string;
   vraag: Vraag;
   stand: { status: string; answer: string | null };
   onKlaar: (s: { status: string; answer: string | null }) => void;
+  /**
+   * Wat overslaan kost, als het niet over één pagina gaat. Een losse vraag over
+   * het merk hangt aan geen pagina, dus "dan schrijven we dit deel zonder" klopt
+   * daar niet.
+   */
+  overslaanUitleg?: string;
 }) {
   const router = useRouter();
   // De open vraag krijgt geen concept-antwoord: het is het verhaal van de ondernemer.
@@ -175,11 +182,15 @@ export function Vraagkaart({
     );
   }
 
-  const kost = vraag.open_vraag
+  // Bij een keuzevraag (ja of nee, een van de opties) is de klik het antwoord.
+  // Een knop "Antwoord opslaan" achter "Ja" en "Nee" is een handeling te veel.
+  const directOpslaan = vraagVorm(vraag).vorm === "keuze";
+
+  const kost = overslaanUitleg ?? (vraag.open_vraag
     ? "Dan schrijven we deze pagina zonder jouw eigen verhaal."
     : vraag.onderdelen.length > 0
       ? `Dan komt ${vraag.onderdelen.length === 1 ? "het onderdeel" : "de onderdelen"} ${somOp(vraag.onderdelen)} niet op de pagina.`
-      : "Dan schrijven we dit deel zonder dit gegeven, en noemen we het niet.";
+      : "Dan schrijven we dit deel zonder dit gegeven, en noemen we het niet.");
 
   return (
     <div className="card card-rail card-rail-accent flex flex-col gap-3">
@@ -211,19 +222,33 @@ export function Vraagkaart({
           </span>
         </div>
       ) : (
-        <Antwoordveld id={labelId} vraag={vraag} waarde={waarde} zetWaarde={setWaarde} uitgeschakeld={bezig} />
+        <Antwoordveld
+          id={labelId}
+          vraag={vraag}
+          waarde={waarde}
+          zetWaarde={(v) => {
+            setWaarde(v);
+            if (directOpslaan && v) void stuur({ answer: v });
+          }}
+          uitgeschakeld={bezig}
+        />
       )}
       {fout && <p className="type-caption text-[var(--intent-danger-content)]">{fout}</p>}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          className="btn-primary btn-sm"
-          disabled={bezig || !waarde.trim()}
-          onClick={() => void stuur({ answer: waarde.trim() })}
-        >
-          {bezig ? "Opslaan…" : "Antwoord opslaan"}
-        </button>
-        <span className="flex flex-col items-end gap-0.5 text-right">
+      {/* Opslaan en overslaan naast elkaar, met wat overslaan kost er direct
+          onder: tot 30 september 2026 stond overslaan los rechts, met de uitleg
+          in een smal kolommetje van drie regels eronder. */}
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          {!directOpslaan && (
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              disabled={bezig || !waarde.trim()}
+              onClick={() => void stuur({ answer: waarde.trim() })}
+            >
+              {bezig ? "Opslaan…" : "Antwoord opslaan"}
+            </button>
+          )}
           <button
             type="button"
             className="btn-ghost btn-sm"
@@ -232,8 +257,8 @@ export function Vraagkaart({
           >
             Overslaan
           </button>
-          <span className="type-caption text-muted max-w-[28ch]">{kost}</span>
-        </span>
+        </div>
+        <span className="type-caption text-muted">Overslaan? {kost}</span>
       </div>
     </div>
   );

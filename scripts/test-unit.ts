@@ -958,6 +958,7 @@ import type {
   PlannedPageStatus,
   ContentAction,
 } from "@/lib/types/database";
+import { filterKnoppen, nogOpen, pastBijFilter } from "../lib/vragen-overzicht";
 
 let passed = 0;
 let failed = 0;
@@ -21750,6 +21751,29 @@ group("het bord: het menu van een pagina heeft schermen", () => {
   ok("een idee heeft Andere maand en Verwijderen", v.includes('ga("maand")') && v.includes("Andere maand"));
   ok("de maanden buiten beeld staan achter een regel die opent", v.includes("restRegel(titels, paginas)") && v.includes("aria-expanded={open}"));
   ok("slepen blijft bestaan", v.includes("onDropHier") && v.includes("draggable"));
+});
+
+group("Openstaande vragen: één lijst met één filterrij", () => {
+  const groepen = [
+    { sleutel: "p1", soort: "pagina" as const, openIds: ["a", "b"] },
+    { sleutel: "p2", soort: "pagina" as const, openIds: ["c"] },
+    { sleutel: "merk", soort: "merk" as const, openIds: ["d"], extraOpen: 2 },
+    { sleutel: "c1", soort: "cluster" as const, openIds: ["e"] },
+    { sleutel: "c2", soort: "cluster" as const, openIds: [] },
+  ];
+  const stand = { a: "beantwoord", b: "open", c: "open", d: "overgeslagen", e: "open" };
+  const k = filterKnoppen(groepen, stand);
+  eq("volgorde: Alles, Pagina's, merk, clusters", k.map((x) => x.filter).join(","), "alles,paginas,merk,c1");
+  eq2("Alles telt wat nu nog open staat, profielgaten mee", k[0].aantal, 5);
+  eq2("de pagina's zijn samen één knop", k[1].aantal, 2);
+  eq2("een merkknop op alleen profielgaten blijft staan", k[2].aantal, 2);
+  ok("een cluster zonder open vraag krijgt geen knop", !k.some((x) => x.filter === "c2"));
+  eq2("een beantwoorde vraag telt niet meer mee", nogOpen(groepen[0], stand), 1);
+  ok("Pagina's toont alleen pagina's", pastBijFilter(groepen[1], "paginas") && !pastBijFilter(groepen[2], "paginas"));
+  ok("een clusterfilter toont alleen dat cluster", pastBijFilter(groepen[3], "c1") && !pastBijFilter(groepen[4], "c1"));
+  ok("met één groep geen filter", filterKnoppen([groepen[0]], {}).length === 0);
+  const v = leesBestand("app/(app)/merk/[id]/strategie/vragen/page.tsx");
+  ok("de vragenpagina heeft één lijst en geen tweede vragenblok meer", v.includes("<VragenOverzicht") && !v.includes("FactRequests") && !v.includes("<Vragenlijst"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
