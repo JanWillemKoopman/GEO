@@ -1,16 +1,15 @@
 import { ICONEN, type IcoonNaam } from "@/lib/icons";
 
 /**
- * Eén icoon, met de maat en de lijndikte van dit ontwerp erop.
+ * Eén icoon, met de maat van dit ontwerp erop.
  *
  * ── WAAROM EEN OMHULSEL EN NIET RECHTSTREEKS UIT DE BIBLIOTHEEK ────────────
  *
- * Lucide levert standaard 24 pixels bij lijndikte 2. Dat is te zwaar naast
- * `text-sm`: het icoon trekt dan meer aandacht dan het woord ernaast, en dat is
- * de omgekeerde volgorde van wat `docs/merkstrategie.md` §15.3 vraagt
- * ("duidelijke typografie, subtiele borders"). Lijndikte 1,5 (was 1,75 vóór de
- * OKX-omzetting) hoort bij tekst op gewicht 500 in plaats van 600: een lichtere
- * letter naast een even zware lijn oogt onbalans, zie `redesign2026.md` §5.7.
+ * Sinds 30 september 2026 tekent de app in Solar, stijl Bold (gevulde vormen,
+ * geen lijnen). Een gevuld icoon heeft geen lijndikte meer: die prop bestaat
+ * hier niet, en het omhulsel zet alleen nog de maat vast. De reden voor de
+ * wissel: de lijnset (Lucide op lijndikte 1,5) las als te dun en te standaard.
+ * Gevulde vormen lezen op 16 pixels sneller weg dan een dunne lijn.
  *
  * ⚠️ **Het icoon kleurt nooit zichzelf.** Het erft `currentColor` van de tekst
  * ernaast. Zo blijft de betekenislaag van `docs/designsystem.md` §2.3 de enige
@@ -41,7 +40,6 @@ export function Icon({
   return (
     <Tekening
       size={size}
-      strokeWidth={1.5}
       aria-hidden
       className={`shrink-0${className ? ` ${className}` : ""}`}
     />

@@ -2460,9 +2460,8 @@ textarea.field {
    overlappen), vijf posities, gelijk verdeeld.
 
    ⚠️ HET ACTIEVE PICTOGRAM WORDT NIET GEVULD. Het plan noemt dat als OKX'
-   eigen patroon, maar deze app tekent uitsluitend in Lucide's lijnstijl:
-   `docs/merkstrategie.md` §15.1 verbiedt gevulde vlakken in een icoon met
-   zoveel woorden, en Lucide levert hier ook geen gevulde tegenhangers voor.
+   eigen patroon. Sinds 30 september 2026 zijn alle iconen zelf gevuld (Solar
+   Bold), dus een actieve tekening die zich nog eens vult bestaat niet meer.
    De actieve staat blijft dus wat hij overal in dit systeem is: een kleur- en
    gewichtsverschil, --text-subtle naar --text-primary, geen tweede tekening.
    Dit is de enige plek in `redesign2026.md` waar de letterlijke OKX-vorm om
