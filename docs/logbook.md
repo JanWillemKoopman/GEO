@@ -13335,3 +13335,15 @@ Getest: `tsc --noEmit`, `test:unit` (5121, met drie nieuwe groepen), `test:chain
 groen. De triggers zijn op productie nagerekend in een teruggedraaide transactie. ⚠️ Niet nagerekend
 (conventie 10): de schermen zelf zijn niet in een ingelogde browser bekeken, en van de meeste soorten
 is nog geen echte melding op productie ontstaan.
+
+## 30 september 2026 (4): iconen van Solar naar Phosphor
+
+De eigenaar liet Solar Bold dezelfde dag weer los en koos Phosphor (`@phosphor-icons/react`, MIT),
+gewicht `bold`. Solar is volledig verwijderd: pakket, imports, de bronvermelding onderaan `/support`
+en de verwijzingen in de docs. De 64 tekeningen lopen nog steeds via `lib/icons.ts`; `lib/icon-names.ts`
+blijft bestaan zodat tests de set niet hoeven te laden. Geïmporteerd uit `dist/ssr`, want de tabel
+wordt door server- en clientcomponenten gelezen. Twee betekenissen zijn nieuw getekend: `meten`
+(uitzendend signaal, Phosphor heeft geen radar) en `feit` (zegel met vraagteken).
+
+Het besluit van 30 september (Solar) zei dat `merkstrategie.md` §15.1 en §30 nog moesten worden
+aangepast. Phosphor bold is een lijnset, dus de afwijking van §15.1 (geen gevulde vlakken) vervalt.
