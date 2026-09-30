@@ -219,8 +219,8 @@ export default async function PaginaScherm({
             vragen={voortraject.vragen}
             naAfronden={
               rij.datum && schrijfdatum(rij.datum) > new Date().toISOString().slice(0, 10)
-                ? `Alles gedaan. We schrijven deze pagina vanaf ${formatDag(schrijfdatum(rij.datum))}.`
-                : "Alles gedaan. We beginnen nu met schrijven."
+                ? `Alles gedaan. ORBIT ENGINE schrijft deze pagina vanaf ${formatDag(schrijfdatum(rij.datum))}.`
+                : "Alles gedaan. ORBIT ENGINE begint nu met schrijven."
             }
           />
         </section>

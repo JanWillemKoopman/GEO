@@ -34,7 +34,7 @@ export const STATUS_META: Record<
   },
   meten: { label: "Meting loopt…", tone: "progress", actionRequired: false, whoseTurn: "orbit_engine" },
   gemeten: {
-    label: "Score binnen · rapport volgt",
+    label: "Zichtbaarheid binnen · uitslag volgt",
     tone: "info",
     actionRequired: false,
     whoseTurn: "orbit_engine",

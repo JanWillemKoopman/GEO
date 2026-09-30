@@ -13,6 +13,7 @@
  * technische tekst weggevouwen achter "technische details" (nog steeds nodig
  * voor support, maar niet het eerste wat iemand leest).
  */
+import { BLIJFT_MISGAAN } from "@/lib/meldingen";
 import type { UserFacingError } from "@/lib/errors";
 
 export function ErrorNotice({
@@ -74,7 +75,7 @@ export function problemFromResponse(json: unknown, fallbackDetail = ""): UserFac
   return {
     kind: "unknown",
     title: "Er ging iets onverwachts mis",
-    message: "Probeer het opnieuw. Blijft het misgaan, laat het ons dan weten.",
+    message: `Probeer het opnieuw. ${BLIJFT_MISGAAN}`,
     canRetry: true,
     detail,
   };
@@ -86,7 +87,7 @@ export function networkProblem(err: unknown): UserFacingError {
     kind: "ai_unavailable",
     title: "Geen verbinding",
     message:
-      "Je browser komt niet bij ORBIT ENGINE. Controleer je internetverbinding. " +
+      "Je browser komt niet bij ORBIT ENGINE. Controleer je internet. " +
       "Het werk op de achtergrond loopt gewoon door.",
     canRetry: true,
     detail: err instanceof Error ? err.message : String(err),

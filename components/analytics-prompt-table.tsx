@@ -38,7 +38,7 @@ export function AnalyticsPromptTable({
         defaultSortDir="desc"
         columns={promptKolommen(merkId, ownTerms)}
         stickyOffset="calc(var(--header-h) + 3.5rem)"
-        emptyLabel="Voor deze filters zijn nog geen vragen gemeten."
+        emptyLabel="Voor deze filters zijn nog geen AI-vragen gemeten."
       />
     </div>
   );
@@ -84,7 +84,7 @@ function promptKolommen(merkId: string, ownTerms: string[]): AnalyticsColumn<Pro
               <p className="text-secondary">Ook genoemd: {r.competitors.map((c) => c.name).join(", ")}.</p>
             )}
             <p className="whitespace-pre-wrap text-secondary">
-              {r.answer ? <HighlightedText text={r.answer} groups={groups} /> : "Geen antwoordtekst bewaard."}
+              {r.answer ? <HighlightedText text={r.answer} groups={groups} /> : "Geen antwoordtekst opgeslagen."}
             </p>
             {r.sources.length > 0 && <p className="type-caption text-muted">Bronnen: {r.sources.join(", ")}</p>}
           </div>

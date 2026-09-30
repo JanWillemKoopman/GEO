@@ -104,8 +104,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
         <h2 className="type-title">Dit gaat ORBIT ENGINE meten</h2>
         <p className="text-secondary">
           ORBIT ENGINE heeft je website en je merkdossier doorgenomen en daaruit dit meetplan afgeleid. Loop
-          het door, pas aan wat niet klopt, en bevestig onderaan. Pas dan gaan deze vragen naar de
-          AI-assistenten.
+          het door, pas aan wat niet klopt, en bevestig onderaan. Pas dan stelt ORBIT ENGINE deze AI-vragen.
         </p>
         <p className="text-sm text-muted">
           {magStarten
@@ -138,7 +137,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                       vergeleken wordt. Dat komt uit de meting zelf. Hij dient nog
                       één doel: deze namen blijven uit de vragen, zodat we neutraal
                       meten. Vandaar het eerlijke label. */}
-                  Deze merken blijven uit de vragen:{" "}
+                  Deze merken blijven uit de AI-vragen:{" "}
                   {profile.competitors.join(", ") || "onbekend"}
                 </p>
               </>
@@ -178,8 +177,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
       ) : (
         <div className="card card-danger">
           <p className="text-secondary">
-            Er staat nu geen enkele vraag aan. Zet er hierboven minstens één aan, want zonder vragen
-            valt er niets te meten en kan ORBIT ENGINE niet starten.
+            Er staat nu geen enkele AI-vraag aan. Zet er hierboven minstens één aan, want zonder AI-vragen valt er niets te meten en kan ORBIT ENGINE niet starten.
           </p>
         </div>
       )}

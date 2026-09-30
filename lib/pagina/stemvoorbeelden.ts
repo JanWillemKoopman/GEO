@@ -29,10 +29,10 @@ export async function haalStemvoorbeeldenOp(adressen: string[]): Promise<StemVoo
       uit.push(
         tekst
           ? { url, tekst, opgehaald_op: new Date().toISOString(), fout: null }
-          : { url, tekst: null, opgehaald_op: new Date().toISOString(), fout: "Deze pagina konden we niet lezen." },
+          : { url, tekst: null, opgehaald_op: new Date().toISOString(), fout: "ORBIT ENGINE kon deze pagina niet lezen." },
       );
     } catch {
-      uit.push({ url, tekst: null, opgehaald_op: new Date().toISOString(), fout: "Deze pagina konden we niet lezen." });
+      uit.push({ url, tekst: null, opgehaald_op: new Date().toISOString(), fout: "ORBIT ENGINE kon deze pagina niet lezen." });
     }
   }
   return uit;

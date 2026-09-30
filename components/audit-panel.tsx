@@ -78,7 +78,7 @@ export function AuditPanel({
           Technische controle
           <InfoHint label="Technische controle">
             ORBIT ENGINE kijkt of AI-assistenten je site überhaupt mogen en kunnen lezen. Staat die deur
-            dicht, dan heeft content laten schrijven geen zin, want niemand leest hem ooit.
+            dicht, dan heeft pagina&apos;s laten schrijven geen zin, want niemand leest hem ooit.
           </InfoHint>
         </span>
       </div>

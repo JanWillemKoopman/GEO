@@ -155,7 +155,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
       <PageHeader
         eyebrow="Clusters"
         title="Clusters ontdekken"
-        description="Nieuwe onderwerpen die bij je merk passen, gevonden in je eigen Google-cijfers, je onboarding en de zoekdata van Google."
+        description="Nieuwe onderwerpen die bij je merk passen, gevonden in je eigen Google-cijfers, je kennismakingsgesprek en de zoekdata van Google."
       />
 
       {/* ── 1. De ronde ─────────────────────────────────────────────────── */}
@@ -166,8 +166,8 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
 
       {!lopend && nieuwste?.status === "mislukt" && (
         <div className="alert alert-warning">
-          {nieuwste.status_note ?? "De laatste ronde is niet afgemaakt."}
-          {staff ? " Start een nieuwe ronde om het opnieuw te proberen." : " Je consultant kan een nieuwe ronde starten."}
+          {nieuwste.status_note ?? "De laatste ontdekkingsronde is niet afgemaakt."}
+          {staff ? " Start een nieuwe ontdekkingsronde om het opnieuw te proberen." : " Je consultant kan een nieuwe ontdekkingsronde starten."}
         </div>
       )}
 
@@ -175,13 +175,11 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
       {!laatsteKlare && !lopend ? (
         staff ? (
           <EmptyState title="Nog geen ontdekkingsronde voor dit merk">
-            Een ronde zoekt in je Search Console, je onboarding en de zoekdata van Google naar
-            onderwerpen binnen één thema die nog niet gemeten worden, en bundelt ze tot hooguit 12
-            voorstellen. Start er hierboven een en kies het thema.
+            Een ontdekkingsronde zoekt in je Search Console, je kennismakingsgesprek en de zoekdata van Google naar onderwerpen binnen één productgroep die nog niet gemeten worden. Daar komen hooguit 12 voorstellen uit. Start er hierboven een en kies de productgroep.
           </EmptyState>
         ) : (
           <EmptyState title="Je consultant zoekt nieuwe onderwerpen voor je">
-            {COST_DENIED.clusters_aanvullen} Zodra er een ronde is gedraaid, zie je hier de voorstellen
+            {COST_DENIED.clusters_aanvullen} Zodra er een ontdekkingsronde is gedraaid, zie je hier de voorstellen
             en zet je de onderwerpen die je wilt zelf bij Mijn clusters.
           </EmptyState>
         )
@@ -189,8 +187,8 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         <div className="flex flex-col gap-6">
           <p className="text-secondary">
             {kandidaten.length === 0
-              ? `De ronde van ${formatDateLong(laatsteKlare.created_at)} leverde geen onderwerpen op. ${laatsteKlare.status_note ?? ""}`
-              : `${kandidaten.length} onderwerpen uit de ronde van ${formatDateLong(laatsteKlare.created_at)}` +
+              ? `De ontdekkingsronde van ${formatDateLong(laatsteKlare.created_at)} leverde geen onderwerpen op. ${laatsteKlare.status_note ?? ""}`
+              : `${kandidaten.length} onderwerpen uit de ontdekkingsronde van ${formatDateLong(laatsteKlare.created_at)}` +
                 (laatsteKlare.thema ? ` over ${laatsteKlare.thema}, ` : ", ") +
                 `${openAantal === kandidaten.length ? "nog allemaal open" : `waarvan ${openAantal} nog open`}. ` +
                 "Het zoekvolume is hoe vaak iets in Google gezocht wordt: een aanwijzing voor wat mensen aan een AI-assistent vragen, geen meting daarvan."}
@@ -217,12 +215,12 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
       {/* ── 3. Eerdere rondes ───────────────────────────────────────────── */}
       {staff && rondes.length > 0 && (
         <div className="flex flex-col gap-3">
-          <SectionHeading title="Rondes" />
+          <SectionHeading title="Ontdekkingsrondes" />
           <ul className="flex flex-col gap-1 text-sm">
             {rondes.map((r) => (
               <li key={r.id} className="flex flex-wrap gap-x-3 text-secondary">
                 <span>{formatDateLong(r.created_at)}</span>
-                <span>{r.thema ?? "zonder thema"}</span>
+                <span>{r.thema ?? "zonder productgroep"}</span>
                 <span>
                   {r.status === "klaar" ? "klaar" : r.status === "mislukt" ? "niet afgemaakt" : "loopt"}
                 </span>
@@ -243,7 +241,7 @@ export default async function OntdekkenPage({ params }: { params: Promise<{ id: 
         <Link href={`/merk/${id}/strategie/clusters`} className="link">
           Mijn clusters
         </Link>
-        , samen met de voorstellen uit je onboarding.
+        , samen met de voorstellen uit je kennismakingsgesprek.
       </p>
     </div>
   );

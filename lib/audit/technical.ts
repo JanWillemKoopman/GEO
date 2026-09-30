@@ -136,7 +136,7 @@ function javascriptCheck(html: string | null): AuditCheck {
       id: "no-js-content",
       label: "Leesbaar zonder JavaScript",
       severity: "unknown",
-      finding: "We konden je homepage niet ophalen, dus dit konden we niet controleren.",
+      finding: "ORBIT ENGINE kon je homepage niet ophalen, dus dit is niet gecontroleerd.",
       fix: null,
       who: null,
     };
@@ -172,7 +172,7 @@ function structuredDataCheck(html: string | null): AuditCheck {
       id: "structured-data",
       label: "Gestructureerde data",
       severity: "unknown",
-      finding: "We konden je homepage niet ophalen, dus dit konden we niet controleren.",
+      finding: "ORBIT ENGINE kon je homepage niet ophalen, dus dit is niet gecontroleerd.",
       fix: null,
       who: null,
     };
@@ -296,8 +296,8 @@ function bingCheck(bingbotAllowed: boolean, hasSitemap: boolean): AuditCheck {
     label: "Vindbaarheid via Bing",
     severity: hasSitemap ? "ok" : "warning",
     finding: hasSitemap
-      ? "Bingbot mag binnen en er is een sitemap. Of je site echt in de index staat, kunnen we van buitenaf niet zien. Dat lees je af in Bing Webmaster Tools."
-      : "Bingbot mag binnen, maar er is geen sitemap om hem de weg te wijzen. Of je site echt in de index staat, kunnen we van buitenaf niet zien.",
+      ? "Bingbot mag binnen en er is een sitemap. Of je site echt in de index staat, is van buitenaf niet te zien. Dat lees je af in Bing Webmaster Tools."
+      : "Bingbot mag binnen, maar er is geen sitemap om hem de weg te wijzen. Of je site echt in de index staat, is van buitenaf niet te zien.",
     fix: hasSitemap
       ? null
       : "Publiceer een sitemap en dien 'm in bij Bing Webmaster Tools. Dat is gratis en het versnelt de indexering aanzienlijk.",

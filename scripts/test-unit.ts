@@ -595,6 +595,9 @@ import {
   volgendeMeting,
 } from "@/lib/overview";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { uiTeksten } from "./ui-teksten";
+import { WOORDENLIJST_UITZONDERINGEN, woordenlijstOvertredingen } from "@/lib/woordenlijst";
+import { BLIJFT_MISGAAN, GEEN_VERBINDING, nietGelukt } from "@/lib/meldingen";
 import { join } from "node:path";
 import {
   containsRegion,
@@ -9711,7 +9714,7 @@ group("de zijbalk kent vijf klanthoofdstukken plus Admin", () => {
   // wat hij moet doen, niet browsen in data.
   ok(
     "Strategie staat vóór Analytics",
-    HOOFDSTUKKEN.indexOf("Strategie") < HOOFDSTUKKEN.indexOf("Analytics"),
+    HOOFDSTUKKEN.indexOf("Strategie") < HOOFDSTUKKEN.indexOf("Resultaten"),
   );
   ok(
     "en Overzicht staat vóór allebei",
@@ -9784,22 +9787,22 @@ group("de zijbalk kent vijf klanthoofdstukken plus Admin", () => {
   // en dan is de herindeling van 17 augustus terug bij af. De klanthoofdstukken
   // blijven op drie, met Analytics en Strategie als de twee genoemde
   // uitzonderingen op vier.
-  const klantKoppen = HOOFDSTUKKEN.filter((n) => n !== "Admin");
+  const klantKoppen = HOOFDSTUKKEN.filter((n) => n !== "Beheer");
   // Strategie is sinds 23 september 2026 terug op drie: Clusters werd een eigen
   // hoofdstuk. Alleen Analytics houdt zijn vierde.
   const teRuim = klantKoppen.filter(
-    (n) => GRENS_PER_HOOFDSTUK[n] > (n === "Analytics" ? 4 : 3),
+    (n) => GRENS_PER_HOOFDSTUK[n] > (n === "Resultaten" ? 4 : 3),
   );
   ok(
-    "de klanthoofdstukken blijven op drie, alleen Analytics mag er vier",
+    "de klanthoofdstukken blijven op drie, alleen Resultaten mag er vier",
     teRuim.length === 0,
     teRuim.join(", "),
   );
-  ok("een klant ziet geen Admin-kop", klant.every((k) => k.naam !== "Admin"));
-  ok("een beheerder wel", beheerder.some((k) => k.naam === "Admin"));
+  ok("een klant ziet geen Beheer-kop", klant.every((k) => k.naam !== "Beheer"));
+  ok("een beheerder wel", beheerder.some((k) => k.naam === "Beheer"));
   ok(
     "en elke Admin-bestemming draagt het teken 'alleen jij'",
-    (beheerder.find((k) => k.naam === "Admin")?.items ?? []).every((i) => i.staffOnly === true),
+    (beheerder.find((k) => k.naam === "Beheer")?.items ?? []).every((i) => i.staffOnly === true),
   );
 
   // Een kop die naar een leeg scherm wijst is erger dan een kop die er nog
@@ -9818,7 +9821,7 @@ group("de zijbalk kent vijf klanthoofdstukken plus Admin", () => {
   // Als beheerder, wél zonder gekozen merk, blijft alleen Admin over.
   ok(
     "zonder merk maar als beheerder blijft alleen Admin over",
-    hoofdstukken(generalNav(true)).map((k) => k.naam).join() === "Admin",
+    hoofdstukken(generalNav(true)).map((k) => k.naam).join() === "Beheer",
   );
 
   // "Alle merken" is uit het menu weg (besluit 2) en zit in de merkkiezer. Een
@@ -9885,7 +9888,7 @@ group("de shell van 29 september 2026: zijbalk over de volle hoogte, doorzichtig
   ok("het Support-icoon staat niet meer in de balk", !chrome.includes('href="/support"'));
   ok("het profiel staat in de zijbalk", chrome.includes("profiel={profiel}"));
   const menu = leesBestand("components/profile-menu.tsx");
-  for (const rij of ["Mijn account", "<ThemeMenuItem", "Support", "Uitloggen"]) {
+  for (const rij of ["Mijn account", "<ThemeMenuItem", "Hulp", "Uitloggen"]) {
     ok(`het profielmenu heeft ${rij}`, menu.includes(rij));
   }
   const css = leesBestand("app/globals.css");
@@ -10692,7 +10695,7 @@ group("groepeerPerSectie: de wachtrij in de vaste secties van de app", () => {
   ok(
     "cluster: eerst bevestigen, dan herstellen",
     cluster.subkoppen.map((s) => s.subkop).join(",") ===
-      "Clusters bevestigen (onderzoek starten),Clusters herstellen na mislukte meting",
+      "Clusters bevestigen (onderzoek starten),Clusters herstellen na een meting die niet lukte",
   );
 
   const contentplan = overzicht.secties.find((s) => s.kop === "Contentplan")!;
@@ -10854,7 +10857,7 @@ group("één meetronde is één regel, geen dertig", () => {
   ];
   const regels = activiteit(taken);
   ok("drie regels", regels.length === 3);
-  ok("nieuwste eerst", regels[0].tekst.includes("rapport"));
+  ok("nieuwste eerst", regels[0].tekst.includes("uitslag"));
   const meting = regels.find((r) => r.tekst.includes("vraag aan een AI-assistent"));
   ok("de meetronde is er één regel met een teller", meting?.aantal === 30);
   ok("en draagt het laatste tijdstip", meting?.laatst === "2026-08-17T10:29:00Z");
@@ -11216,7 +11219,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // Bij een beheerder staat elk afgeschermd item wél gemarkeerd, zodat hij niet
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
-  const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
+  const adminItems = staffItems.filter((i) => i.hoofdstuk === "Beheer");
   // Vijf over dít merk (Onboardinggesprek, Aanbodboom,
   // Concurrenten indelen, Toewijzen) plus "Alle merken" en "Koppelingen" over
   // de app als geheel. "Concurrenten indelen" kwam er op 2 september 2026 bij
@@ -11235,7 +11238,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
   );
   ok(
     "en de onboardingsessie staat erbij",
-    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Onboardinggesprek"),
+    adminItems.some((i) => i.href.endsWith("/admin/onboarding") && i.label === "Kennismakingsgesprek"),
   );
   ok(
     "Diagnose is verdwenen en opgegaan in de onboardingsessie (30 september 2026)",
@@ -11244,7 +11247,7 @@ group("de zijbalk verraadt niets aan een klant", () => {
   ok("allemaal gemarkeerd", adminItems.every((i) => i.staffOnly === true));
   ok(
     "en de klant ziet er nul",
-    klantItems.filter((i) => i.hoofdstuk === "Admin").length === 0,
+    klantItems.filter((i) => i.hoofdstuk === "Beheer").length === 0,
   );
 });
 
@@ -11676,8 +11679,8 @@ group("de sessiepagina wordt gedeeld met de klant (deel B3)", () => {
 
   const paginaBron = leesBestand("app/(app)/merk/[id]/admin/onboarding/page.tsx");
   ok(
-    "de pagina heet Onboardinggesprek, niet meer kaal Onboarding",
-    paginaBron.includes("Onboardinggesprek"),
+    "de pagina heet Kennismakingsgesprek, niet meer kaal Onboarding",
+    paginaBron.includes("Kennismakingsgesprek"),
   );
 });
 
@@ -18024,7 +18027,7 @@ group("UX-audit P2.5 tot P2.12: onderbalk, zijbalk, lege staten, reputatie, 404"
   const clusters = leesBestand("app/(app)/merk/[id]/strategie/clusters/page.tsx");
   ok("lege staten gebruiken het gedeelde onderdeel", !clusters.includes('mono-label">Geen clusters met dit filter') && !clusters.includes('mono-label">Nog geen voorstellen'));
   const rep = leesBestand("app/(app)/merk/[id]/analytics/reputatie/page.tsx");
-  ok("het bedrag van een reputatieanalyse alleen voor wie hem start", rep.includes("magStarten\n              ? \"Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.\""));
+  ok("het bedrag van een reputatieanalyse alleen voor wie hem start", rep.includes("magStarten\n              ? \"Ongeveer 50 AI-vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent.\""));
   ok("een lopende analyse ververst vanzelf", rep.includes("<VanzelfVerversen"));
   ok("een 404 binnen de app houdt het menu", bestaatBestand("app/(app)/not-found.tsx"));
 });
@@ -20564,7 +20567,7 @@ group("kansen: de volgorde en de uitleg (N1)", () => {
   eq(
     "nul vertoningen is gemeten: dat staat er ook zo",
     uitlegVan({ handeling: "nieuwe_pagina", bewijs: [{ bron: "search_console", vertoningen: 0, periodeDagen: 28 }] }),
-    "In Google zien we hier nog geen zoekverkeer (0 vertoningen in 28 dagen).",
+    "In Google is hier nog geen zoekverkeer te zien (0 vertoningen in 28 dagen).",
   );
   eq(
     "grote getallen met een punt",
@@ -20968,7 +20971,7 @@ group("kansen: het kennisgat per kans (N6)", () => {
   // ── De zin voor de consultant ──
   eq("de zin", String(kennisgatZin(["prijs", "termijn", "voor_wie_niet"])), "Nog niet bekend: een prijsindicatie, een termijn en voor wie het niet is.");
   eq("één ding", String(kennisgatZin(["bewijs"])), "Nog niet bekend: bewijs.");
-  eq("niets ontbreekt", String(kennisgatZin([])), "Alles wat deze pagina nodig heeft, weten we al.");
+  eq("niets ontbreekt", String(kennisgatZin([])), "Alles wat deze pagina nodig heeft, weet ORBIT ENGINE al.");
   eq("niet uitgerekend: geen zin (conventie 3)", String(kennisgatZin(null)), "null");
 
   // ── Zonder model, en alleen de consultant ziet het ──
@@ -21806,6 +21809,56 @@ group("Openstaande vragen: één lijst met één filterrij", () => {
   ok("met één groep geen filter", filterKnoppen([groepen[0]], {}).length === 0);
   const v = leesBestand("app/(app)/merk/[id]/strategie/vragen/page.tsx");
   ok("de vragenpagina heeft één lijst en geen tweede vragenblok meer", v.includes("<VragenOverzicht") && !v.includes("FactRequests") && !v.includes("<Vragenlijst"));
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+console.log("\nDe woordenlijst van schrijfstijl.md §11 (taalaudit, 30 september 2026)");
+
+group("de woordenlijst herkent wat niet mag", () => {
+  ok("\"we\" is geen stem van de app", woordenlijstOvertredingen("We schrijven deze pagina.").length > 0);
+  ok("\"mislukt\" wordt \"niet gelukt\"", woordenlijstOvertredingen("Opslaan mislukt.").length > 0);
+  ok("\"niet gelukt\" mag", woordenlijstOvertredingen("Opslaan is niet gelukt.").length === 0);
+  ok("\"vragen\" zonder prompt mag", woordenlijstOvertredingen("Ongeveer 50 AI-vragen aan ChatGPT.").length === 0);
+  ok("Contentplan is een naam, geen los woord content", woordenlijstOvertredingen("Open je Contentplan.").length === 0);
+  ok("Search Console met hoofdletter mag", woordenlijstOvertredingen("Koppel Search Console.").length === 0);
+  ok("Search console met kleine c niet", woordenlijstOvertredingen("Search console").length > 0);
+  ok(
+    "een voorbeeldzin in de stem van de klant is een uitzondering",
+    woordenlijstOvertredingen(WOORDENLIJST_UITZONDERINGEN[0]).length === 0,
+  );
+});
+
+group("de vaste foutmeldingen (lib/meldingen.ts)", () => {
+  eq("nietGelukt", nietGelukt("Opslaan"), "Opslaan is niet gelukt. Probeer het opnieuw.");
+  ok("geen verbinding noemt het internet, niet de verbinding", GEEN_VERBINDING.includes("internet"));
+  ok("wie helpt er: je consultant, niet \"ons\"", BLIJFT_MISGAAN.includes("je consultant"));
+});
+
+group("elke schermtekst volgt de woordenlijst", () => {
+  // ⚠️ Deze test is de reden dat de woordenlijst niet opnieuw wegzakt. Tot
+  // 30 september 2026 stond hij alleen in het document, en toen stonden er 35
+  // verboden woorden en 57 keer "we" in de app. Gaat hij rood, pas dan de tekst
+  // aan, niet de lijst: een uitzondering hoort alleen bij een tekst in de stem
+  // van de klant zelf (lib/woordenlijst.ts).
+  const labelBestanden = [
+    "lib/nav.ts", "lib/pagina-stand.ts", "lib/pagina-lijst.ts", "lib/plan-status.ts", "lib/wachtrij.ts",
+    "lib/activity.ts", "lib/meldingen.ts", "lib/errors.ts", "lib/cost-rules.ts", "lib/analysis-status.ts",
+    "lib/search-console/lege-staat.ts", "lib/search-console/koppelstatus.ts", "lib/insights.ts",
+    "lib/notificaties.ts", "lib/roles.ts",
+  ];
+  const teksten = uiTeksten(["app", "components"], labelBestanden);
+  ok("er zijn schermteksten gevonden", teksten.length > 2000, String(teksten.length));
+  const fout = teksten
+    .map((t) => ({ t, regels: woordenlijstOvertredingen(t.tekst) }))
+    .filter((x) => x.regels.length > 0);
+  ok(
+    "geen enkele tekst gebruikt een woord dat de woordenlijst verbiedt",
+    fout.length === 0,
+    fout
+      .slice(0, 10)
+      .map((x) => `${x.t.bestand}:${x.t.regel} "${x.t.tekst.slice(0, 60)}" → ${x.regels.map((r) => r.liever).join("; ")}`)
+      .join("\n      "),
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -28,7 +28,7 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
       if (!res.ok) throw new Error();
       setSaved(true);
     } catch {
-      setError("Opslaan mislukt. Probeer het opnieuw.");
+      setError("Opslaan is niet gelukt. Probeer het opnieuw.");
     } finally {
       setSaving(false);
     }
@@ -36,17 +36,16 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
 
   return (
     <div className="card flex flex-col gap-3">
-      <span className="mono-label">Content-richting</span>
+      <span className="mono-label">Richting van de pagina&apos;s</span>
       <p className="text-sm text-secondary">
-        Stuur de hoek en doelgroep van de content. Dit werkt door in de aanbevelingen en het
-        schrijven van de content. (De meet-vragen zijn al opgesteld bij het aanmaken.)
+        Stuur de hoek en doelgroep van de pagina&apos;s. Dit werkt door in de aanbevelingen en in wat ORBIT ENGINE schrijft. (De AI-vragen staan al klaar sinds het aanmaken.)
       </p>
       <textarea
         className="field"
         rows={4}
         value={brief}
         onChange={(e) => setBrief(e.target.value)}
-        placeholder="bijv. 'Richt de content op sollicitanten die zich voorbereiden op een gesprek…'"
+        placeholder="bijv. 'Richt de pagina's op sollicitanten die zich voorbereiden op een gesprek…'"
       />
       <div className="flex items-center gap-3">
         <button onClick={() => void save()} disabled={saving} className="btn-primary">

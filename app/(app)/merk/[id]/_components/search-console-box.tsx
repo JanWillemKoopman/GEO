@@ -6,6 +6,7 @@ import { useToast } from "@/components/toast";
 import { Alert } from "@/components/alert";
 import { koppelStatus } from "@/lib/search-console/koppelstatus";
 import { KoppelStatusLabel } from "@/app/(app)/instellingen/koppelingen/_components/koppel-status";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * Google Search Console koppelen (fase 5, migratie 0052).
@@ -80,8 +81,8 @@ export function SearchConsoleBox({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(false);
@@ -116,7 +117,7 @@ export function SearchConsoleBox({
       {gekoppeld ? (
         <p className="text-secondary">
           ORBIT ENGINE leest {property} en heeft {dagen} {dagen === 1 ? "dag" : "dagen"} aan
-          cijfers binnen. De volgende ronde draait vannacht.
+          cijfers binnen. Vannacht haalt ORBIT ENGINE de cijfers opnieuw op.
         </p>
       ) : (
         <p className="text-secondary">

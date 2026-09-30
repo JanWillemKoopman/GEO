@@ -226,7 +226,7 @@ function zoekDeel(b: KansBewijs): { tekst: string; steunt: boolean } | null {
   if (v === null) return null;
   const dagen = getal(b.periodeDagen);
   const periode = dagen !== null ? ` in ${formatNumber(dagen)} ${dagen === 1 ? "dag" : "dagen"}` : "";
-  if (v === 0) return { tekst: `In Google zien we hier nog geen zoekverkeer (0 vertoningen${periode})`, steunt: false };
+  if (v === 0) return { tekst: `In Google is hier nog geen zoekverkeer te zien (0 vertoningen${periode})`, steunt: false };
   return {
     tekst: `Mensen zoeken hiernaar (${formatNumber(v)} ${v === 1 ? "vertoning" : "vertoningen"} in Google${periode})`,
     steunt: true,

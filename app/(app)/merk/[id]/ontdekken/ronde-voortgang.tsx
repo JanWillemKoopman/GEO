@@ -9,7 +9,7 @@ import { WorkInProgress, useStatusPoll } from "@/components/work-in-progress";
  * zonder dat iemand hoeft te herladen.
  */
 const STAPPEN = [
-  { status: "verzamelen", label: "Verzamelen wat we al over je weten" },
+  { status: "verzamelen", label: "Verzamelen wat ORBIT ENGINE al over je weet" },
   { status: "verbreden", label: "Opzoeken waar in Google naar je aanbod gezocht wordt" },
   { status: "schiften", label: "Schiften op wat echt bij je past" },
   { status: "bundelen", label: "Bundelen tot onderwerpen" },
@@ -29,7 +29,7 @@ export function RondeVoortgang({ merkId, status }: { merkId: string; status: str
   return (
     <WorkInProgress
       title="Ontdekkingsronde loopt"
-      explanation="ORBIT ENGINE zoekt uit je Search Console, je onboarding en de zoekdata van Google naar onderwerpen die bij je passen en nog niet gemeten worden."
+      explanation="ORBIT ENGINE zoekt uit je Search Console, je kennismakingsgesprek en de zoekdata van Google naar onderwerpen die bij je passen en nog niet gemeten worden."
       etaText="meestal 5 tot 10 minuten"
       steps={STAPPEN.map((s, i) => ({ label: s.label, done: index > i }))}
     />

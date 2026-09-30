@@ -632,7 +632,7 @@ const handlers: { [T in JobType]: Handler<T> } = {
           .update({ status: "mislukt" })
           .eq("id", analysisId);
       throw new Error(
-        `Te weinig vragen gemeten om een score op te baseren: ${measured} van ${expected}.`,
+        `Te weinig AI-vragen gemeten om een zichtbaarheid op te baseren: ${measured} van ${expected}.`,
       );
     }
     if (measured < expected) {

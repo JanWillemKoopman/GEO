@@ -167,7 +167,7 @@ function clusterKolommen(
     },
     {
       key: "gemeten",
-      header: "Gemeten vragen",
+      header: "Gemeten AI-vragen",
       numeriek: true,
       width: "8rem",
       sortValue: (r) => r.laatste!.judged_runs ?? null,

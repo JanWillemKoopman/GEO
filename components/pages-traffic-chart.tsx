@@ -55,7 +55,7 @@ export function PagesTrafficChart({
   if (!meetkunde) {
     return (
       <div className="card flex flex-col gap-2">
-        <span className="mono-label">Klikken op onze pagina&apos;s</span>
+        <span className="mono-label">Klikken op de pagina&apos;s van ORBIT ENGINE</span>
         <p className="text-secondary">
           Er zijn nog te weinig dagen opgehaald om een verloop te tekenen.
         </p>
@@ -72,8 +72,8 @@ export function PagesTrafficChart({
 
   return (
     <div className="card flex flex-col gap-2">
-      <span className="mono-label">Klikken op onze pagina&apos;s</span>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Klikken per dag op de pagina's die ORBIT ENGINE publiceerde, met een streep per publicatiemoment. Horizontaal: ${X_AS_LABEL.toLowerCase()}. Verticaal: ${Y_AS_LABEL.toLowerCase()}.`}>
+      <span className="mono-label">Klikken op de pagina&apos;s van ORBIT ENGINE</span>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Klikken per dag op de pagina's van ORBIT ENGINE, met een streep op elke dag dat er een live ging. Horizontaal: ${X_AS_LABEL.toLowerCase()}. Verticaal: ${Y_AS_LABEL.toLowerCase()}.`}>
         {[0, 0.5, 1].map((f) => (
           <line
             key={f}

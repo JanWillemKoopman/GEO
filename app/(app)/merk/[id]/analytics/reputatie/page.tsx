@@ -138,7 +138,7 @@ export default async function ReputatiePage({
           title="Nog niets om te meten"
           action={{ href: `/merk/${id}/merkprofiel/bewerken`, label: "Vul het aanbod aan" }}
         >
-          Een reputatieanalyse meet per product of dienst hoe AI over je praat. In het merkdossier
+          Een reputatiemeting meet per product of dienst hoe AI over je praat. In het merkdossier
           van {merk} staan nog geen diensten of producten, dus er valt nog niets te meten.
         </EmptyState>
       </div>
@@ -162,8 +162,8 @@ export default async function ReputatiePage({
               vraag op wat hij dan wél betaalt. */}
           <p className="text-sm text-muted">
             {magStarten
-              ? "Ongeveer 50 vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent."
-              : "Ongeveer 50 vragen aan ChatGPT, een halfuur werk."}
+              ? "Ongeveer 50 AI-vragen aan ChatGPT, een halfuur werk, ongeveer 75 cent."
+              : "Ongeveer 50 AI-vragen aan ChatGPT, een halfuur werk."}
           </p>
         </div>
         <StartReputationButton
@@ -191,10 +191,9 @@ export default async function ReputatiePage({
       <div className="flex flex-col gap-8">
         <Kop />
         <div className="card flex flex-col gap-2">
-          <span className="mono-label">De analyse loopt</span>
+          <span className="mono-label">De meting loopt</span>
           <p className="text-secondary">
-            ORBIT ENGINE heeft {laatste.questions_done} van de {laatste.questions_planned || "?"}{" "}
-            vragen gesteld. Er {open === 1 ? "staat nog 1 stap" : `staan nog ${open ?? 0} stappen`}{" "}
+            ORBIT ENGINE heeft {laatste.questions_done} van de {laatste.questions_planned || "?"}{" "} AI-vragen gesteld. Er {open === 1 ? "staat nog 1 stap" : `staan nog ${open ?? 0} stappen`}{" "}
             open.
           </p>
           <p className="text-sm text-muted">
@@ -215,7 +214,7 @@ export default async function ReputatiePage({
       <div className="flex flex-col gap-8">
         <Kop />
         <div className="card card-danger flex flex-col gap-2">
-          <span className="mono-label">De analyse is niet gelukt</span>
+          <span className="mono-label">De meting is niet gelukt</span>
           {/* ⚠️ Geen half cijfer. Een cijfer op twee antwoorden is geen cijfer,
               en zo eentje één keer tonen kost het vertrouwen in alle volgende. */}
           {laatste.notes.length > 0 ? (
@@ -360,15 +359,14 @@ export default async function ReputatiePage({
                   month: "short",
                   year: "numeric",
                 })}{" "}
-                · {vragen} vragen · {views.length}{" "}
+                · {vragen} AI-vragen · {views.length}{" "}
                 {views.length === 1 ? "product" : "producten"}
               </span>
               <InfoHint label="Hoe lees je dit?">
                 De <strong>toon</strong> zegt hoe er over je gepraat wordt, van heel negatief tot
                 heel positief. Daarnaast staat altijd waar dat op rust: hoeveel controleerbare
                 bronnen ChatGPT aanhaalt en hoeveel daarvan niet je eigen site zijn. Die twee horen
-                bij elkaar. Een mooie toon met weinig bronnen betekent dat ChatGPT aardig tegen je
-                doet zonder je te kennen, en dat is iets anders dan een goede reputatie.
+                bij elkaar. Een mooie toon met weinig bronnen betekent dat ChatGPT aardig tegen je doet zonder je te kennen. Dat is iets anders dan een goede reputatie.
               </InfoHint>
             </div>
 
@@ -553,20 +551,20 @@ export default async function ReputatiePage({
               <div className="flex flex-col gap-1">
                 <span className="mono-label">Zonder opzoeken</span>
                 <p className="type-compact text-secondary">
-                  {zonderZoeken?.answer_text ?? "Deze vraag is niet gesteld."}
+                  {zonderZoeken?.answer_text ?? "Deze AI-vraag is niet gesteld."}
                 </p>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="mono-label">Met opzoeken</span>
                 <p className="type-compact text-secondary">
-                  {metZoeken?.answer_text ?? "Deze vraag leverde niets op."}
+                  {metZoeken?.answer_text ?? "Deze AI-vraag leverde niets op."}
                 </p>
               </div>
             </div>
             <p className="type-caption text-muted">
               Het verschil is het inzicht. Weet ChatGPT uit zichzelf niets en met opzoeken alles,
               dan hangt je reputatie volledig af van wat er online over je staat. Weet hij uit
-              zichzelf iets verouderds, dan los je dat met nieuwe content niet op.
+              zichzelf iets verouderds, dan los je dat met nieuwe pagina&apos;s niet op.
             </p>
           </CollapsibleSection>
 
@@ -622,7 +620,7 @@ function nl(waarde: number): string {
 function Kop({ action }: { action?: React.ReactNode }) {
   return (
     <PageHeader
-      eyebrow="Analytics"
+      eyebrow="Resultaten"
       title="Mijn reputatie"
       description="Wat AI over je zegt, per product, en of hij je noemt als een koper vraagt wie hij moet hebben."
       action={action}
@@ -694,7 +692,7 @@ function Voorbehoud({ run, vragen }: { run: ReputationRun | null; vragen?: numbe
       <p>Eén AI-assistent: ChatGPT. Andere assistenten kunnen iets anders zeggen.</p>
       <p>
         Eén moment{run && `, ${new Date(run.started_at).toLocaleDateString("nl-NL")}`}
-        {vragen !== undefined && `, op ${vragen} vragen`}. Geen doorlopende meting.
+        {vragen !== undefined && `, op ${vragen} AI-vragen`}. Geen doorlopende meting.
       </p>
       <p>
         Gemeten via de API van ChatGPT. Een antwoord in de app van je klant kan iets afwijken,

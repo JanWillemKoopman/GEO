@@ -92,7 +92,7 @@ export function PublishGuide({
         <li>
           <span className="font-medium text-[var(--text-primary)]">Link ernaartoe.</span> Zet vanaf
           je homepage of een relevante bestaande pagina een link naar deze nieuwe pagina. Een pagina
-          waar nergens naartoe gelinkt wordt, wordt slecht gevonden, ook door AI-crawlers.
+          waar nergens naartoe gelinkt wordt, wordt slecht gevonden, ook door AI-assistenten.
         </li>
       </ol>
 

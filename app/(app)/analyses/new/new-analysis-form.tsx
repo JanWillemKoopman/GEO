@@ -16,6 +16,7 @@ import {
   mixTotal,
   type PromptMix,
 } from "@/lib/prompt-mix";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /** De waarde van de keuzelijst die zegt: ik typ er zelf een nieuwe. */
 const NIEUW_LABEL = "__nieuw__";
@@ -98,7 +99,7 @@ export function NewAnalysisForm({
       // daar (`docs/tasks/clusterresultaat-zonder-eigen-scherm.md`).
       router.push(`/analyses/${json.id}/concept`);
     } catch {
-      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setError(GEEN_VERBINDING);
       setPending(false);
     }
   }
@@ -140,7 +141,7 @@ export function NewAnalysisForm({
           autoFocus
         />
         <span className="text-sm text-muted">
-          Eén cluster = één product of onderwerp. Scherp afbakenen levert scherpere vragen op.
+          Eén cluster = één product of onderwerp. Scherp afbakenen levert scherpere AI-vragen op.
         </span>
         {lijkend.length > 0 && (
           <span className="text-sm text-[var(--intent-warning-content)]">
@@ -190,7 +191,7 @@ export function NewAnalysisForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="mono-label">Hoeveel vragen per fase?</span>
+        <span className="mono-label">Hoeveel AI-vragen per fase?</span>
         <div className="grid grid-cols-3 gap-2">
           {PROMPT_CATEGORIES.map((fase) => (
             <label key={fase} className="flex flex-col gap-1 text-sm">
@@ -220,21 +221,20 @@ export function NewAnalysisForm({
       </div>
 
       <label className="flex flex-col gap-1.5">
-        <span className="mono-label">Wat voor content wil je? (optioneel)</span>
+        <span className="mono-label">Wat voor pagina&apos;s wil je? (optioneel)</span>
         <textarea
           value={contentBrief}
           onChange={(e) => setContentBrief(e.target.value)}
           rows={4}
           placeholder={
-            "bijv. 'Richt de content op sollicitanten die zich voorbereiden op een gesprek " +
+            "bijv. 'Richt de pagina's op sollicitanten die zich voorbereiden op een gesprek " +
             "(hoe kleed ik me, welke vragen kan ik verwachten), niet op algemene info voor wie " +
             "niet actief naar werk zoekt.'"
           }
           className="field"
         />
         <span className="text-sm text-muted">
-          Bepaal de hoek en de doelgroep. ORBIT ENGINE neemt dit mee in de vragen die het stelt, in de
-          aanbevelingen én in de content die het schrijft.
+          Bepaal de hoek en de doelgroep. ORBIT ENGINE neemt dit mee in de AI-vragen die het stelt, in de aanbevelingen én in de pagina&apos;s die het schrijft.
         </span>
       </label>
 
@@ -253,7 +253,7 @@ export function NewAnalysisForm({
             className="mt-0.5"
           />
           <span className="flex flex-col gap-0.5">
-            <span className="text-sm font-medium">Mail me zodra het rapport klaar is</span>
+            <span className="text-sm font-medium">Mail me zodra de uitslag klaar is</span>
             <span className="text-sm text-muted">
               ORBIT ENGINE werkt op de achtergrond door, ook als je dit scherm sluit. Blijven wachten hoeft
               niet, je krijgt bericht.

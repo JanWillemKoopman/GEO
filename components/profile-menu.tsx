@@ -137,7 +137,7 @@ export function ProfileMenu({
               className="menu-item"
             >
               <Icon naam="help" size={16} />
-              Support
+              Hulp
             </Link>
           </div>
 

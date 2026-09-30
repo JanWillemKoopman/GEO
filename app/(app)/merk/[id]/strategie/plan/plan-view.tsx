@@ -40,6 +40,7 @@ import type { ContentPlan, ContentType, FunnelStage, PlanMonth, PlannedPage } fr
 import { Icon } from "@/components/icon";
 import { NieuwPaginaIdee } from "@/components/pagina/nieuw-pagina-idee";
 import type { IdeeVenster } from "@/lib/pagina-idee-data";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * Het contentplan: een voorraad links, twaalf maanden rechts.
@@ -310,8 +311,8 @@ export function PlanView({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
       return false;
     } finally {
@@ -417,8 +418,8 @@ export function PlanView({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(null);
@@ -496,8 +497,8 @@ export function PlanView({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(null);
@@ -508,7 +509,7 @@ export function PlanView({
   /**
    * Het plan opnieuw opzetten. Twaalf verse maanden, meteen gevuld met de
    * sterkste kansen uit de voorraad (blok A punt 1, `vulOpenMaanden()`); het
-   * oude plan gaat op `gestopt` en blijft bewaard (conventie 8).
+   * oude plan gaat op `gestopt` en blijft staan (conventie 8).
    */
   async function planOpnieuw() {
     setBusy("plan");
@@ -531,8 +532,8 @@ export function PlanView({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(null);
@@ -1207,7 +1208,7 @@ export function PlanView({
         irreversible={{
           title: "Wat er blijft en wat er weggaat",
           description:
-            "Geschreven teksten blijven in je bibliotheek staan en pagina's die live staan blijven live. Het oude plan blijft bewaard, maar je ziet het hier niet meer terug.",
+            "Geschreven teksten blijven in je bibliotheek staan en pagina's die live staan blijven live. Het oude plan blijft staan, maar je ziet het hier niet meer terug.",
         }}
         confirmLabel="Opnieuw opzetten"
         confirmingLabel="Bezig…"
@@ -1988,10 +1989,10 @@ function vrijgeefTekst(paginas: PlannedPage[]): string {
     .filter((d): d is string => Boolean(d))
     .sort()[0];
   const delen = [
-    `Na het starten zetten we binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
+    `Na het starten zet ORBIT ENGINE binnen een paar minuten de vragen voor ${n === 1 ? "deze pagina" : `deze ${n} pagina's`} klaar, onder Openstaande vragen.`,
     // Punt 33: nooit een streefdatum in het verleden.
     streefzin(eerste, new Date().toISOString()),
-    "Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.",
+    "Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna legt ORBIT ENGINE de tekst aan je voor.",
     zonderOnderwerp > 0
       ? `Let op: ${zonderOnderwerp === 1 ? "1 pagina hangt" : `${zonderOnderwerp} pagina's hangen`} nog aan geen cluster. Die ${zonderOnderwerp === 1 ? "wordt" : "worden"} niet voorbereid tot je ${zonderOnderwerp === 1 ? "hem" : "ze"} koppelt.`
       : "",

@@ -31,7 +31,7 @@ const STALE_FAILURE: UserFacingError = {
   title: "De voorbereiding is eerder vastgelopen",
   message:
     "Meestal is dat een tijdelijke storing. Probeer het opnieuw. Wat al gelukt is, " +
-    "blijft bewaard, dus je begint niet van voren af aan.",
+    "blijft staan, dus je begint niet van voren af aan.",
   canRetry: true,
   detail: "",
 };
@@ -95,7 +95,7 @@ export function PrepareProgress({
   return (
     <WorkInProgress
       title="ORBIT ENGINE bereidt je cluster voor"
-      explanation="ORBIT ENGINE leest je website op dit onderwerp, zoekt uit wie hier je concurrenten zijn en stelt de vragen op die straks naar de AI-assistenten gaan."
+      explanation="ORBIT ENGINE leest je website op dit onderwerp, zoekt uit wie hier je concurrenten zijn en stelt de AI-vragen op."
       etaText={data?.etaText}
       retrying={data?.retrying}
       attempts={data?.attempts}
@@ -103,7 +103,7 @@ export function PrepareProgress({
         { label: "Website lezen op dit onderwerp", done: Boolean(data?.hasTopicResearch) },
         { label: "Concurrenten op dit onderwerp zoeken", done: Boolean(data?.hasTopicResearch) },
         {
-          label: `Vragen opstellen${data?.promptCount ? ` (${data.promptCount})` : ""}`,
+          label: `AI-vragen opstellen${data?.promptCount ? ` (${data.promptCount})` : ""}`,
           done: (data?.promptCount ?? 0) > 0,
         },
       ]}

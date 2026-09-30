@@ -94,7 +94,7 @@ export function findGaps(
       field: "aliases",
       label: "Andere schrijfwijzen van je naam",
       effect:
-        'Noemt een AI je als "Jansen BV" terwijl je dossier "Bakkerij Jansen" zegt, dan telt die vermelding niet mee. Je score valt dan te laag uit.',
+        'Noemt een AI je als "Jansen BV" terwijl je merkdossier "Bakkerij Jansen" zegt, dan telt die vermelding niet mee. Je zichtbaarheid valt dan te laag uit.',
       weight: 80,
     });
   }

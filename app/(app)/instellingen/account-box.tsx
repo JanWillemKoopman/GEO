@@ -202,7 +202,7 @@ export function AccountBox({
       <ConfirmDialog
         open={opzegDialoog}
         title="Abonnement opzeggen"
-        body="Je zegt het abonnement van dit account op. Je merken, metingen, rapporten en geschreven pagina's blijven allemaal staan."
+        body="Je zegt het abonnement van dit account op. Je merken, metingen, uitslagen en geschreven pagina's blijven allemaal staan."
         irreversible={{
           title: "Wat er wél verandert",
           description:

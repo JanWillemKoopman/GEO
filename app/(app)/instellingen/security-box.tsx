@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useToast } from "@/components/toast";
 import { passwordRules } from "@/lib/invite-rules";
 import { Icon } from "@/components/icon";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * E-mailadres en wachtwoord wijzigen (fase 7, naar het model van Nova).
@@ -66,8 +67,8 @@ export function SecurityBox({ email }: { email: string }) {
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(null);

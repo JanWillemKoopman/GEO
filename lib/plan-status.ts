@@ -102,7 +102,7 @@ export const PLAN_STATUS_META: Record<PlannedPageStatus, PlanStatusMeta> = {
     actionRequired: false,
   },
   mislukt: {
-    label: "Schrijven mislukt",
+    label: "Schrijven niet gelukt",
     running: "ORBIT ENGINE probeert het opnieuw",
     whoseTurn: "orbit_engine",
     tone: "fout",

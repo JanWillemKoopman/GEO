@@ -5,6 +5,7 @@ import { Icon } from "@/components/icon";
 import { useRefresh } from "@/components/use-refresh";
 import { CRAWL_SPEEDS, speedProfile, type CrawlSpeed } from "@/lib/crawl-speed";
 import { Alert } from "@/components/alert";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /**
  * Crawlbeheer: hoeveel, hoe vaak, en hoe rustig (onboarding Ronde D, §17.9).
@@ -112,7 +113,7 @@ export function InventoryBox({
       // A.5: geen rauwe JS-foutmelding ("Failed to fetch") op het scherm, dat
       // zegt niets over wat de klant eraan kan doen.
       setStaat("fout");
-      setFout("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     }
   }
 
@@ -120,8 +121,7 @@ export function InventoryBox({
     <div className="card flex flex-col gap-3">
       <span className="mono-label">Wat er al op je site staat</span>
       <p className="text-sm text-secondary">
-        ORBIT ENGINE brengt in kaart welke pagina&apos;s je website al heeft, zodat een aanbeveling
-        bestaande content kan verbeteren in plaats van altijd iets nieuws voor te stellen.
+        ORBIT ENGINE brengt in kaart welke pagina&apos;s je website al heeft. Zo kan een aanbeveling ook een bestaande pagina verbeteren, in plaats van altijd iets nieuws voor te stellen.
         Productpagina&apos;s van webshops blijven buiten beschouwing.{" "}
         {typeof totaal === "number" && totaal > count ? (
           <>
@@ -146,15 +146,15 @@ export function InventoryBox({
       {initialLastRunAt && (
         <p className="text-sm text-muted">
           Laatst gelezen op {new Date(initialLastRunAt).toLocaleDateString("nl-NL")}
-          {initialLastMode === "meer" ? ", aangevuld" : initialLastMode === "opnieuw" ? ", opnieuw gecrawld" : ""}.
+          {initialLastMode === "meer" ? ", aangevuld" : initialLastMode === "opnieuw" ? ", helemaal opnieuw gelezen" : ""}.
         </p>
       )}
       {initialBlockedAt && (
         <Alert intent="danger">
           <span className="flex flex-col gap-1">
-            <span className="font-medium text-[var(--text-primary)]">De site weerde ons</span>
+            <span className="font-medium text-[var(--text-primary)]">De site liet ORBIT ENGINE niet binnen</span>
             <span>
-              Bij de laatste ronde antwoordde de site met een 403. Laat ons adres toe bij de
+              Bij de laatste keer lezen antwoordde de site met een 403. Laat het adres van ORBIT ENGINE toe bij de
               hostingpartij, of zet het tempo op langzaam.
             </span>
           </span>
@@ -162,7 +162,7 @@ export function InventoryBox({
       )}
 
       <label className="flex flex-col gap-1.5">
-        <span className="mono-label">Aantal pagina&apos;s deze ronde</span>
+        <span className="mono-label">Aantal pagina&apos;s deze keer</span>
         <input
           type="number"
           min={5}
@@ -172,7 +172,7 @@ export function InventoryBox({
           onChange={(e) => setMax(Number(e.target.value) || 0)}
         />
         <span className="text-sm text-muted">
-          Tussen 5 en 500 voor deze ronde. De doorlopende instelling die andere stappen gebruiken
+          Tussen 5 en 500 voor deze keer. De doorlopende instelling die andere stappen gebruiken
           blijft maximaal 150.
         </span>
       </label>
@@ -227,13 +227,13 @@ export function InventoryBox({
             disabled={wacht}
             className="btn-outline"
           >
-            Opnieuw crawlen
+            Website opnieuw lezen
           </button>
         ) : (
           <span className="flex items-center gap-2 text-sm">
             De gelezen pagina&apos;s worden vervangen. Zeker weten?
             <button type="button" className="btn-primary btn-sm" disabled={wacht} onClick={() => void plan("opnieuw")}>
-              Ja, opnieuw crawlen
+              Ja, opnieuw lezen
             </button>
             <button
               type="button"

@@ -40,9 +40,9 @@ export function PotentialMetrics({
           badge={nogOnzeker ? CONFIDENCE_LOW_LABEL : undefined}
           hint={
             level === "analyse"
-              ? "Van de gemeten vragen van dit onderwerp: bij welk aandeel wordt dit merk in de laatste " +
+              ? "Van de gemeten AI-vragen van dit onderwerp: bij welk aandeel wordt dit merk in de laatste " +
                 "meting genoemd? 100 = overal genoemd, 0 = nergens."
-              : "Van de vragen die deze pagina moet winnen: bij welk aandeel wordt dit merk in de laatste " +
+              : "Van de AI-vragen die deze pagina moet winnen: bij welk aandeel wordt dit merk in de laatste " +
                 "meting genoemd? 100 = overal genoemd, 0 = nergens."
           }
         />

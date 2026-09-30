@@ -25,7 +25,7 @@
 export type Blokkade = "conflict";
 
 export const BLOKKADE_ZIN: Record<Blokkade, string> = {
-  conflict: "Gaat nu niet naar de schrijver: dit spreekt iets anders tegen en wacht op een keuze op de conflictlijst.",
+  conflict: "ORBIT ENGINE schrijft hier nu niet mee: dit spreekt iets anders tegen en wacht op een keuze op de conflictlijst.",
 };
 
 export interface BlokkadeKennis {

@@ -273,10 +273,16 @@ noemde. Elk hoofdstuk beantwoordt nu één vraag:
 | Overzicht | Is er iets nieuws, en wat moet ik nu doen? | `/merk/[id]`, tevens de bestemming na inloggen |
 | Clusters | Waarop meten we, en waarop zouden we moeten meten? | Clusters ontdekken, Mijn clusters |
 | Strategie | Wat gaan we doen, en wat is er al gemaakt? | Contentplan, Openstaande vragen, Bibliotheek |
-| Analytics | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
+| Resultaten | Wat zeggen de cijfers, en waarom? | Zichtbaarheid in AI, Zoekverkeer, Concurrenten, Mijn reputatie |
 | Merkprofiel | Klopt wat ORBIT ENGINE van me vond? | Merkdossier |
 | Sales | (alleen Outer Orbit, onder een scheidingslijn) | Overzicht, Opportunities, Prospects, Markten, Outreach |
-| Admin | (alleen beheerders, onder een scheidingslijn) | Onboardinggesprek, 0-meting, Aanbodboom, Diagnose, Toewijzen, Alle merken, Koppelingen |
+| Beheer | (alleen beheerders, onder een scheidingslijn) | Kennismakingsgesprek, 0-meting, Aanbodboom, Diagnose, Toewijzen, Alle merken, Koppelingen |
+
+⚠️ **Sinds 30 september 2026 heten Analytics, Admin en Support in het menu Resultaten, Beheer en
+Hulp**, en heet het menu-item "Search console" net als de kop "Zoekverkeer" (besluit van de eigenaar
+na de taalaudit, `docs/logbook.md`). De tabel hierboven en de tekst hieronder gebruiken op
+sommige plekken nog de oude namen; de adressen (`/analytics`, `/admin`, `/support`) zijn niet
+veranderd.
 
 ⚠️ **"Instellingen" stond hier tot 25 augustus 2026, met "Account en team" en "Koppelingen"
 eronder.** Geen van beide is nog een klantbestemming in de zijbalk: "Account en team" staat nu als

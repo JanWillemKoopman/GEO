@@ -25,7 +25,7 @@ export function PreviewToggle({ previewing }: { previewing: boolean }) {
   const pathname = usePathname();
 
   return (
-    <div className="segment" role="group" aria-label="Bekijk de app als">
+    <div className="segment" role="group" aria-label="Bekijk ORBIT ENGINE als">
       <button
         type="button"
         className="segment-item"
@@ -34,13 +34,13 @@ export function PreviewToggle({ previewing }: { previewing: boolean }) {
           if (previewing) void setClientPreview(false, pathname);
         }}
       >
-        Admin
+        Beheerder
       </button>
       <button
         type="button"
         className="segment-item"
         aria-pressed={previewing}
-        title="Je bekijkt de app zoals een klant hem ziet"
+        title="Je bekijkt ORBIT ENGINE zoals een klant het ziet"
         onClick={() => {
           if (!previewing) void setClientPreview(true, pathname);
         }}

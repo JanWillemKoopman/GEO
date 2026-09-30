@@ -62,7 +62,7 @@ const PROFILES: Record<CrawlSpeed, SpeedProfile> = {
     timeoutMs: 20_000,
     label: "Langzaam",
     description:
-      "Eén pagina tegelijk met een pauze ertussen. Kies dit als de site ons blokkeert, of bij een hele grote site waar we niet in de weg willen zitten.",
+      "Eén pagina tegelijk met een pauze ertussen. Kies dit als de site ORBIT ENGINE blokkeert, of bij een hele grote site die je niet wilt belasten.",
   },
 };
 

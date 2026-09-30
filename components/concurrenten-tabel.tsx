@@ -240,7 +240,7 @@ export async function ConcurrentenTabel({
             </span>
             <span className="text-sm text-muted">
               {rankings.rows.length === 1 ? "1 merk" : `${rankings.rows.length} merken`} kwam terug in de{" "}
-              {gemetenVragen} vragen die deze periode gesteld zijn.
+              {gemetenVragen} AI-vragen die deze periode gesteld zijn.
             </span>
           </div>
 
@@ -248,8 +248,7 @@ export async function ConcurrentenTabel({
             <span className="mono-label flex items-center gap-1">
               Merken op een rij
               <InfoHint label="Hoe is dit geteld?">
-                Elk merk op dezelfde manier: als percentage van de {gemetenVragen} vragen die deze
-                periode over al je clusters gesteld zijn, ook de vragen waarin de AI niemand noemde.
+                Elk merk op dezelfde manier: als percentage van de {gemetenVragen} AI-vragen die deze periode over al je clusters gesteld zijn, ook de AI-vragen waarin de AI niemand noemde.
                 Dat is een strengere noemer dan het hoofdcijfer op Zichtbaarheid, en precies daarom
                 de eerlijke manier om jezelf tussen je concurrenten te zetten.
               </InfoHint>

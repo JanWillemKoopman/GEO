@@ -17,6 +17,7 @@ import {
 import { BrandFieldInput } from "./brand-field-input";
 import { examplesFor } from "@/lib/pipeline/brand-examples";
 import type { Profile } from "@/lib/types/database";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * Het merkprofiel invullen, in zeven stappen.
@@ -148,7 +149,7 @@ export function BrandWizard({
         toast({
           intent: "fout",
           title: "Opslaan is niet gelukt",
-          description: j?.error ?? "Probeer het zo nog eens.",
+          description: j?.error ?? "Probeer het opnieuw.",
         });
         return;
       }
@@ -164,8 +165,8 @@ export function BrandWizard({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(false);

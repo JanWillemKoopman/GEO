@@ -39,7 +39,7 @@ export function TopicResearchEditor({
       if (!res.ok) throw new Error();
       setSaved(true);
     } catch {
-      setError("Opslaan mislukt. Probeer het opnieuw.");
+      setError("Opslaan is niet gelukt. Probeer het opnieuw.");
     } finally {
       setSaving(false);
     }

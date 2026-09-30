@@ -7,6 +7,7 @@ import { useToast } from "@/components/toast";
 import { MONTHS_AHEAD, MAX_STRATEGY_NOTE_LENGTH } from "@/lib/plan-constants";
 import { Icon } from "@/components/icon";
 import { COST_DENIED } from "@/lib/cost-rules";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * Er is nog geen plan.
@@ -97,8 +98,8 @@ export function CreatePlanBox({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(false);
@@ -154,13 +155,13 @@ export function CreatePlanBox({
             klaar={kansCount > 0}
             label={
               kansCount > 0
-                ? `${kansCount} gemeten ${kansCount === 1 ? "kans" : "kansen"} om in te plannen`
+                ? `${kansCount} gemeten ${kansCount === 1 ? "pagina-idee" : "pagina-ideeën"} om in te plannen`
                 : "Er is nog geen cluster gemeten"
             }
             uitleg={
               kansCount > 0 ? null : (
                 <>
-                  ORBIT ENGINE haalt de kansen uit het rapport van een gemeten cluster. Start
+                  ORBIT ENGINE haalt de pagina-ideeën uit de uitslag van een gemeten cluster. Start
                   eerst een meting op{" "}
                   <Link href={`/merk/${profileId}/strategie/clusters`} className="link">
                     Clusters

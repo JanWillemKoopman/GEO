@@ -93,7 +93,7 @@ export function entityConsistencyChecks(input: EntityConsistencyInput): AuditChe
       id: "entity.name",
       label: "Naamconsistentie",
       severity: "unknown",
-      finding: "We vonden geen bedrijfsnaam in de opmaak van de site.",
+      finding: "ORBIT ENGINE vond geen bedrijfsnaam in de opmaak van de site.",
       fix: "Laat je websitebouwer schema.org-opmaak toevoegen met de officiële bedrijfsnaam.",
       who: "je websitebouwer",
     });
@@ -162,7 +162,7 @@ export function entityConsistencyChecks(input: EntityConsistencyInput): AuditChe
       id: "entity.schema",
       label: "Gestructureerde data",
       severity: "unknown",
-      finding: "We konden geen pagina's bekijken, dus is onbekend of er schema.org-opmaak staat.",
+      finding: "ORBIT ENGINE kon geen pagina's bekijken, dus is onbekend of er schema.org-opmaak staat.",
       fix: "Zorg dat de site bereikbaar is voor de volgende controle.",
       who: null,
     });

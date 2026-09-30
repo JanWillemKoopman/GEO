@@ -72,10 +72,10 @@ export function statusRegel(r: { stand: PaginaStand; openVragen: number; datum: 
     case "live_zetten":
       return "Goedgekeurd: zet hem op je site";
     case "voorbereiden":
-      if (stand.label === "Geen cluster") return "Hangt aan geen cluster, daardoor kunnen we hem nog niet voorbereiden";
+      if (stand.label === "Geen cluster") return "Hangt aan geen cluster, daardoor kan ORBIT ENGINE hem nog niet voorbereiden";
       return stand.label === "Wordt voorbereid"
-        ? "We zetten de vragen voor deze pagina klaar"
-        : "We beginnen uiterlijk morgenochtend met de vragen voor deze pagina";
+        ? "ORBIT ENGINE zet de vragen voor deze pagina klaar"
+        : "ORBIT ENGINE begint uiterlijk morgenochtend met de vragen voor deze pagina";
     case "wacht_op_datum":
       return r.datum
         ? `Alle gegevens bekend, wordt op ${formatDag(schrijfdatum(r.datum))} geschreven`
@@ -85,9 +85,9 @@ export function statusRegel(r: { stand: PaginaStand; openVragen: number; datum: 
     case "niet_ingepland":
       return "Alle gegevens bekend, heeft nog geen datum in het contentplan";
     case "mislukt":
-      return "Schrijven lukte niet, we proberen het opnieuw";
+      return "Schrijven lukte niet, ORBIT ENGINE probeert het opnieuw";
     case "effect_meten":
-      return "Staat live, we meten het effect na 14 en 28 dagen";
+      return "Staat live, ORBIT ENGINE meet het effect na 14 en 28 dagen";
     case "effect_bekend":
       return "Staat live, het effect is gemeten";
     default:

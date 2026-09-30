@@ -1,5 +1,6 @@
 "use client";
 
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 
@@ -57,7 +58,7 @@ export function RerunResearchButton({
       }
       refresh();
     } catch {
-      setError("Weghalen is niet gelukt. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
     }
   }
 
@@ -111,7 +112,7 @@ export function RerunResearchButton({
       onStarted?.();
       refresh();
     } catch {
-      setError("Opnieuw onderzoeken is niet gelukt. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
       setPending(false);
     }
   }
@@ -172,7 +173,7 @@ export function RerunResearchButton({
         />
         <span className="text-sm text-muted">
           Mist er een dienst of productgroep? Plak de adressen die er zeker bij horen, één per
-          regel. Ze blijven staan bij een volgende ronde.
+          regel. Ze blijven staan bij een volgend onderzoek.
         </span>
       </label>
 

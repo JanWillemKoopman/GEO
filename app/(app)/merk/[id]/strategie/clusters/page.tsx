@@ -253,7 +253,7 @@ export default async function ClustersPage({
               </span>
               <p className="text-secondary">
                 {gearchiveerd.length === 0
-                  ? "Clusters die je hier neerzet verdwijnen uit je overzicht en worden niet meer gemeten. Ze blijven wel bewaard, dus terugzetten kan altijd."
+                  ? "Clusters die je hier neerzet verdwijnen uit je overzicht en worden niet meer gemeten. Ze blijven wel staan, dus terugzetten kan altijd."
                   : "Er staat wel iets in de prullenbak, alleen niet onder dit label of deze status. Kies een andere filter om het te zien."}
               </p>
             </div>
@@ -272,8 +272,7 @@ export default async function ClustersPage({
               title="Nog geen clusters voor dit merk"
               action={{ href: `/analyses/new?merk=${id}`, label: "Start het eerste cluster" }}
             >
-              Kies het product of onderwerp dat gemeten moet worden. ORBIT ENGINE stelt de vragen
-              die klanten aan een AI stellen, en telt hoe vaak dit merk in het antwoord staat.
+              Kies het product of onderwerp dat gemeten moet worden. ORBIT ENGINE stelt de AI-vragen die klanten ook stellen, en telt hoe vaak dit merk in het antwoord staat.
             </EmptyState>
           ) : (
             // De klant kan dit zelf niet starten, dus hoort hier te staan wie

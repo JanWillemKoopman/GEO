@@ -230,7 +230,7 @@ export function MobielMenu({
               aria-current={pathname === "/support" ? "page" : undefined}
             >
               <Icon naam="help" size={20} />
-              <span className="truncate">Support</span>
+              <span className="truncate">Hulp</span>
             </Link>
             <div className="mobiel-menu-item mobiel-menu-rij justify-between" style={trap()}>
               <span>Weergave</span>

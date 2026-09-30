@@ -304,7 +304,7 @@ async function notitieAlsVraag(admin: Admin, basis: Schrijfbasis, notitie: strin
       profile_id: basis.pagina.profileId,
       analysis_id: basis.pagina.analysisId,
       question: vraag,
-      reason: "De schrijver van deze pagina had dit nog willen weten. Met je antwoord kun je om een aanpassing vragen.",
+      reason: "ORBIT ENGINE had dit nog willen weten voor deze pagina. Met je antwoord kun je om een aanpassing vragen.",
       status: "open",
       scope: "pagina",
       kind: "aanvulling",

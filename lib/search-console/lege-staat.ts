@@ -99,7 +99,7 @@ export function legeStaat(invoer: LegeStaatInvoer): LegeStaatUitleg | null {
         "site. Het adres van ORBIT ENGINE moet in Search Console als gebruiker toegevoegd worden.",
       aanZet: "consultant",
       geruststelling:
-        "Je consultant regelt dit. Zodra Google ons binnenlaat, staan de cijfers er binnen een dag.",
+        "Je consultant regelt dit. Zodra Google ORBIT ENGINE toegang geeft, staan de cijfers er binnen een dag.",
     };
   }
 

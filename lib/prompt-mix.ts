@@ -221,7 +221,7 @@ export function describeMix(mix: PromptMix): string {
   const band = Math.round(1.96 * Math.sqrt((0.3 * 0.7) / Math.max(1, totaal)) * 1000) / 10;
   return (
     `${totaal} vragen per meetronde, ongeveer ${formatUsd(kosten)} per maand voor dit onderwerp. ` +
-    `De onzekerheidsmarge op de score is dan ongeveer ±${band.toFixed(1).replace(".", ",")} punten.`
+    `De onzekerheidsmarge op je zichtbaarheid is dan ongeveer ±${band.toFixed(1).replace(".", ",")} punten.`
   );
 }
 

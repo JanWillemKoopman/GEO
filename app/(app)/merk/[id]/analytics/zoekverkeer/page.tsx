@@ -343,7 +343,7 @@ export default async function ZoekverkeerPage({
 
       {/* ── 1. Onze pagina's bovenaan (V1) ──────────────────────────────────── */}
       <div className="flex flex-col gap-2">
-        <span className="mono-label">Wat ORBIT ENGINE publiceerde</span>
+        <span className="mono-label">Pagina&apos;s van ORBIT ENGINE · live</span>
         {vergelijkingOns ? (
           <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -367,11 +367,11 @@ export default async function ZoekverkeerPage({
             <p className="text-sm text-muted">
               {vergelijkingOns.vergelijkbaar
                 ? `Vergeleken met de ${dagenIn(vensterOns!.start, vensterOns!.eind)} dagen daarvóór. De laatste twee dagen zijn nog niet definitief.`
-                : `Nog niet genoeg geschiedenis voor een vergelijking. We verzamelen cijfers sinds ${new Date(vroegsteDagOns!.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}.`}
+                : `Nog niet genoeg geschiedenis voor een vergelijking. ORBIT ENGINE verzamelt cijfers sinds ${new Date(vroegsteDagOns!.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}.`}
             </p>
           </>
         ) : (
-          <p className="text-secondary">Nog geen klikken gemeten op onze pagina&apos;s.</p>
+          <p className="text-secondary">Nog geen klikken gemeten op de pagina&apos;s van ORBIT ENGINE.</p>
         )}
       </div>
 
@@ -381,10 +381,9 @@ export default async function ZoekverkeerPage({
       {/* ── 3, 6, 8. Onze pagina's als tabel ─────────────────────────────── */}
       <div className="flex flex-col gap-2">
         <span className="mono-label flex items-center gap-1">
-          Onze pagina&apos;s ({onzePaginas.length})
+          Pagina&apos;s van ORBIT ENGINE ({onzePaginas.length})
           <InfoHint label="Wat is 'Effect op AI'?">
-            Hoe vaak AI je noemde vóór en na publicatie, op de vragen waarvoor de pagina geschreven
-            is, naast vergelijkbare vragen zonder nieuwe pagina. Klik op een pagina voor de cijfers.
+            Hoe vaak AI je noemde vóór en na publicatie, op de AI-vragen waarvoor de pagina geschreven is, naast vergelijkbare AI-vragen zonder nieuwe pagina. Klik op een pagina voor de cijfers.
             Het enige cijfer op dit scherm dat oorzaak en gevolg verbindt.
           </InfoHint>
         </span>
@@ -417,7 +416,7 @@ export default async function ZoekverkeerPage({
           </div>
           {!vergelijkingHeleSite.vergelijkbaar && (
             <p className="text-sm text-muted">
-              Nog niet genoeg geschiedenis voor een vergelijking. We verzamelen cijfers sinds{" "}
+              Nog niet genoeg geschiedenis voor een vergelijking. ORBIT ENGINE verzamelt cijfers sinds{" "}
               {new Date(vroegsteDagHeleSite.start).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}.
             </p>
           )}
@@ -430,9 +429,9 @@ export default async function ZoekverkeerPage({
 function Kop() {
   return (
     <PageHeader
-      eyebrow="Analytics"
+      eyebrow="Resultaten"
       title="Zoekverkeer"
-      description="Levert de content die ORBIT ENGINE publiceerde ook bezoekers op uit Google?"
+      description="Leveren de pagina's van ORBIT ENGINE die live staan ook bezoekers op uit Google?"
     />
   );
 }

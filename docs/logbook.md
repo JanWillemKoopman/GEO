@@ -38,6 +38,7 @@ verwijzing in de code straks nergens meer heen.
 | `css.css`, `docs/nova-i18n.json`, `docs/inspace-app-i18n.json`, `docs/inspace-marketing.txt` | De ruwe brondata achter de Nova/InSpace-vergelijking: Nova's gecompileerde CSS-bundel en de drie tekstcatalogi uit de server-gerenderde loginpagina's | De conclusies eruit staan uitgeschreven in `docs/nova-vs-orbit-engine-proces.md` en `docs/tasks/nova-vergelijking-verbeterpunten.md`, die verder geen ruwe data meer nodig hebben. Verwijderd 21 september 2026, bij de OKX-herontwerpronde |
 | `redesign2026.md` §1 t/m §14 | Het volledige herontwerpplan van Nova naar OKX: de research, het nieuwe design system (§5 t/m §7), de schermspecs (§8), de elf uitvoeringsstappen (§10) en de drie besluiten van de eigenaar (§13, limoen als accent, mobiel een eigen ontwerp, oplevering in stappen) | Gebouwd en op `main`. Het design system zelf staat nu in `docs/designsystem.md`, de mobiele en desktop-indeling in `docs/ux-design.md`. Tientallen componenten citeren nog een paragraafnummer uit dit plan in hun eigen commentaar (bijv. "§8.5", "GEMETEN bij OKX"); dat commentaar blijft staan zoals het geschreven is, want het legt het waarom van die ene regel uit en niet de volledige herkomst. Verwijderd 21 september 2026, toen stap 11 (deze documentatie) klaar was |
 | `tasks/clusters-resultaatscherm-vereenvoudigen.md` A/B/C | De analyse van 16 september 2026 over de dichtheid van het clusterscherm: drie richtingen om de hoofdstukken dunner te maken | Ingehaald. Het scherm zelf is er op 22 september 2026 uit gehaald, zie `tasks/clusterresultaat-zonder-eigen-scherm.md` en de alinea van die datum hieronder. Verwijderd 22 september 2026 |
+| `tasks/taalaudit.md` §0 t/m §5 | De taalaudit van 30 september 2026: 2.727 schermteksten langs de woordenlijst en de InSpace-toon gelegd, met tien aanbevelingen | Alle tien uitgevoerd op dezelfde dag, zie "30 september 2026: taalaudit" hieronder. De regels zelf staan in `docs/schrijfstijl.md` §3, §11 en §12, en worden afgedwongen door `lib/woordenlijst.ts`. Verwijderd 30 september 2026 |
 | `contentpijplijn-overdracht.md`, `tasks/contentpijplijn-publicatiewaardig.md` (§1 t/m §16, WP1 t/m WP16, L1 t/m L10), `tasks/contentpijplijn-werkstand.md`, `tasks/contentpijplijn-herontwerp.md` (A1 t/m A6), `tasks/vragen-voor-het-schrijven.md`, `tasks/contentkwaliteit-framework.md`, `tasks/contentkwaliteit-copywriterronde.md` (V1 t/m V9), `tasks/customer-journey-cluster-tot-schrijven.md`, `tasks/contentflow-een-lijn.md` (§1 t/m §6) | De vorige contentketen: contract, briefing, paginastrategie, schrijven, eindredactie, vier beoordelaars, reparatierondes, en de flow van contentplan tot pagina | Vervangen door `tasks/contentketen-opnieuw.md` (25 september 2026). De besluiten die bleven (pas schrijven als elke vraag gedaan is, één vragenmoment per maand, de plaatsregel) staan daar als B5, B6 en B12. De code van de oude keten is in WP1 weggehaald; wat er gebeurde en waarom staat in de alinea's van 1 tot en met 25 september hieronder. Verwijderd 25 september 2026 |
 | `tasks/bevindingen-verificatie-processtappen-22-september-2026.md` punt 1 en 2 | De twee van de 117 processtappen die op 22 september 2026 niet klopten met de code: de doorverwijzingscontrole bij publiceren deed niets, en de nameting toonde de klant alleen een eindoordeel | Beide gebouwd op 23 september 2026, zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
 | `tasks/funnelfase-nooit-gevuld.md` | `planned_pages.funnel_stage_id` werd sinds 25 augustus 2026 nergens meer geschreven (0 van 18 pagina's bij Van den Udenhout) | Gerepareerd op 23 september 2026: `syncBacklog()` leidt de fase af uit de doelvragen (`lib/plan-funnel.ts`), zie de alinea van die datum onderaan. Verwijderd 23 september 2026 |
@@ -13498,4 +13499,51 @@ of open vraag wacht, want dat signaal stond eerder op de onderbalk en het bellet
 - De beweging (0,5 seconde, pagina wijkt opzij en krimpt, regels trapsgewijs) is een bewuste uitzondering op
   `designsystem.md` §7; `prefers-reduced-motion` zet hem uit.
 - ⚠️ Nog niet bekeken op een echte telefoon (conventie 10): alleen typecheck, tests en build.
+
+## 30 september 2026: taalaudit, één woord per begrip en één stem
+
+**Wens van de eigenaar.** Consistent woordgebruik in de hele app, in de toon van inspace.io. Die toon was al
+de regel (`docs/schrijfstijl.md` is in augustus van InSpace Nova afgeleid, en inspace.io klinkt in september
+nog hetzelfde); het probleem was dat de app zich er niet aan hield. Uit 2.727 schermteksten, automatisch
+uit `app/` en `components/` gehaald: 57 teksten met "we", "ons" of "onze", 17 keer "We konden ORBIT ENGINE
+niet bereiken", ongeveer 35 woorden die §11 al verbood (mislukt, merkprofiel, bewaard, crawlen, vrijgeven),
+"vragen" in twee betekenissen soms in één zin, een menu-item "Search console" boven een kop "Zoekverkeer",
+en twee teksten die zeiden dat ORBIT ENGINE publiceert terwijl de klant zelf plaatst.
+
+**Vier besluiten van de eigenaar**, gevraagd omdat ze wat de klant leest op elk scherm veranderen:
+
+1. **Menu in het Nederlands**: Analytics, Admin en Support heten Resultaten, Beheer en Hulp. De adressen
+   bleven gelijk (`/analytics` en `/admin` staan op tientallen plekken). De rol "Admin" heet in het scherm
+   nu "Beheerder", ook in de wisselknop "Beheerder, Klant"; het besluit "twee rollen" van eerder vandaag
+   blijft verder zoals het was.
+2. **Twee stemmen**: ORBIT ENGINE doet het werk, je consultant is de mens. "We" en "de schrijver" zijn weg.
+3. **Het hoofdcijfer heet zichtbaarheid**, niet score of "het grote percentage". Aandeel blijft voor het
+   cijfer per concurrent.
+4. **Cluster, onderwerp, label**: een cluster gaat over één onderwerp, een label groepeert clusters.
+   "Thema" is verdwenen; waar een ontdekkingsronde binnen zoekt heet nu een productgroep.
+
+**Wat er verder veranderde, zonder apart besluit omdat de regel al bestond of volgde uit de vier:**
+AI-vragen overal waar de vragen aan de AI bedoeld zijn (ruim 30 teksten), "live" in plaats van "gepubliceerd",
+"de uitslag" in plaats van "het rapport" (er is geen scherm dat zo heet), "meting" ook voor Mijn reputatie,
+"kennismakingsgesprek" in plaats van onboarding, "pagina's" in plaats van content (Contentplan blijft), en
+"ontdekkingsronde" in plaats van "ronde" zonder meer. De startpagina heet nu net als zijn menu-item
+"Openstaande taken", met de merknaam als eyebrow. Zes zinnen van meer dan 25 woorden zijn geknipt.
+`docs/merkstrategie.md` §14 kreeg een waarschuwing dat de kernboodschappen de bestemming beschrijven.
+
+**Foutmeldingen staan nu in één bestand**, `lib/meldingen.ts`: `GEEN_VERBINDING`, `nietGelukt()` en
+`BLIJFT_MISGAAN`. Er waren vijf varianten voor dezelfde boodschap, en "laat het ons weten" zei niet wie.
+
+**De woordenlijst wordt afgedwongen.** Het verbod op gedachtestreepjes had sinds T8.8 een test en is nooit
+teruggekomen; de woordenlijst had er geen en was weggezakt. `lib/woordenlijst.ts` zet de "niet dit"-kolom
+om in 18 regels, `scripts/ui-teksten.ts` haalt de schermteksten eruit met de TypeScript-parser (2.893
+teksten, commentaar en identifiers vallen weg), en `scripts/test-unit.ts` faalt op elke overtreding met
+de oplossing erbij. Uitzonderingen staan letterlijk in de lijst en zijn alleen voorbeeldzinnen in de stem
+van de klant ("Wij werken met eigen monteurs"), plus één WordPress-thema.
+
+- Bewust niet veranderd: "property" bij de Search Console-koppeling (zo heet het in Google zelf, en de
+  klant neemt het daar letterlijk over), "Kans" op het overzicht in de brede betekenis (§11), prompts
+  voor het model in `lib/pipeline/` en `lib/pagina/` (geen schermtekst), en serverlogs met "mislukt".
+- ⚠️ Nog niet bekeken in een browser als klant en als beheerder (conventie 10): alleen typecheck, tests en
+  build. Lange regels in de schermen zijn waar nodig op één regel gezet; de opmaak is niet opnieuw
+  uitgelijnd.
 

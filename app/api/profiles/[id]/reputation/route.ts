@@ -9,7 +9,7 @@ import { RUN_BUDGET_EUR } from "@/lib/reputation/budget";
 import type { ReputationDepth } from "@/lib/types/database";
 
 /**
- * Een reputatieanalyse starten (docs/tasks/mijn-reputatie.md §3.4).
+ * Een reputatiemeting starten (docs/tasks/mijn-reputatie.md §3.4).
  *
  * ── DRIE REMMEN, EN ZE STAAN LOS VAN ELKAAR ─────────────────────────────────
  *
@@ -74,7 +74,7 @@ export async function POST(
 
   if (lopend) {
     return NextResponse.json(
-      { error: "Er loopt al een reputatieanalyse voor dit merk." },
+      { error: "Er loopt al een reputatiemeting voor dit merk." },
       { status: 409 },
     );
   }
@@ -109,7 +109,7 @@ export async function POST(
 
   if (error || !run) {
     return NextResponse.json(
-      { error: "De reputatieanalyse kon niet gestart worden. Probeer het opnieuw." },
+      { error: "De reputatiemeting kon niet gestart worden. Probeer het opnieuw." },
       { status: 500 },
     );
   }

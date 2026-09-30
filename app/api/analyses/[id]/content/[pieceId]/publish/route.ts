@@ -37,7 +37,7 @@ export async function POST(
   }
 
   const raw = typeof body.url === "string" ? body.url.trim() : "";
-  if (!raw) return NextResponse.json({ error: "Geef de link naar de gepubliceerde pagina." }, { status: 400 });
+  if (!raw) return NextResponse.json({ error: "Geef de link naar de pagina die live staat." }, { status: 400 });
 
   // Zelfde vormcontrole als bij het aanmaken van een profiel (0.12): een
   // typefout hier kost de klant weken wachten op een effect dat nooit komt.

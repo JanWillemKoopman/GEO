@@ -6,6 +6,7 @@ import Link from "next/link";
 import { TagListEditor } from "@/components/tag-list-editor";
 import { checkUrlFormat } from "@/lib/url";
 import { Icon } from "@/components/icon";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /**
  * Nieuw merk aanmaken (docs/tasks/onboarding-2.0.md, blok C).
@@ -106,7 +107,7 @@ export function OnboardingWizard() {
       }
       router.push(`/merk/${json.id}/admin/aanbodboom`);
     } catch {
-      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setError(GEEN_VERBINDING);
       setPending(false);
     }
   }
@@ -123,9 +124,7 @@ export function OnboardingWizard() {
         </Link>
         <h1 className="type-heading-lg">Nieuw merk</h1>
         <p className="mt-2 text-secondary">
-          Twee velden, en ORBIT ENGINE gaat aan de slag. Het leest de hele website uit, brengt het aanbod in
-          kaart, zoekt uit wie de concurrenten zijn en test wat AI-assistenten nu al over je merk
-          weten.
+          Twee velden, en ORBIT ENGINE gaat aan de slag. Het leest de hele website en brengt het aanbod in kaart. Daarna zoekt het uit wie de concurrenten zijn en test het wat AI-assistenten nu al over je merk weten.
         </p>
       </div>
 
@@ -176,7 +175,7 @@ export function OnboardingWizard() {
           />
           <span className="text-sm text-muted">
             Wordt je merk ook anders geschreven? Zonder die varianten telt een vermelding niet mee
-            en valt je score te laag uit.
+            en valt je zichtbaarheid te laag uit.
           </span>
         </div>
 

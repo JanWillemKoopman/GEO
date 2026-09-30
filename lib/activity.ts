@@ -55,7 +55,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   measure_llm_response: "een vraag aan Gemini gesteld",
   aggregate_week: "de meetronde doorgerekend",
   profile_competitors: "uitgezocht waarom je concurrenten genoemd worden",
-  generate_report: "je rapport geschreven",
+  generate_report: "je uitslag uitgewerkt",
   // Intern: de klant ziet het conflictscherm niet (§8.3 van
   // contentpijplijn-publicatiewaardig.md), dus ook deze taak niet.
   fact_register: null,
@@ -84,7 +84,7 @@ export const TAAK_TEKST: Record<JobType, string | null> = {
   reputation_market: "gevraagd wie AI aanraadt in jouw markt",
 
   // ── Clusters ontdekken ────────────────────────────────────────────────────
-  discovery_collect: "verzameld wat we al over je weten",
+  discovery_collect: "verzameld wat het al over je weet",
   discovery_expand: "opgezocht waar in Google naar je aanbod gezocht wordt",
   discovery_sift: "de zoektermen geschift op wat bij je past",
   discovery_bundle: "nieuwe onderwerpen voor je gevonden",

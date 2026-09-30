@@ -129,8 +129,7 @@ export function EntitiesManager({ profileId, initial }: { profileId: string; ini
             <span className="font-medium text-[var(--text-primary)]">
               {pending.length} nieuw gevonden {pending.length === 1 ? "merk" : "merken"}
             </span>{" "}
-            in de laatste meting, nog niet ingedeeld. ORBIT ENGINE doet dat bij de eerstvolgende ronde
-            automatisch, jij hoeft niets.
+            in de laatste meting, nog niet ingedeeld. ORBIT ENGINE doet dat bij de eerstvolgende meting automatisch, jij hoeft niets.
           </p>
           <ul className="flex flex-col gap-2">
             {pending.map((e) => (
@@ -330,7 +329,7 @@ function EntityRow({
             disabled={busy}
             onClick={() => onPatch(entity.id, { dismissed: true })}
             className="text-sm text-secondary hover:underline"
-            title="Blijft bewaard, zodat we hem niet elke meting opnieuw voorstellen."
+            title="Blijft staan, zodat ORBIT ENGINE hem niet elke meting opnieuw voorstelt."
           >
             Geen concurrent
           </button>

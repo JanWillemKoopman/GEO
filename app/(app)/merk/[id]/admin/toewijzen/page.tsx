@@ -88,7 +88,7 @@ export default async function ToewijzenPage({
     // `wil-lezen`: formulierpatroon (§8.6/§8.8), 720px in plaats van 1440.
     <div className="flex flex-col gap-6 wil-lezen">
       <PageHeader
-        eyebrow="Admin"
+        eyebrow="Beheer"
         title="Toegang"
         description="Wie dit merk kan zien, en het uitnodigen van de klant."
       />

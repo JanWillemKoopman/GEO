@@ -85,7 +85,7 @@ export function KennisConflictLijst({
         <p className="text-sm text-muted">Er staat geen tegenstrijdig gegeven open.</p>
       ) : (
         <p className="text-sm text-secondary">
-          Kies welke versie klopt. Zolang je niet kiest, gaat geen van beide naar de schrijver. Wat je kiest, telt als
+          Kies welke versie klopt. Zolang je niet kiest, schrijft ORBIT ENGINE met geen van beide. Wat je kiest, telt als
           bevestigd door de klant; het andere wordt afgewezen.
         </p>
       )}

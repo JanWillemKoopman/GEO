@@ -101,7 +101,7 @@ export function ChangeBlock({ c, merk }: { c: RunComparison; merk: string }) {
       {c.scopeChanged && (
         <p className="text-sm text-muted">
           Er zijn deze keer andere diensten of producten gemeten dan vorige keer, omdat je
-          merkprofiel is gewijzigd. Een deel van het verschil komt dus doordat er iets anders
+          merkdossier is gewijzigd. Een deel van het verschil komt dus doordat er iets anders
           gevraagd is.
         </p>
       )}

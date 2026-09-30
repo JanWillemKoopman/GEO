@@ -41,7 +41,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   } catch (err) {
     console.error(`prepare inplannen mislukt voor ${id}:`, err);
     return NextResponse.json(
-      { error: "Voorbereiden inplannen mislukt.", detail: describeError(err), problem: classifyError(err) },
+      { error: "Voorbereiden inplannen is niet gelukt.", detail: describeError(err), problem: classifyError(err) },
       { status: 500 },
     );
   }

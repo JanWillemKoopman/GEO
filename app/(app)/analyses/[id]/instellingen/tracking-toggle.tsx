@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /** Aan/uit-schakelaar voor de wekelijkse tracking-lus (abcplan.md §6 A3/§12.4). */
 export function TrackingToggle({ analysisId, initial }: { analysisId: string; initial: boolean }) {
@@ -28,7 +29,7 @@ export function TrackingToggle({ analysisId, initial }: { analysisId: string; in
       }
     } catch {
       setEnabled(!next);
-      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
     } finally {
       setPending(false);
     }

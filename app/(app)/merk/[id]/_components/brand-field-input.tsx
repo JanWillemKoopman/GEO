@@ -370,7 +370,7 @@ function Herkomst({
   // aangenomen. Wel een mensbron, dus een volgende onderzoeksronde laat het
   // staan, en de klant mag het overschrijven zonder dat het opvalt.
   if (source === "consultant") {
-    return <span className="chip chip-success">door ons ingevuld</span>;
+    return <span className="chip chip-success">door je consultant ingevuld</span>;
   }
   return <span className="chip">uit je website gehaald</span>;
 }

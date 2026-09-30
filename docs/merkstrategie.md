@@ -539,6 +539,12 @@ SEO-mogelijkheden te ontsluiten."
 
 ## 14. Kernboodschappen en voorbeeldteksten
 
+> **Let op bij hergebruik.** Deze boodschappen beschrijven de bestemming, niet wat de app vandaag
+> doet. "Publiceert", "SEO en GEO" en "één systeem" kloppen nu niet (§30, punt 1, 2 en 4). Voor
+> een demo, een e-mail of een scherm: schrijf "ORBIT ENGINE schrijft de pagina, jij plaatst hem",
+> houd het bij zichtbaarheid in AI-antwoorden, en noem het product ORBIT ENGINE in plaats van "een
+> systeem" (`docs/schrijfstijl.md` §3 en §11).
+
 **Merkboodschap.** Meer zichtbaarheid. Meer verkeer. Meer klanten.
 
 **Productboodschap.** ORBIT ENGINE automatiseert strategie, content, publicatie en optimalisatie
@@ -991,7 +997,7 @@ een campagne een belofte doet die bij de eerste klant sneuvelt.
 
 | # | Wat dit document zegt | Wat er vandaag is | Ernst |
 |---|---|---|---|
-| 1 | ORBIT ENGINE publiceert via het CMS (§2.2, §17 stap 5, §25) | **Er is geen CMS-koppeling.** Bewust buiten scope gezet, publiceren gaat met de hand via "markeer als geplaatst" (`docs/logbook.md`). De app herkent wél welk CMS een site gebruikt, maar schrijft er niet naartoe | **Hoog.** Dit is een concrete, controleerbare productclaim die niet klopt |
+| 1 | ORBIT ENGINE publiceert via het CMS (§2.2, §17 stap 5, §25) | **Er is geen CMS-koppeling.** Bewust buiten scope gezet, publiceren gaat met de hand via "Meld dat hij live staat" (`docs/logbook.md`). De app herkent wél welk CMS een site gebruikt, maar schrijft er niet naartoe | **Hoog.** Dit is een concrete, controleerbare productclaim die niet klopt |
 | 2 | SEO én GEO als één geheel (§2.2, §5.1, §9.1) | **Alleen GEO.** Zichtbaarheid in AI-antwoorden wordt gemeten. Zoekwoordonderzoek en Google-positietracking staan met naam in `docs/logbook.md` §1 als bewust niet gebouwd. Search Console levert klikken en vertoningen, dat is meetdata, geen SEO-uitvoering | **Hoog.** De helft van de propositie |
 | 3 | Doelgroep is schaal: grote e-commerce, complexe B2B (§6) | **MKB.** `CLAUDE.md` en `docs/logbook.md` §1 kiezen expliciet voor eenvoud en snelheid boven enterprise-diepgang | Middel. Al eerder vastgelegd in `docs/visie.md` |
 | 4 | Het systeem beslist en handelt autonoom (§12, §16.5) | **Sales-led met goedkeuring per stap.** De consultant zet het profiel klaar, de klant keurt content goed vóór publicatie (`docs/logbook.md` §15) | Middel. Al eerder vastgelegd in `docs/visie.md` |

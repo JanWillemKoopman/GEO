@@ -59,8 +59,8 @@ export function classifyError(err: unknown): UserFacingError {
       kind: "configuration",
       title: "ORBIT ENGINE is niet volledig ingesteld",
       message:
-        "Er ontbreekt een instelling aan onze kant. Opnieuw proberen helpt hier niet. " +
-        "Laat het ons weten, dan zetten wij het recht.",
+        "Er ontbreekt een instelling in ORBIT ENGINE. Opnieuw proberen helpt hier niet. " +
+        "Laat het je consultant weten, dan wordt het rechtgezet.",
       canRetry: false,
       detail,
     };
@@ -100,7 +100,7 @@ export function classifyError(err: unknown): UserFacingError {
       kind: "ai_unavailable",
       title: "De AI-dienst was even niet bereikbaar",
       message:
-        "Dat gebeurt bij drukte en gaat vanzelf over. Wat al gelukt is, blijft bewaard. " +
+        "Dat gebeurt bij drukte en gaat vanzelf over. Wat al gelukt is, blijft staan. " +
         "Een nieuwe poging pakt alleen op wat nog mist.",
       canRetry: true,
       detail,
@@ -111,8 +111,8 @@ export function classifyError(err: unknown): UserFacingError {
     kind: "unknown",
     title: "Er ging iets onverwachts mis",
     message:
-      "Wat precies, weten we niet. Probeer het opnieuw. Blijft het misgaan, stuur ons " +
-      "dan de technische details hieronder.",
+      "Wat precies, is niet bekend. Probeer het opnieuw. Blijft het misgaan, stuur je " +
+      "consultant dan de technische details hieronder.",
     canRetry: true,
     detail,
   };

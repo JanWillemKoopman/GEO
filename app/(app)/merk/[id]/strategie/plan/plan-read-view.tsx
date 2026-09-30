@@ -152,7 +152,7 @@ export function PlanReadView({
         <Link href={`/merk/${profileId}/strategie/bibliotheek`} className="link">
           bibliotheek
         </Link>{" "}
-        om na te lezen en te publiceren. Wil je zelf schuiven met wat wanneer geschreven wordt, ga
+        om na te lezen en op je site te zetten. Wil je zelf schuiven met wat wanneer geschreven wordt, ga
         dan naar{" "}
         <Link href={`/merk/${profileId}/strategie/plan?weergave=plannen`} className="link">
           Plannen
@@ -225,7 +225,7 @@ function MaandKaart({
                 <th>Gepland</th>
                 <th>Cluster</th>
                 <th>Nieuw of optimalisatie</th>
-                <th>Type content</th>
+                <th>Soort pagina</th>
                 <th />
               </tr>
             </thead>
@@ -260,7 +260,7 @@ function MaandKaart({
                       )}
                       {href && meta.actionRequired && (
                         <Link href={href} className="btn-outline btn-sm ml-2 inline-flex">
-                          {page.status === "ter_goedkeuring" ? "Nakijken" : "Publiceren"}
+                          {page.status === "ter_goedkeuring" ? "Nakijken" : "Plaatsen"}
                           <Icon naam="naar" size={14} />
                         </Link>
                       )}

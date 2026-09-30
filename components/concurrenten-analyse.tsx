@@ -171,7 +171,7 @@ export function ConcurrentenAnalyse({
           <div className="card flex flex-col gap-1">
             <span className="mono-label">Nog niet in kaart</span>
             <p className="text-secondary">
-              ORBIT ENGINE brengt dit in kaart tijdens de meting. Zodra de eerste ronde klaar is,
+              ORBIT ENGINE brengt dit in kaart tijdens de meting. Zodra de eerste meting klaar is,
               staat hier welke sites de AI aanhaalt.
             </p>
           </div>

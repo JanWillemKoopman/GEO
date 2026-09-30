@@ -24,7 +24,7 @@ const MELDING: Record<string, string> = {
   verlopen: "Deze uitnodiging is verlopen. Vraag je contactpersoon om een nieuwe.",
   gebruikt: "Deze uitnodiging is al gebruikt. Log in met je e-mailadres en wachtwoord.",
   zwak: "Dit wachtwoord voldoet nog niet aan alle drie de regels.",
-  mislukt: "Activeren is niet gelukt. Probeer het zo nog eens.",
+  mislukt: "Activeren is niet gelukt. Probeer het opnieuw.",
 };
 
 export async function POST(request: Request) {

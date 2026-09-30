@@ -6,6 +6,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useToast } from "@/components/toast";
 import { streefzin } from "@/lib/pagina-stand";
 import { COST_DENIED } from "@/lib/cost-rules";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * De enige knop van de leesweergave: geef deze maand vrij.
@@ -89,8 +90,8 @@ export function ReleaseMonthButton({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(false);
@@ -115,12 +116,12 @@ export function ReleaseMonthButton({
         // Sinds 23 september 2026 (`docs/tasks/contentflow-een-lijn.md` §3.1):
         // vrijgeven zet eerst de vragen klaar; geschreven wordt er pas als die
         // gedaan zijn. De oude zin beloofde dat het schrijven meteen begon.
-        body={`Na het starten zetten we binnen een paar minuten de vragen voor ${
+        body={`Na het starten zet ORBIT ENGINE binnen een paar minuten de vragen voor ${
           paginas === 1 ? "deze pagina" : `deze ${paginas} pagina's`
         } klaar, onder Openstaande vragen.${
           // Punt 33: nooit een streefdatum in het verleden.
           streefzin(eersteDatum, new Date().toISOString()) ? ` ${streefzin(eersteDatum, new Date().toISOString())}` : ""
-        } Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna leggen we de tekst aan je voor.`}
+        } Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn, en daarna legt ORBIT ENGINE de tekst aan je voor.`}
         irreversible={{
           title: "Dit zet het werk in gang",
           description:

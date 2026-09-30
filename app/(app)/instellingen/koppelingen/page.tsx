@@ -180,7 +180,7 @@ function kaalAdres(url: string): string {
 function Kop() {
   return (
     <PageHeader
-      eyebrow="Admin"
+      eyebrow="Beheer"
       title="Search Console"
       description="Waar ORBIT ENGINE zijn cijfers vandaan haalt. Eén keer instellen per klant; klik op een klant om de koppeling te leggen of te controleren."
     />

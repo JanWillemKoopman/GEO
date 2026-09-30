@@ -13,6 +13,7 @@ import {
 } from "@/lib/pipeline/volume";
 import { Icon } from "@/components/icon";
 import { Segment } from "@/components/tabs";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /** Wat de klant per prompt mag wijzigen. */
 type PromptPatch = Partial<Pick<Prompt, "text" | "category" | "active" | "volume_band">>;
@@ -56,7 +57,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
       }
     } catch {
       if (previous) setPrompts((ps) => ps.map((p) => (p.id === id ? previous : p)));
-      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
     }
   }
 
@@ -72,7 +73,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
       }
     } catch {
       setPrompts(previous);
-      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
     }
   }
 
@@ -91,7 +92,7 @@ export function PromptsManager({ analysisId, initial }: { analysisId: string; in
         setError("Toevoegen is niet gelukt. Probeer het opnieuw.");
       }
     } catch {
-      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
     }
   }
 
@@ -134,7 +135,7 @@ function PromptCategoryList({
   if (prompts.length === 0) {
     return (
       <p className="text-sm text-muted">
-        Nog geen vragen in deze categorie. Voeg er hieronder een toe.
+        Nog geen AI-vragen in deze categorie. Voeg er hieronder een toe.
       </p>
     );
   }
@@ -271,7 +272,7 @@ function AddPromptForm({ category, onAdd }: { category: string; onAdd: (text: st
         className="field flex-1"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={`Nieuwe vraag in "${category}"…`}
+        placeholder={`Nieuwe AI-vraag in "${category}"…`}
       />
       <button type="submit" className="btn-outline shrink-0">
         <Icon naam="toevoegen" size={18} />

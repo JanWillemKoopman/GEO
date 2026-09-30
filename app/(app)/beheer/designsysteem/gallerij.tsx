@@ -155,7 +155,7 @@ export function Gallerij() {
           <span className="chip">Neutraal</span>
           <span className="chip chip-success">Gelukt</span>
           <span className="chip chip-warning">Let op</span>
-          <span className="chip chip-danger">Mislukt</span>
+          <span className="chip chip-danger">Niet gelukt</span>
           <span className="chip chip-info">Informatie</span>
           <span className="chip chip-attention">Kans</span>
           <span className="chip chip-outline">Omlijnd</span>

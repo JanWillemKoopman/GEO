@@ -160,7 +160,7 @@ export function kennisgatVan(kans: KansVoorGat, kennis: readonly KennisVoorGat[]
 export function kennisgatZin(ontbreekt: readonly string[] | null): string | null {
   if (ontbreekt === null) return null;
   const labels = ontbreekt.map((b) => BEHOEFTE_LABEL[b as Behoefte] ?? b);
-  if (labels.length === 0) return "Alles wat deze pagina nodig heeft, weten we al.";
+  if (labels.length === 0) return "Alles wat deze pagina nodig heeft, weet ORBIT ENGINE al.";
   const lijst = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(", ")} en ${labels[labels.length - 1]}`;
   return `Nog niet bekend: ${lijst}.`;
 }

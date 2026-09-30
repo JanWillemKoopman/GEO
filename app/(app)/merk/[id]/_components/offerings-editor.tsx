@@ -5,6 +5,7 @@ import { useRefresh } from "@/components/use-refresh";
 import { OFFERING_KINDS, type OfferingKind } from "@/lib/offerings-validate";
 import type { OfferingCoverage } from "@/lib/pipeline/structure-gap";
 import type { ProfileOffering } from "@/lib/types/database";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /** Alleen het pad, want het domein staat overal hetzelfde bovenaan. */
 function shortUrl(url: string): string {
@@ -154,7 +155,7 @@ export function OfferingsEditor({
       setToevoegen(false);
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }
@@ -183,7 +184,7 @@ export function OfferingsEditor({
       }
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }
@@ -205,7 +206,7 @@ export function OfferingsEditor({
       }
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }

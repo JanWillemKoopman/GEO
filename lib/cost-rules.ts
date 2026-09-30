@@ -110,9 +110,9 @@ export function actionNeedsStaff(action: CostlyAction): boolean {
  */
 export const COST_DENIED: Record<CostlyAction, string> = {
   merk_onderzoeken:
-    "Een nieuw merk onderzoeken doet je consultant bij Outer Orbit voor je. Neem contact op, dan zetten we het klaar.",
+    "Een nieuw merk onderzoeken doet je consultant bij Outer Orbit voor je. Neem contact op, dan zet je consultant het klaar.",
   analyse_starten:
-    "Een nieuw onderwerp meten doet je consultant bij Outer Orbit voor je. Laat weten welk onderwerp je erbij wilt, dan starten we het.",
+    "Een nieuw onderwerp meten doet je consultant bij Outer Orbit voor je. Laat weten welk onderwerp je erbij wilt, dan start je consultant het.",
   meting_starten:
     "De meting wordt door je consultant bij Outer Orbit gestart. Zo weet je zeker dat hij op het juiste moment draait.",
   content_schrijven:
@@ -125,7 +125,7 @@ export const COST_DENIED: Record<CostlyAction, string> = {
   // bestaat, en hij weet bij wie hij moet zijn. Zou de knop verborgen zijn, dan
   // wist hij niet dat dit product er is, en dan verkoop je het nooit.
   reputatie_starten:
-    "Een reputatieanalyse zet je consultant bij Outer Orbit voor je in gang. Laat weten dat je hem wilt, dan plannen we hem in.",
+    "Een reputatiemeting zet je consultant bij Outer Orbit voor je in gang. Laat weten dat je hem wilt, dan plant je consultant hem in.",
   // Deze melding komt de klant normaal nooit te zien: de knop staat niet op
   // zijn scherm. Ze is de garantie voor als iemand de route rechtstreeks
   // aanroept, niet de eerste verdedigingslinie.

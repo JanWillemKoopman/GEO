@@ -8,6 +8,7 @@ import { CONTENT_TYPES } from "@/lib/plan-writing";
 import { SOORTEN } from "@/lib/pagina/soorten";
 import { schoneDoelvragen, voorgesteldeMaand, type MaandVoorIdee } from "@/lib/pagina-idee";
 import type { ContentType } from "@/lib/types/database";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /**
  * NIEUW PAGINA-IDEE (30 september 2026): het venster waarmee de consultant zelf
@@ -109,7 +110,7 @@ export function NieuwPaginaIdee({
       toast({
         title: "Pagina-idee toegevoegd",
         description: data.ingepland && maand
-          ? `Staat in ${maand.titel}. Zodra die maand gestart is, stelt ORBIT ENGINE de vragen voor deze pagina.`
+          ? `Staat in ${maand.titel}. Zodra die maand gestart is, zet ORBIT ENGINE de vragen voor deze pagina klaar onder Openstaande vragen.`
           : data.melding
             ? `Staat in de ideeënlijst van het contentplan. Inplannen lukte niet: ${data.melding}`
             : "Staat in de ideeënlijst van het contentplan. Plan het in wanneer je wilt.",
@@ -117,7 +118,7 @@ export function NieuwPaginaIdee({
       setOpen(false);
       router.refresh();
     } catch {
-      setFout("Geen verbinding. Controleer je internet en probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }
@@ -245,7 +246,7 @@ export function NieuwPaginaIdee({
                   <fieldset className="flex flex-col gap-1.5">
                     <legend className="mb-1 font-medium">Over welke dienst of welk werkgebied gaat het?</legend>
                     <span className="text-xs text-secondary">
-                      De schrijver krijgt dan wat we over die dienst of dat gebied weten.
+                      ORBIT ENGINE schrijft dan met wat het over die dienst of dat gebied weet.
                     </span>
                     {kennisOpties.map((k) => (
                       <label key={k.id} className="flex items-start gap-2">

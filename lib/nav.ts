@@ -58,9 +58,9 @@ export const HOOFDSTUKKEN = [
   "Overzicht",
   "Clusters",
   "Strategie",
-  "Analytics",
+  "Resultaten",
   "Mijn bedrijf",
-  "Admin",
+  "Beheer",
 ] as const;
 
 export type Hoofdstuk = (typeof HOOFDSTUKKEN)[number];
@@ -133,9 +133,9 @@ export const GRENS_PER_HOOFDSTUK: Record<Hoofdstuk, number> = {
   // Terug naar de regel van drie sinds 23 september 2026: Clusters is een eigen
   // hoofdstuk geworden, dus Strategie heeft er geen vier meer nodig.
   Strategie: 3,
-  Analytics: 4,
+  Resultaten: 4,
   "Mijn bedrijf": 3,
-  Admin: 7,
+  Beheer: 7,
 };
 
 /**
@@ -259,13 +259,13 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     {
       href: `/merk/${brandId}/analytics`,
       label: "Zichtbaarheid in AI",
-      hoofdstuk: "Analytics",
+      hoofdstuk: "Resultaten",
       icoon: "analytics" as const,
     },
     {
       href: `/merk/${brandId}/analytics/zoekverkeer`,
-      label: "Search console",
-      hoofdstuk: "Analytics",
+      label: "Zoekverkeer",
+      hoofdstuk: "Resultaten",
       icoon: "zoekmachine",
     },
     //
@@ -368,15 +368,15 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
       ? [
           {
             href: `/merk/${brandId}/admin/onboarding`,
-            label: "Onboardinggesprek",
-            hoofdstuk: "Admin" as const,
+            label: "Kennismakingsgesprek",
+            hoofdstuk: "Beheer" as const,
             icoon: "reputatie" as const,
             staffOnly: true,
           },
           {
             href: `/merk/${brandId}/admin/aanbodboom`,
             label: "Aanbodboom",
-            hoofdstuk: "Admin" as const,
+            hoofdstuk: "Beheer" as const,
             icoon: "strategie" as const,
             staffOnly: true,
           },
@@ -386,14 +386,14 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
           {
             href: `/merk/${brandId}/admin/concurrenten`,
             label: "Concurrenten indelen",
-            hoofdstuk: "Admin" as const,
+            hoofdstuk: "Beheer" as const,
             icoon: "concurrenten" as const,
             staffOnly: true,
           },
           {
             href: `/merk/${brandId}/admin/toewijzen`,
             label: "Toegang",
-            hoofdstuk: "Admin" as const,
+            hoofdstuk: "Beheer" as const,
             icoon: "label" as const,
             staffOnly: true,
           },
@@ -440,14 +440,14 @@ export function generalNav(staff = false): NavItem[] {
           {
             href: "/beheer",
             label: "Alle merken",
-            hoofdstuk: "Admin" as const,
+            hoofdstuk: "Beheer" as const,
             icoon: "bedrijven" as const,
             staffOnly: true,
           },
           {
             href: "/instellingen/koppelingen",
             label: "Search Console",
-            hoofdstuk: "Admin" as const,
+            hoofdstuk: "Beheer" as const,
             icoon: "koppeling" as const,
             staffOnly: true,
           },
@@ -456,7 +456,7 @@ export function generalNav(staff = false): NavItem[] {
   ];
 }
 
-const AFGESCHERMD = new Set<Hoofdstuk>(["Admin"]);
+const AFGESCHERMD = new Set<Hoofdstuk>(["Beheer"]);
 
 /**
  * De platte lijst bestemmingen omgezet in koppen, in de volgorde van

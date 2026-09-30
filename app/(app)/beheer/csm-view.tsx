@@ -15,6 +15,7 @@ import {
   type CsmTotals,
 } from "@/lib/csm";
 import { STAGE_LABEL, STAGE_NEXT } from "@/lib/profile-stage";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * De klantentabel met segmenten (Nova's `admin.segments`).
@@ -63,7 +64,7 @@ export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals })
       <div className="card flex flex-col gap-2">
         <span className="mono-label">Nog geen merken</span>
         <p className="text-secondary">
-          Zodra je het eerste merkprofiel aanmaakt, staat het hier.
+          Zodra je het eerste merk aanmaakt, staat het hier.
         </p>
       </div>
     );
@@ -96,7 +97,7 @@ export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals })
         <Kpi
           label="Pijplijnfouten"
           waarde={kpi.pijplijnfouten}
-          uitleg="Taken die na vier pogingen definitief mislukten"
+          uitleg="Taken die na vier pogingen nog steeds niet gelukt zijn"
           alarm={kpi.pijplijnfouten > 0}
         />
       </div>
@@ -269,7 +270,7 @@ function Rij({ brand }: { brand: CsmBrand }) {
       });
       router.refresh();
     } catch {
-      toast({ intent: "fout", title: "Geen verbinding", description: "Controleer je internet en probeer het opnieuw." });
+      toast({ intent: "fout", title: GEEN_VERBINDING_TITEL, description: GEEN_VERBINDING_UITLEG });
     } finally {
       setBezig(false);
     }
@@ -331,7 +332,7 @@ function Rij({ brand }: { brand: CsmBrand }) {
             href={`/merk/${brand.profileId}/admin/onboarding`}
             className="text-secondary hover:underline"
           >
-            Onboarding
+            Kennismakingsgesprek
           </Link>
         )}
         <Link href={`/merk/${brand.profileId}/admin/aanbodboom`} className="text-secondary hover:underline">

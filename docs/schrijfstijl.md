@@ -36,6 +36,19 @@ kennen"*, *"Het schrijft de content"*, *"Nova blijft kijken naar rankings"*. Dus
 website uit"**, niet "de website wordt uitgelezen". Actief, met ORBIT ENGINE of jij als onderwerp, nooit
 lijdend.
 
+**Er praten precies twee stemmen in de app** (besluit van de eigenaar, 30 september 2026):
+
+| Wie | Doet wat | Voorbeeld |
+|---|---|---|
+| **ORBIT ENGINE** | het werk: meten, onderzoeken, schrijven, controleren | "ORBIT ENGINE schrijft deze pagina zodra elke vraag beantwoord is." |
+| **je consultant** | de mens: afspraken, storingen, advies | "Blijft het misgaan, laat het dan je consultant weten." |
+
+**"We", "wij", "ons" en "onze" staan nergens in de app.** Ze stonden er in 57 teksten, en betekenden
+daar soms ORBIT ENGINE, soms Outer Orbit en soms de klant zelf ("onze pagina's" op het scherm van de
+klant). **"De schrijver" bestaat ook niet**: voor de klant schrijft ORBIT ENGINE. De enige
+uitzondering is een voorbeeldzin in de stem van de klant ("Wij werken met eigen monteurs"); die staan
+letterlijk in `lib/woordenlijst.ts`.
+
 ### 4. Kop is de belofte, subkop is één zin uitleg
 Nova's vaste bouwsteen is een naam met een one-liner eronder: *"Concurrentie Analyse: vergelijk je
 concurrenten"*, *"Technische Optimalisatie: crawl, snelheid en structuur"*. Elke kaart, elk
@@ -126,6 +139,28 @@ waar het naartoe gaat dragen hetzelfde woord, en "vragen" betekent nooit twee di
 | de maand bij naam: "Oktober 2026" | "Maand 4", "maand 4 van 12" |
 | 3 pagina's per maand | pakket 3 per maand |
 | idee van je consultant | handmatige kans, niet gemeten |
+| AI-vragen, ook in lopende tekst ("Ongeveer 50 AI-vragen aan ChatGPT") | meet-vragen, prompts, en "vragen" zonder meer als de AI-vragen bedoeld worden |
+| cluster: wat samen gemeten wordt, over één onderwerp | thema |
+| label: een groep clusters | thema, categorie |
+| productgroep: waar een ontdekkingsronde binnen zoekt | thema |
+| ontdekkingsronde | ronde zonder meer |
+| lezen, onderzoek van de website | crawl, crawlen, ronde |
+| meting (ook voor Mijn reputatie) | analyse, reputatieanalyse |
+| de uitslag (van een meting) | het rapport |
+| zichtbaarheid, het hoofdcijfer in procenten | score, "het grote percentage" |
+| aandeel: alleen het cijfer per concurrent | aandeel voor je eigen hoofdcijfer |
+| live, "staat live" | gepubliceerd, "ORBIT ENGINE publiceerde" (de klant plaatst zelf) |
+| pagina's, teksten | content (behalve in de naam Contentplan) |
+| kennismakingsgesprek | onboarding, onboardinggesprek |
+| blijft staan | blijft bewaard |
+| Resultaten, Beheer, Hulp (hoofdstukken van het menu) | Analytics, Admin, Support |
+| beheerder (de rol) | admin |
+| Zoekverkeer (het scherm), Search Console (het product van Google) | Search console |
+
+**Deze tabel wordt afgedwongen.** `lib/woordenlijst.ts` zet de "niet dit"-kolom om in regels, en
+`scripts/test-unit.ts` legt elke schermtekst uit `app/` en `components/` (plus de labelbestanden in
+`lib/`) daarlangs. Een nieuw verbod gaat in beide tegelijk. Gaat de test rood, pas dan de tekst aan,
+niet de lijst.
 
 "Kans" blijft op het overzicht bestaan, in de bredere betekenis van alles wat je zichtbaarheid kan
 verbeteren (ook een technische blokkade of een onderwerp dat nog niet gemeten is). In het contentplan
@@ -138,6 +173,11 @@ dates in your preferences to see the planned dates."* en *"if it keeps happening
 service manager can help."* Drie onderdelen, in deze volgorde: wat er niet werkt, wie eraan werkt,
 en wat je intussen wél kunt. Een melding die alleen zegt dát iets niet lukt, laat de klant met een
 vraag zitten die hij niet zelf kan beantwoorden.
+
+**De vaste zinnen staan in `lib/meldingen.ts`**: `GEEN_VERBINDING` ("Geen verbinding. Controleer je
+internet en probeer het opnieuw."), `nietGelukt("Opslaan")` ("Opslaan is niet gelukt. Probeer het
+opnieuw.") en `BLIJFT_MISGAAN` ("Blijft het misgaan, laat het dan je consultant weten."). Verzin geen
+zesde variant: op 30 september 2026 stonden er vijf voor dezelfde boodschap.
 
 **Niet elke storing heeft een omweg**, en dan blijft het bij de eerste twee onderdelen: zeg dat er
 niets is dat de klant zelf kan doen, in plaats van een niet-bestaande omweg te verzinnen (conventie
@@ -183,6 +223,9 @@ Een knop heet **"Start het onderzoek"**, niet "Lanceer de sonde".
 # Geen gedachtestreepjes in code of documentatie.
 # De treffers die overblijven staan in docs/schrijfstijl.md onder de drie uitzonderingen.
 grep -rn "—" app components lib scripts docs *.md --include="*.ts" --include="*.tsx" --include="*.md"
+
+# De woordenlijst (§11) en de stem (§3): draait mee in de unittests.
+npm run test:unit
 
 # Geen schuine streep tussen twee Nederlandse woorden.
 grep -rnE "[a-zà-ÿ]{2,}/[a-zà-ÿ]{2,}" app components lib --include="*.ts" --include="*.tsx"

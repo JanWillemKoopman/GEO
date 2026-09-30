@@ -6,6 +6,7 @@ import { passwordRules, passwordOk } from "@/lib/invite-rules";
 import { Icon } from "@/components/icon";
 import { Alert } from "@/components/alert";
 import { AuthLabel } from "../../auth-card";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /**
  * Het activatieformulier: kies een wachtwoord, kom binnen.
@@ -58,7 +59,7 @@ export function ActivationForm({
       // uitgelogde staat kunnen hergebruiken.
       window.location.href = "/merk";
     } catch {
-      setFout("Geen verbinding. Controleer je internet en probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBusy(false);
     }

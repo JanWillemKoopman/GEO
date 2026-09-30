@@ -255,8 +255,11 @@ export default async function OverzichtPage({
           Geen cijfer in de subkop: het hoofdgetal staat verderop, en twee keer
           hetzelfde getal laat de klant zoeken welke de echte is. De regel zegt
           hoe vers de meting is (`docs/ux-design.md` §5). */}
+      {/* Het menu-item heet "Openstaande taken", dus de kop ook
+          (schrijfstijl.md §11); de merknaam staat erboven als eyebrow. */}
       <PageHeader
-        title={merknaam}
+        eyebrow={merknaam}
+        title="Openstaande taken"
         description={versheidsregel({
           metingen: periodes.length,
           gemetenOp: laatste?.gemetenOp ?? null,
@@ -280,7 +283,7 @@ export default async function OverzichtPage({
           </span>
           {fase !== "overgedragen" && (
             <Link href={`/merk/${id}/admin/onboarding`} className="link inline-flex items-center gap-1 text-sm">
-              Naar de onboarding
+              Naar het kennismakingsgesprek
               <Icon naam="naar" size={14} />
             </Link>
           )}

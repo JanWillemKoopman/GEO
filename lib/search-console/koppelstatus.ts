@@ -50,7 +50,7 @@ export function koppelStatus(invoer: KoppelStatusInvoer): KoppelStatus {
     return { staat: "geen_sleutel", goed: false, label: "Google-sleutel ontbreekt" };
   }
   if (invoer.lastError) {
-    return { staat: "fout", goed: false, label: "Ophalen mislukt" };
+    return { staat: "fout", goed: false, label: "Ophalen niet gelukt" };
   }
   if (!invoer.verifiedAt) {
     return { staat: "niet_gelukt", goed: false, label: "Nog geen toegang" };

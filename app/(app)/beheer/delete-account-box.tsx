@@ -63,14 +63,14 @@ export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] })
       });
       const json = await res.json();
       if (!res.ok) {
-        toast({ title: "Ophalen mislukt", description: json.error ?? "Onbekende fout.", intent: "fout" });
+        toast({ title: "Ophalen is niet gelukt", description: json.error ?? "Onbekende fout.", intent: "fout" });
         setOpen(false);
         return;
       }
       setPlan(json as Plan);
     } catch {
       toast({
-        title: "Ophalen mislukt",
+        title: "Ophalen is niet gelukt",
         description: "Er is geen verbinding met de server. Probeer het opnieuw.",
         intent: "fout",
       });
@@ -91,7 +91,7 @@ export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] })
       });
       const json = await res.json();
       if (!res.ok) {
-        toast({ title: "Verwijderen mislukt", description: json.error ?? "Onbekende fout.", intent: "fout" });
+        toast({ title: "Verwijderen is niet gelukt", description: json.error ?? "Onbekende fout.", intent: "fout" });
         return;
       }
       toast({
@@ -104,7 +104,7 @@ export function DeleteAccountBox({ accounts }: { accounts: DeletableAccount[] })
       refresh();
     } catch {
       toast({
-        title: "Verwijderen mislukt",
+        title: "Verwijderen is niet gelukt",
         description: "Er is geen verbinding met de server. Controleer of het account er nog staat.",
         intent: "fout",
       });

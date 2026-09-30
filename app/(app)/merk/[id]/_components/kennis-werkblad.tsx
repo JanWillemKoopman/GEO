@@ -28,8 +28,8 @@ import {
 } from "@/lib/kennis/overzicht";
 
 const LEEG: Record<KennisTab, string> = {
-  feiten: "Nog geen feiten. Het onderzoek van de website en het onboardinggesprek vullen dit.",
-  kennis: "Nog geen kennis. Het onderzoek en het onboardinggesprek vullen dit.",
+  feiten: "Nog geen feiten. Het onderzoek van de website en het kennismakingsgesprek vullen dit.",
+  kennis: "Nog geen kennis. Het onderzoek en het kennismakingsgesprek vullen dit.",
 };
 
 /**
@@ -44,7 +44,7 @@ const LEEG: Record<KennisTab, string> = {
  * bevestigt; de regel `magInBlokA()` staat ook in de database (conventie 1) en
  * het scherm zegt per regel of hij meegaat en zo niet waarom (`gebruikVan()`).
  *
- * Afkeuren is niet wissen: het item blijft bewaard, telt nergens meer mee en
+ * Afkeuren is niet wissen: het item blijft staan, telt nergens meer mee en
  * komt niet stil terug bij de volgende onderzoeksronde. "Terugzetten" draait het
  * terug. Aanpassen maakt een nieuwe versie; de oude blijft in de geschiedenis.
  *
@@ -211,8 +211,8 @@ export function KennisWerkblad({
                       <>
                         <span className="text-secondary">
                           {vermoedens.length === 1
-                            ? "Dit vermoeden bevestigen? Het gaat dan mee naar de schrijver."
-                            : `Deze ${vermoedens.length} vermoedens bevestigen? Ze gaan dan mee naar de schrijver.`}
+                            ? "Dit vermoeden bevestigen? ORBIT ENGINE gebruikt het dan bij het schrijven."
+                            : `Deze ${vermoedens.length} vermoedens bevestigen? ORBIT ENGINE gebruikt ze dan bij het schrijven.`}
                         </span>
                         <button
                           type="button"
@@ -241,7 +241,7 @@ export function KennisWerkblad({
                 <table className="tabel tabel-klikbaar">
                   <thead>
                     <tr>
-                      <th scope="col">Wat we weten</th>
+                      <th scope="col">Wat ORBIT ENGINE weet</th>
                       <th scope="col" className="hidden sm:table-cell">
                         Bron
                       </th>
@@ -308,7 +308,7 @@ export function KennisWerkblad({
                                 {isTeBevestigenVermoeden(item) && (
                                   <Knop
                                     icoon="klaar"
-                                    titel="Klopt: bevestigen, dan gaat het mee naar de schrijver"
+                                    titel="Klopt: bevestigen, dan gebruikt ORBIT ENGINE het bij het schrijven"
                                     uit={bezig !== null}
                                     onKlik={() => doe(item, "bevestigen")}
                                   />
@@ -327,7 +327,7 @@ export function KennisWerkblad({
                                 {acties.includes("afwijzen") && (
                                   <Knop
                                     icoon="prullenbak"
-                                    titel="Klopt niet: afkeuren. Het blijft bewaard en gaat niet naar de schrijver"
+                                    titel="Klopt niet: afkeuren. Het blijft staan, maar ORBIT ENGINE schrijft er niet mee"
                                     uit={bezig !== null}
                                     onKlik={() => doe(item, "afwijzen")}
                                   />
@@ -445,7 +445,7 @@ function Detail({
         <p className="text-xs text-secondary">
           {alleenLezen
             ? "Dit is een vermoeden van het onderzoek, zonder citaat van de site. ORBIT ENGINE gebruikt het pas nadat het bevestigd is."
-            : "Dit is een vermoeden van het onderzoek, zonder citaat van de site. Het gaat pas mee naar de schrijver als je het bevestigt."}
+            : "Dit is een vermoeden van het onderzoek, zonder citaat van de site. ORBIT ENGINE schrijft er pas mee als je het bevestigt."}
         </p>
       )}
       {/* De kolom Gebruikt zegt alleen Ja of Nee; het waarom staat hier. Het
@@ -453,7 +453,7 @@ function Detail({
       {reden === "Verlopen" && (
         <p className="text-xs text-secondary">De geldigheidsdatum is voorbij, dus ORBIT ENGINE gebruikt dit niet meer bij het schrijven.</p>
       )}
-      {reden === "Afgekeurd" && <p className="text-xs text-secondary">Afgekeurd: het blijft bewaard, maar ORBIT ENGINE gebruikt het niet.</p>}
+      {reden === "Afgekeurd" && <p className="text-xs text-secondary">Afgekeurd: het blijft staan, maar ORBIT ENGINE gebruikt het niet.</p>}
       {/* De zin over de conflictlijst is voor de consultant: de klant weet niet
           wat dat is. */}
       {!alleenLezen && item.blokkade && <p className="text-xs text-secondary">{item.blokkade}</p>}

@@ -130,7 +130,7 @@ export function compareRuns(current: RunSnapshot, previous: RunSnapshot): RunCom
   } else if (current.toneStderr === null || previous.toneStderr === null) {
     toneUnknown =
       "Een van beide metingen heeft geen betrouwbaarheidsmarge. Zonder marge is niet te zeggen " +
-      "of een verschil echt is of toeval, en dan noemen we het liever niets.";
+      "of een verschil echt is of toeval, en dan is het beter om niets te zeggen.";
   } else {
     const uitkomst = changeIsMeaningful(
       { score: current.toneIndex, stderr: current.toneStderr },

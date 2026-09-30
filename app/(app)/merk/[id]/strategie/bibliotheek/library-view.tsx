@@ -96,8 +96,8 @@ export function LibraryView({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Keuze label="Status" waarde={filter.status} opties={keuzes.status} onKies={(status) => zet({ status })} />
           <Keuze label="Cluster" waarde={filter.cluster} opties={keuzes.cluster} onKies={(cluster) => zet({ cluster })} />
-          <Keuze label="Content" waarde={filter.soort} opties={keuzes.soort} onKies={(soort) => zet({ soort })} />
-          <Keuze label="Type" waarde={filter.actie} opties={keuzes.actie} onKies={(actie) => zet({ actie })} />
+          <Keuze label="Soort pagina" waarde={filter.soort} opties={keuzes.soort} onKies={(soort) => zet({ soort })} />
+          <Keuze label="Nieuw of bestaand" waarde={filter.actie} opties={keuzes.actie} onKies={(actie) => zet({ actie })} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-muted)] pt-3">

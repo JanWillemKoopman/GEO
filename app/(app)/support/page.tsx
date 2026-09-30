@@ -7,7 +7,7 @@ import { brandNav, hoofdstukken, type Hoofdstuk, type NavHoofdstuk, type NavItem
 import type { IcoonNaam } from "@/lib/icons";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Support" };
+export const metadata = { title: "Hulp" };
 
 /**
  * SUPPORT: de ingebouwde gebruikershandleiding van ORBIT ENGINE.
@@ -65,7 +65,7 @@ export default async function SupportPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Support"
+        eyebrow="Hulp"
         title="Hoe ORBIT ENGINE werkt"
         description="Wat deze app doet, wat elk scherm betekent, en wat je vervolgens moet doen."
       />
@@ -120,8 +120,7 @@ function Hero({ brandId }: { brandId: string | null }) {
   return (
     <div className="flex flex-col gap-8">
       <p className="max-w-2xl text-lg leading-8 text-secondary">
-        ORBIT ENGINE onderzoekt hoe zichtbaar je merk is in AI-antwoorden, adviseert wat daaraan te
-        doen is, schrijft de content die daarvoor nodig is, en meet daarna of het gewerkt heeft.
+        ORBIT ENGINE onderzoekt hoe zichtbaar je merk is in AI-antwoorden en adviseert wat daaraan te doen is. Het schrijft de pagina&apos;s die daarvoor nodig zijn, en meet daarna of het gewerkt heeft.
         Niet als losse tools naast elkaar, maar als één doorlopend proces. Je merkdossier staat al
         klaar voordat je voor het eerst inlogt: dat werk is gedaan door je consultant.
       </p>
@@ -155,7 +154,7 @@ function Hero({ brandId }: { brandId: string | null }) {
             <span className="font-medium">Zoekmachineoptimalisatie.</span> Zichtbaarheid in
             traditionele zoekresultaten, zoals Google. Op{" "}
             <span className="font-medium">Zoekverkeer</span> zie je de echte cijfers uit Google
-            Search Console: leveren je gepubliceerde pagina&apos;s ook daar bezoekers op? Zoekvolumes
+            Search Console: leveren je nieuwe pagina&apos;s ook daar bezoekers op? Zoekvolumes
             uit Google gebruikt ORBIT ENGINE op één plek, bij Clusters ontdekken, om nieuwe
             onderwerpen te vinden. Een ranglijst van je posities in Google houdt het niet bij.
           </p>
@@ -165,7 +164,7 @@ function Hero({ brandId }: { brandId: string | null }) {
       {/* De cyclus, als tijdlijn met een doorlopende lijn: dit is één proces
           met een vaste volgorde, geen zes losse feiten. */}
       <div className="flex flex-col gap-5">
-        <span className="mono-label">Zo hangt alles samen. Elke ronde voedt de volgende</span>
+        <span className="mono-label">Zo hangt alles samen · elke meting voedt de volgende</span>
         <ol className="flex flex-col">
           {CYCLUS.map((stap, i) => (
             <li key={stap.titel} className="relative flex gap-4">
@@ -223,7 +222,7 @@ const CYCLUS: CyclusStap[] = [
     icoon: "meten",
     tekst: (
       <>
-        Voor elk cluster stelt ORBIT ENGINE de vragen die klanten aan een AI-assistent stellen, en
+        Voor elk cluster stelt ORBIT ENGINE de AI-vragen die klanten ook stellen, en
         telt hoe vaak jij in het antwoord voorkomt. Dat begint bij <b>Clusters</b>.
       </>
     ),
@@ -256,14 +255,14 @@ const CYCLUS: CyclusStap[] = [
     icoon: "goedkeuring",
     tekst: (
       <>
-        ORBIT ENGINE schrijft de content, jij keurt hem goed voor hij verder gaat. Alles wat af is
+        ORBIT ENGINE schrijft de pagina, jij keurt hem goed voor hij verder gaat. Alles wat af is
         staat verzameld in je <b>Bibliotheek</b>.
       </>
     ),
   },
   {
     nummer: "05",
-    titel: "Publiceren",
+    titel: "Op je site plaatsen",
     icoon: "publiceren",
     tekst: "ORBIT ENGINE levert de tekst klaar op, en jij plaatst hem zelf op je website. Een automatische koppeling met je website is er niet.",
   },
@@ -273,7 +272,7 @@ const CYCLUS: CyclusStap[] = [
     icoon: "opnieuw",
     tekst: (
       <>
-        Na publicatie meet ORBIT ENGINE opnieuw of je op díe vragen vaker genoemd wordt, en of de
+        Na publicatie meet ORBIT ENGINE opnieuw of je op díe AI-vragen vaker genoemd wordt, en of de
         pagina ook bezoekers oplevert via <b>Zoekverkeer</b>. Dat voedt de volgende ronde vanaf
         stap 01.
       </>
@@ -464,9 +463,9 @@ const ICOON_PER_HOOFDSTUK: Record<Hoofdstuk, IcoonNaam> = {
   Overzicht: "taken",
   Clusters: "clusters",
   Strategie: "strategie",
-  Analytics: "analytics",
+  Resultaten: "analytics",
   "Mijn bedrijf": "merkprofiel",
-  Admin: "admin",
+  Beheer: "admin",
 };
 
 const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
@@ -477,7 +476,7 @@ const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
   Contentplan: "plannen",
   Bibliotheek: "bibliotheek",
   "Zichtbaarheid in AI": "analytics",
-  "Search console": "zoekmachine",
+  Zoekverkeer: "zoekmachine",
   Concurrenten: "concurrenten",
   "Mijn reputatie": "reputatie",
   Merkdossier: "merkprofiel",
@@ -490,10 +489,10 @@ const KICKER: Record<string, string> = {
   "Mijn clusters": "Eén onderwerp, gemeten op hoe vaak AI je noemt.",
   "Clusters ontdekken": "Nieuwe onderwerpen die bij je merk passen.",
   "Openstaande vragen": "Wat ORBIT ENGINE nog van je wil weten.",
-  Contentplan: "Wat er wanneer geschreven en gepubliceerd wordt.",
+  Contentplan: "Wat er wanneer geschreven wordt en live moet.",
   Bibliotheek: "Alle pagina's, van de eerste vragen tot het gemeten effect.",
   "Zichtbaarheid in AI": "Je hoofdcijfer: hoe vaak je genoemd wordt.",
-  "Search console": "Levert je content ook bezoekers op uit Google?",
+  Zoekverkeer: "Leveren je nieuwe pagina's ook bezoekers op uit Google?",
   Concurrenten: "Wie er nog meer genoemd wordt, en waar jij staat.",
   "Mijn reputatie": "Niet óf je genoemd wordt, maar hoé.",
   Merkdossier: "Wie je bent volgens ORBIT ENGINE, en of dat klopt.",
@@ -556,14 +555,14 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           label="Wat je hier ziet en kunt doen"
           items={[
             "Bovenaan staat wat je aandacht vraagt: een cluster dat niet gelukt is, of een meetplan dat wacht op goedkeuring.",
-            "Bij een gemeten cluster staan twee links: de cijfers van dat cluster op Analytics, en de pagina's die eruit volgen in de Bibliotheek.",
+            "Bij een gemeten cluster staan twee links: de cijfers van dat cluster op Zichtbaarheid in AI, en de pagina's die eruit volgen in de Bibliotheek.",
             "Onder Voorgesteld staan onderwerpen die ORBIT ENGINE voorstelt, uit je merkonderzoek en uit Clusters ontdekken. Je consultant start daar de meting.",
-            "Een label hangt een cluster aan een eigen groep. Een cluster in de prullenbak wordt niet meer gemeten, maar blijft bewaard en kan altijd terug.",
+            "Een label hangt een cluster aan een eigen groep. Een cluster in de prullenbak wordt niet meer gemeten, maar blijft staan en kan altijd terug.",
           ]}
         />
         <p className="text-secondary">
           Een nieuw cluster start je consultant voor je. Na de start stelt ORBIT ENGINE een
-          meetplan voor, en pas als dat is goedgekeurd gaan de vragen naar de AI-assistenten.
+          meetplan voor, en pas als dat is goedgekeurd stelt ORBIT ENGINE de AI-vragen.
         </p>
         <Tip>
           Website en onderwerp liggen na de start vast, want anders is de trend niet meer te lezen.
@@ -574,8 +573,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
     "Clusters ontdekken": (
       <>
         <p className="text-secondary">
-          Nieuwe onderwerpen die bij je merk passen, gevonden in je eigen Google-cijfers, je
-          onboarding en de zoekdata van Google. Je consultant start een ronde over één thema;
+          Nieuwe onderwerpen die bij je merk passen, gevonden in je eigen Google-cijfers, je kennismakingsgesprek en de zoekdata van Google. Je consultant start een ontdekkingsronde over één productgroep;
           daarna staan hier hooguit twaalf voorstellen, met per voorstel waarom het de moeite
           waard is.
         </p>
@@ -621,7 +619,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
       <>
         <p className="text-secondary">
           Wat ORBIT ENGINE deze maand en volgende maand voor je schrijft, en wanneer het live moet
-          staan. Dit is de brug tussen wat er gemeten is en wat er daadwerkelijk gepubliceerd wordt.
+          staan. Dit is de brug tussen wat er gemeten is en wat er echt live komt.
         </p>
         <Kader
           label="Drie weergaven"
@@ -642,7 +640,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           ]}
         />
         <p className="text-secondary">
-          Een maand vrijgeven doe je samen met je consultant. Daarna zet ORBIT ENGINE de vragen
+          Een maand starten doe je samen met je consultant. Daarna zet ORBIT ENGINE de vragen
           voor die pagina&apos;s klaar onder Openstaande vragen.
         </p>
       </>
@@ -669,7 +667,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
     ),
   },
 
-  Analytics: {
+  Resultaten: {
     "Zichtbaarheid in AI": (
       <>
         <p className="text-secondary">
@@ -679,11 +677,11 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
         <Kader
           label="Wat je hier ziet"
           items={[
-            "Het grote percentage is je gewogen gemiddelde over alle clusters, met de onzekerheidsmarge erbij: dat is geen slordigheid maar de breedte van een steekproef.",
+            "Het grote cijfer is je zichtbaarheid: je gewogen gemiddelde over alle clusters, met de onzekerheidsmarge erbij: dat is geen slordigheid maar de breedte van een steekproef.",
             "Het raster ernaast toont per cluster hoe de lijn loopt: staven bij één of twee metingen, een lijn vanaf drie.",
             "De tabel eronder zet elk cluster naast elkaar, zodat je in één oogopslag ziet welk onderwerp achterblijft. Daaronder staat elke AI-vraag los, met het antwoord erbij.",
-            "Helemaal onderaan staat wat je gepubliceerde pagina's in Google opleverden: klikken sinds de start en in de laatste 28 dagen.",
-            "Staat er een blokkade bovenaan, los die dan als eerste op: zolang een AI-assistent je site niet mag lezen, blijft je score lager dan hij zou zijn, en helpt nieuwe content daar niets aan.",
+            "Helemaal onderaan staat wat je nieuwe pagina's in Google opleverden: klikken sinds de start en in de laatste 28 dagen.",
+            "Staat er een blokkade bovenaan, los die dan als eerste op: zolang een AI-assistent je site niet mag lezen, blijft je zichtbaarheid lager dan hij zou zijn, en helpen nieuwe pagina's daar niets aan.",
           ]}
         />
         <p className="text-secondary">
@@ -692,12 +690,12 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
         </p>
       </>
     ),
-    "Search console": (
+    Zoekverkeer: (
       <>
         <p className="text-secondary">
-          Levert de content die ORBIT ENGINE publiceerde ook bezoekers op uit Google? Dit scherm
-          gaat over de pagina&apos;s die ORBIT ENGINE zelf schreef en publiceerde, niet over je hele
-          website.
+          Leveren de pagina&apos;s van ORBIT ENGINE ook bezoekers op uit Google? Dit scherm gaat
+          alleen over de pagina&apos;s die ORBIT ENGINE schreef en die jij live hebt gezet, niet over
+          je hele website.
         </p>
         <Kader
           label="Wat je hier ziet"
@@ -729,7 +727,7 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           label="Wat je hier ziet"
           items={[
             "Jouw plaats bovenaan is een rangnummer, geen percentage: plaats 2 van de 6 bijvoorbeeld.",
-            "De tabel eronder zet elk merk op dezelfde manier neer, als percentage van alle gestelde vragen. Dat is een strengere rekenwijze dan het hoofdcijfer op Zichtbaarheid, en precies daarom de eerlijke manier om jezelf te vergelijken.",
+            "De tabel eronder zet elk merk op dezelfde manier neer, als percentage van alle gestelde AI-vragen. Dat is een strengere rekenwijze dan het hoofdcijfer op Zichtbaarheid, en precies daarom de eerlijke manier om jezelf te vergelijken.",
             "Het bronnenlandschap toont welke websites de AI-assistent citeert als bron, en of jouw site daarbij staat.",
           ]}
         />
@@ -779,13 +777,11 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
           ]}
         />
         <p className="text-secondary">
-          Dit dossier is de basis onder alles: hoe scherper het klopt, hoe beter de vragen die ORBIT
-          ENGINE stelt en hoe raker de content die het schrijft.
+          Dit merkdossier is de basis onder alles: hoe scherper het klopt, hoe beter de AI-vragen die ORBIT ENGINE stelt en hoe raker de pagina&apos;s die het schrijft.
         </p>
         <Tip>
-          Klopt er iets in je dossier niet meer, bijvoorbeeld een nieuwe dienst of een ander
-          werkgebied? Werk het hier bij. Dat werkt door in de volgende meetronde en in nieuwe
-          content, niet met terugwerkende kracht in wat er al geschreven is.
+          Klopt er iets in je merkdossier niet meer, bijvoorbeeld een nieuwe dienst of een ander
+          werkgebied? Werk het hier bij. Dat werkt door in de volgende meetronde en in nieuwe pagina&apos;s, niet met terugwerkende kracht in wat er al geschreven is.
         </Tip>
       </>
     ),

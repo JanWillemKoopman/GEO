@@ -73,8 +73,7 @@ export default async function BibliotheekPage({
           title="Nog geen pagina's"
           action={{ href: `/merk/${id}/strategie/plan`, label: "Naar het contentplan" }}
         >
-          Pagina&apos;s verschijnen hier zodra een maand in het contentplan gestart is. Dan zetten we
-          de vragen voor die maand klaar, en daarna schrijven we de pagina&apos;s.
+          Pagina&apos;s verschijnen hier zodra een maand in het contentplan gestart is. Dan zet ORBIT ENGINE de vragen voor die maand klaar, en daarna schrijft het de pagina&apos;s.
         </EmptyState>
       ) : (
         // `?cluster=` komt van de doorverwijzing die de bibliotheek per cluster

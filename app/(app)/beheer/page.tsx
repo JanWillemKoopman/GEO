@@ -56,7 +56,7 @@ export default async function BeheerPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Admin"
+        eyebrow="Beheer"
         title="Alle merken"
         description="Alle merken van alle klanten, met bovenaan wat het eerst aandacht vraagt."
       />

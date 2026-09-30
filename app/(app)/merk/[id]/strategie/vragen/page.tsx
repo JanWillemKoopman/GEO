@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BLIJFT_MISGAAN } from "@/lib/meldingen";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
@@ -102,7 +103,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
         kind: "unknown",
         title: "ORBIT ENGINE kon je vragen nu niet ophalen",
         message:
-          "Er ging iets mis bij het ophalen. Ververs de pagina. Blijft het misgaan, laat het ons dan weten.",
+          `Ververs de pagina. ${BLIJFT_MISGAAN}`,
         canRetry: false,
         detail: "",
       }

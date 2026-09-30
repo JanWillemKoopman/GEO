@@ -1,5 +1,6 @@
 "use client";
 
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 import {
@@ -91,7 +92,7 @@ export function StrategyBox({
       setPending(false);
       refresh();
     } catch {
-      setError("Opslaan is niet gelukt. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
       setPending(false);
     }
   }
@@ -114,7 +115,7 @@ export function StrategyBox({
           rows={4}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Wat wil de klant bereiken, en waarom? ORBIT ENGINE neemt dit mee in de vragen die het bedenkt en in het rapport."
+          placeholder="Wat wil de klant bereiken, en waarom? ORBIT ENGINE neemt dit mee in de AI-vragen die het bedenkt en in de uitslag."
         />
       </label>
 

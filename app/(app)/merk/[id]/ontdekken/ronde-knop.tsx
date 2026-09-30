@@ -1,5 +1,6 @@
 "use client";
 
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 import { THEMA_MAX, THEMA_MIN } from "@/lib/cluster-discovery";
@@ -50,13 +51,13 @@ export function RondeKnop({
       });
       const json = await res.json();
       if (!res.ok) {
-        setFout(json.error ?? "De ronde kon niet gestart worden.");
+        setFout(json.error ?? "De ontdekkingsronde kon niet gestart worden.");
         setBezig(false);
         return;
       }
       refresh();
     } catch {
-      setFout("De ronde kon niet gestart worden. Controleer je verbinding.");
+      setFout(GEEN_VERBINDING);
       setBezig(false);
     }
   }
@@ -78,14 +79,13 @@ export function RondeKnop({
 
   return (
     <div className="card card-rail flex flex-col gap-4">
-      <span className="mono-label">Ronde starten</span>
+      <span className="mono-label">Ontdekkingsronde starten</span>
 
       <div className="flex flex-col gap-2">
         <label className="flex flex-col gap-1.5">
-          <span className="type-body-emphasis">Over welk product of thema gaat deze ronde?</span>
+          <span className="type-body-emphasis">Over welke productgroep of dienst gaat deze ontdekkingsronde?</span>
           <span className="text-sm text-secondary">
-            Eén ronde zoekt gericht binnen één thema. Zo komen er onderwerpen uit die dieper gaan dan
-            een ronde over het hele aanbod.
+            Eén ontdekkingsronde zoekt gericht binnen één productgroep. Zo komen er onderwerpen uit die dieper gaan dan een ronde over het hele aanbod.
           </span>
           <input
             className="field max-w-md"
@@ -98,7 +98,7 @@ export function RondeKnop({
           />
         </label>
         {suggesties.length > 0 && (
-          <div className="chip-select-groep" aria-label="Thema's uit je aanbod">
+          <div className="chip-select-groep" aria-label="Productgroepen uit je aanbod">
             {suggesties.map((s) => (
               <button
                 key={s}
@@ -116,12 +116,12 @@ export function RondeKnop({
       </div>
 
       <p className="text-secondary">
-        Een ronde kost {kostenTekst} en duurt 5 tot 10 minuten. Je kunt dit scherm daarna sluiten.
+        Een ontdekkingsronde kost {kostenTekst} en duurt 5 tot 10 minuten. Je kunt dit scherm daarna sluiten.
         Wat eruit komt, kost niets tot je een onderwerp laat meten.
       </p>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn-actie" disabled={wacht || !geldig} onClick={start}>
-          {wacht ? "Bezig met starten" : "Ja, start de ronde"}
+          {wacht ? "Bezig met starten" : "Ja, start de ontdekkingsronde"}
         </button>
         <button type="button" className="btn-ghost" disabled={wacht} onClick={() => setBevestigen(false)}>
           Annuleren

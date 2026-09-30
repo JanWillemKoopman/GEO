@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/copy-button";
 import { inviteState } from "@/lib/invite-rules";
 import type { AccountRole } from "@/lib/types/database";
 import { ROL_LABEL, ROL_UITLEG, type Rol } from "@/lib/roles";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 export interface PendingInvite {
   id: string;
@@ -114,7 +115,7 @@ export function TeamBox({
         toast({
           intent: "fout",
           title: "Uitnodigen is niet gelukt",
-          description: json?.error ?? "Probeer het zo nog eens.",
+          description: json?.error ?? "Probeer het opnieuw.",
         });
         return;
       }
@@ -132,8 +133,8 @@ export function TeamBox({
     } catch {
       toast({
         intent: "fout",
-        title: "Geen verbinding",
-        description: "Controleer je internet en probeer het opnieuw.",
+        title: GEEN_VERBINDING_TITEL,
+        description: GEEN_VERBINDING_UITLEG,
       });
     } finally {
       setBusy(false);

@@ -504,7 +504,7 @@ of wijkt de samenvatting uit naar Luna. De fase wordt afgeleid in `lib/profile-s
 
 ## Fase 3. Het gesprek met de klant
 
-*Wie: de consultant, met de klant erbij. Waar: Admin, Onboardinggesprek
+*Wie: de consultant, met de klant erbij. Waar: Beheer, Kennismakingsgesprek
 (`/merk/[id]/admin/onboarding`). Kost: niets, behalve als je het onderzoek bijwerkt (stap 3.7).*
 
 **Doel.** Aanvullen wat een website nooit vertelt: commerciële keuzes, verhalen, de stem van het

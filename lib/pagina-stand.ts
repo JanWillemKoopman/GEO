@@ -125,7 +125,7 @@ export function streefzin(eersteDatum: string | null | undefined, vandaag: strin
   }
   return (
     `Beantwoord ze zo snel mogelijk: de eerste pagina staat op ${formatDag(eersteDatum)}, en ` +
-    `we schrijven pas als de vragen gedaan zijn. Die datum schuift dus mee.`
+    `ORBIT ENGINE schrijft pas als de vragen gedaan zijn. Die datum schuift dus mee.`
   );
 }
 
@@ -178,17 +178,17 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
           aanZet: "orbit_engine",
           toon: "klaar",
           fase: 4,
-          zin: "We controleren of de pagina goed op je site staat en meten het effect na 14 en 28 dagen.",
+          zin: "ORBIT ENGINE controleert of de pagina goed op je site staat en meet het effect na 14 en 28 dagen.",
           handeling: null,
         });
   }
   if (plan?.status === "mislukt") {
     return stand("mislukt", {
-      label: "Schrijven mislukt",
+      label: "Schrijven niet gelukt",
       aanZet: "orbit_engine",
       toon: "fout",
       fase: 1,
-      zin: "Het schrijven lukte niet. We proberen het opnieuw; je hoeft niets te doen.",
+      zin: "Het schrijven lukte niet. ORBIT ENGINE probeert het opnieuw; je hoeft niets te doen.",
       handeling: null,
     });
   }
@@ -230,7 +230,7 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
           aanZet: null,
           toon: "neutraal",
           fase: 0,
-          zin: "Zodra deze maand gestart is, zetten we de vragen voor deze pagina klaar.",
+          zin: "Zodra deze maand gestart is, zet ORBIT ENGINE de vragen voor deze pagina klaar.",
           handeling: null,
         },
         { streefdatum: streef },
@@ -252,7 +252,7 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
           aanZet: null,
           toon: "neutraal",
           fase: 0,
-          zin: "Deze pagina hangt aan geen cluster. Zonder cluster kunnen we hem niet voorbereiden.",
+          zin: "Deze pagina hangt aan geen cluster. Zonder cluster kan ORBIT ENGINE hem niet voorbereiden.",
           handeling: null,
         },
         { streefdatum: streef },
@@ -297,7 +297,7 @@ export function paginaStand(input: PaginaStandInput): PaginaStand {
       aanZet: null,
       toon: "neutraal",
       fase: 1,
-      zin: "Alle vragen zijn gedaan. Deze pagina staat nog niet in het contentplan; zodra hij daar een datum heeft, schrijven we hem.",
+      zin: "Alle vragen zijn gedaan. Deze pagina staat nog niet in het contentplan; zodra hij daar een datum heeft, schrijft ORBIT ENGINE hem.",
       handeling: null,
     });
   }
@@ -324,7 +324,7 @@ function schrijvend(): PaginaStand {
     aanZet: "orbit_engine",
     toon: "loopt",
     fase: 1,
-    zin: "We schrijven en controleren de tekst. Dat duurt meestal een kwartier; je hoeft niets te doen.",
+    zin: "ORBIT ENGINE schrijft en controleert de tekst. Dat duurt meestal een kwartier; je hoeft niets te doen.",
     handeling: null,
   });
 }
@@ -338,7 +338,7 @@ function voorbereidend(streef: string | null, gestart: boolean): PaginaStand {
           aanZet: "orbit_engine",
           toon: "loopt",
           fase: 0,
-          zin: "We zoeken uit wat er op deze pagina moet en welke vragen we je moeten stellen. Dat duurt een paar minuten.",
+          zin: "ORBIT ENGINE zoekt uit wat er op deze pagina moet en welke vragen het je moet stellen. Dat duurt een paar minuten.",
           handeling: null,
         }
       : {
@@ -346,7 +346,7 @@ function voorbereidend(streef: string | null, gestart: boolean): PaginaStand {
           aanZet: "orbit_engine",
           toon: "neutraal",
           fase: 0,
-          zin: "We beginnen uiterlijk morgenochtend met de voorbereiding. Hebben we vragen, dan staan die daarna bij Openstaande vragen.",
+          zin: "ORBIT ENGINE begint uiterlijk morgenochtend met de voorbereiding. Zijn er vragen, dan staan die daarna bij Openstaande vragen.",
           handeling: null,
         },
     { streefdatum: streef },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatDateLong } from "@/lib/format";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /**
  * Het merkdossier (implementatieplan.md S5, contentbriefing.md §8).
@@ -74,7 +75,7 @@ export function DossierBox({ profileId }: { profileId: string }) {
       setAlKnown(Boolean(json.alreadyKnown));
       setText("");
     } catch {
-      setError("We konden ORBIT ENGINE niet bereiken. Controleer je verbinding en probeer het opnieuw.");
+      setError(GEEN_VERBINDING);
     } finally {
       setBusy(false);
     }

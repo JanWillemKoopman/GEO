@@ -1,5 +1,6 @@
 "use client";
 
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 import { useState } from "react";
 import Link from "next/link";
 import { useRefresh } from "@/components/use-refresh";
@@ -78,7 +79,7 @@ export function KandidaatKaart({
       setBezig(false);
       refresh();
     } catch {
-      setFout("Dat lukte niet. Controleer je verbinding.");
+      setFout(GEEN_VERBINDING);
       setBezig(false);
     }
   }

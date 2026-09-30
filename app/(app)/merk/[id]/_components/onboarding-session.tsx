@@ -392,7 +392,7 @@ export function OnboardingSession({
               er niets kwijtraakt. */}
           {laatsteOpslag && (
             <p className="mono-label" role="status">
-              Alles bewaard · laatste wijziging{" "}
+              Alles opgeslagen · laatste wijziging{" "}
               {laatsteOpslag.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}
             </p>
           )}
@@ -416,7 +416,7 @@ export function OnboardingSession({
               <div className="card flex flex-col gap-3">
                 <span className="mono-label">Wat dit gesprek het meest oplevert</span>
                 <p className="text-sm text-muted">
-                  Dit weten we nog niet over de onderwerpen waar de belangrijkste pagina&apos;s over
+                  Dit weet ORBIT ENGINE nog niet over de onderwerpen waar de belangrijkste pagina&apos;s over
                   gaan. Vraag dit het eerst.
                 </p>
                 <ul className="flex flex-col gap-3">
@@ -481,7 +481,7 @@ export function OnboardingSession({
                           )}
                         </div>
                         <p className="text-sm text-muted">
-                          Het domein waar ORBIT ENGINE leest: de crawl, de inventaris en het advies
+                          Het domein waar ORBIT ENGINE leest: het lezen van de website, de inventaris en het advies
                           over je pagina&apos;s beginnen hier.
                         </p>
                         {urlBewerken ? (
@@ -492,8 +492,8 @@ export function OnboardingSession({
                               onChange={(e) => setUrlWaarde(e.target.value)}
                             />
                             <p className="text-sm text-[var(--intent-danger-content)]">
-                              Let op: dit verandert het domein waar ORBIT ENGINE op leest. De crawl
-                              en de inventaris moeten daarna opnieuw.
+                              Let op: dit verandert het domein waar ORBIT ENGINE op leest. De website
+                              en de inventaris moeten daarna opnieuw gelezen worden.
                             </p>
                             <div className="flex flex-wrap gap-3">
                               <button
@@ -544,8 +544,7 @@ export function OnboardingSession({
                       <div className="card flex flex-col gap-2">
                         <span className="text-sm font-medium">Search Console</span>
                         <p className="text-sm text-muted">
-                          Zonder koppeling blijft het scherm Zoekverkeer leeg en mist je rapport de
-                          cijfers over klikken en vertoningen.
+                          Zonder koppeling blijft het scherm Zoekverkeer leeg en mist de uitslag de cijfers over klikken en vertoningen.
                         </p>
                         <div className="flex flex-wrap items-center gap-2">
                           {initial.gsc_property ? (
@@ -622,7 +621,7 @@ export function OnboardingSession({
             <div className="card card-warning flex flex-col gap-2">
               <span className="mono-label">Dit maakt de teksten zwakker</span>
               <p className="text-sm text-secondary">
-                Deze drie velden gaan rechtstreeks naar de schrijver van elke pagina. Dun ingevuld
+                ORBIT ENGINE gebruikt deze drie velden rechtstreeks bij het schrijven van elke pagina. Dun ingevuld
                 betekent een tekst die minder van {brandName} klinkt, zonder dat er ergens een
                 waarschuwing komt.
               </p>
@@ -742,7 +741,7 @@ export function OnboardingSession({
             ) : (
               <>
                 <p className="text-secondary">
-                  Door wat we net hebben vastgelegd, werkt ORBIT ENGINE dit opnieuw uit:
+                  Door wat er net is vastgelegd, werkt ORBIT ENGINE dit opnieuw uit:
                 </p>
                 <ul className="flex flex-col gap-1">
                   {plan.tasks.map((t) => (
@@ -769,7 +768,7 @@ export function OnboardingSession({
               )}
               {bijwerken === "mislukt" && (
                 <span className="text-sm text-[var(--intent-danger-content)]">
-                  Het is niet gelukt om dit in gang te zetten. Probeer het zo nog eens.
+                  Het is niet gelukt om dit in gang te zetten. Probeer het opnieuw.
                 </span>
               )}
             </div>
@@ -805,7 +804,7 @@ export function OnboardingSession({
         title="Website wijzigen"
         body={`ORBIT ENGINE gaat voortaan lezen op ${urlWaarde}.`}
         irreversible={{
-          title: "De crawl moet opnieuw",
+          title: "De website moet opnieuw gelezen worden",
           description:
             "De inventaris en het aanbod zijn gebaseerd op de oude website. Draai \"Onderzoek bijwerken\" zodra je klaar bent, anders blijft ORBIT ENGINE werken met de oude pagina's.",
         }}

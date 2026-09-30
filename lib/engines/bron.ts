@@ -56,7 +56,7 @@ export const BRONNEN: Bron[] = [
  */
 export function bronToelichting(id: string): string | null {
   if (id === LLM_RESPONSE_GEMINI_ENGINE) {
-    return "Gemini kan niet gericht op Nederland zoeken. Een lage score hier kan ook betekenen dat Gemini naar een ander land keek, niet dat je merk daar niet genoemd wordt.";
+    return "Gemini kan niet gericht op Nederland zoeken. Een lage zichtbaarheid hier kan ook betekenen dat Gemini naar een ander land keek, niet dat je merk daar niet genoemd wordt.";
   }
   return null;
 }

@@ -90,9 +90,7 @@ export function OfferingsPanel({
       <div className="card flex flex-col gap-3">
         <span className="mono-label">Wat je aanbiedt</span>
         <p className="text-secondary">
-          Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is,
-          staat hier elke dienst en productgroep die ORBIT ENGINE op je site vond, met de
-          pagina waar het die vandaan haalde. Mist er iets dat niet op de site
+          Je aanbod is nog niet in kaart gebracht. Zodra het onderzoek klaar is, staat hier elke dienst en productgroep die ORBIT ENGINE op je site vond. Bij elk staat de pagina waar het vandaan komt. Mist er iets dat niet op de site
           staat, dan kun je het hieronder alvast zelf vastleggen.
         </p>
         <OfferingsEditor profileId={profileId} offerings={offerings} removedOfferings={removedOfferings} />

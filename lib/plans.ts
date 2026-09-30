@@ -677,7 +677,7 @@ export async function createPlan(
     return {
       ok: false,
       problems: [
-        "Er zijn nog geen gemeten pagina-ideeën om in te plannen. Meet eerst een cluster: ORBIT ENGINE haalt de pagina-ideeën daarna uit het rapport.",
+        "Er zijn nog geen gemeten pagina-ideeën om in te plannen. Meet eerst een cluster: ORBIT ENGINE haalt de pagina-ideeën daarna uit de uitslag.",
       ],
     };
   }

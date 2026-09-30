@@ -13,7 +13,7 @@ import { kennisrondeVoorMerk, type KennisrondeDomein } from "@/lib/kansen/kennis
 import type { Behoefte } from "@/lib/kansen/kennisgat";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Onboardinggesprek" };
+export const metadata = { title: "Kennismakingsgesprek" };
 
 /**
  * DE ONBOARDINGSESSIE, het werk mét de klant.
@@ -160,9 +160,9 @@ export default async function OnboardingSessiePagina({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Admin"
-        title="Onboardinggesprek"
-        description={`Samen nalopen wat ORBIT ENGINE over ${merknaam} heeft gevonden, aanvullen wat een website niet kan vertellen, en vastleggen wat we afspreken. Alles wat je hier invult wordt meteen bewaard.`}
+        eyebrow="Beheer"
+        title="Kennismakingsgesprek"
+        description={`Samen nalopen wat ORBIT ENGINE over ${merknaam} heeft gevonden, aanvullen wat een website niet kan vertellen, en vastleggen wat jullie afspreken. Alles wat je hier invult wordt meteen opgeslagen.`}
       />
 
       {/* De twee schermen die op Diagnose hingen (verdwenen op 30 september

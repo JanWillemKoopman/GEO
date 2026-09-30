@@ -88,7 +88,7 @@ export default async function AanbodboomPage({
     // rest van Admin (1440px).
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Admin"
+        eyebrow="Beheer"
         title="Aanbodboom"
         description="De diensten en producten zoals ORBIT ENGINE ze op de site vond, en welke nog geen eigen pagina hebben."
       />

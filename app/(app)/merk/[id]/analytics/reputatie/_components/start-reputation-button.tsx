@@ -1,10 +1,11 @@
 "use client";
 
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 import { useState } from "react";
 import { useRefresh } from "@/components/use-refresh";
 
 /**
- * De startknop van de reputatieanalyse (§3.3, staten 2 en 3).
+ * De startknop van de reputatiemeting (§3.3, staten 2 en 3).
  *
  * ── ⚠️ DE KNOP WORDT NIET VERBORGEN VOOR DE KLANT ───────────────────────────
  *
@@ -65,13 +66,13 @@ export function StartReputationButton({
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "De reputatieanalyse kon niet gestart worden.");
+        setError(json.error ?? "De reputatiemeting kon niet gestart worden.");
         setPending(false);
         return;
       }
       refresh();
     } catch {
-      setError("De reputatieanalyse kon niet gestart worden. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
       setPending(false);
     }
   }
@@ -84,7 +85,7 @@ export function StartReputationButton({
           className="btn-primary w-fit"
           onClick={() => setConfirming(true)}
         >
-          {repeat ? "Nieuwe reputatieanalyse" : "Start de reputatieanalyse"}
+          {repeat ? "Nieuwe reputatiemeting" : "Start de reputatiemeting"}
         </button>
         {error && (
           <p className="text-sm text-[var(--intent-danger-content)]" role="alert">
@@ -119,13 +120,13 @@ export function StartReputationButton({
               waarde: "standaard" as const,
               kop: "Standaard",
               uitleg:
-                "Ongeveer 50 vragen over je twaalf belangrijkste diensten. Duurt ongeveer een halfuur en kost ongeveer 75 cent.",
+                "Ongeveer 50 AI-vragen over je twaalf belangrijkste diensten. Duurt ongeveer een halfuur en kost ongeveer 75 cent.",
             },
             {
               waarde: "diep" as const,
               kop: "Diep",
               uitleg:
-                "Ongeveer 75 vragen over maximaal vijfentwintig diensten. Duurt langer en kost ongeveer anderhalf keer zo veel. Heeft alleen zin als je merkprofiel meer dan twaalf diensten telt.",
+                "Ongeveer 75 AI-vragen over maximaal vijfentwintig diensten. Duurt langer en kost ongeveer anderhalf keer zo veel. Heeft alleen zin als je merkdossier meer dan twaalf diensten telt.",
             },
           ]
         ).map((optie) => (
@@ -152,7 +153,7 @@ export function StartReputationButton({
           disabled={wacht}
           onClick={() => void start()}
         >
-          {pending ? "Starten…" : "Ja, start de analyse"}
+          {pending ? "Starten…" : "Ja, start de meting"}
         </button>
         <button
           type="button"

@@ -45,7 +45,7 @@ export default async function AdminConcurrentenPage({
     // `wil-lezen`: formulierpatroon (§8.6/§8.8), 720px in plaats van 1440.
     <div className="flex flex-col gap-6 wil-lezen">
       <PageHeader
-        eyebrow="Admin"
+        eyebrow="Beheer"
         title="Concurrenten indelen"
         description="Welke merken meetellen in het aandeel van dit merk op Concurrenten."
       />

@@ -154,7 +154,7 @@ export function ProfileReadinessPanel({
         <span className="flex items-center gap-2">
           {loopt && <span className="live-dot" aria-hidden />}
           <span className="mono-label">
-            {loopt ? "ORBIT ENGINE onderzoekt · live" : "Status van de onboarding"}
+            {loopt ? "ORBIT ENGINE onderzoekt · live" : "Stand van de voorbereiding"}
           </span>
         </span>
         <span className="mono-label">

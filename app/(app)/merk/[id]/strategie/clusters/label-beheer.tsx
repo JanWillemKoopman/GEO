@@ -6,6 +6,7 @@ import { Icon } from "@/components/icon";
 import { useRefresh } from "@/components/use-refresh";
 import { MAX_LABELNAAM, normaliseerLabelnaam } from "@/lib/cluster-labels";
 import type { ClusterLabel } from "@/lib/types/database";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /**
  * De labels van dit merk hernoemen en weggooien.
@@ -67,7 +68,7 @@ export function LabelBeheer({
       setHernoemt(null);
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }
@@ -89,7 +90,7 @@ export function LabelBeheer({
       setWeggooien(null);
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }

@@ -287,7 +287,7 @@ ontbreekt: commerciële keuzes, verhalen uit de praktijk, de stem van het bedrij
 Wat hier wordt ingevuld, gaat letterlijk mee naar de schrijver van elke pagina. Dit gesprek bepaalt
 dus voor een groot deel hoe goed alle latere teksten worden.
 
-- De consultant opent **Admin, Onboardinggesprek**.
+- De consultant opent **Beheer, Kennismakingsgesprek**.
 - Bovenaan staat wat nog niet bekend is, het belangrijkste eerst. Het werkgebied staat bijna altijd
   bovenaan, want dat bepaalt of de meetvragen over een regio gaan of over heel Nederland.
 - Staan er al pagina's gepland, dan toont het scherm ook per onderwerp wat de app voor die pagina's
@@ -737,7 +737,7 @@ bewijs eronder: de vraag, het antwoord van de AI en wie daarin genoemd werd.
 - **Mijn reputatie.** Zie hoofdstuk 22.
 - **Merkdossier.** Wat de app over het bedrijf weet, om na te lezen en aan te vullen.
 
-Onder **Admin** heeft alleen de consultant nog: het gespreksscherm, de 0-meting (de kennistest), de
+Onder **Beheer** heeft alleen de consultant nog: het gespreksscherm, de 0-meting (de kennistest), de
 aanbodboom, een diagnosescherm, concurrenten indelen, het kennisoverzicht, de feitenconflicten en
 het toewijzen.
 

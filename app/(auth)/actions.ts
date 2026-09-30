@@ -45,7 +45,7 @@ export async function signIn(_prev: AuthState, formData: FormData): Promise<Auth
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: "Inloggen mislukt: controleer je e-mail en wachtwoord." };
+  if (error) return { error: "Inloggen is niet gelukt. Controleer je e-mail en wachtwoord." };
 
   redirect("/");
 }
@@ -62,7 +62,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
-  if (error) return { error: `Registreren mislukt: ${error.message}` };
+  if (error) return { error: `Registreren is niet gelukt: ${error.message}` };
 
   // Als e-mailbevestiging aanstaat, is er nog geen sessie, stuur terug naar login met uitleg.
   if (!data.session) {
@@ -142,7 +142,7 @@ export async function updatePassword(_prev: AuthState, formData: FormData): Prom
   }
 
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) return { error: `Wachtwoord wijzigen mislukt: ${error.message}` };
+  if (error) return { error: `Wachtwoord wijzigen is niet gelukt: ${error.message}` };
 
   redirect("/");
 }

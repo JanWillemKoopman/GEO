@@ -14,6 +14,7 @@ import { getClusterDisplayName } from "@/lib/url";
 import { STATUS_META } from "@/lib/analysis-status";
 import type { AnalysisCardMetrics as Metrics } from "@/lib/dashboard";
 import type { Analysis, ClusterLabel } from "@/lib/types/database";
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 
 /**
  * Eén cluster in het overzicht, met zijn label en zijn weg naar de prullenbak.
@@ -132,7 +133,7 @@ export function ClusterKaart({
       setLabelMenuOpen(false);
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }
@@ -162,7 +163,7 @@ export function ClusterKaart({
       setBezig(false);
       await zetLabel(json.label.id as string);
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
       setBezig(false);
     }
   }
@@ -184,7 +185,7 @@ export function ClusterKaart({
       setVraagPrullenbak(false);
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }
@@ -209,7 +210,7 @@ export function ClusterKaart({
       }
       refresh();
     } catch {
-      setFout("We konden ORBIT ENGINE niet bereiken. Probeer het opnieuw.");
+      setFout(GEEN_VERBINDING);
     } finally {
       setBezig(false);
     }
@@ -441,7 +442,7 @@ export function ClusterKaart({
 
       {/* ── Waar de rest van dit cluster staat (UX-audit 23 september 2026, P2.11)
           Een cluster heeft sinds 22 september 2026 bewust geen eigen pagina
-          meer; zijn cijfers staan op Analytics en zijn pagina's in de
+          meer; zijn cijfers staan op Zichtbaarheid in AI en zijn pagina's in de
           Bibliotheek, allebei met een filter per cluster. Zonder deze twee
           links moest de klant dat filter zelf vinden en instellen. Alleen bij
           een gemeten cluster, want daarvoor staat er op die schermen nog niets. */}
@@ -471,8 +472,8 @@ export function ClusterKaart({
       {!gearchiveerd && (analyse.status === "meten" || analyse.status === "bezig") && (
         <p className="text-sm text-secondary">
           {analyse.status === "meten"
-            ? "ORBIT ENGINE stelt nu de vragen aan AI-assistenten. Je kunt gerust wegklikken: je krijgt een melding zodra de uitslag er is."
-            : "ORBIT ENGINE onderzoekt het onderwerp en stelt de vragen op. Je hoort het zodra er iets voor je klaarstaat."}
+            ? "ORBIT ENGINE stelt nu de AI-vragen. Je kunt gerust wegklikken: je krijgt een melding zodra de uitslag er is."
+            : "ORBIT ENGINE onderzoekt het onderwerp en stelt de AI-vragen op. Je hoort het zodra er iets voor je klaarstaat."}
         </p>
       )}
 
@@ -485,7 +486,7 @@ export function ClusterKaart({
             {opSlot ? "Bezig…" : "Probeer het opnieuw"}
           </button>
           <span className="text-sm text-muted">
-            Wat al gemeten is blijft bewaard, dus je begint niet van voren af aan.
+            Wat al gemeten is blijft staan, dus je begint niet van voren af aan.
           </span>
         </div>
       )}
@@ -526,8 +527,8 @@ export function ClusterKaart({
           title="Dit cluster naar de prullenbak?"
           body={
             `"${getClusterDisplayName(analyse.name)}" verdwijnt uit je overzicht en uit de maandelijkse meetronde, dus er ` +
-            "wordt vanaf nu niets meer gemeten voor dit cluster. Alle metingen, rapporten en " +
-            "geschreven pagina's blijven bewaard: je kunt het cluster later terugzetten, en dan gaat " +
+            "wordt vanaf nu niets meer gemeten voor dit cluster. Alle metingen, uitslagen en " +
+            "geschreven pagina's blijven staan: je kunt het cluster later terugzetten, en dan gaat " +
             "het meten weer verder."
           }
           confirmLabel="Naar de prullenbak"

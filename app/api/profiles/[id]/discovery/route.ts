@@ -70,7 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (!thema) {
     return NextResponse.json(
-      { error: `Geef een productcategorie of thema op, tussen ${THEMA_MIN} en ${THEMA_MAX} tekens.` },
+      { error: `Geef een productgroep of dienst op, tussen ${THEMA_MIN} en ${THEMA_MAX} tekens.` },
       { status: 400 },
     );
   }

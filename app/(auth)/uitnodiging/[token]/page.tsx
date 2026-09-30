@@ -65,7 +65,7 @@ export default async function InvitePage({
     ongeldig: {
       title: "Deze link werkt niet",
       body:
-        "We vinden geen openstaande uitnodiging bij deze link. Misschien is hij " +
+        "Bij deze link hoort geen openstaande uitnodiging. Misschien is hij " +
         "ingetrokken, of is er een stukje van de link weggevallen bij het kopiëren. " +
         "Vraag je contactpersoon om een nieuwe.",
     },

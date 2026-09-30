@@ -983,7 +983,7 @@ en met K8 (26 en 27 september 2026).
 
 ## Hoofdstap 5. Het gesprek met de klant
 
-*Wie: de consultant, met de klant erbij. Waar: Admin, Onboardinggesprek (`/merk/[id]/admin/onboarding`). Kost:
+*Wie: de consultant, met de klant erbij. Waar: Beheer, Kennismakingsgesprek (`/merk/[id]/admin/onboarding`). Kost:
 niets, behalve bij "onderzoek bijwerken".*
 
 **Doel van de hoofdstap.** Aanvullen wat een website nooit vertelt: commerciële keuzes, verhalen, de stem van

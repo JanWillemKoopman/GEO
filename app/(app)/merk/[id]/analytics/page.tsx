@@ -336,8 +336,8 @@ export default async function AnalyticsPage({
     const teken = (n: number) => (n > 0 ? "+" : "");
     controlegroepZin =
       onsPercentage > restPercentage
-        ? `Onze pagina's groeiden ${teken(onsPercentage)}${onsPercentage}% deze periode, de rest van de site ${teken(restPercentage)}${restPercentage}%. Dat verschil is aan ons toe te schrijven.`
-        : `Onze pagina's groeiden ${teken(onsPercentage)}${onsPercentage}% deze periode, ongeveer gelijk op met de rest van de site (${teken(restPercentage)}${restPercentage}%). De markt bewoog mee, meer dan dat wij dat deden.`;
+        ? `De pagina's van ORBIT ENGINE groeiden ${teken(onsPercentage)}${onsPercentage}% deze periode, de rest van de site ${teken(restPercentage)}${restPercentage}%. Dat verschil komt door de nieuwe pagina's.`
+        : `De pagina's van ORBIT ENGINE groeiden ${teken(onsPercentage)}${onsPercentage}% deze periode, ongeveer gelijk op met de rest van de site (${teken(restPercentage)}${restPercentage}%). De groei komt dus vooral uit de markt, niet uit de nieuwe pagina's.`;
   }
 
   return (
@@ -345,7 +345,7 @@ export default async function AnalyticsPage({
     // geen plafond op 1440px. Zie `.stand` in app/globals.css.
     <div className="flex flex-col gap-6 wil-data">
       <PageHeader
-        eyebrow="Analytics"
+        eyebrow="Resultaten"
         title="Zichtbaarheid in AI"
         description="Hoe vaak AI-assistenten je noemen, over al je clusters heen, en wat dat cijfer verklaart."
       />
@@ -362,9 +362,7 @@ export default async function AnalyticsPage({
               : `${blokkades.length} blokkades op je site`}
           </span>
           <p className="text-secondary">
-            Zolang dit zo staat, kan een AI-assistent je pagina&apos;s niet ophalen. Je score
-            hieronder is daardoor lager dan hij zou zijn, en nieuwe content verandert daar niets
-            aan.
+            Zolang dit zo staat, kan een AI-assistent je pagina&apos;s niet ophalen. Je zichtbaarheid hieronder is daardoor lager dan hij zou zijn, en nieuwe pagina&apos;s veranderen daar niets aan.
           </p>
           <ul className="flex flex-col gap-1">
             {blokkades.map((b) => (

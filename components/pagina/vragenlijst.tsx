@@ -187,10 +187,10 @@ export function Vraagkaart({
   const directOpslaan = vraagVorm(vraag).vorm === "keuze";
 
   const kost = overslaanUitleg ?? (vraag.open_vraag
-    ? "Dan schrijven we deze pagina zonder jouw eigen verhaal."
+    ? "Dan schrijft ORBIT ENGINE deze pagina zonder jouw eigen verhaal."
     : vraag.onderdelen.length > 0
       ? `Dan komt ${vraag.onderdelen.length === 1 ? "het onderdeel" : "de onderdelen"} ${somOp(vraag.onderdelen)} niet op de pagina.`
-      : "Dan schrijven we dit deel zonder dit gegeven, en noemen we het niet.");
+      : "Dan schrijft ORBIT ENGINE dit deel zonder dit gegeven, en noemt het niet.");
 
   return (
     <div className="card card-rail card-rail-accent flex flex-col gap-3">

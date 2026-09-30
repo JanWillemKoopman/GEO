@@ -189,7 +189,7 @@ async function createTasks(
       action:
         "Dit is géén doe-het-zelf-actie: een artikel over je eigen bedrijf schrijven is op Wikipedia " +
         "niet toegestaan en wordt verwijderd. Een artikel ontstaat pas als onafhankelijke bronnen " +
-        "over je schrijven. Zie dit dus als een gevolg van bekendheid, niet als een taak. We noemen " +
+        "over je schrijven. Zie dit dus als een gevolg van bekendheid, niet als een taak. ORBIT ENGINE noemt " +
         "het omdat het verklaart waarom je in AI-antwoorden minder vaak opduikt dan grotere partijen.",
       priority: 90,
     });

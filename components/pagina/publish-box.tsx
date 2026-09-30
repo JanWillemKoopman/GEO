@@ -234,7 +234,7 @@ function NogNiet({
       <span className="mono-label flex items-center gap-1">
         Staat deze pagina al live?
         <InfoHint label="Waarom vraagt ORBIT ENGINE dit?">
-          Zodra je hier de link invult, hermeet ORBIT ENGINE de vragen waarvoor deze pagina gemaakt
+          Zodra je hier de link invult, hermeet ORBIT ENGINE de AI-vragen waarvoor deze pagina gemaakt
           is, twee en vier weken later. Dan zie je zwart-op-wit of het gewerkt heeft.
         </InfoHint>
       </span>
@@ -246,7 +246,7 @@ function NogNiet({
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         placeholder="https://jouwsite.nl/de-nieuwe-pagina"
-        aria-label="Link naar de gepubliceerde pagina"
+        aria-label="Link naar de pagina die live staat"
         disabled={bezig}
       />
       <button type="submit" className="btn-primary btn-sm w-fit" disabled={bezig || !url.trim()}>
@@ -277,8 +277,8 @@ function Gepubliceerd({
         <span className="mono-label flex items-center gap-1">
           Live
           <InfoHint label="Wat gebeurt er nu?">
-            ORBIT ENGINE hermeet de vragen waarvoor deze pagina gemaakt is, twee en vier weken na
-            publicatie. AI-assistenten pikken nieuwe content niet dezelfde dag op, dus eerder meten
+            ORBIT ENGINE hermeet de AI-vragen waarvoor deze pagina gemaakt is, twee en vier weken na
+            publicatie. AI-assistenten pikken een nieuwe pagina niet dezelfde dag op, dus eerder meten
             zegt niets.
           </InfoHint>
         </span>
@@ -301,7 +301,7 @@ function Gepubliceerd({
       <PublishCheckNotice check={check} checkedAt={checkedAt} />
 
       <p className="text-sm text-secondary">
-        ORBIT ENGINE hermeet de bijbehorende vragen over twee en over vier weken. Het resultaat komt
+        ORBIT ENGINE hermeet de bijbehorende AI-vragen over twee en over vier weken. Het resultaat komt
         vanzelf in hoofdstuk 04 van je cluster te staan. Jij hoeft niets.
       </p>
 

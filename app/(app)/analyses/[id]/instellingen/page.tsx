@@ -81,7 +81,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
                     vergeleken wordt. Dat komt uit de meting zelf. Hij dient nog
                     één doel: deze namen blijven uit de vragen, zodat we neutraal
                     meten. Vandaar het eerlijke label. */}
-                Deze merken blijven uit de vragen:{" "}
+                Deze merken blijven uit de AI-vragen:{" "}
                 {profile.competitors.join(", ") || "onbekend"}
               </p>
             </div>

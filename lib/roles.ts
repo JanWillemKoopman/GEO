@@ -46,7 +46,7 @@ export function rolVan(input: {
 }
 
 export const ROL_LABEL: Record<Rol, string> = {
-  admin: "Admin",
+  admin: "Beheerder",
   klant: "Klant",
 };
 

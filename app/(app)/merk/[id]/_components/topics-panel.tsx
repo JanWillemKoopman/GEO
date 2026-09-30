@@ -1,5 +1,6 @@
 "use client";
 
+import { GEEN_VERBINDING } from "@/lib/meldingen";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -152,7 +153,7 @@ export function TopicsPanel({
       }
       setTopics((list) => list.map((t) => (t.id === topicId ? (json.topic as ProfileTopic) : t)));
     } catch {
-      setError("Opslaan is niet gelukt. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
     } finally {
       setBusy(null);
     }
@@ -183,7 +184,7 @@ export function TopicsPanel({
       // clusteroverzicht.
       router.push(`/analyses/${json.id}/concept`);
     } catch {
-      setError("Het cluster kon niet starten. Controleer je verbinding.");
+      setError(GEEN_VERBINDING);
       setBusy(null);
     }
   }
@@ -272,7 +273,7 @@ export function TopicsPanel({
         {mixFor === t.id && (
           <div className="vlak flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <span className="mono-label">Hoeveel vragen per fase?</span>
+              <span className="mono-label">Hoeveel AI-vragen per fase?</span>
               <p className="text-sm text-secondary">
                 Standaard tien per fase. Meet je een onderwerp waar iemand al klaar is
                 om te kiezen, zet dan Beslissing hoger. Bij een onderwerp waar hij nog
@@ -495,7 +496,7 @@ export function TopicsPanel({
               className="field"
               rows={1}
               defaultValue={t.rejection_reason ?? ""}
-              placeholder="Waarom niet relevant? Helpt een volgende ronde dezelfde richting te vermijden."
+              placeholder="Waarom niet relevant? Zo stelt ORBIT ENGINE deze richting niet opnieuw voor."
               onBlur={(e) => {
                 if (e.target.value.trim() !== (t.rejection_reason ?? "")) {
                   void patch(t.id, { rejectionReason: e.target.value });

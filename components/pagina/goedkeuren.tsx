@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { renderMarkdown } from "@/lib/markdown";
 import { markeerZinnen } from "@/lib/tekst-markering";
+import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
 
 /**
  * LEES EN KEUR GOED (`docs/tasks/contentketen-opnieuw.md` §6.9).
@@ -15,7 +16,7 @@ import { markeerZinnen } from "@/lib/tekst-markering";
  * versie op basis van wat de ondernemer schrijft) en zelf bewerken.
  *
  * Geen cijfers en geen tabbladen met bevindingen (§6.9): de punten van de
- * eindredacteur staan ingeklapt onder "Wat we nog zien".
+ * eindredacteur staan ingeklapt onder "Wat ORBIT ENGINE nog ziet".
  */
 export function Goedkeuren({
   profileId,
@@ -64,7 +65,7 @@ export function Goedkeuren({
       const j = (await res.json().catch(() => null)) as { error?: string } | null;
       return res.ok ? { ok: true } : { ok: false, error: j?.error ?? "Probeer het opnieuw." };
     } catch {
-      return { ok: false, error: "Controleer je internet en probeer het opnieuw." };
+      return { ok: false, error: GEEN_VERBINDING_UITLEG };
     }
   }
 
@@ -101,7 +102,7 @@ export function Goedkeuren({
       setBewerken(false);
       router.refresh();
     } catch {
-      toast({ intent: "fout", title: "Geen verbinding", description: "Controleer je internet en probeer het opnieuw." });
+      toast({ intent: "fout", title: GEEN_VERBINDING_TITEL, description: GEEN_VERBINDING_UITLEG });
     } finally {
       setBezig(null);
     }
@@ -112,7 +113,7 @@ export function Goedkeuren({
     const r = await post(`/api/profiles/${profileId}/paginas/${pieceId}`, { actie: "aanpassing", notitie: aanpassing });
     setBezig(null);
     if (!r.ok) return toast({ intent: "fout", title: "Aanpassing vragen lukte niet", description: r.error });
-    toast({ intent: "succes", title: "Aanpassing gevraagd", description: "We schrijven een nieuwe versie. Die staat hier binnen een paar minuten." });
+    toast({ intent: "succes", title: "Aanpassing gevraagd", description: "ORBIT ENGINE schrijft een nieuwe versie. Die staat hier binnen een paar minuten." });
     setVraagAanpassing(false);
     setAanpassing("");
     router.refresh();
@@ -136,14 +137,14 @@ export function Goedkeuren({
     <div className="flex flex-col gap-6">
       {notitie && !goedgekeurd && (
         <section className="card flex flex-col gap-2">
-          <h2 className="type-section">Een vraag van de schrijver</h2>
+          <h2 className="type-section">Een vraag van ORBIT ENGINE</h2>
           <p className="type-body text-secondary">{notitie}</p>
         </section>
       )}
 
       {aanpassingLoopt && (
         <div className="card type-body" role="status">
-          We schrijven een nieuwe versie met jouw aanpassing. Die staat hier binnen een paar minuten.
+          ORBIT ENGINE schrijft een nieuwe versie met jouw aanpassing. Die staat hier binnen een paar minuten.
         </div>
       )}
 
@@ -151,7 +152,7 @@ export function Goedkeuren({
         <section className="card flex flex-col gap-3">
           <h2 className="type-section">Loop deze zinnen na</h2>
           <p className="type-body text-secondary">
-            In deze zinnen staat iets over je bedrijf dat we niet in jouw informatie terugvonden, of een woord
+            In deze zinnen staat iets over je bedrijf dat ORBIT ENGINE niet in jouw informatie terugvond, of een woord
             dat je liever niet gebruikt. Klopt de zin, bevestig hem dan. Klopt hij niet, pas hem aan.
           </p>
           <ul className="flex flex-col gap-3">
@@ -272,7 +273,7 @@ export function Goedkeuren({
 
       {punten.length > 0 && !goedgekeurd && (
         <details className="card">
-          <summary className="type-section cursor-pointer">Wat we nog zien</summary>
+          <summary className="type-section cursor-pointer">Wat ORBIT ENGINE nog ziet</summary>
           <ul className="mt-3 flex flex-col gap-2">
             {punten.map((p, i) => (
               <li key={i} className="type-body text-secondary">

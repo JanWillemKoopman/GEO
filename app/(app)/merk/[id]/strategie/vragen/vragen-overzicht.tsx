@@ -57,7 +57,7 @@ const SOORT_LABEL: Record<GroepSoort, string> = {
 };
 
 const SOORT_UITLEG: Record<GroepSoort, string> = {
-  pagina: "We schrijven deze pagina zodra elke vraag beantwoord of overgeslagen is.",
+  pagina: "ORBIT ENGINE schrijft deze pagina zodra elke vraag beantwoord of overgeslagen is.",
   merk: "Hoort bij geen pagina. Je antwoord helpt elke volgende pagina.",
   cluster: "Hoort bij geen pagina. Je antwoord helpt elke volgende pagina in dit cluster.",
 };
@@ -152,7 +152,7 @@ export function VragenOverzicht({ profileId, groepen: beginGroepen }: { profileI
               <div className="card card-success flex items-center gap-2 type-body" role="status">
                 <Icon naam="klaar" size={16} />
                 {g.soort === "pagina"
-                  ? "Alles voor deze pagina is binnen. We gaan hem schrijven."
+                  ? "Alles voor deze pagina is binnen. ORBIT ENGINE gaat hem schrijven."
                   : "Alles in deze groep is beantwoord of overgeslagen."}
               </div>
             )}
