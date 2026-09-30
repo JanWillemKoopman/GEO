@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
-import { isStaff, isSuperuser } from "@/lib/staff";
-import { listPendingStaffInvites } from "@/lib/invites";
-import { ConsultantsBox } from "./consultants-box";
+import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ownAccountIdsOf } from "@/lib/accounts";
 import { loadCsmBrands } from "@/lib/csm-data";
@@ -55,26 +53,6 @@ export default async function BeheerPage() {
     .filter((a) => !eigenIds.has(a.id as string))
     .map((a) => ({ id: a.id as string, name: (a.name as string) ?? "" }));
 
-  // Consultants beheren is voor de superuser. Een consultant ziet dit blok niet
-  // eens; de routes erachter geven hem ook een 404.
-  let consultantsBlok: React.ReactNode = null;
-  if (await isSuperuser(user.id)) {
-    const [{ data: stafRijen }, { data: gebruikers }, pending] = await Promise.all([
-      admin.from("staff_users").select("user_id, role"),
-      admin.auth.admin.listUsers({ page: 1, perPage: 200 }),
-      listPendingStaffInvites(),
-    ]);
-    const emailVan = new Map((gebruikers?.users ?? []).map((u) => [u.id, u.email ?? ""]));
-    const consultants = (stafRijen ?? [])
-      .filter((r) => r.role !== "superuser")
-      .map((r) => ({
-        email: emailVan.get(r.user_id as string) ?? "onbekend adres",
-        isYou: r.user_id === user.id,
-      }))
-      .sort((a, b) => a.email.localeCompare(b.email));
-    consultantsBlok = <ConsultantsBox consultants={consultants} pending={pending} />;
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -83,7 +61,6 @@ export default async function BeheerPage() {
         description="Alle merken van alle klanten, met bovenaan wat het eerst aandacht vraagt."
       />
       <CsmView brands={brands} kpi={totals(brands)} />
-      {consultantsBlok}
       <DeleteAccountBox accounts={verwijderbaar} />
     </div>
   );

@@ -72,15 +72,15 @@ export function inviteExpiry(from: Date = new Date()): Date {
 }
 
 /**
- * Mag deze rol iemand uitnodigen?
+ * Mag deze gebruiker iemand uitnodigen?
  *
- * Alleen een `admin` van het account, of een beheerder van ORBIT ENGINE. Een `member`
- * kan wel meekijken en goedkeuren maar niet de kring uitbreiden; dat is bij een
- * bureau (besluit 9) het verschil tussen een collega en de contractpartij.
+ * Elke klant die in het account zit, en de admin. Sinds 30 september 2026 is er
+ * één klantrol met alle rechten (migratie 0137); `role` is `null` voor wie niet
+ * in het account zit, en die mag dus niets.
  */
 export function mayInvite(role: AccountRole | null, staff: boolean): boolean {
   if (staff) return true;
-  return role === "admin";
+  return role !== null;
 }
 
 /**

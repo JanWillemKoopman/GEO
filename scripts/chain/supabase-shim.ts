@@ -704,12 +704,18 @@ export function createShimClient(client: Client) {
         }) {
           try {
             const { rows } = await client.query(
-              `insert into auth.users (id, email, raw_user_meta_data)
-               values (gen_random_uuid(), $1, $2::jsonb) returning id, email, raw_user_meta_data`,
+              `insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data)
+               values (gen_random_uuid(), $1, now(), $2::jsonb)
+               returning id, email, email_confirmed_at, raw_user_meta_data`,
               [input.email, JSON.stringify(input.user_metadata ?? {})],
             );
             return { data: {
-                user: { id: rows[0].id, email: rows[0].email, user_metadata: rows[0].raw_user_meta_data },
+                user: {
+                  id: rows[0].id,
+                  email: rows[0].email,
+                  email_confirmed_at: rows[0].email_confirmed_at,
+                  user_metadata: rows[0].raw_user_meta_data,
+                },
               }, error: null };
           } catch (err) {
             return {
@@ -724,7 +730,7 @@ export function createShimClient(client: Client) {
         },
         async getUserById(id: string) {
           const { rows } = await client.query(
-            `select id, email, raw_user_meta_data as user_metadata from auth.users where id = $1`,
+            `select id, email, email_confirmed_at, raw_user_meta_data as user_metadata from auth.users where id = $1`,
             [id],
           );
           return { data: { user: rows[0] ?? null }, error: null };

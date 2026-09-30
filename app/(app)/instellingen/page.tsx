@@ -86,8 +86,10 @@ export default async function InstellingenPage({
             // velden van het vorige account vast.
             key={`account-${account.id}`}
             account={account}
-            // Alleen een admin van dít account mag wijzigen; een member leest mee.
-            mayEdit={rol === "admin" || staff}
+            // Elke klant uit dít account mag wijzigen (één klantrol, migratie 0137).
+            mayEdit={rol !== null || staff}
+            // Opzeggen is admin-werk: een klant vraagt het bij Outer Orbit aan.
+            mayCancel={staff}
           />
           <TeamBox
             key={`team-${account.id}`}

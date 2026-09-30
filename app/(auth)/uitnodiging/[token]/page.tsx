@@ -31,7 +31,7 @@ export default async function InvitePage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const { state, invite, accountName, soort } = await lookupInvite(token);
+  const { state, invite, accountName } = await lookupInvite(token);
 
   if (state === "geldig" && invite) {
     return (
@@ -39,9 +39,7 @@ export default async function InvitePage({
         eyebrow="Uitnodiging"
         title="Welkom bij ORBIT ENGINE"
         intro={
-          soort === "consultant"
-            ? "Je bent uitgenodigd als consultant. Kies een wachtwoord en je kunt aan de slag."
-            : accountName
+          accountName
             ? `Je werkruimte voor ${accountName} staat klaar. Kies een wachtwoord en je kunt erin.`
             : "Je werkruimte staat klaar. Kies een wachtwoord en je kunt erin."
         }

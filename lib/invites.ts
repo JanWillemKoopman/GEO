@@ -89,20 +89,7 @@ export async function createInvite(input: {
   return { invite: data as Invite, token };
 }
 
-export interface StaffInvite {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  expires_at: string;
-  accepted_at: string | null;
-  revoked_at: string | null;
-  created_at: string;
-}
-
 export interface InviteLookup {
-  /** Een klant komt binnen bij een account, een consultant bij de staf. */
-  soort: "klant" | "consultant";
   state: InviteState;
   /** Alleen gevuld als er een rij gevonden is, ongeacht de stand. */
   invite: Invite | null;
@@ -112,7 +99,7 @@ export interface InviteLookup {
 
 /** Zoekt een uitnodiging op het ruwe token uit de link. */
 export async function lookupInvite(token: string): Promise<InviteLookup> {
-  if (!token) return { soort: "klant", state: "ongeldig", invite: null, accountName: null };
+  if (!token) return { state: "ongeldig", invite: null, accountName: null };
 
   const admin = createAdminClient();
   const { data } = await admin
@@ -121,28 +108,10 @@ export async function lookupInvite(token: string): Promise<InviteLookup> {
     .eq("token_hash", hashToken(token))
     .maybeSingle();
 
-  if (!data) {
-    // Geen klantuitnodiging: misschien die van een consultant.
-    const { data: staf } = await admin
-      .from("staff_invites")
-      .select("*")
-      .eq("token_hash", hashToken(token))
-      .maybeSingle();
-    if (!staf) return { soort: "klant", state: "ongeldig", invite: null, accountName: null };
-    const rij = staf as StaffInvite;
-    return {
-      soort: "consultant",
-      state: inviteState(rij),
-      // Dezelfde vorm als een klantuitnodiging, zodat schermen niet hoeven te
-      // weten welke van de twee het is. `account_id` blijft leeg.
-      invite: { ...rij, account_id: "", role: "member" },
-      accountName: null,
-    };
-  }
+  if (!data) return { state: "ongeldig", invite: null, accountName: null };
 
   const rij = data as Invite & { accounts?: { name: string } | null };
   return {
-    soort: "klant",
     state: inviteState(rij),
     invite: rij,
     accountName: rij.accounts?.name ?? null,
@@ -175,7 +144,7 @@ export type AcceptResult =
  */
 export async function acceptInvite(token: string, password: string): Promise<AcceptResult> {
   const admin = createAdminClient();
-  const { state, invite, soort } = await lookupInvite(token);
+  const { state, invite } = await lookupInvite(token);
 
   if (state === "ongeldig" || !invite) return { ok: false, reason: "ongeldig" };
   if (state === "verlopen") return { ok: false, reason: "verlopen" };
@@ -216,21 +185,14 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
   // wachtwoord een manier zijn om een bestaand account aan te passen.
   if (bestaand) await vulNaamAan(bestaand, invite);
 
-  // Een consultant komt in de staftabel, een klant in zijn account.
-  const { error: lidError } =
-    soort === "consultant"
-      ? await admin
-          .from("staff_users")
-          .upsert(
-            { user_id: userId, role: "consultant" },
-            { onConflict: "user_id", ignoreDuplicates: true },
-          )
-      : await admin
-          .from("account_users")
-          .upsert(
-            { account_id: invite.account_id, user_id: userId, role: invite.role },
-            { onConflict: "account_id,user_id" },
-          );
+  // Elke klant heeft dezelfde rechten (migratie 0137), dus de rol uit een
+  // oudere uitnodiging (`member`) telt niet: iedereen komt binnen als `admin`.
+  const { error: lidError } = await admin
+    .from("account_users")
+    .upsert(
+      { account_id: invite.account_id, user_id: userId, role: "admin" },
+      { onConflict: "account_id,user_id" },
+    );
   if (lidError) {
     console.error("Lidmaatschap toevoegen mislukt:", lidError.message);
     return { ok: false, reason: "mislukt" };
@@ -240,7 +202,7 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
   // verbruikte link zonder toegang opleveren, en dat is niet te herstellen
   // zonder nieuwe uitnodiging.
   const { error: markError } = await admin
-    .from(soort === "consultant" ? "staff_invites" : "account_invites")
+    .from("account_invites")
     .update({ accepted_at: new Date().toISOString(), accepted_user_id: userId })
     .eq("id", invite.id)
     .is("accepted_at", null);
@@ -314,52 +276,6 @@ export async function findUserByEmail(email: string): Promise<string | null> {
  * blijven er wél bij staan, want die verklaren waarom een klant niet binnenkomt
  * en zijn dus juist het antwoord op een vraag.
  */
-/**
- * Een consultant uitnodigen. Alleen de superuser mag dit aanroepen; die
- * controle staat in de route, want deze functie weet niet wie er vraagt.
- */
-export async function createStaffInvite(input: {
-  email: string;
-  firstName: string;
-  lastName: string;
-  invitedBy: string;
-}): Promise<{ invite: StaffInvite; token: string } | null> {
-  const admin = createAdminClient();
-  const token = nieuwToken();
-  const { data, error } = await admin
-    .from("staff_invites")
-    .insert({
-      email: input.email.trim().toLowerCase(),
-      first_name: schoonNaam(input.firstName),
-      last_name: schoonNaam(input.lastName),
-      token_hash: hashToken(token),
-      expires_at: inviteExpiry().toISOString(),
-      created_by_user_id: input.invitedBy,
-    })
-    .select("*")
-    .single();
-  if (error || !data) {
-    console.error("Consultant uitnodigen mislukt:", error?.message);
-    return null;
-  }
-  return { invite: data as StaffInvite, token };
-}
-
-export async function listPendingStaffInvites(): Promise<StaffInvite[]> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("staff_invites")
-    .select("id, email, first_name, last_name, expires_at, accepted_at, revoked_at, created_at")
-    .is("accepted_at", null)
-    .is("revoked_at", null)
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error("Uitnodigingen voor consultants ophalen mislukt:", error.message);
-    return [];
-  }
-  return (data ?? []) as StaffInvite[];
-}
-
 export async function listPendingInvites(accountId: string): Promise<Invite[]> {
   const admin = createAdminClient();
   const { data, error } = await admin

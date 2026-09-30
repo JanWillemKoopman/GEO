@@ -68,9 +68,8 @@ export function TeamBox({
     setBusy(true);
     setLink(null);
     try {
-      // Iedereen die je hier uitnodigt is klant: het verschil tussen "lid" en
-      // "beheerder" bestond alleen om collega's mogen uitnodigen, en dat doet de
-      // consultant. Daarom geen keuze meer op het scherm.
+      // Iedereen die je hier uitnodigt is klant, met alle rechten van een klant.
+      // Daarom geen keuze op het scherm.
       const res = accountId
         ? await fetch(`/api/accounts/${accountId}/invites`, {
             method: "POST",
@@ -79,7 +78,7 @@ export function TeamBox({
               email: email.trim(),
               firstName: voornaam.trim(),
               lastName: achternaam.trim(),
-              role: "member",
+              role: "admin",
             }),
           })
         : await fetch(`/api/profiles/${profileId}/assign-by-email`, {
@@ -285,7 +284,7 @@ export function TeamBox({
         </form>
       ) : (
         <p className="text-sm text-muted">
-          Alleen een consultant kan iemand uitnodigen. Vraag je consultant om een collega toe te voegen.
+          Je zit niet in dit account en kunt daarom niemand uitnodigen.
         </p>
       )}
 

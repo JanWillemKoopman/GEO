@@ -14,10 +14,9 @@ import type { AccountRole } from "@/lib/types/database";
  * stappen, net als in `getOwnedProfile()`: ingelogd, lid van dít account, en
  * met de juiste rol. Nooit één samengestelde voorwaarde.
  *
- * Alleen een `admin` van het account of een beheerder van ORBIT ENGINE mag uitnodigen
- * (`mayInvite`). Een `member` kan meekijken en goedkeuren maar de kring niet
- * uitbreiden; bij een bureau is dat het verschil tussen een collega en de
- * contractpartij.
+ * Elk lid van het account en de admin mag uitnodigen (`mayInvite`). Sinds
+ * 30 september 2026 is er één klantrol met alle rechten, en wie in het account
+ * zit is dus altijd een volwaardige klant.
  */
 export const dynamic = "force-dynamic";
 
@@ -67,7 +66,8 @@ export async function POST(
     return NextResponse.json({ error: "Vul een voornaam en een achternaam in." }, { status: 400 });
   }
 
-  const role: AccountRole = body.role === "admin" ? "admin" : "member";
+  // Elke klant heeft dezelfde rechten (migratie 0137), dus geen keuze meer.
+  const role: AccountRole = "admin";
 
   const result = await createInvite({
     accountId,

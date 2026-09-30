@@ -96,6 +96,7 @@ const AUTH_STUB = `
   create table if not exists auth.users (
     id    uuid primary key,
     email text,
+    email_confirmed_at timestamptz,
     -- Zoals op Supabase: de naam die \`admin.createUser\` meekrijgt staat hier.
     raw_user_meta_data jsonb not null default '{}'::jsonb
   );

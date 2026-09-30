@@ -13457,3 +13457,28 @@ anders je eigen account, anders het oudste (`lib/account-keuze.ts`). Wie meer da
 knoppen bovenaan. "Opslaan" is pas actief na een wijziging en het veld "Nieuw e-mailadres" wordt niet meer door de
 browser met je huidige adres gevuld. Getest: 8 unit-asserties erbij. ⚠️ Nog niet bekeken tegen productie (conventie 10):
 er staan hier geen Supabase-sleutels.
+
+## 30 september 2026: twee rollen, Admin en Klant
+
+**Besluit van de eigenaar.** Van drie rollen (superuser, consultant, klant) terug naar twee. De eigenaar is zelf
+superuser, consultant en ontwikkelaar, dus de consultantrol had geen gebruiker en kostte alleen een derde stand
+om te testen en uit te leggen. Ook het verschil tussen klant-`admin` en klant-`member` is weg.
+
+- **Admin** is het vaste, bevestigde adres uit `lib/roles.ts` en kan alles. **Klant** is elk lid van een account
+  en heeft de rechten van de oude klant-`admin`: accountgegevens wijzigen, account opzeggen, collega's
+  uitnodigen. Betaald werk (meting, schrijven, plan goedkeuren) blijft admin-werk (`lib/cost-rules.ts`).
+- Migratie 0137: alle rollen in `account_users` en `account_invites` zijn `admin`, en `is_staff()` telt alleen
+  nog de `superuser`-rij. De 3 oude consultant-testaccounts (`staff_users`) blijven staan maar zijn klant.
+- Weg uit de code (ook de voor- en achternaam bij consultantuitnodigingen van eerder die dag): consultants uitnodigen (`/api/staff/invites`, `ConsultantsBox`, `createStaffInvite`) en de
+  tak `soort: "consultant"` in `lookupInvite`/`acceptInvite`. De tabel `staff_invites` blijft (additief).
+- De wisselknop rechtsboven is een segment met **Admin** en **Klant** (was een icoon met een "Klantweergave"-pil).
+- ⚠️ De ketentest gebruikte een staf-rij als bewijs van beheerder. Nu is het adres het bewijs, en de testdatabase
+  kreeg `auth.users.email_confirmed_at`. Daardoor bleek migratie 0134 in de test nooit te werken: de admin telt
+  nu mee in het aantal mensen bij "account verwijderen" (3 in plaats van 2). Dat aantal in het scherm telt de
+  admin dus ook mee; nog niet aangepast.
+- ⚠️ Nog niet bekeken in een browser als klant en als admin (conventie 10). Klantteksten die "je consultant bij
+  Outer Orbit" zeggen blijven staan: dat is de persoon achter het account, geen rol in de app.
+- **Opzeggen is admin-werk (later dezelfde dag).** Een klant zegt zijn abonnement niet meer zelf op: de knop
+  "Abonnement opzeggen" staat alleen nog bij de admin (`mayCancel`), en `PATCH /api/accounts/[id]` met
+  `cancel` geeft een klant een 403 met de melding dat de consultant het regelt. Account verwijderen kon een klant
+  al niet. Opzeggen zet nog steeds alleen een datum (besluit 14).
