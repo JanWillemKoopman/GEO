@@ -71,6 +71,28 @@ export async function accountIdsOf(userId: string): Promise<string[]> {
 }
 
 /**
+ * De accounts die écht van deze gebruiker zijn: hij is er het enige lid van.
+ *
+ * ⚠️ Sinds migratie 0134 is de superuser lid van elk klantaccount, zodat hij in
+ * de klantweergave alles ziet. Daarmee zegt "ik zit erin" niets meer over
+ * "dit is mijn eigen account". Het verwijderslot (`deletionBlockade`) moet
+ * alleen het laatste beschermen, anders was geen enkel klantaccount meer te
+ * verwijderen.
+ */
+export async function ownAccountIdsOf(userId: string): Promise<string[]> {
+  const ids = await accountIdsOf(userId);
+  if (ids.length === 0) return [];
+  const admin = createAdminClient();
+  const { data } = await admin.from("account_users").select("account_id").in("account_id", ids);
+  const perAccount = new Map<string, number>();
+  for (const r of data ?? []) {
+    const id = r.account_id as string;
+    perAccount.set(id, (perAccount.get(id) ?? 0) + 1);
+  }
+  return ids.filter((id) => (perAccount.get(id) ?? 0) === 1);
+}
+
+/**
  * Hoort deze gebruiker bij dit account?
  *
  * `null` als `accountId` leeg is: een merk zonder account (kan bestaan zolang

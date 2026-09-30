@@ -1,4 +1,4 @@
--- 0134: de bron "upload" voor de kennislaag (30 september 2026)
+-- 0135: de bron "upload" voor de kennislaag (30 september 2026)
 --
 -- Waarom. Op "Feiten en kennis" komt een knop waarmee de klant of de consultant een
 -- document uploadt of tekst plakt, waarna het model er feiten, kennis en vermoedens uit

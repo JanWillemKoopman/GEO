@@ -5,6 +5,7 @@ import { isStaff, isSuperuser } from "@/lib/staff";
 import { listPendingStaffInvites } from "@/lib/invites";
 import { ConsultantsBox } from "./consultants-box";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ownAccountIdsOf } from "@/lib/accounts";
 import { loadCsmBrands } from "@/lib/csm-data";
 import { totals } from "@/lib/csm";
 import { PageHeader } from "@/components/page-header";
@@ -45,11 +46,11 @@ export default async function BeheerPage() {
   // verwijderen zou zijn eigen inlog weghalen, en dat draai je niet terug met
   // een backup omdat de sessie dan al weg is. De server weigert het ook, maar
   // een knop tonen die altijd weigert is erger dan geen knop.
-  const [{ data: alleAccounts }, { data: eigen }] = await Promise.all([
+  const [{ data: alleAccounts }, eigen] = await Promise.all([
     admin.from("accounts").select("id, name").order("name"),
-    admin.from("account_users").select("account_id").eq("user_id", user.id),
+    ownAccountIdsOf(user.id),
   ]);
-  const eigenIds = new Set((eigen ?? []).map((r) => r.account_id as string));
+  const eigenIds = new Set(eigen);
   const verwijderbaar = (alleAccounts ?? [])
     .filter((a) => !eigenIds.has(a.id as string))
     .map((a) => ({ id: a.id as string, name: (a.name as string) ?? "" }));

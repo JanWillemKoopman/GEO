@@ -9450,6 +9450,16 @@ group("er is nog maar één plek met de drie lagen", () => {
   ok("access.ts kent de beheerderslaag", accessBron.includes("isStaff(userId)"));
 });
 
+// 30 september 2026: de superuser is lid van elk account (migratie 0134). Het
+// verwijderslot mag daardoor niet meer op "ik zit erin" leunen, anders is geen
+// enkel klantaccount meer te verwijderen.
+group("verwijderslot na 0134", () => {
+  const route = readFileSync("app/api/accounts/[id]/route.ts", "utf8");
+  const beheer = readFileSync("app/(app)/beheer/page.tsx", "utf8");
+  ok("route gebruikt ownAccountIdsOf", route.includes("eigenAccountIds: await ownAccountIdsOf("));
+  ok("beheerpagina gebruikt ownAccountIdsOf", beheer.includes("ownAccountIdsOf(user.id)"));
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nHet budgetplafond (F1, herstelplan na audit T5)");
 
@@ -19095,7 +19105,7 @@ group("Feiten en kennis: handmatige upload, datum en Ja of Nee (30 september 202
   const pijplijn = leesBestand("lib/pipeline/upload-kennis.ts");
   ok("de upload is één aanroep zonder zoeken op het web", (pijplijn.match(/callStructured\(/g) ?? []).length === 1 && pijplijn.includes("webSearch: false"));
   ok("en controleert het resultaat in code", pijplijn.includes("controleerUpload("));
-  ok("een migratie laat de bron upload toe", /'upload'/.test(leesBestand("supabase/migrations/0134_kennis_bron_upload.sql")));
+  ok("een migratie laat de bron upload toe", /'upload'/.test(leesBestand("supabase/migrations/0135_kennis_bron_upload.sql")));
 });
 
 group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", () => {

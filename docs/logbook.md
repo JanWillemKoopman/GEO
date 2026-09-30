@@ -13395,7 +13395,7 @@ De eigenaar wil dat de klant en de consultant het systeem snel slimmer maken met
 - **Nieuw: de knop "Kennis toevoegen"** rechtsboven (`KennisToevoegen`). Een venster met een bestand
   (PDF, TXT, MD, tot 4 MB) en een vrij veld om tekst te plakken, of allebei. Eén AI-aanroep
   (`lib/pipeline/upload-kennis.ts`, zonder zoeken op het web, ongeveer een cent per document) haalt er
-  feiten, kennis en vermoedens uit. Bron: "Handmatige upload" (nieuwe bron `upload`, migratie 0134).
+  feiten, kennis en vermoedens uit. Bron: "Handmatige upload" (nieuwe bron `upload`, migratie 0135).
   Geen Word-bestanden en geen tekstherkenning op een gescande PDF; het venster zegt dat.
 - **De regels staan in code** (`controleerUpload()`, conventie 1): bij "staat er" moet het citaat
   letterlijk in het materiaal staan en elk getal in de bewering ook in het citaat. Wat niet klopt valt weg
@@ -13411,3 +13411,11 @@ De eigenaar wil dat de klant en de consultant het systeem snel slimmer maken met
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen; migratie toegepast op productie.
 ⚠️ Nog niet geverifieerd met een echte upload en niet bekeken in een browser (conventie 10): er staan
 hier geen OpenAI- of Supabase-sleutels.
+
+## 30 september 2026: superuser is eigenaar van elk klantaccount
+
+De superuser stond alleen in zijn eigen account, dus in de klantweergave zag hij 0 van de 6 accounts.
+Migratie 0134 maakt hem eigenaar (`admin`) van alle 6 en van elk nieuw account (trigger). Gevolg voor het
+verwijderslot: "je zit erin" betekent niet meer "het is je eigen account", dus `ownAccountIdsOf`
+(`lib/accounts.ts`) beschermt alleen accounts waar hij het enige lid van is. Gevolg voor klanten: de
+superuser staat voortaan in hun ledenlijst. ⚠️ Nog niet bekeken in een browser als klant (conventie 10).
