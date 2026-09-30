@@ -13449,3 +13449,11 @@ met 400). De naam reist mee met de uitnodiging (migratie 0136) en wordt bij acti
 account gezet; een bestaande gebruiker zonder naam krijgt hem erbij, een bestaande naam wordt nooit overschreven.
 Accounts van vóór deze wijziging hebben geen naam en tonen in de zijbalk hun e-mailadres. Getest: 6 unit- en
 1 ketenasserties erbij.
+
+**30 september 2026: Mijn account toont één account tegelijk.** De pagina liet voor elk account een blok
+bedrijfsgegevens en een blok team zien. Omdat de superuser sinds migratie 0134 lid is van elk klantaccount waren
+dat er zes onder elkaar (12 blokken met lege velden). Nu toont de pagina het account van het merk waar je in zit,
+anders je eigen account, anders het oudste (`lib/account-keuze.ts`). Wie meer dan één account heeft, kiest met
+knoppen bovenaan. "Opslaan" is pas actief na een wijziging en het veld "Nieuw e-mailadres" wordt niet meer door de
+browser met je huidige adres gevuld. Getest: 8 unit-asserties erbij. ⚠️ Nog niet bekeken tegen productie (conventie 10):
+er staan hier geen Supabase-sleutels.
