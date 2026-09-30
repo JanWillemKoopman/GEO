@@ -72,7 +72,6 @@ export function Sidebar({
   logo,
   profiel,
   staff = false,
-  openVragen = 0,
   onMobileClose,
 }: {
   activeBrand: BrandOption | null;
@@ -84,13 +83,6 @@ export function Sidebar({
   profiel: React.ReactNode;
   /** Beheerder? Dan staan de Admin-bestemmingen erbij. */
   staff?: boolean;
-  /**
-   * Hoeveel vragen er op de klant wachten. Zet het groene bolletje achter
-   * "Openstaande vragen" aan. Bewust zonder getal: dat staat al in de
-   * bovenbalk, en twee keer hetzelfde cijfer op één scherm laat de lezer zoeken
-   * welke van de twee de echte is (`docs/ux-design.md` §1).
-   */
-  openVragen?: number;
   /** Alleen gezet in de mobiele lade: dan sluit een klik het menu. */
   onMobileClose?: () => void;
 }) {
@@ -129,7 +121,6 @@ export function Sidebar({
             key={kop.naam}
             kop={kop}
             pathname={pathname}
-            openVragen={openVragen}
             // Het eerste hoofdstuk krijgt geen extra ruimte erboven: de balk zelf
             // heeft al padding.
             eerste={i === 0}
@@ -160,12 +151,10 @@ function Hoofdstuk({
   pathname,
   eerste,
   scheiding,
-  openVragen,
   onClick,
 }: {
   kop: NavHoofdstuk;
   pathname: string;
-  openVragen: number;
   eerste: boolean;
   scheiding: boolean;
   onClick?: () => void;
@@ -215,10 +204,6 @@ function Hoofdstuk({
               key={item.href}
               item={item}
               active={navActief(pathname, item)}
-              // Alleen de vragenpagina draagt een bolletje. Een tweede
-              // markering in deze balk maakt van "hier wacht iets" opnieuw een
-              // versiering.
-              wacht={item.href.endsWith("/strategie/vragen") && openVragen > 0}
               onClick={onClick}
             />
           ))}
@@ -231,13 +216,10 @@ function Hoofdstuk({
 function Item({
   item,
   active,
-  wacht = false,
   onClick,
 }: {
   item: NavItem;
   active: boolean;
-  /** Wacht hier werk op de klant? Dan een groen bolletje achter de tekst. */
-  wacht?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -273,20 +255,16 @@ function Item({
       // pas kan lopen.
       className="nav-item"
     >
+      {/* ── ⚠️ GEEN BOLLETJE MEER ACHTER "OPENSTAANDE VRAGEN" (29 september
+          2026) ─────────────────────────────────────────────────────────────
+          Er stond een groen stipje achter die ene bestemming zodra er vragen
+          openstonden. Het is er op verzoek van de eigenaar af. Het signaal zelf
+          is niet weg: de teller in de bovenbalk (`OpenQuestionsBadge`) noemt het
+          aantal voluit, en op mobiel draagt de onderbalk hetzelfde stipje. Die
+          twee blijven de plek waar "er wacht iets op je" staat. */}
       <span className="flex min-w-0 items-center gap-2">
         <Icon naam={item.icoon} size={16} />
         <span className="truncate">{item.label}</span>
-        {/* ⚠️ Achter de tekst en niet ervoor: ervoor duwt het label uit de
-            uitlijning met de regels eronder, en dan lijkt de balk scheef zodra
-            het bolletje verschijnt of verdwijnt. */}
-        {wacht && (
-          <>
-            <span className="vraag-dot" aria-hidden />
-            {/* Kleur alleen is nooit de drager van betekenis. De bovenbalk zegt
-                het voluit; hier staat het voor wie voorleest. */}
-            <span className="sr-only">er wachten vragen op je</span>
-          </>
-        )}
       </span>
     </Link>
   );

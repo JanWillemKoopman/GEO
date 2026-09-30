@@ -13193,3 +13193,19 @@ de klant zichtbaar.
 
 Getest: `tsc --noEmit`, `test:unit` (5126), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in
 een browser (conventie 10): het venster en de nieuwe woorden zijn gebouwd en getest op code.
+
+---
+
+## 29 september 2026: het bolletje achter "Openstaande vragen" is uit de zijbalk
+
+Op verzoek van de eigenaar. Achter dat ene menu-item stond een groen, traag ademend stipje zodra er
+vragen openstonden (besloten 28 augustus 2026, zie hierboven). Dat is eruit; `Sidebar` draagt
+`openVragen` niet meer, en `NavLade` geeft het niet meer door.
+
+**Het signaal zelf blijft bestaan, op twee plekken.** De teller rechts in de bovenbalk
+(`OpenQuestionsBadge`) noemt het aantal voluit, en op mobiel draagt de onderbalk hetzelfde stipje.
+De reden dat het menu-item destijds geen getal kreeg (twee keer hetzelfde cijfer op één scherm laat
+de lezer zoeken welke de echte is) blijft dus staan; alleen de tweede, getalloze markering vervalt.
+`.vraag-dot` in `globals.css` blijft, want die twee gebruiken hem.
+
+Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
