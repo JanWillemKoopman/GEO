@@ -22,6 +22,7 @@ import { nogInTeDelen } from "@/lib/kennis/indelen";
 import { geraaktOverzicht } from "@/lib/kansen/impact";
 import { formatUsd, formatDateShort } from "@/lib/format";
 import { KennisWerkblad } from "../../_components/kennis-werkblad";
+import { KennisToevoegen } from "../../_components/kennis-toevoegen";
 import { KennisConflictLijst, type KennisConflictWeergave } from "../../_components/kennisconflict-lijst";
 
 export const dynamic = "force-dynamic";
@@ -46,14 +47,17 @@ const KANS_STATUS_LABEL: Record<"te_herzien" | "vervallen", string> = {
  * Medewerkers en de klant zelf. Besluit V6 en V11 (26 september 2026) hielden
  * het kennisoverzicht dicht voor de klant; de eigenaar heeft dat op 30
  * september 2026 omgekeerd. De klant leest dezelfde twee tabbladen, zonder
- * knoppen en zonder de stukken voor de consultant (botsingen, open punten,
- * geraakte pagina's). De tabel `klantkennis` blijft in de database dicht en de
- * route om iets te wijzigen blijft alleen voor medewerkers.
+ * knoppen per regel en zonder de stukken voor de consultant (botsingen, open
+ * punten, geraakte pagina's). De tabel `klantkennis` blijft in de database dicht
+ * en de route om iets te wijzigen blijft alleen voor medewerkers. Eén knop is er
+ * voor allebei: "Kennis toevoegen" rechtsboven (`KennisToevoegen`), een upload of
+ * geplakte tekst waar het model feiten, kennis en vermoedens uit haalt, met als
+ * bron Handmatige upload. Die route is open voor wie bij het merk hoort.
  *
  * ── DE BREEDTE ──────────────────────────────────────────────────────────────
  *
  * Geen `wil-lezen` (720 pixels): dat is voor een formulier of één stuk tekst. Dit
- * is een tabel met vier kolommen en zoekt de gewone werkbreedte van de app.
+ * is een tabel met zes kolommen en zoekt de gewone werkbreedte van de app.
  *
  * ── WAT WAAR STAAT ──────────────────────────────────────────────────────────
  *
@@ -171,7 +175,8 @@ export default async function FeitenEnKennisPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow={staf ? "Ook zichtbaar voor de klant, zonder knoppen" : undefined}
+        eyebrow={staf ? "Ook zichtbaar voor de klant, die alleen kan toevoegen" : undefined}
+        action={<KennisToevoegen profileId={id} alleenLezen={!staf} />}
         title="Feiten en kennis"
         description={
           staf

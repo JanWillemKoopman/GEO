@@ -1354,7 +1354,7 @@ export interface Klantkennis {
   status: "waargenomen" | "verklaard" | "bevestigd" | "afgeleid";
   /** sterk, gewoon, geen (besluit V12). */
   bewijskracht: "geen" | "gewoon" | "sterk" | null;
-  bron: "website" | "klant" | "gesprek" | "document" | "extern" | "meting" | "ai";
+  bron: "website" | "klant" | "gesprek" | "document" | "upload" | "extern" | "meting" | "ai";
   bron_url: string | null;
   /** Letterlijk uit de bron. Verplicht bij waargenomen. */
   citaat: string | null;

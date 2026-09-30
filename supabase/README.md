@@ -873,3 +873,8 @@ migratietabel van Supabase heet hij zo), en daarna hernummerd omdat `0131` en `0
 al door de rollen en de consultantuitnodigingen bezet waren. Nagerekend met een teruggedraaide
 transactie (een meting op `gereed` gaf `meting_klaar`, drie beantwoorde vragen van één merk gaven
 één rij met `aantal` 3).
+
+## 0134: bron upload voor de kennislaag
+
+Verruimt `klantkennis_bron_check` met de waarde `upload` (Handmatige upload op "Feiten en kennis").
+Toegepast op productie op 30 september 2026.

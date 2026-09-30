@@ -928,6 +928,9 @@ import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan } from "@/lib/kennis/betwist";
 import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
+import { controleerUpload, MAX_UPLOAD_ITEMS } from "@/lib/kennis/upload-verify";
+import { MAX_UPLOAD_CHARS, MAX_UPLOAD_BYTES } from "@/lib/kennis/upload-grenzen";
+import { nieuwNaarOud } from "@/lib/kennis/overzicht";
 import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, OVERZICHT_ACTIES, tabVoorDomein, leesTab, gebruikVan, pastInFilter, telPerFilter, itemsVoorTab, groepenVoorFilter, soortLabel, bronKort, isTeBevestigenVermoeden, DOMEIN_KOP, FEITEN_DOMEINEN, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam, siteLinksVoorOnderwerp, zusterPaginas } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
@@ -19000,6 +19003,101 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
   ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
 });
 
+group("Feiten en kennis: handmatige upload, datum en Ja of Nee (30 september 2026)", () => {
+  const materiaal =
+    "Jansen Installatie bestaat sinds 1998 en werkt in Utrecht en omgeving. Een onderhoudsbeurt voor een cv-ketel kost € 89,00 per jaar. " +
+    "Klanten bellen vaak omdat ze niet weten wie ze moeten vragen bij een lekkage.";
+  const voorstel = (extra: Partial<UploadItemTest>) => ({
+    domein: "aanbod" as const,
+    soort: "prijs",
+    bewering: "Een onderhoudsbeurt voor een cv-ketel kost € 89,00 per jaar.",
+    zekerheid: "staat_er" as const,
+    citaat: "Een onderhoudsbeurt voor een cv-ketel kost € 89,00 per jaar.",
+    verloopt: true,
+    ...extra,
+  });
+  type UploadItemTest = Parameters<typeof controleerUpload>[0][number];
+  const nu = new Date("2026-09-30T12:00:00Z");
+
+  const goed = controleerUpload([voorstel({})], materiaal, nu);
+  eq("een feit met een letterlijk citaat komt door, als verklaard en voor een pagina", `${goed.items[0]?.status}/${goed.items[0]?.gebruik}/${goed.weggelaten}`, "verklaard/content/0");
+  eq("een prijs verloopt na zes maanden", goed.items[0]?.verlooptOp ?? "", "2027-03-30");
+  eq("aanbod is een feit en geen kennis", goed.items[0]?.tab ?? "", "feiten");
+  eq("de soort wordt klein geschreven", controleerUpload([voorstel({ soort: " Prijs " })], materiaal, nu).items[0]?.soort ?? "", "prijs");
+
+  eq("een citaat dat niet in het materiaal staat valt weg", String(controleerUpload([voorstel({ citaat: "Een onderhoudsbeurt kost 79 euro per jaar." })], materiaal, nu).items.length), "0");
+  eq("een bedrag dat het model zelf bedacht valt weg, ook met een kloppend citaat", String(controleerUpload([voorstel({ bewering: "Een onderhoudsbeurt kost € 99,00 per jaar." })], materiaal, nu).items.length), "0");
+  eq("een afgerond bedrag valt weg", String(controleerUpload([voorstel({ bewering: "Een onderhoudsbeurt kost 90 euro per jaar." })], materiaal, nu).items.length), "0");
+  eq("een te kort citaat bewijst niets", String(controleerUpload([voorstel({ citaat: "sinds" })], materiaal, nu).items.length), "0");
+  eq("dezelfde bewering twee keer wordt één", String(controleerUpload([voorstel({}), voorstel({ soort: "tarief" })], materiaal, nu).items.length), "1");
+  eq("een bewering zonder inhoud valt weg", String(controleerUpload([voorstel({ bewering: "ja" })], materiaal, nu).items.length), "0");
+
+  const vermoeden = controleerUpload(
+    [voorstel({ domein: "doelgroep", bewering: "Klanten weten vaak niet bij wie ze moeten zijn als er iets mis is.", zekerheid: "vermoeden", citaat: "Klanten bellen vaak omdat ze niet weten wie ze moeten vragen", verloopt: false })],
+    materiaal,
+    nu,
+  );
+  eq("een vermoeden is afgeleid en alleen intern", `${vermoeden.items[0]?.status}/${vermoeden.items[0]?.gebruik}`, "afgeleid/intern");
+  eq("een doelgroep is kennis", vermoeden.items[0]?.tab ?? "", "kennis");
+  ok("het citaat van een vermoeden blijft als het echt in de tekst staat", vermoeden.items[0]?.citaat !== null);
+  eq("een vermoeden verloopt niet", vermoeden.items[0]?.verlooptOp ?? "geen", "geen");
+  eq(
+    "een verzonnen citaat bij een vermoeden valt weg, het vermoeden zelf niet",
+    `${controleerUpload([voorstel({ domein: "doelgroep", bewering: "Klanten zoeken een vast aanspreekpunt.", zekerheid: "vermoeden", citaat: "Wij bieden altijd een vast aanspreekpunt", verloopt: false })], materiaal, nu).items[0]?.citaat}`,
+    "null",
+  );
+  eq("een vermoeden met een getal dat nergens staat valt weg", String(controleerUpload([voorstel({ domein: "doelgroep", bewering: "Zeker 400 klanten hebben dit probleem.", zekerheid: "vermoeden", citaat: "", verloopt: false })], materiaal, nu).items.length), "0");
+
+  // Zonder cijfers in de variant: een getal dat niet in het citaat staat valt er juist uit.
+  const naam = (n: number) => String.fromCharCode(97 + Math.floor(n / 26), 97 + (n % 26));
+  const veel = Array.from({ length: MAX_UPLOAD_ITEMS + 5 }, (_, n) =>
+    voorstel({ bewering: `Variant ${naam(n)} van de onderhoudsbeurt voor een cv-ketel kost € 89,00 per jaar.` }),
+  );
+  eq("er komen er hooguit veertig door", String(controleerUpload(veel, materiaal, nu).items.length), String(MAX_UPLOAD_ITEMS));
+  ok("de grenzen van een upload", MAX_UPLOAD_CHARS === 30_000 && MAX_UPLOAD_BYTES === 4 * 1024 * 1024);
+
+  // Nieuw boven oud.
+  const i = (id: string, op: string | null) => ({ id, vastgelegd_op: op });
+  eq(
+    "nieuw staat boven oud, zonder datum onderaan, gelijke tijd op id",
+    [i("a", "2026-09-01T10:00:00Z"), i("b", null), i("c", "2026-09-30T10:00:00Z"), i("e", "2026-09-30T10:00:00Z"), i("d", "2026-09-15T10:00:00Z")].sort(nieuwNaarOud).map((x) => x.id).join(""),
+    "cedab",
+  );
+
+  // Verdeling: dezelfde volgorde in het scherm, en het scherm zegt Ja of Nee.
+  const kennis = groepenVoorFilter(
+    [
+      { id: "p", domein: "aanbod", soort: null, bewering: "Oud", status: "bevestigd", bron: "klant", gebruik: "content", vastgelegd_op: "2026-09-01T10:00:00Z", bevestigd_door: "u", bevestigd_op: "2026-09-02T10:00:00Z", vastgelegd_door: "u" },
+      { id: "q", domein: "aanbod", soort: null, bewering: "Nieuw", status: "verklaard", bron: "upload", gebruik: "content", vastgelegd_op: "2026-09-30T10:00:00Z", vastgelegd_door: "u" },
+    ],
+    "alles",
+    nu,
+  );
+  eq("binnen een blok staat het nieuwste bovenaan, ook boven bevestigd", kennis[0]?.items.map((x) => x.bewering).join(","), "Nieuw,Oud");
+  eq("de bron heet Handmatige upload", bronKort("upload"), "Handmatige upload");
+  ok("en in de zin ook", herkomstZin({ bron: "upload", vastgelegd_op: "2026-09-30T10:00:00Z" }).startsWith("Uit een handmatige upload"));
+
+  const werkblad = leesBestand("app/(app)/merk/[id]/_components/kennis-werkblad.tsx");
+  ok("de kolom Gebruikt zegt Ja of Nee en geen reden", werkblad.includes('{gebruik.gebruikt ? "Ja" : <span className="text-muted">Nee</span>}') && !werkblad.includes("neeZin"));
+  ok("de datum staat in de tabel", werkblad.includes(">\n                        Toegevoegd\n") || /Toegevoegd/.test(werkblad));
+
+  const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
+  ok("de knop staat rechtsboven voor de klant en de medewerker", scherm.includes("action={<KennisToevoegen profileId={id}"));
+
+  // De route: voor wie bij het merk hoort, niet alleen voor medewerkers, en in de toegestane map.
+  const route = leesBestand("app/api/profiles/[id]/kennis/upload/route.ts");
+  ok("de upload is open voor wie bij het merk hoort", route.includes("getOwnedProfile(admin, id, user.id)") && !route.includes("import { isStaff"));
+  ok("de route kijkt of het materiaal al bestaat vóór de dure aanroep", route.indexOf("content_hash") < route.indexOf("haalKennisUitUpload("));
+  ok("en bewaart het document pas nadat de aanroep lukte", route.indexOf("haalKennisUitUpload(") < route.indexOf('.from("brand_documents")\n      .insert'));
+  const uit = leesBestand("lib/kennis/uit-upload.ts");
+  ok("wat het model afleidt legt het model vast, wat er staat de mens", uit.includes('{ actor: "model", taak: MODEL_TAAK }') && uit.includes('i.status === "verklaard" ? mens'));
+  ok("de bron is upload", uit.includes('bron: "upload"'));
+  const pijplijn = leesBestand("lib/pipeline/upload-kennis.ts");
+  ok("de upload is één aanroep zonder zoeken op het web", (pijplijn.match(/callStructured\(/g) ?? []).length === 1 && pijplijn.includes("webSearch: false"));
+  ok("en controleert het resultaat in code", pijplijn.includes("controleerUpload("));
+  ok("een migratie laat de bron upload toe", /'upload'/.test(leesBestand("supabase/migrations/0134_kennis_bron_upload.sql")));
+});
+
 group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", () => {
   let n = 0;
   const k = (bewering: string, extra: Partial<OverzichtItem> = {}): OverzichtItem => ({
@@ -19098,7 +19196,7 @@ group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", (
   ok("leeg en 'overig' zeggen niets", soortLabel(null) === null && soortLabel("  ") === null && soortLabel("overig") === null);
   eq("de bron in één woord", bronKort("ai"), "Onderzoek");
   eq("en de rest", ["website", "klant", "gesprek"].map(bronKort).join(","), "Website,Klant,Gesprek");
-  ok("elke bron heeft een kort woord", ["website", "klant", "gesprek", "document", "extern", "meting", "ai"].every((b) => bronKort(b) !== b));
+  ok("elke bron heeft een kort woord", ["website", "klant", "gesprek", "document", "upload", "extern", "meting", "ai"].every((b) => bronKort(b) !== b));
 
   // Het scherm: alleen medewerkers, en de oude twee schermen zijn echt weg.
   const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");

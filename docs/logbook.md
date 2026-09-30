@@ -13375,3 +13375,27 @@ een besluit van de eigenaar dat V6 en V11 omkeert.
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen. ⚠️ Nog niet bekeken in een browser als
 klant (conventie 10). Niet gedaan: de breedte van Merkdossier (`merkprofiel/bewerken`); die pagina heeft
 zelf geen smalle beperking en de oorzaak zit in een onderdeel binnen de wizard.
+
+## 30 september 2026 (avond): Kennis toevoegen, datum en Ja of Nee op Feiten en kennis
+
+De eigenaar wil dat de klant en de consultant het systeem snel slimmer maken met eigen materiaal.
+
+- **Nieuw: de knop "Kennis toevoegen"** rechtsboven (`KennisToevoegen`). Een venster met een bestand
+  (PDF, TXT, MD, tot 4 MB) en een vrij veld om tekst te plakken, of allebei. Eén AI-aanroep
+  (`lib/pipeline/upload-kennis.ts`, zonder zoeken op het web, ongeveer een cent per document) haalt er
+  feiten, kennis en vermoedens uit. Bron: "Handmatige upload" (nieuwe bron `upload`, migratie 0134).
+  Geen Word-bestanden en geen tekstherkenning op een gescande PDF; het venster zegt dat.
+- **De regels staan in code** (`controleerUpload()`, conventie 1): bij "staat er" moet het citaat
+  letterlijk in het materiaal staan en elk getal in de bewering ook in het citaat. Wat niet klopt valt weg
+  en wordt geteld. Uit het materiaal: feit of kennis, verklaard, voor een pagina (zoals het merkdossier,
+  besluit V21). Afgeleid door het model: vermoeden, alleen intern, vastgelegd door het model, pas gebruikt
+  na bevestiging. Een tweede keer dezelfde tekst wordt herkend aan de hash.
+- **Beslissing:** de route is open voor wie bij het merk hoort, dus ook de klant. Wat de klant aanlevert
+  gaat dus zonder stap van de consultant naar de schrijver (alleen vermoedens wachten). De consultant ziet
+  het bovenaan de tabel met bron en datum en kan afkeuren.
+- **De tabel:** kolom "Toegevoegd" (datum van vastleggen), nieuw boven oud binnen elk onderwerp, en
+  "Gebruikt" zegt alleen Ja of Nee. Het waarom staat in de geopende regel.
+
+Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen; migratie toegepast op productie.
+⚠️ Nog niet geverifieerd met een echte upload en niet bekeken in een browser (conventie 10): er staan
+hier geen OpenAI- of Supabase-sleutels.
