@@ -6,13 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/components/page-header";
 import { ErrorNotice } from "@/components/error-notice";
-import { FactRequests } from "../../_components/fact-requests";
 import { gapLink } from "@/lib/profile-gaps";
 import { loadOpenQuestions } from "@/lib/open-questions";
 import { activeOnly } from "@/lib/archive";
 import { laadPaginas, paginaHref, type PaginaRij } from "@/lib/pagina-data";
 import { formatDag } from "@/lib/pagina-stand";
-import { Vragenlijst, type Vraag } from "@/components/pagina/vragenlijst";
+import type { Vraag } from "@/components/pagina/vragenlijst";
+import type { FactRequest } from "@/lib/types/database";
+import { VragenOverzicht, type VraagGroep } from "./vragen-overzicht";
 import type { UserFacingError } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +26,14 @@ export const metadata = { title: "Openstaande vragen" };
  * om goed te keuren en de pagina's om live te zetten. Op verzoek van de eigenaar
  * (dezelfde dag) staan die weer alleen in de bibliotheek, waar ze met hun stand
  * en een filter al stonden; twee plekken voor hetzelfde werk is er één te veel.
- * Hier, in deze volgorde:
+ *
+ * Sinds 30 september 2026 in één lijst met één filterrij (`vragen-overzicht.tsx`),
+ * in deze volgorde:
  *
  *   1. de vragen per pagina, de pagina met de vroegste streefdatum eerst
  *      (`docs/tasks/contentflow-een-lijn.md` §3.1);
- *   2. de losse vragen over het merk en de clusters, die aan geen pagina hangen.
+ *   2. de losse vragen over het merk, met de lege velden van het merkdossier;
+ *   3. de losse vragen per cluster, op naam.
  *
  * Volle breedte, zoals de andere schermen van de app: de smalle leesstand
  * (720px) was op verzoek van de eigenaar te krap.
@@ -56,20 +60,42 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
   const metVragen = paginas.filter((p) => p.stand.sleutel === "vragen");
   const perPagina = await laadVragenPerPagina(admin, metVragen);
 
-  // ── 4. De losse vragen: aan geen pagina gekoppeld ─────────────────────────
+  // ── 2. De losse vragen: aan geen pagina gekoppeld ─────────────────────────
   // Vragen uit een gearchiveerd cluster vallen weg (migratie 0044).
   const losseFacts = vragen.facts.filter(
     (f) =>
       (f.analysis_id === null || actieveIds.has(f.analysis_id)) &&
       (f.content_piece_ids ?? []).length === 0,
   );
-  const groepen = [
-    { id: "merk", naam: "Over je merk" },
+  const gaps = vragen.gaps;
+
+  const alleGroepen: VraagGroep[] = [
+    ...metVragen.map((p) => ({
+      sleutel: p.routeId,
+      soort: "pagina" as const,
+      naam: p.naam,
+      href: paginaHref(id, p.routeId, "taken"),
+      streefdatum: p.stand.streefdatum ? formatDag(p.stand.streefdatum) : null,
+      looptAchter: p.stand.looptAchter,
+      vragen: perPagina.get(p.routeId) ?? [],
+    })),
+    {
+      sleutel: "merk",
+      soort: "merk" as const,
+      naam: "Over je merk",
+      vragen: losseFacts.filter((f) => f.analysis_id === null).map(alsVraag),
+      gaten: gaps.map((g) => ({ field: g.field, label: g.label, effect: g.effect, href: gapLink(id, g.field) })),
+    },
     ...analyses
-      .map((a) => ({ id: a.id, naam: a.topic ?? "Cluster" }))
+      .map((a) => ({
+        sleutel: a.id,
+        soort: "cluster" as const,
+        naam: a.topic ?? "Cluster",
+        vragen: losseFacts.filter((f) => f.analysis_id === a.id).map(alsVraag),
+      }))
       .sort((a, b) => a.naam.localeCompare(b.naam, "nl")),
   ];
-  const gaps = vragen.gaps;
+  const groepen = alleGroepen.filter((g) => g.vragen.length > 0 || (g.gaten?.length ?? 0) > 0);
 
   const mislukt: UserFacingError | null = vragen.fout
     ? {
@@ -104,59 +130,7 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
 
       {mislukt && <ErrorNotice error={mislukt} />}
 
-      {metVragen.length > 0 && (
-        <Sectie titel="Vragen per pagina" uitleg="Een pagina wordt geschreven zodra al zijn vragen beantwoord of overgeslagen zijn.">
-          {metVragen.map((p) => (
-            <div key={p.routeId} className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Link href={paginaHref(id, p.routeId, "taken")} className="type-body-emphasis hover:underline">
-                  {p.naam}
-                </Link>
-                <span className="flex items-center gap-2">
-                  {p.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
-                  {p.stand.streefdatum && (
-                    <span className="type-caption text-muted">vóór {formatDag(p.stand.streefdatum)}</span>
-                  )}
-                </span>
-              </div>
-              <Vragenlijst
-                profileId={id}
-                vragen={perPagina.get(p.routeId) ?? []}
-                naAfronden="Alles voor deze pagina is binnen. We gaan hem schrijven."
-              />
-            </div>
-          ))}
-        </Sectie>
-      )}
-
-      {(losseFacts.length > 0 || gaps.length > 0) && (
-        <Sectie
-          titel="Losse vragen over je merk"
-          uitleg="Deze vragen horen bij geen enkele pagina. Een antwoord maakt de meting scherper en helpt elke volgende pagina."
-        >
-          {losseFacts.length > 0 && <FactRequests profileId={id} initial={losseFacts} groepen={groepen} kop="Vragen over je merk" />}
-          {gaps.length > 0 && (
-            <ul className="flex flex-col gap-3">
-              {gaps.map((gap) => {
-                const href = gapLink(id, gap.field);
-                return (
-                  <li key={gap.field} className="card flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <span className="type-body-emphasis">{gap.label}</span>
-                      <p className="type-caption text-secondary">{gap.effect}</p>
-                    </div>
-                    {href && (
-                      <Link href={href} className="btn-outline btn-sm w-fit shrink-0">
-                        Invullen
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Sectie>
-      )}
+      {groepen.length > 0 && <VragenOverzicht profileId={id} groepen={groepen} />}
 
       {!mislukt && aantal === 0 && (
         <div className="card card-success flex flex-col gap-1">
@@ -171,16 +145,21 @@ export default async function JouwBeurtPage({ params }: { params: Promise<{ id: 
   );
 }
 
-function Sectie({ titel, uitleg, children }: { titel: string; uitleg?: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="type-section">{titel}</h2>
-        {uitleg && <p className="type-caption text-muted">{uitleg}</p>}
-      </div>
-      {children}
-    </section>
-  );
+/** Een losse vraag in de vorm van de vraagkaart: aan geen pagina gekoppeld. */
+function alsVraag(f: FactRequest): Vraag {
+  return {
+    id: f.id,
+    question: f.question,
+    reason: f.reason,
+    kind: f.kind ?? null,
+    answer_type: f.answer_type ?? null,
+    options: f.options ?? null,
+    required: f.required ?? null,
+    status: f.status,
+    answer: f.answer,
+    onderdelen: [],
+    paginas: 0,
+  };
 }
 
 /**

@@ -13419,3 +13419,26 @@ Migratie 0134 maakt hem eigenaar (`admin`) van alle 6 en van elk nieuw account (
 verwijderslot: "je zit erin" betekent niet meer "het is je eigen account", dus `ownAccountIdsOf`
 (`lib/accounts.ts`) beschermt alleen accounts waar hij het enige lid van is. Gevolg voor klanten: de
 superuser staat voortaan in hun ledenlijst. ⚠️ Nog niet bekeken in een browser als klant (conventie 10).
+
+## 30 september 2026: Openstaande vragen in één lijst met één filterrij
+
+De eigenaar vond het scherm onlogisch: bovenaan de vragen per pagina (met onder de paginanaam nog eens de kop
+"Vragen voor deze pagina"), onderaan een tweede kaart "Losse vragen over je merk" met een eigen filter, een
+andere vraagkaart, twee grijze etiketten per vraag en andere knoppen ("Opslaan" en "Weet ik niet" tegenover
+"Antwoord opslaan" en "Overslaan").
+
+- **Eén lijst** (`strategie/vragen/vragen-overzicht.tsx`): een filterrij (Alles, Pagina's, Over je merk, per
+  cluster, met het aantal dat nog open staat), daaronder de groepen onder één soort kop (Pagina, Merk,
+  Cluster), elk met "x van y gedaan" en één zin wat een antwoord oplevert. De pagina's zijn samen één
+  filterknop: lange paginatitels in een filterrij maken die rij onleesbaar, en elke pagina heeft al een kop.
+- **Overal dezelfde vraagkaart** (`Vraagkaart`, ook op het scherm van de pagina zelf). Die kreeg twee dingen
+  van de oude kaart: een ja-of-nee- of keuzevraag slaat op bij de klik, en een losse vraag zegt bij
+  overslaan wat daar klopt ("ORBIT ENGINE vraagt het niet nog een keer"). Opslaan en overslaan staan nu naast
+  elkaar, met de uitleg van overslaan er in één regel onder.
+- **Eerder beantwoord of overgeslagen** staat ingeklapt onderaan, per vraag met "Wijzig". De lege velden van
+  het merkdossier staan in de groep "Over je merk".
+- De rekensom van de filterrij staat puur in `lib/vragen-overzicht.ts`, met een test. `fact-requests.tsx` is
+  weg: dit scherm was de enige gebruiker.
+
+Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen, en bekeken in een browser met
+voorbeelddata. ⚠️ Nog niet bekeken met echte klantdata (conventie 10): er staan hier geen Supabase-sleutels.
