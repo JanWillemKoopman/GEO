@@ -10,7 +10,6 @@ import { Icon } from "@/components/icon";
 import { BrandWizard } from "../../_components/brand-wizard";
 import { CLIENT_STEPS, type BrandStep } from "@/lib/pipeline/brand-fields";
 import { InventoryBox } from "../../_components/inventory-box";
-import { DossierBox } from "../../_components/dossier-box";
 import { DossierStatus } from "../../_components/dossier-status";
 
 export const dynamic = "force-dynamic";
@@ -44,9 +43,8 @@ export const metadata = { title: "Merkdossier" };
  * waar de waarde vandaan komt; de veertien ontbrekende velden hebben een stap
  * gekregen.
  *
- * De twee blokken onderaan zijn géén merkvelden maar gereedschap: hoe grondig
- * ORBIT ENGINE de site uitleest, en waar het extra brontekst vandaan haalt. Ze
- * staan bewust buiten de wizard, want dan blijft de teller "42 in, 42 uit"
+ * Het blok onderaan is géén merkveld maar gereedschap: hoe grondig
+ * ORBIT ENGINE de site uitleest. Het staat bewust buiten de wizard, want dan blijft de teller "42 in, 42 uit"
  * eerlijk (`lib/pipeline/brand-fields.ts`).
  *
  * ── ⚠️ HIER STAAN 42 VAN DE 57 VELDEN, EN DAT IS GEEN OMISSIE ───────────────
@@ -154,13 +152,6 @@ export default async function BewerkenPage({
         sources={sources}
         startStap={startStap}
       />
-
-      {/* ── Wat je al hebt liggen ───────────────────────────────────────────
-          Ingeklapt, want dit is naslag en niet de stap waar de klant voor kwam
-          (`docs/ux-design.md` §5). */}
-      <CollapsibleSection title="Wat je al hebt liggen">
-        <DossierBox profileId={id} />
-      </CollapsibleSection>
 
       {/* ── Het uitlezen van de site, alleen voor de consultant ─────────────
           ⚠️ Tot de UX-audit van 23 september 2026 (P1.8) stond dit voor iedereen
