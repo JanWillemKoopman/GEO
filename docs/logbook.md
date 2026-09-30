@@ -13387,3 +13387,11 @@ een besluit van de eigenaar dat V6 en V11 omkeert.
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen. ⚠️ Nog niet bekeken in een browser als
 klant (conventie 10). Niet gedaan: de breedte van Merkdossier (`merkprofiel/bewerken`); die pagina heeft
 zelf geen smalle beperking en de oorzaak zit in een onderdeel binnen de wizard.
+
+## 30 september 2026: superuser is eigenaar van elk klantaccount
+
+De superuser stond alleen in zijn eigen account, dus in de klantweergave zag hij 0 van de 6 accounts.
+Migratie 0134 maakt hem eigenaar (`admin`) van alle 6 en van elk nieuw account (trigger). Gevolg voor het
+verwijderslot: "je zit erin" betekent niet meer "het is je eigen account", dus `ownAccountIdsOf`
+(`lib/accounts.ts`) beschermt alleen accounts waar hij het enige lid van is. Gevolg voor klanten: de
+superuser staat voortaan in hun ledenlijst. ⚠️ Nog niet bekeken in een browser als klant (conventie 10).

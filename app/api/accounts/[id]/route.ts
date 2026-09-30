@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { membershipsOf } from "@/lib/accounts";
+import { membershipsOf, ownAccountIdsOf } from "@/lib/accounts";
 import { isStaff } from "@/lib/staff";
 import { EDITABLE_ACCOUNT_FIELDS } from "@/lib/account-editable";
 import { toPackageSize } from "@/lib/package-sizes";
@@ -175,10 +175,9 @@ export async function GET(
   const plan = await deletionPlan(id);
   if (!plan) return NextResponse.json({ error: DELETION_BLOCKED.niet_gevonden }, { status: 404 });
 
-  const memberships = await membershipsOf(user.id);
   const blokkade = deletionBlockade({
     accountId: id,
-    eigenAccountIds: memberships.map((m) => m.accountId),
+    eigenAccountIds: await ownAccountIdsOf(user.id),
   });
 
   return NextResponse.json({
@@ -217,10 +216,9 @@ export async function DELETE(
   const plan = await deletionPlan(id);
   if (!plan) return NextResponse.json({ error: DELETION_BLOCKED.niet_gevonden }, { status: 404 });
 
-  const memberships = await membershipsOf(user.id);
   const blokkade = deletionBlockade({
     accountId: id,
-    eigenAccountIds: memberships.map((m) => m.accountId),
+    eigenAccountIds: await ownAccountIdsOf(user.id),
   });
   if (blokkade) return NextResponse.json({ error: blokkade }, { status: 409 });
 
