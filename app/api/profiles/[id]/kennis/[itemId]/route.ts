@@ -14,7 +14,7 @@ import { handelOpOverzicht } from "@/lib/kennis/uit-overzicht";
  * key (conventie 6); `handelOpOverzicht()` filtert op merk en item samen, dus een
  * item van een ander merk bestaat hier niet.
  *
- * POST `{ actie: "bevestigen" | "aanpassen" | "afwijzen" | "niet_op_site", bewering? }`
+ * POST `{ actie: "bevestigen" | "aanpassen" | "afwijzen" | "terugzetten" | "niet_op_site", bewering? }`
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; itemId: string }> }) {
   const { id, itemId } = await params;

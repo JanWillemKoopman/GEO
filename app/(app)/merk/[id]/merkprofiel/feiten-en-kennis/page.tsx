@@ -41,10 +41,19 @@ const KANS_STATUS_LABEL: Record<"te_herzien" | "vervallen", string> = {
  * (`lib/redirects.ts`). De gegevens, regels en handelingen zijn dezelfde; alleen
  * de indeling is nieuw: twee tabbladen, ingeklapte onderwerpen en een filter.
  *
- * Alleen voor medewerkers (besluit V6 en V11 van
- * `docs/tasks/van-pijplijn-naar-kennissysteem.md`); een klant krijgt een 404 en
- * geen 403, zelfde patroon als de schermen die hiermee vervallen. De tabel
- * `klantkennis` is voor de klant ook in de database dicht.
+ * ── WIE HET ZIET ────────────────────────────────────────────────────────────
+ *
+ * Medewerkers en de klant zelf. Besluit V6 en V11 (26 september 2026) hielden
+ * het kennisoverzicht dicht voor de klant; de eigenaar heeft dat op 30
+ * september 2026 omgekeerd. De klant leest dezelfde twee tabbladen, zonder
+ * knoppen en zonder de stukken voor de consultant (botsingen, open punten,
+ * geraakte pagina's). De tabel `klantkennis` blijft in de database dicht en de
+ * route om iets te wijzigen blijft alleen voor medewerkers.
+ *
+ * ── DE BREEDTE ──────────────────────────────────────────────────────────────
+ *
+ * Geen `wil-lezen` (720 pixels): dat is voor een formulier of één stuk tekst. Dit
+ * is een tabel met vier kolommen en zoekt de gewone werkbreedte van de app.
  *
  * ── WAT WAAR STAAT ──────────────────────────────────────────────────────────
  *
@@ -65,8 +74,13 @@ export default async function FeitenEnKennisPage({
   const profile = await getProfile(id);
   if (!profile) notFound();
 
+  // ⚠️ `getProfile` draait onder de rechten van de gebruiker: een klant krijgt
+  // hier alleen zijn eigen merk terug, en anders een 404. Daarna leest de server
+  // met de admin-sleutel, want `klantkennis` is voor de klant zelf in de database
+  // dicht (RLS, migratie 0116). Lezen is niet schrijven: de route om iets te
+  // wijzigen blijft alleen voor medewerkers.
   const user = await requireUser();
-  if (!(await isStaff(user.id))) notFound();
+  const staf = await isStaff(user.id);
 
   const tab = leesTab(tabParam);
   const admin = createAdminClient();
@@ -82,27 +96,32 @@ export default async function FeitenEnKennisPage({
       .range(van, tot),
   );
 
+  // Een klant krijgt de interne stukken niet: de botsingen, de open punten voor
+  // het gesprek en wat een wijziging raakte zijn werk van de consultant.
+  const leeg = { data: null as null };
   const [nogIndelen, blokkades, { data: facetten }, { data: profielRij }, { data: conflictRijen }, geraakt] = await Promise.all([
-    nogInTeDelen(admin, id),
+    staf ? nogInTeDelen(admin, id) : Promise.resolve(0),
     // Wat op de conflictlijst staat of daar verloor, krijgt de schrijver niet
     // (`betwist.ts`); de consultant ziet dat hier, met de reden.
     blokkadesVoorMerk(admin, id, rijen),
     // De open punten van het onderzoek (A3): sinds besluit V3 geen vragen aan de
     // klant meer, maar onderwerpen voor het gesprek.
-    admin.from("profile_facets").select("facet, raw_json").eq("profile_id", id).in("facet", ["synthese", "aanbod"]),
-    admin.from("profiles").select("service_scope, service_regions, business_model").eq("id", id).maybeSingle(),
+    staf ? admin.from("profile_facets").select("facet, raw_json").eq("profile_id", id).in("facet", ["synthese", "aanbod"]) : Promise.resolve(leeg),
+    staf ? admin.from("profiles").select("service_scope, service_regions, business_model").eq("id", id).maybeSingle() : Promise.resolve(leeg),
     // Alleen de open botsingen: de keuze zelf staat daarna in de kennislaag
     // (bevestigd en afgewezen, met wie en wanneer).
-    admin
-      .from("fact_conflicts")
-      .select("id, soort, ernst, uitleg, kennis_ids")
-      .eq("profile_id", id)
-      .eq("echt_conflict", true)
-      .eq("status", "open")
-      .not("kennis_ids", "is", null)
-      .order("created_at", { ascending: false }),
+    staf
+      ? admin
+          .from("fact_conflicts")
+          .select("id, soort, ernst, uitleg, kennis_ids")
+          .eq("profile_id", id)
+          .eq("echt_conflict", true)
+          .eq("status", "open")
+          .not("kennis_ids", "is", null)
+          .order("created_at", { ascending: false })
+      : Promise.resolve(leeg),
     // G3: wat een recente kenniswijziging raakte (afgewezen of aangepaste kennis).
-    geraaktOverzicht(admin, id),
+    staf ? geraaktOverzicht(admin, id) : Promise.resolve({ kansen: [], paginas: [], geschatteKostenUsd: null }),
   ]);
 
   const items: OverzichtItem[] = rijen.map((r) => {
@@ -150,14 +169,18 @@ export default async function FeitenEnKennisPage({
   );
 
   return (
-    <div className="flex flex-col gap-6 wil-lezen">
+    <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Alleen jij ziet dit"
+        eyebrow={staf ? "Ook zichtbaar voor de klant, zonder knoppen" : undefined}
         title="Feiten en kennis"
-        description="Alles wat het onderzoek en het gesprek over het bedrijf opleverden, met waar het vandaan komt. Leg hier vast wat de klant in het gesprek bevestigt of verbetert."
+        description={
+          staf
+            ? "Alles wat het onderzoek en het gesprek over het bedrijf opleverden, met de bron erbij. Wat hier staat wordt gebruikt bij het schrijven, tenzij je het afkeurt. Vermoedens van het onderzoek gaan pas mee nadat je ze bevestigt."
+            : "Alles wat ORBIT ENGINE over je bedrijf weet, met de bron erbij. Wat hier bij Gebruikt op Ja staat, gebruikt ORBIT ENGINE bij het schrijven van je pagina's. Een vermoeden gebruikt het pas nadat het bevestigd is. Klopt er iets niet? Zeg het je consultant, die past het aan."
+        }
       />
 
-      {conflicten.length > 0 && (
+      {staf && conflicten.length > 0 && (
         <section className="card flex flex-col gap-3">
           <h2 className="text-base font-medium">
             {conflicten.length === 1 ? "Eén tegenstrijdigheid wacht op je keuze" : `${conflicten.length} tegenstrijdigheden wachten op je keuze`}
@@ -179,16 +202,16 @@ export default async function FeitenEnKennisPage({
         />
         {/* De sleutel bevat het tabblad: het werkblad onthoudt zijn filter en zijn
             geopende regel, en die horen bij één tabblad. */}
-        <KennisWerkblad key={tab} profileId={id} tab={tab} items={tab === "feiten" ? feiten : kennis} />
+        <KennisWerkblad key={tab} profileId={id} tab={tab} items={tab === "feiten" ? feiten : kennis} alleenLezen={!staf} />
       </div>
 
-      {conflicten.length === 0 && (
+      {staf && conflicten.length === 0 && (
         <CollapsibleSection title="Tegenstrijdigheden" badge="geen" defaultOpen={false} compact card>
           {lijst}
         </CollapsibleSection>
       )}
 
-      {openPunten.length > 0 && (
+      {staf && openPunten.length > 0 && (
         <CollapsibleSection title="Wat het onderzoek niet kon vaststellen" badge={String(openPunten.length)} defaultOpen={false} compact card>
           <p className="text-sm text-secondary">
             Onderwerpen voor het gesprek met de klant. Wat hij vertelt, leg je vast op het gespreksscherm of hierboven.
@@ -206,7 +229,7 @@ export default async function FeitenEnKennisPage({
         </CollapsibleSection>
       )}
 
-      {(geraakt.kansen.length > 0 || geraakt.paginas.length > 0) && (
+      {staf && (geraakt.kansen.length > 0 || geraakt.paginas.length > 0) && (
         <CollapsibleSection
           title="Wat een wijziging raakte"
           badge={String(geraakt.kansen.length + geraakt.paginas.length)}

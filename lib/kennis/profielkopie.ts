@@ -15,7 +15,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Klantkennis } from "@/lib/types/database";
-import { KENNISVELDEN, kopieNaHandeling, type KopieWijziging } from "@/lib/kennis/profielvelden";
+import { KENNISVELDEN, kopieNaHandeling, kopieNaTerugzetten, type KopieWijziging } from "@/lib/kennis/profielvelden";
 
 export async function schrijfProfiel(
   admin: SupabaseClient,
@@ -54,6 +54,33 @@ export async function werkKopieBij(
     return wijziging;
   } catch (err) {
     console.warn(`Kopie op het profiel bijwerken mislukt voor merk ${oud.profile_id}: ${String(err)}`);
+    return null;
+  }
+}
+
+/**
+ * De kopie volgt ook een terugzetting: zette de consultant een afgewezen naam,
+ * plaats of concurrent terug, dan komt dezelfde waarde terug op het profiel.
+ * Gooit nooit een fout, om dezelfde reden als `werkKopieBij()`.
+ */
+export async function herstelKopie(
+  admin: SupabaseClient,
+  item: Pick<Klantkennis, "profile_id" | "domein" | "soort" | "bewering" | "herkomst_tabel">,
+): Promise<KopieWijziging | null> {
+  try {
+    if (item.herkomst_tabel !== "profiles" && item.herkomst_tabel !== "profile_facets") return null;
+    const { data } = await admin.from("profiles").select(KENNISVELDEN.join(", ")).eq("id", item.profile_id).maybeSingle();
+    if (!data) return null;
+    const wijziging = kopieNaTerugzetten(data as unknown as Record<string, unknown>, item);
+    if (!wijziging) return null;
+    const { error } = await schrijfProfiel(admin, item.profile_id, { [wijziging.veld]: wijziging.waarde });
+    if (error) {
+      console.warn(`Kopie op het profiel herstellen mislukt voor merk ${item.profile_id}: ${error}`);
+      return null;
+    }
+    return wijziging;
+  } catch (err) {
+    console.warn(`Kopie op het profiel herstellen mislukt voor merk ${item.profile_id}: ${String(err)}`);
     return null;
   }
 }

@@ -22,11 +22,13 @@
  *   dit klopt niet  afwijzen: bewaard, telt niet meer mee, komt niet stil terug
  *   niet op de site het gebruik wordt "intern": het mag vragen en kansen voeden,
  *                   maar komt niet op een pagina (§6.1)
+ *   terugzetten     een afwijzing ongedaan maken (30 september 2026): alleen bij
+ *                   een afgewezen item, en het enige wat daarbij kan
  */
-import { isAfgewezen, magOvergaan, type KennisRegelItem } from "@/lib/kennis/regels";
+import { isAfgewezen, isVerlopen, magInBlokA, magOvergaan, type KennisRegelItem } from "@/lib/kennis/regels";
 
-export type OverzichtActie = "bevestigen" | "aanpassen" | "afwijzen" | "niet_op_site";
-export const OVERZICHT_ACTIES: readonly OverzichtActie[] = ["bevestigen", "aanpassen", "afwijzen", "niet_op_site"];
+export type OverzichtActie = "bevestigen" | "aanpassen" | "afwijzen" | "terugzetten" | "niet_op_site";
+export const OVERZICHT_ACTIES: readonly OverzichtActie[] = ["bevestigen", "aanpassen", "afwijzen", "terugzetten", "niet_op_site"];
 
 export interface OverzichtItem extends KennisRegelItem {
   id: string;
@@ -82,9 +84,13 @@ export function herkomstZin(item: Pick<OverzichtItem, "bron" | "vastgelegd_op">)
   return datum ? `Uit ${bron}, ${datum}.` : `Uit ${bron}.`;
 }
 
-/** Welke handelingen kunnen bij dit item? Leeg bij een afgewezen of vervangen item. */
+/**
+ * Welke handelingen kunnen bij dit item? Bij een afgewezen item alleen
+ * terugzetten, bij een vervangen item niets (de nieuwere versie geldt).
+ */
 export function handelingenVoor(item: OverzichtItem): OverzichtActie[] {
-  if (item.vervangen_door || isAfgewezen(item)) return [];
+  if (item.vervangen_door) return [];
+  if (isAfgewezen(item)) return ["terugzetten"];
   const uit: OverzichtActie[] = [];
   if (magOvergaan(item.status as never, "bevestigd", "mens", item)) uit.push("bevestigen");
   // Een verbod pas je aan of wijs je af; "niet op de site" zegt het al.
@@ -185,46 +191,118 @@ export function leesTab(waarde: string | null | undefined): KennisTab {
   return waarde === "kennis" ? "kennis" : "feiten";
 }
 
+// ── Het filter: wordt het gebruikt bij het schrijven, ja of nee ──────────────
+//
+// Eerste versie (30 september 2026, ochtend) filterde op de status van het item:
+// bevestigd, van de site, volgens de klant, vermoeden. Dat beantwoordt niet wat
+// de consultant wil weten. Alles wat de site liet zien of de klant zei gaat al
+// zonder goedkeuring naar de schrijver (`magInBlokA`); "bevestigd" is daar een
+// extra zekerheid en geen voorwaarde. De vraag per regel is dus: gaat dit mee,
+// en zo niet, waarom niet? Dat staat hieronder in `gebruikVan()`, met dezelfde
+// regel als de schrijver zelf, zodat scherm en schrijver niet uit elkaar lopen.
+
 /**
- * Het filter boven de lijst: één woord per stand van een item.
- * "alles" is alles wat meetelt, dus zonder wat een mens afwees.
+ * Het filter boven de lijst. "alles" is alles wat meetelt, dus zonder wat een
+ * mens afkeurde.
  */
-export type KennisFilter = "alles" | "bevestigd" | "site" | "klant" | "vermoeden" | "afgewezen";
-export const KENNIS_FILTERS: readonly KennisFilter[] = ["alles", "bevestigd", "site", "klant", "vermoeden", "afgewezen"];
+export type KennisFilter = "alles" | "gebruikt" | "niet" | "afgekeurd";
+export const KENNIS_FILTERS: readonly KennisFilter[] = ["alles", "gebruikt", "niet", "afgekeurd"];
 
 export const FILTER_LABEL: Record<KennisFilter, string> = {
   alles: "Alles",
-  bevestigd: "Bevestigd",
-  site: "Van de site",
-  klant: "Volgens de klant",
-  vermoeden: "Vermoedens",
-  afgewezen: "Afgewezen",
+  gebruikt: "Wordt gebruikt",
+  niet: "Wordt niet gebruikt",
+  afgekeurd: "Afgekeurd",
 };
 
-/** In welk filter valt dit item, buiten "alles"? */
-export function standVan(item: Pick<OverzichtItem, "status" | "afgewezen_op">): Exclude<KennisFilter, "alles"> {
-  if (isAfgewezen(item)) return "afgewezen";
-  if (item.status === "bevestigd") return "bevestigd";
-  if (item.status === "waargenomen") return "site";
-  if (item.status === "verklaard") return "klant";
-  return "vermoeden";
+export interface Gebruik {
+  /** Gaat dit bij het schrijven mee naar de schrijver? */
+  gebruikt: boolean;
+  /** Eén of twee woorden, voor in de tabel. */
+  reden: "Ja" | "Als verbod" | "Vermoeden" | "Alleen intern" | "Botsing" | "Verlopen" | "Afgekeurd" | "Niet gebruikt";
 }
 
-export function pastInFilter(item: Pick<OverzichtItem, "status" | "afgewezen_op">, filter: KennisFilter): boolean {
-  const stand = standVan(item);
-  return filter === "alles" ? stand !== "afgewezen" : stand === filter;
+/**
+ * Wordt dit item gebruikt bij het schrijven? Volgt `magInBlokA()` en
+ * `setVoorBlokA()` (`regels.ts`), met daarvoor een reden per soort nee.
+ *
+ * Een verbod telt als gebruikt: het gaat mee, als verbod. Een item op de
+ * conflictlijst gaat niet mee (`betwist.ts`), en dat weet het scherm via
+ * `item.blokkade`.
+ */
+export function gebruikVan(item: OverzichtItem, nu: Date = new Date()): Gebruik {
+  if (isAfgewezen(item)) return { gebruikt: false, reden: "Afgekeurd" };
+  if (item.blokkade) return { gebruikt: false, reden: "Botsing" };
+  if (item.gebruik === "verboden") return { gebruikt: true, reden: "Als verbod" };
+  if (isVerlopen(item, nu)) return { gebruikt: false, reden: "Verlopen" };
+  if (item.status === "afgeleid") return { gebruikt: false, reden: "Vermoeden" };
+  if (item.gebruik !== "content") return { gebruikt: false, reden: "Alleen intern" };
+  return magInBlokA(item, nu) ? { gebruikt: true, reden: "Ja" } : { gebruikt: false, reden: "Niet gebruikt" };
 }
 
-export type Telling = Record<KennisFilter, number>;
+export function pastInFilter(item: OverzichtItem, filter: KennisFilter, nu: Date = new Date()): boolean {
+  if (filter === "afgekeurd") return isAfgewezen(item);
+  if (isAfgewezen(item)) return false;
+  if (filter === "alles") return true;
+  const { gebruikt } = gebruikVan(item, nu);
+  return filter === "gebruikt" ? gebruikt : !gebruikt;
+}
 
-export function telPerFilter(items: readonly Pick<OverzichtItem, "status" | "afgewezen_op">[]): Telling {
-  const t: Telling = { alles: 0, bevestigd: 0, site: 0, klant: 0, vermoeden: 0, afgewezen: 0 };
+export type Telling = Record<KennisFilter, number> & {
+  /** Van "niet": hoeveel zijn vermoedens die je met één klik kunt bevestigen. */
+  vermoedens: number;
+};
+
+export function telPerFilter(items: readonly OverzichtItem[], nu: Date = new Date()): Telling {
+  const t: Telling = { alles: 0, gebruikt: 0, niet: 0, afgekeurd: 0, vermoedens: 0 };
   for (const i of items) {
-    const stand = standVan(i);
-    t[stand] += 1;
-    if (stand !== "afgewezen") t.alles += 1;
+    if (isAfgewezen(i)) {
+      t.afgekeurd += 1;
+      continue;
+    }
+    t.alles += 1;
+    const g = gebruikVan(i, nu);
+    if (g.gebruikt) t.gebruikt += 1;
+    else t.niet += 1;
+    if (g.reden === "Vermoeden") t.vermoedens += 1;
   }
   return t;
+}
+
+/**
+ * Een vermoeden dat met één klik bevestigd kan worden: nog niet afgekeurd of
+ * vervangen, en `handelingenVoor()` biedt bevestigen aan.
+ */
+export function isTeBevestigenVermoeden(item: OverzichtItem): boolean {
+  return item.status === "afgeleid" && handelingenVoor(item).includes("bevestigen");
+}
+
+/**
+ * Het type gegeven als klein label voor de tekst: "Merknaam", "Bedrijfsmodel".
+ * Zonder dit staat er "fabrikant" of "Myfinance" en is niet te zien waarover het
+ * gaat (gevonden bij Myfinance, 30 september 2026: drie regels "Myfinance" waren
+ * een merknaam en twee schrijfwijzen). De soort staat in de database als gewone
+ * Nederlandse woorden; "overig" en leeg zeggen niets en vallen weg.
+ */
+export function soortLabel(soort: string | null | undefined): string | null {
+  const s = (soort ?? "").trim();
+  if (!s || s.toLowerCase() === "overig") return null;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+const BRON_KORT: Record<string, string> = {
+  website: "Website",
+  klant: "Klant",
+  gesprek: "Gesprek",
+  document: "Document",
+  extern: "Extern",
+  meting: "Meting",
+  ai: "Onderzoek",
+};
+
+/** De bron in één woord voor de tabel. De hele zin met datum staat in de details (`herkomstZin`). */
+export function bronKort(bron: string): string {
+  return BRON_KORT[bron] ?? bron;
 }
 
 /** De items van één tabblad, zonder vervangen versies (geschiedenis, geen kennis). */
@@ -238,8 +316,8 @@ export function itemsVoorTab(items: readonly OverzichtItem[], tab: KennisTab): O
  * kennisoverzicht, en daarna alfabetisch zodat de volgorde bij elke verversing
  * gelijk blijft.
  */
-export function groepenVoorFilter(items: readonly OverzichtItem[], filter: KennisFilter): OverzichtGroep[] {
-  return groepeer(items.filter((i) => pastInFilter(i, filter)));
+export function groepenVoorFilter(items: readonly OverzichtItem[], filter: KennisFilter, nu: Date = new Date()): OverzichtGroep[] {
+  return groepeer(items.filter((i) => pastInFilter(i, filter, nu)));
 }
 
 // ── De open punten van het onderzoek (A3) ────────────────────────────────────

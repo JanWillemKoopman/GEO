@@ -362,6 +362,56 @@ export async function wijsAf(
 }
 
 /**
+ * Een mens zet een afgewezen item terug ("ongedaan maken"). Het item wordt weer
+ * actueel, met dezelfde status en herkomst als voor het afwijzen; wie het afwees
+ * en wanneer verdwijnt van de rij, want het is geen afwijzing meer.
+ *
+ * ⚠️ Niet als het item verloor bij een botsing. Dan is de botsing opgelost ten
+ * gunste van de ander, en `zetBotsingen()` legt hem niet opnieuw vast (het paar
+ * heeft al een rij, in de unieke index). Het item terugzetten zou dan twee
+ * tegenstrijdige versies zonder waarschuwing laten meelopen. Voor zo'n item is de
+ * weg: pas de winnaar aan.
+ *
+ * Een vervangen item komt niet terug: de nieuwere versie geldt. Een dubbel kan
+ * niet ontstaan: de ontdubbelsleutel bleef bij het afwijzen op het item staan
+ * (migratie 0117), dus er is nooit een tweede actueel item met dezelfde sleutel.
+ */
+export async function zetTerug(
+  admin: Admin,
+  args: { profileId: string; itemId: string },
+  door: Extract<Door, { actor: "mens" }>,
+): Promise<HandelingUitkomst> {
+  if (door.actor !== "mens") return { ok: false, fout: "Alleen een mens kan terugzetten." };
+  const item = await laad(admin, args.profileId, args.itemId);
+  if (!item) return { ok: false, fout: "Dit kennisitem bestaat niet bij dit merk." };
+  if (item.vervangen_door) return { ok: false, fout: "Dit item is vervangen; de nieuwere versie geldt." };
+  if (!isAfgewezen(item)) return { ok: true, item };
+
+  const { data: verloren } = await admin
+    .from("fact_conflicts")
+    .select("id")
+    .eq("profile_id", args.profileId)
+    .eq("status", "opgelost")
+    .contains("kennis_ids", [item.id])
+    .limit(1);
+  if ((verloren ?? []).length > 0) {
+    return { ok: false, fout: "Dit item verloor een keuze bij een tegenstrijdigheid. Pas het andere item aan als dat niet klopt." };
+  }
+
+  const nu = new Date().toISOString();
+  const { data, error } = await admin
+    .from("klantkennis")
+    .update({ afgewezen_door: null, afgewezen_op: null, updated_at: nu })
+    .eq("id", item.id)
+    .select("*")
+    .single();
+  if (error || !data) return { ok: false, fout: `Terugzetten mislukte: ${error?.message ?? "onbekende fout"}` };
+  await zetBotsingen(admin, data as Klantkennis);
+  await meldWijziging(admin, data as Klantkennis);
+  return { ok: true, item: data as Klantkennis };
+}
+
+/**
  * Een nieuwere versie van een item. De oude blijft staan met een verwijzing naar
  * de nieuwe (`vervangen_door`), zodat altijd na te gaan is wat er eerder gold en
  * welke pagina daarop leunde.

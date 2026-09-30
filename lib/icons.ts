@@ -109,6 +109,7 @@ import {
   Shield,
   SlidersHorizontal,
   Tag,
+  Pencil,
   Trash2,
   Sun,
   TriangleAlert,
@@ -155,6 +156,7 @@ export type IcoonNaam =
   | "versleep"
   | "label"
   | "prullenbak"
+  | "bewerken"
   // ── Standen ─────────────────────────────────────────────────────────────
   | "klaar"
   | "loopt"
@@ -299,6 +301,9 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // knop doet is archiveren (migratie 0044), en terugzetten kan altijd. Geen
   // kruis, want een kruis betekent in deze set "mislukt".
   prullenbak: Trash2,
+  // Een potlood: een tekst aanpassen (Feiten en kennis, 30 september 2026). Niet
+  // `paginabijwerken`: dat is een blad met een pen en betekent een hele pagina.
+  bewerken: Pencil,
 
   // ── STANDEN ─────────────────────────────────────────────────────────────
   //

@@ -92,7 +92,7 @@ import {
   ONDERZOEK_TAKEN,
 } from "@/lib/kennis/onderzoek";
 import { moetIngedeeld, indelingVoorKennis } from "@/lib/kennis/indeling";
-import { KENNISVELDEN, kopieNaHandeling } from "@/lib/kennis/profielvelden";
+import { KENNISVELDEN, kopieNaHandeling, kopieNaTerugzetten } from "@/lib/kennis/profielvelden";
 import { PROFIEL_MEENEMEN, type BronVraag } from "@/lib/kennis/terugvullen";
 import {
   GESPREKSVELDEN,
@@ -925,7 +925,7 @@ import { blokA } from "@/lib/pagina/bedrijfskennis";
 import { kiesVoorBlokA, blokAUitKennis, MAX_KENNIS, type KennisVoorBlokA, type PaginaVoorBlokA } from "@/lib/kennis/blok-a";
 import { blokkadesVan } from "@/lib/kennis/betwist";
 import { nietVanToepassingVelden, zonderNietVanToepassing, kennisUitStemvoorbeelden, stemPlan, kennisUitDocument } from "@/lib/kennis/gesprek";
-import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, tabVoorDomein, leesTab, standVan, pastInFilter, telPerFilter, itemsVoorTab, groepenVoorFilter, DOMEIN_KOP, FEITEN_DOMEINEN, type OverzichtItem } from "@/lib/kennis/overzicht";
+import { maakOverzicht, handelingenVoor, herkomstZin, nieuwGebruikBijAanpassen, openPuntenUitOnderzoek, OVERZICHT_ACTIES, tabVoorDomein, leesTab, gebruikVan, pastInFilter, telPerFilter, itemsVoorTab, groepenVoorFilter, soortLabel, bronKort, isTeBevestigenVermoeden, DOMEIN_KOP, FEITEN_DOMEINEN, type OverzichtItem } from "@/lib/kennis/overzicht";
 import { faqMarkdown, volledigeMarkdown, htmlDocument, bestandsnaam, siteLinksVoorOnderwerp, zusterPaginas } from "@/lib/oplevering";
 import { schrijfpoort, schrijfdatum } from "@/lib/pagina/schrijfpoort";
 import { schoneAdressen, vanafEersteAlinea, MAX_STEMVOORBEELDEN } from "@/lib/pagina/stemvoorbeelden-regels";
@@ -18953,7 +18953,8 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
   eq("al bevestigd: geen bevestigen meer", handelingenVoor(zeker).join(","), "aanpassen,afwijzen,niet_op_site");
   eq("een vermoeden: bevestigen, aanpassen, afwijzen; het staat al niet op de site", handelingenVoor(denk).join(","), "bevestigen,aanpassen,afwijzen");
   eq("een verbod: geen \"niet op de site\"", handelingenVoor(verbod).join(","), "bevestigen,aanpassen,afwijzen");
-  eq("afgewezen of vervangen: geen knoppen", String(handelingenVoor(weg).length + handelingenVoor(oud).length), "0");
+  eq("afgewezen: alleen terugzetten", handelingenVoor(weg).join(","), "terugzetten");
+  eq("vervangen: geen knoppen", String(handelingenVoor(oud).length), "0");
 
   eq("aanpassen: een verbod blijft een verbod", nieuwGebruikBijAanpassen(verbod), "verboden");
   eq("aanpassen: wat van de site gehaald was blijft eraf", nieuwGebruikBijAanpassen(k("x", { gebruik: "intern" })), "intern");
@@ -18962,11 +18963,12 @@ group("het kennisoverzicht: indeling, knoppen en toegang (K7)", () => {
   eq("herkomst in één zin", herkomstZin({ bron: "gesprek", vastgelegd_op: "2026-09-26T10:00:00Z" }), "Uit het gesprek, 26 sep 2026.");
   eq("herkomst zonder datum", herkomstZin({ bron: "website" }), "Uit de website.");
 
-  // Besluit V6: de klant ziet het kennisoverzicht niet. Scherm en route geven
-  // een niet-medewerker een 404, en de handelingen gaan alleen via de route.
+  // Besluit V6 en V11 (26 september 2026) hielden de kennislaag dicht voor de
+  // klant; de eigenaar keerde dat op 30 september 2026 om voor het SCHERM. De
+  // handelingen bleven alleen voor medewerkers: de route geeft een klant een 404.
   const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
   const route = leesBestand("app/api/profiles/[id]/kennis/[itemId]/route.ts");
-  ok("het scherm is alleen voor medewerkers", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
+  ok("het scherm is er ook voor de klant, maar alleen voor zijn eigen merk", scherm.includes("const profile = await getProfile(id);") && scherm.includes("if (!profile) notFound();") && !scherm.includes("if (!(await isStaff(user.id))) notFound();"));
   ok("de route ook, met een 404", /if \(!\(await isStaff\(user\.id\)\)\) return NextResponse\.json\(\{ error: "Niet gevonden\." \}, \{ status: 404 \}\)/.test(route));
   ok("de route controleert dat vóór hij iets leest", route.indexOf("isStaff(user.id)") < route.indexOf("await handelOpOverzicht("));
 });
@@ -18996,20 +18998,51 @@ group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", (
   eq("een onzin-tabblad: Feiten", leesTab("iets"), "feiten");
   eq("?tab=kennis: Kennis", leesTab("kennis"), "kennis");
 
-  // De stand: een woord per item, en afgewezen gaat vóór alles.
-  eq("bevestigd", standVan(k("a", { status: "bevestigd" })), "bevestigd");
-  eq("gezien op de site", standVan(k("a", { status: "waargenomen" })), "site");
-  eq("volgens de klant", standVan(k("a", { status: "verklaard" })), "klant");
-  eq("een vermoeden", standVan(k("a", { status: "afgeleid", gebruik: "intern" })), "vermoeden");
-  eq("afgewezen wint van bevestigd", standVan(k("a", { status: "bevestigd", afgewezen_op: "2026-09-27" })), "afgewezen");
-  ok("'alles' telt een afgewezen item niet mee", !pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "alles"));
-  ok("maar het filter 'afgewezen' toont het wel", pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "afgewezen"));
+  // Het filter volgt wat de schrijver doet: gebruikt of niet, en waarom niet.
+  const nu = new Date("2026-09-30T12:00:00Z");
+  const g = (extra: Partial<OverzichtItem>) => gebruikVan(k("x", extra), nu);
+  eq("van de site met citaat: gebruikt", g({ status: "waargenomen", bron: "website", citaat: "c", bron_url: "u" }).reden, "Ja");
+  eq("volgens de klant: gebruikt zonder goedkeuring", g({ status: "verklaard" }).reden, "Ja");
+  eq("bevestigd: gebruikt", g({ status: "bevestigd", bevestigd_door: "u", bevestigd_op: "2026-09-29" }).reden, "Ja");
+  eq("een vermoeden: niet, en het zegt waarom", g({ status: "afgeleid", bron: "ai", gebruik: "intern" }).reden, "Vermoeden");
+  ok("een vermoeden gaat niet mee", !g({ status: "afgeleid", bron: "ai", gebruik: "intern" }).gebruikt);
+  eq("alleen intern", g({ gebruik: "intern" }).reden, "Alleen intern");
+  eq("een verbod gaat mee, als verbod", g({ gebruik: "verboden" }).reden, "Als verbod");
+  ok("een verbod telt als gebruikt", g({ gebruik: "verboden" }).gebruikt);
+  eq("een botsing houdt het tegen", g({ blokkade: "Staat op de conflictlijst." }).reden, "Botsing");
+  eq("verlopen", g({ verloopt_op: "2026-08-01" }).reden, "Verlopen");
+  eq("afgekeurd", g({ afgewezen_op: "2026-09-27" }).reden, "Afgekeurd");
+  // Scherm en schrijver mogen nooit uit elkaar lopen: zonder botsing en zonder
+  // verbod zegt `gebruikVan` hetzelfde als `magInBlokA`.
+  const proef: Partial<OverzichtItem>[] = [
+    { status: "waargenomen", bron: "website", citaat: "c", bron_url: "u" },
+    { status: "waargenomen", bron: "website" },
+    { status: "verklaard" },
+    { status: "verklaard", gebruik: "intern" },
+    { status: "afgeleid", bron: "ai", gebruik: "intern" },
+    { status: "bevestigd", bevestigd_door: "u", bevestigd_op: "2026-09-29" },
+    { status: "verklaard", verloopt_op: "2026-08-01" },
+    { status: "verklaard", afgewezen_op: "2026-09-27" },
+  ];
+  ok(
+    "het scherm zegt over elk item hetzelfde als magInBlokA",
+    proef.every((extra) => {
+      const item = k("p", extra);
+      return gebruikVan(item, nu).gebruikt === magInBlokA(item, nu);
+    }),
+  );
+  ok("'alles' telt een afgekeurd item niet mee", !pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "alles", nu));
+  ok("maar het filter 'afgekeurd' toont het wel", pastInFilter(k("a", { afgewezen_op: "2026-09-27" }), "afgekeurd", nu));
+  ok("'wordt gebruikt' en 'wordt niet gebruikt' sluiten elkaar uit", ["verklaard", "afgeleid"].every((status) => {
+    const item = k("a", { status, bron: status === "afgeleid" ? "ai" : "klant", gebruik: status === "afgeleid" ? "intern" : "content" });
+    return pastInFilter(item, "gebruikt", nu) !== pastInFilter(item, "niet", nu);
+  }));
 
   const items = [
-    k("Prijs vanaf 45 euro", { domein: "aanbod", status: "bevestigd" }),
-    k("Werkt in Gouda", { domein: "identiteit", status: "waargenomen" }),
+    k("Prijs vanaf 45 euro", { domein: "aanbod", status: "bevestigd", bevestigd_door: "u", bevestigd_op: "2026-09-29" }),
+    k("Werkt in Gouda", { domein: "identiteit", status: "waargenomen", bron: "website", citaat: "c", bron_url: "u" }),
     k("Nooit gratis zeggen", { domein: "grens", gebruik: "verboden" }),
-    k("Klanten twijfelen over de prijs", { domein: "doelgroep", status: "afgeleid", gebruik: "intern" }),
+    k("Klanten twijfelen over de prijs", { domein: "doelgroep", status: "afgeleid", bron: "ai", gebruik: "intern" }),
     k("Warm en nuchter", { domein: "stem" }),
     k("Oud", { domein: "aanbod", vervangen_door: "x" }),
     k("Verkeerd", { domein: "aanbod", afgewezen_op: "2026-09-27" }),
@@ -19019,17 +19052,42 @@ group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", (
   eq("Feiten bevat vier items, een vervangen versie telt niet", String(feiten.length), "4");
   eq("Kennis bevat er twee", String(kennis.length), "2");
   eq("samen is het alles wat leeft", String(feiten.length + kennis.length), String(items.filter((i) => !i.vervangen_door).length));
-  const t = telPerFilter(feiten);
-  eq("de telling van Feiten: alles zonder afgewezen", `${t.alles}/${t.bevestigd}/${t.site}/${t.klant}/${t.vermoeden}/${t.afgewezen}`, "3/1/1/1/0/1");
-  eq("de telling van Kennis: één vermoeden", String(telPerFilter(kennis).vermoeden), "1");
-  eq("een filter laat alleen zijn stand over", groepenVoorFilter(feiten, "bevestigd").flatMap((g) => g.items.map((i) => i.bewering)).join("|"), "Prijs vanaf 45 euro");
-  ok("onder 'alles' staat het afgewezen item niet", !groepenVoorFilter(feiten, "alles").some((g) => g.items.some((i) => i.bewering === "Verkeerd")));
-  eq("een leeg filter geeft geen lege blokken", String(groepenVoorFilter(kennis, "bevestigd").length), "0");
+  const t = telPerFilter(feiten, nu);
+  eq("de telling van Feiten: alles, gebruikt, niet, afgekeurd", `${t.alles}/${t.gebruikt}/${t.niet}/${t.afgekeurd}`, "3/3/0/1");
+  const tk = telPerFilter(kennis, nu);
+  eq("de telling van Kennis: één gebruikt, één vermoeden", `${tk.gebruikt}/${tk.niet}/${tk.vermoedens}`, "1/1/1");
+  eq("een filter laat alleen zijn regels over", groepenVoorFilter(kennis, "niet", nu).flatMap((gr) => gr.items.map((i) => i.bewering)).join("|"), "Klanten twijfelen over de prijs");
+  ok("onder 'alles' staat het afgekeurde item niet", !groepenVoorFilter(feiten, "alles", nu).some((gr) => gr.items.some((i) => i.bewering === "Verkeerd")));
+  eq("een leeg filter geeft geen lege blokken", String(groepenVoorFilter(feiten, "niet", nu).length), "0");
+
+  // Eén klik "klopt" alleen bij een vermoeden dat bevestigd mag worden.
+  ok("een vermoeden is te bevestigen", isTeBevestigenVermoeden(k("v", { status: "afgeleid", bron: "ai", gebruik: "intern" })));
+  ok("een gewoon feit niet", !isTeBevestigenVermoeden(k("v", { status: "verklaard" })));
+  ok("een afgekeurd vermoeden niet", !isTeBevestigenVermoeden(k("v", { status: "afgeleid", bron: "ai", gebruik: "intern", afgewezen_op: "2026-09-27" })));
+
+  // De labels: "Myfinance" stond drie keer zonder te zeggen waarom (30 september 2026).
+  eq("het type gegeven als label", soortLabel("merknaam") ?? "", "Merknaam");
+  eq("ook bij twee woorden", soortLabel("andere naam") ?? "", "Andere naam");
+  ok("leeg en 'overig' zeggen niets", soortLabel(null) === null && soortLabel("  ") === null && soortLabel("overig") === null);
+  eq("de bron in één woord", bronKort("ai"), "Onderzoek");
+  eq("en de rest", ["website", "klant", "gesprek"].map(bronKort).join(","), "Website,Klant,Gesprek");
+  ok("elke bron heeft een kort woord", ["website", "klant", "gesprek", "document", "extern", "meting", "ai"].every((b) => bronKort(b) !== b));
 
   // Het scherm: alleen medewerkers, en de oude twee schermen zijn echt weg.
   const scherm = leesBestand("app/(app)/merk/[id]/merkprofiel/feiten-en-kennis/page.tsx");
-  ok("het scherm geeft een niet-medewerker een 404", scherm.includes("if (!(await isStaff(user.id))) notFound();"));
+  ok("de interne stukken worden voor een klant niet eens opgehaald", ["fact_conflicts", "nogInTeDelen(", "geraaktOverzicht(", '"profile_facets"'].every((deel) => {
+    // De eerste plek buiten commentaar: `.from("...")` of de aanroep zelf.
+    const i = scherm.search(new RegExp(`(from\\(|await |staf \\? )${deel.replace(/[()".]/g, "\\$&")}|${deel.replace(/[()".]/g, "\\$&")}`));
+    return i > 0 && /staf\s*\?/.test(scherm.slice(Math.max(0, i - 200), i + deel.length + 20));
+  }));
+  ok("de klant krijgt een werkblad zonder knoppen", scherm.includes("alleenLezen={!staf}"));
+  ok("en de route achter de knoppen blijft alleen voor medewerkers", leesBestand("app/api/profiles/[id]/kennis/[itemId]/route.ts").includes("if (!(await isStaff(user.id)))"));
   ok("het toont de botsingen boven de tabbladen zodra er een openstaat", scherm.indexOf("conflicten.length > 0 &&") < scherm.indexOf("<Tabs"));
+  ok("de tabel is niet in leesbreedte gepropt", !scherm.includes('className="flex flex-col gap-6 wil-lezen"'));
+  const werkblad = leesBestand("app/(app)/merk/[id]/_components/kennis-werkblad.tsx");
+  ok("de kolom heet Bron en niet Waar vandaan", werkblad.includes("Bron") && !werkblad.includes("Waar vandaan"));
+  ok("rechts staan aanpassen en afkeuren als pictogram", werkblad.includes('icoon="bewerken"') && werkblad.includes('icoon="prullenbak"'));
+  ok("afkeuren wist niet: het gaat via de handeling afwijzen", werkblad.includes('doe(item, "afwijzen")') && !/method:\s*"DELETE"/.test(werkblad));
   ok("het kennisoverzicht als eigen scherm bestaat niet meer", !existsSync("app/(app)/merk/[id]/admin/kennis/page.tsx"));
   ok("de tegenstrijdige feiten als eigen scherm ook niet", !existsSync("app/(app)/merk/[id]/admin/feiten/page.tsx"));
 
@@ -19039,10 +19097,26 @@ group("Feiten en kennis: één scherm met twee tabbladen (30 september 2026)", (
   eq("de kop heet Mijn bedrijf en er staan twee regels onder, Merkdossier eerst", staf.map((i) => i.label).join("|"), "Merkdossier|Feiten en kennis");
   ok("Merkdossier wijst nog naar het oude adres", staf[0]?.href === "/merk/abc/merkprofiel/bewerken");
   ok("Feiten en kennis heeft zijn eigen adres", staf[1]?.href === "/merk/abc/merkprofiel/feiten-en-kennis");
-  eq("een klant ziet alleen Merkdossier: de kennislaag is voor hem dicht (V6, V11)", klant.map((i) => i.label).join("|"), "Merkdossier");
-  ok("Feiten en kennis draagt het teken 'alleen jij'", staf[1]?.staffOnly === true);
+  eq("een klant ziet ze allebei: het scherm is sinds 30 september 2026 ook voor hem", klant.map((i) => i.label).join("|"), "Merkdossier|Feiten en kennis");
+  ok("Feiten en kennis draagt niet het teken 'alleen jij'", staf[1]?.staffOnly !== true);
+  ok("de kop Mijn bedrijf blijft binnen zijn grens", klant.length <= GRENS_PER_HOOFDSTUK["Mijn bedrijf"]);
+  const werkblad2 = leesBestand("app/(app)/merk/[id]/_components/kennis-werkblad.tsx");
+  ok("zonder knoppen voor de klant: geen kolom, geen bulk, geen ongedaan maken", werkblad2.includes("!alleenLezen && (") && werkblad2.includes("!alleenLezen && vermoedens.length > 0") && werkblad2.includes("!alleenLezen && laatsteAfgekeurd"));
   ok("de kop Merkdossier bestaat niet meer", !(HOOFDSTUKKEN as readonly string[]).includes("Merkdossier"));
   ok("het menu wijst niet meer naar de twee oude schermen", [...brandNav("abc", true)].every((i) => !/\/admin\/(kennis|feiten)$/.test(i.href)));
+});
+
+group("terugzetten: een afkeuring ongedaan maken (30 september 2026)", () => {
+  const item = (extra: Record<string, unknown>) => ({ domein: "identiteit", soort: "merknaam", bewering: "Myfinance", herkomst_tabel: "profiles" as const, ...extra }) as never;
+  const afgewezen = { id: "a", domein: "aanbod", soort: null, bewering: "x", status: "verklaard", bron: "klant", gebruik: "content", afgewezen_op: "2026-09-27" } as OverzichtItem;
+  eq("bij een afgekeurd item kan alleen terugzetten", handelingenVoor(afgewezen).join(","), "terugzetten");
+  ok("bij een gewoon item niet", !handelingenVoor({ ...afgewezen, afgewezen_op: null }).includes("terugzetten"));
+  ok("bij een vervangen item niets", handelingenVoor({ ...afgewezen, vervangen_door: "b" }).length === 0);
+  ok("de route kent de handeling", OVERZICHT_ACTIES.includes("terugzetten"));
+  const vast = leesBestand("lib/kennis/vastleggen.ts");
+  ok("terugzetten weigert een item dat een botsing verloor", vast.includes('.eq("status", "opgelost")') && vast.includes('.contains("kennis_ids", [item.id])'));
+  ok("en legt de botsingen opnieuw vast", vast.includes("await zetBotsingen(admin, data as Klantkennis);\n  await meldWijziging(admin, data as Klantkennis);\n  return { ok: true, item: data as Klantkennis };\n}\n\n/**\n * Een nieuwere versie"));
+  ok("de kopie op het profiel volgt terug", leesBestand("lib/kennis/uit-overzicht.ts").includes("await herstelKopie(admin, oud)"));
 });
 
 group("tegenstrijdigheden houden kennis bij de schrijver weg (K7, sinds K8 deel 2 alleen botsingen)", () => {
@@ -21074,6 +21148,13 @@ group("K8 deel 3: alleen lib/kennis/ schrijft een kennisveld op het merkprofiel"
   eq("staat de tekst in twee velden, dan niets (liever achter dan verkeerd)", String(kopieNaHandeling(profiel, { domein: "identiteit", soort: "omschrijving", bewering: "Een praktijk.", herkomst_tabel: "profiles" }, null)), "null");
   eq("staat hij nergens, dan niets", String(kopieNaHandeling(profiel, { ...alias, bewering: "Onbekend" }, null)), "null");
   eq("een antwoord op een vraag raakt het profiel niet", String(kopieNaHandeling(profiel, { ...alias, herkomst_tabel: "fact_requests" }, null)), "null");
+  // En terug: een teruggezet item komt ook terug op het profiel (30 september 2026).
+  eq("een teruggezette naam komt weer in de lijst", JSON.stringify(kopieNaTerugzetten({ ...profiel, aliases: ["FWMW"] }, alias)), JSON.stringify({ veld: "aliases", waarde: ["FWMW", "fysio west"] }));
+  eq("staat hij er al, dan niets", String(kopieNaTerugzetten(profiel, alias)), "null");
+  eq("een leeg tekstveld krijgt de waarde terug", JSON.stringify(kopieNaTerugzetten({ ...profiel, market_language: null }, { domein: "identiteit", soort: "markt en taal", bewering: "Nederland, Nederlands", herkomst_tabel: "profiles" })), JSON.stringify({ veld: "market_language", waarde: "Nederland, Nederlands" }));
+  eq("een tekstveld dat intussen iets anders zegt wordt nooit overschreven", String(kopieNaTerugzetten({ ...profiel, market_language: "Nederland, Engels" }, { domein: "identiteit", soort: "markt en taal", bewering: "Nederland, Nederlands", herkomst_tabel: "profiles" })), "null");
+  eq("bij twee mogelijke velden niets (liever achter dan verkeerd)", String(kopieNaTerugzetten({ ...profiel, summary: null, intake_description: null }, { domein: "identiteit", soort: "omschrijving", bewering: "Een praktijk.", herkomst_tabel: "profiles" })), "null");
+  eq("een antwoord op een vraag raakt het profiel niet", String(kopieNaTerugzetten(profiel, { ...alias, herkomst_tabel: "fact_requests" })), "null");
   const overzicht = leesBestand("lib/kennis/uit-overzicht.ts");
   ok("afwijzen en aanpassen op het kennisoverzicht werken de kopie bij", (overzicht.match(/await werkKopieBij\(/g) ?? []).length === 3);
 });
