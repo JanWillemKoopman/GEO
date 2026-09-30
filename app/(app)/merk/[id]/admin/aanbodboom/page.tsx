@@ -85,7 +85,7 @@ export default async function AanbodboomPage({
 
   return (
     // Geen `wil-lezen`: de boom is een werkscherm en hoort net zo breed als de
-    // 0-meting en de rest van Admin (1440px).
+    // rest van Admin (1440px).
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Admin"

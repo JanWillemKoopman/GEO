@@ -12,7 +12,7 @@ export default async ({ page, shot, args, BASIS }) => {
   }
   await shot('merk-ingevuld-' + naam.split(' ')[0]);
   await page.getByRole('button', { name: 'Start het onderzoek' }).click();
-  await page.waitForURL(/\/merk\/[0-9a-f-]+\/admin\/0-meting/, { timeout: 60000 });
+  await page.waitForURL(/\/merk\/[0-9a-f-]+\/admin\/aanbodboom/, { timeout: 60000 });
   await page.waitForLoadState('networkidle');
   console.log('PROFIEL', page.url().match(/merk\/([0-9a-f-]+)/)[1]);
   await shot('merk-gestart-' + naam.split(' ')[0]);

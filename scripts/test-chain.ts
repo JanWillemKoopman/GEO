@@ -1214,6 +1214,30 @@ async function main(): Promise<void> {
     const geaccepteerd = await acceptInvite(uitnodiging!.token, "Wachtwoord1");
     ok("met een geldig wachtwoord komt de klant binnen", geaccepteerd.ok);
 
+    // ── Een consultant uitnodigen (30 september 2026, migratie 0132) ──────────
+    // Zelfde link en zelfde scherm, maar de uitkomst is een rij in `staff_users`
+    // en geen lidmaatschap van een account.
+    const { createStaffInvite } = await import("@/lib/invites");
+    const consultantAdres = `consultant-${Date.now()}@voorbeeld.nl`;
+    const staf = await createStaffInvite({ email: consultantAdres.toUpperCase(), invitedBy: userId });
+    ok("een consultantuitnodiging wordt aangemaakt", staf !== null);
+    const stafGevonden = await lookupInvite(staf!.token);
+    ok("de link herkent hem als consultant", stafGevonden.soort === "consultant" && stafGevonden.state === "geldig");
+    ok("een klantlink blijft een klantlink", (await lookupInvite(uitnodiging!.token)).soort === "klant");
+    const stafGeaccepteerd = await acceptInvite(staf!.token, "Wachtwoord1");
+    ok("de consultant komt binnen", stafGeaccepteerd.ok);
+    const { rows: stafRij } = await db.client.query(
+      `select s.role from public.staff_users s join auth.users u on u.id = s.user_id where u.email = $1`,
+      [consultantAdres.toLowerCase()],
+    );
+    ok("hij staat in de staftabel als consultant", stafRij.length === 1 && stafRij[0].role === "consultant");
+    const { rows: stafLid } = await db.client.query(
+      `select 1 from public.account_users au join auth.users u on u.id = au.user_id where u.email = $1`,
+      [consultantAdres.toLowerCase()],
+    );
+    ok("en hoort bij geen enkel klantaccount", stafLid.length === 0);
+    ok("de link is daarna verbruikt", (await lookupInvite(staf!.token)).state === "gebruikt");
+
     const { rows: nieuweGebruiker } = await db.client.query(
       `select id from auth.users where email = $1`,
       [klantAdres.toLowerCase()],

@@ -346,13 +346,6 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
             staffOnly: true,
           },
           {
-            href: `/merk/${brandId}/admin/0-meting`,
-            label: "0-meting",
-            hoofdstuk: "Admin" as const,
-            icoon: "meten" as const,
-            staffOnly: true,
-          },
-          {
             href: `/merk/${brandId}/admin/aanbodboom`,
             label: "Aanbodboom",
             hoofdstuk: "Admin" as const,

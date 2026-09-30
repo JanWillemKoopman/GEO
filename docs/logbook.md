@@ -13220,4 +13220,6 @@ Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
 
 **0-meting**: drie vragen met een antwoord (kent hij het merk, genoemd bij een koopvraag, iets onjuist), bron en datum erbij. Het dossier en de concurrentenlijst zijn van dit scherm gehaald: ze staan al bij Merkdossier en Concurrenten indelen.
 
-Nog niet gebouwd: consultants uitnodigen vanuit de app (nu een rij in `staff_users`), en per consultant alleen de eigen klanten tonen (alle staf ziet nu alle merken).
+**Later op dezelfde dag: 0-meting weggehaald, consultants uitnodigen.** De 0-meting (`/admin/0-meting`) is verwijderd op verzoek van de eigenaar: hij gebruikt hem niet en de data was dun (één AI-assistent, 3 tot 9 koopvragen per merk). De kennistest zelf blijft draaien en de antwoorden blijven in `profile_llm_baseline` staan; alleen het scherm is weg. Het oude adres `/profielen/:id` en de links vanuit Alle merken en de onboarding wijzen nu naar de Aanbodboom. Admin heeft daarmee zes bestemmingen. De superuser nodigt consultants uit op `/beheer` met dezelfde werkwijze als bij klanten (link die je zelf doorstuurt, twee weken geldig, één keer te zien): migratie 0132 (`staff_invites`), dezelfde `/uitnodiging/[token]`-pagina, accepteren maakt een rij in `staff_users`.
+
+Bewust nog niet gebouwd, op verzoek van de eigenaar: per consultant alleen de eigen klanten tonen (alle staf ziet nu alle merken), en collega-uitnodigingen door klanten uitzetten. Ook een consultant weer weghalen kan nog niet vanuit de app.

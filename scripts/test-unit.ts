@@ -9898,7 +9898,7 @@ group("elk oud merkadres verwijst permanent naar zijn nieuwe", () => {
   const verwacht: Record<string, string> = {
     "/profielen/nieuw": "/merk/nieuw",
     "/profielen": "/merk",
-    "/profielen/:id": "/merk/:id/admin/0-meting",
+    "/profielen/:id": "/merk/:id/admin/aanbodboom",
     "/profielen/:id/merkprofiel": "/merk/:id/merkprofiel/bewerken",
     "/profielen/:id/profielgegevens": "/merk/:id/merkprofiel/bewerken",
     "/profielen/:id/aanvullen": "/merk/:id/strategie/vragen",
@@ -11188,14 +11188,14 @@ group("de zijbalk verraadt niets aan een klant", () => {
   // per ongeluk tijdens een gedeeld scherm op een interne pagina klikt.
   const staffItems = [...brandNav(merkId, true), ...generalNav(true)];
   const adminItems = staffItems.filter((i) => i.hoofdstuk === "Admin");
-  // Vijf over dít merk (Onboardinggesprek, 0-meting, Aanbodboom,
+  // Vijf over dít merk (Onboardinggesprek, Aanbodboom,
   // Concurrenten indelen, Toewijzen) plus "Alle merken" en "Koppelingen" over
   // de app als geheel. "Concurrenten indelen" kwam er op 2 september 2026 bij
   // (plan analytics-herontwerp.md, C1): zie de uitzondering bij
   // `GRENS_PER_HOOFDSTUK` in `lib/nav.ts`.
   // Het Kwaliteitslab (0091) stond er tot 28 september 2026 als negende bij;
   // het scherm was al weg en de link gaf een 404. Zie `GRENS_PER_HOOFDSTUK`.
-  ok("een beheerder heeft zeven Admin-bestemmingen", adminItems.length === 7);
+  ok("een beheerder heeft zes Admin-bestemmingen", adminItems.length === 6);
   ok(
     "en het verdwenen Kwaliteitslab staat er niet meer in",
     !adminItems.some((i) => i.href === "/beheer/kwaliteit"),

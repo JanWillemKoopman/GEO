@@ -59,6 +59,14 @@ export const echteRolVan = cache(async (userId: string): Promise<Rol> => {
   }
 });
 
+/**
+ * Is dit de superuser? Het ECHTE recht, niet beïnvloed door de klantweergave:
+ * alleen bedoeld om consultants te beheren.
+ */
+export async function isSuperuser(userId: string): Promise<boolean> {
+  return (await echteRolVan(userId)) === "superuser";
+}
+
 /** De naam van de cookie die de klantweergave aanzet. Waarde "1" of afwezig. */
 export const PREVIEW_COOKIE = "orbit_engine_klantweergave";
 

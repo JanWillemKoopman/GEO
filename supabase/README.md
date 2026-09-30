@@ -848,3 +848,9 @@ toegepast op 29 september 2026.
 Zet `staff_users.role` op `superuser` voor `koopman.janwillem@gmail.com` en op `consultant` voor alle
 andere staf, en maakt `consultant` de standaardwaarde. De app leidt de rol zelf af (`lib/roles.ts`);
 dit maakt de tabel gelijk. Additief en idempotent. Op productie toegepast op 30 september 2026.
+
+## 0132: uitnodigingen voor consultants
+
+Tabel `staff_invites` (e-mail, hash van het token, verloopt na 14 dagen, geaccepteerd, ingetrokken), zelfde
+vorm als `account_invites` maar zonder account. Accepteren maakt een rij in `staff_users` met rol
+`consultant`. RLS aan, geen policies. Additief en idempotent. Op productie toegepast op 30 september 2026.
