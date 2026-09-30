@@ -1,4 +1,4 @@
--- 0135: twee rollen, Admin en Klant (30 september 2026)
+-- 0137: twee rollen, Admin en Klant (30 september 2026)
 --
 -- De eigenaar is zelf superuser, consultant en ontwikkelaar, dus de consultantrol
 -- en het verschil tussen klant-`admin` en klant-`member` verdwijnen. Wat blijft:

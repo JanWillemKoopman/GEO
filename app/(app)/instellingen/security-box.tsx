@@ -91,6 +91,9 @@ export function SecurityBox({ email }: { email: string }) {
           id="nieuw-adres"
           className="field"
           type="email"
+          // Anders vult de browser hier je huidige adres in en lijkt het al te
+          // kloppen, terwijl er niets gewijzigd is.
+          autoComplete="off"
           value={nieuwAdres}
           onChange={(e) => setNieuwAdres(e.target.value)}
           placeholder="naam@bedrijf.nl"

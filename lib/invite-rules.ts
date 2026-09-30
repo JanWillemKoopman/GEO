@@ -75,10 +75,31 @@ export function inviteExpiry(from: Date = new Date()): Date {
  * Mag deze gebruiker iemand uitnodigen?
  *
  * Elke klant die in het account zit, en de admin. Sinds 30 september 2026 is er
- * één klantrol met alle rechten (migratie 0135); `role` is `null` voor wie niet
+ * één klantrol met alle rechten (migratie 0137); `role` is `null` voor wie niet
  * in het account zit, en die mag dus niets.
  */
 export function mayInvite(role: AccountRole | null, staff: boolean): boolean {
   if (staff) return true;
   return role !== null;
+}
+
+/**
+ * Voor- en achternaam bij een nieuw account. Beide zijn verplicht, want een
+ * account zonder naam is in de zijbalk en in de teamlijst alleen een adres.
+ * Geen strengere regel dan "niet leeg en niet absurd lang": namen zijn in de
+ * praktijk raarder dan elke controle aankan (tussenvoegsels, één woord, koppeltekens).
+ */
+export const NAAM_MAX = 80;
+
+export function schoonNaam(waarde: unknown): string {
+  return String(waarde ?? "").trim().replace(/\s+/g, " ");
+}
+
+export function naamOk(voornaam: string, achternaam: string): boolean {
+  return (
+    voornaam.length > 0 &&
+    achternaam.length > 0 &&
+    voornaam.length <= NAAM_MAX &&
+    achternaam.length <= NAAM_MAX
+  );
 }

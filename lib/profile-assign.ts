@@ -125,7 +125,14 @@ export async function wijsToeAanGebruiker(
  */
 export async function wijsToeAanNieuwAccount(
   admin: Admin | SupabaseClient,
-  args: { profileId: string; profileName: string; email: string; invitedBy: string },
+  args: {
+    profileId: string;
+    profileName: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    invitedBy: string;
+  },
 ): Promise<ToewijsResultaat> {
   const { data: account, error: accountError } = await admin
     .from("accounts")
@@ -149,6 +156,8 @@ export async function wijsToeAanNieuwAccount(
   const invite = await createInvite({
     accountId,
     email: args.email,
+    firstName: args.firstName,
+    lastName: args.lastName,
     role: "admin",
     invitedBy: args.invitedBy,
   });

@@ -13443,6 +13443,21 @@ andere vraagkaart, twee grijze etiketten per vraag en andere knoppen ("Opslaan" 
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen, en bekeken in een browser met
 voorbeelddata. ⚠️ Nog niet bekeken met echte klantdata (conventie 10): er staan hier geen Supabase-sleutels.
 
+**30 september 2026: elk nieuw account heeft een voor- en achternaam.** Klant toevoegen (Toewijzen, Instellingen)
+en consultant uitnodigen vragen nu voornaam, achternaam en e-mailadres, alle drie verplicht (API weigert anders
+met 400). De naam reist mee met de uitnodiging (migratie 0136) en wordt bij activeren in de metadata van het
+account gezet; een bestaande gebruiker zonder naam krijgt hem erbij, een bestaande naam wordt nooit overschreven.
+Accounts van vóór deze wijziging hebben geen naam en tonen in de zijbalk hun e-mailadres. Getest: 6 unit- en
+1 ketenasserties erbij.
+
+**30 september 2026: Mijn account toont één account tegelijk.** De pagina liet voor elk account een blok
+bedrijfsgegevens en een blok team zien. Omdat de superuser sinds migratie 0134 lid is van elk klantaccount waren
+dat er zes onder elkaar (12 blokken met lege velden). Nu toont de pagina het account van het merk waar je in zit,
+anders je eigen account, anders het oudste (`lib/account-keuze.ts`). Wie meer dan één account heeft, kiest met
+knoppen bovenaan. "Opslaan" is pas actief na een wijziging en het veld "Nieuw e-mailadres" wordt niet meer door de
+browser met je huidige adres gevuld. Getest: 8 unit-asserties erbij. ⚠️ Nog niet bekeken tegen productie (conventie 10):
+er staan hier geen Supabase-sleutels.
+
 ## 30 september 2026: twee rollen, Admin en Klant
 
 **Besluit van de eigenaar.** Van drie rollen (superuser, consultant, klant) terug naar twee. De eigenaar is zelf
@@ -13452,9 +13467,9 @@ om te testen en uit te leggen. Ook het verschil tussen klant-`admin` en klant-`m
 - **Admin** is het vaste, bevestigde adres uit `lib/roles.ts` en kan alles. **Klant** is elk lid van een account
   en heeft de rechten van de oude klant-`admin`: accountgegevens wijzigen, account opzeggen, collega's
   uitnodigen. Betaald werk (meting, schrijven, plan goedkeuren) blijft admin-werk (`lib/cost-rules.ts`).
-- Migratie 0135: alle rollen in `account_users` en `account_invites` zijn `admin`, en `is_staff()` telt alleen
+- Migratie 0137: alle rollen in `account_users` en `account_invites` zijn `admin`, en `is_staff()` telt alleen
   nog de `superuser`-rij. De 3 oude consultant-testaccounts (`staff_users`) blijven staan maar zijn klant.
-- Weg uit de code: consultants uitnodigen (`/api/staff/invites`, `ConsultantsBox`, `createStaffInvite`) en de
+- Weg uit de code (ook de voor- en achternaam bij consultantuitnodigingen van eerder die dag): consultants uitnodigen (`/api/staff/invites`, `ConsultantsBox`, `createStaffInvite`) en de
   tak `soort: "consultant"` in `lookupInvite`/`acceptInvite`. De tabel `staff_invites` blijft (additief).
 - De wisselknop rechtsboven is een segment met **Admin** en **Klant** (was een icoon met een "Klantweergave"-pil).
 - ⚠️ De ketentest gebruikte een staf-rij als bewijs van beheerder. Nu is het adres het bewijs, en de testdatabase

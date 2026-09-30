@@ -1176,6 +1176,8 @@ async function main(): Promise<void> {
     const klantAdres = `klant-${Date.now()}@voorbeeld.nl`;
     const uitnodiging = await createInvite({
       accountId,
+      firstName: "Test",
+      lastName: "Klant",
       email: klantAdres.toUpperCase(), // hoofdletters: adressen zijn ongevoelig
       role: "member",
       invitedBy: userId,
@@ -1256,6 +1258,8 @@ async function main(): Promise<void> {
     // een overnameroute voor een bestaand account.
     const tweedeUitnodiging = await createInvite({
       accountId,
+      firstName: "Test",
+      lastName: "Klant",
       email: klantAdres,
       role: "admin",
       invitedBy: userId,
@@ -1276,6 +1280,8 @@ async function main(): Promise<void> {
     // Een ingetrokken uitnodiging werkt niet meer, ook al is hij niet verlopen.
     const derde = await createInvite({
       accountId,
+      firstName: "Test",
+      lastName: "Klant",
       email: `ander-${Date.now()}@voorbeeld.nl`,
       role: "member",
       invitedBy: userId,
@@ -1521,6 +1527,8 @@ async function main(): Promise<void> {
         profileId: profielNieuwEmail,
         profileName: "Nog geen accountklant",
         email: "nieuwe-klant@voorbeeld.nl",
+        firstName: "Nina",
+        lastName: "de Vries",
         invitedBy: consultantId,
       });
       ok("het nieuwe account wordt aangemaakt", nieuw.ok, nieuw.error ?? "");

@@ -17,8 +17,10 @@ import {
   inviteExpiry,
   inviteState,
   passwordOk,
+  schoonNaam,
   type InviteState,
 } from "@/lib/invite-rules";
+import { weergaveNaam } from "@/lib/weergavenaam";
 import type { AccountRole } from "@/lib/types/database";
 
 export interface Invite {
@@ -26,6 +28,8 @@ export interface Invite {
   account_id: string;
   email: string;
   role: AccountRole;
+  first_name: string | null;
+  last_name: string | null;
   expires_at: string;
   accepted_at: string | null;
   revoked_at: string | null;
@@ -53,6 +57,8 @@ export function hashToken(token: string): string {
 export async function createInvite(input: {
   accountId: string;
   email: string;
+  firstName: string;
+  lastName: string;
   role: AccountRole;
   invitedBy: string;
 }): Promise<{ invite: Invite; token: string } | null> {
@@ -66,6 +72,8 @@ export async function createInvite(input: {
       // Kleine letters bij het opslaan: adressen zijn hoofdletterongevoelig, en
       // anders krijgt "Jan@" een andere uitnodiging dan "jan@".
       email: input.email.trim().toLowerCase(),
+      first_name: schoonNaam(input.firstName),
+      last_name: schoonNaam(input.lastName),
       role: input.role,
       token_hash: hashToken(token),
       expires_at: inviteExpiry().toISOString(),
@@ -156,6 +164,10 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
+      // De naam uit de uitnodiging; de zijbalk toont de voornaam
+      // (`lib/weergavenaam.ts`). Zonder naam (oude uitnodiging) blijft de
+      // metadata leeg en toont de zijbalk het adres.
+      user_metadata: naamMetadata(invite),
       // Het adres is bewezen door de uitnodigingslink zelf: die is alleen daar
       // aangekomen. Een tweede bevestigingsmail vraagt de klant om iets te
       // bewijzen wat hij net bewezen heeft.
@@ -168,7 +180,12 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
     userId = data.user.id;
   }
 
-  // Elke klant heeft dezelfde rechten (migratie 0135), dus de rol uit een
+  // Een bestaande gebruiker zonder naam krijgt de naam uit de uitnodiging. Een
+  // naam die er al staat wordt nooit overschreven: dat zou net als een
+  // wachtwoord een manier zijn om een bestaand account aan te passen.
+  if (bestaand) await vulNaamAan(bestaand, invite);
+
+  // Elke klant heeft dezelfde rechten (migratie 0137), dus de rol uit een
   // oudere uitnodiging (`member`) telt niet: iedereen komt binnen als `admin`.
   const { error: lidError } = await admin
     .from("account_users")
@@ -197,6 +214,32 @@ export async function acceptInvite(token: string, password: string): Promise<Acc
   }
 
   return { ok: true };
+}
+
+function naamMetadata(invite: { first_name: string | null; last_name: string | null }) {
+  const voornaam = schoonNaam(invite.first_name);
+  const achternaam = schoonNaam(invite.last_name);
+  return voornaam || achternaam ? { voornaam, achternaam } : {};
+}
+
+/** Zet de naam uit de uitnodiging op een bestaande gebruiker die er nog geen heeft. */
+async function vulNaamAan(
+  userId: string,
+  invite: { first_name: string | null; last_name: string | null },
+): Promise<void> {
+  const metadata = naamMetadata(invite);
+  if (!("voornaam" in metadata)) return;
+  const admin = createAdminClient();
+  try {
+    const { data } = await admin.auth.admin.getUserById(userId);
+    const huidig = (data?.user?.user_metadata ?? {}) as Record<string, unknown>;
+    if (weergaveNaam(huidig, "") !== "") return;
+    await admin.auth.admin.updateUserById(userId, { user_metadata: { ...huidig, ...metadata } });
+  } catch (err) {
+    // De naam is een gemak, geen voorwaarde voor toegang: het lidmaatschap
+    // mag hier nooit op stuklopen.
+    console.error("Naam bij bestaande gebruiker zetten mislukt:", err);
+  }
 }
 
 /**
@@ -237,7 +280,7 @@ export async function listPendingInvites(accountId: string): Promise<Invite[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("account_invites")
-    .select("id, account_id, email, role, expires_at, accepted_at, revoked_at, created_at")
+    .select("id, account_id, email, first_name, last_name, role, expires_at, accepted_at, revoked_at, created_at")
     .eq("account_id", accountId)
     .is("accepted_at", null)
     .is("revoked_at", null)

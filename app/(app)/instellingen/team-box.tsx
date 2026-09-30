@@ -57,12 +57,14 @@ export function TeamBox({
   const router = useRouter();
   const [intrekken, setIntrekken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
+  const [voornaam, setVoornaam] = useState("");
+  const [achternaam, setAchternaam] = useState("");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
 
   async function nodigUit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || busy) return;
+    if (!email.trim() || !voornaam.trim() || !achternaam.trim() || busy) return;
     setBusy(true);
     setLink(null);
     try {
@@ -72,12 +74,21 @@ export function TeamBox({
         ? await fetch(`/api/accounts/${accountId}/invites`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email.trim(), role: "admin" }),
+            body: JSON.stringify({
+              email: email.trim(),
+              firstName: voornaam.trim(),
+              lastName: achternaam.trim(),
+              role: "admin",
+            }),
           })
         : await fetch(`/api/profiles/${profileId}/assign-by-email`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email.trim() }),
+            body: JSON.stringify({
+              email: email.trim(),
+              firstName: voornaam.trim(),
+              lastName: achternaam.trim(),
+            }),
           });
       const raw = (await res.json().catch(() => null)) as
         | { link?: string; inviteLink?: string | null; error?: string; bestaandeGebruiker?: boolean }
@@ -88,6 +99,8 @@ export function TeamBox({
       // gewoon in en ziet het merk.
       if (res.ok && !accountId && json?.bestaandeGebruiker) {
         setEmail("");
+        setVoornaam("");
+        setAchternaam("");
         router.refresh();
         toast({
           intent: "succes",
@@ -108,6 +121,8 @@ export function TeamBox({
 
       setLink(json.link);
       setEmail("");
+      setVoornaam("");
+      setAchternaam("");
       router.refresh();
       toast({
         intent: "succes",
@@ -231,6 +246,26 @@ export function TeamBox({
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
               className="field flex-1"
+              value={voornaam}
+              onChange={(e) => setVoornaam(e.target.value)}
+              placeholder="Voornaam"
+              aria-label="Voornaam van de klant"
+              autoComplete="off"
+              disabled={busy}
+            />
+            <input
+              className="field flex-1"
+              value={achternaam}
+              onChange={(e) => setAchternaam(e.target.value)}
+              placeholder="Achternaam"
+              aria-label="Achternaam van de klant"
+              autoComplete="off"
+              disabled={busy}
+            />
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              className="field flex-1"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -241,7 +276,7 @@ export function TeamBox({
             <button
               type="submit"
               className="btn-primary shrink-0"
-              disabled={busy || !email.trim()}
+              disabled={busy || !email.trim() || !voornaam.trim() || !achternaam.trim()}
             >
               {busy ? "Bezig…" : "Uitnodigen"}
             </button>

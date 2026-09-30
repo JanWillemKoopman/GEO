@@ -17,7 +17,7 @@
  *   • klant: beheert het eigen account en keurt goed voor het eigen merk. Komt
  *            binnen via een uitnodiging per e-mail. Elke klant heeft dezelfde
  *            rechten; het verschil tussen `admin` en `member` in
- *            `account_users.role` telt in de app niet meer (migratie 0135).
+ *            `account_users.role` telt in de app niet meer (migratie 0137).
  *
  * ⚠️ De admin is een vast e-mailadres in code en geen rij in de database.
  * Een rij die iemand kan wijzigen is een rol die iemand kan afpakken; een

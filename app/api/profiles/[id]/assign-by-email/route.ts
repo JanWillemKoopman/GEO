@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import { isStaff } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findUserByEmail } from "@/lib/invites";
+import { naamOk, schoonNaam } from "@/lib/invite-rules";
 import { wijsToeAanGebruiker, wijsToeAanNieuwAccount } from "@/lib/profile-assign";
 
 /**
@@ -29,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: "Niet gevonden." }, { status: 404 });
   }
 
-  let body: { email?: string };
+  let body: { email?: string; firstName?: string; lastName?: string };
   try {
     body = await request.json();
   } catch {
@@ -41,6 +42,12 @@ export async function POST(
   const email = String(body.email ?? "").trim().toLowerCase();
   if (!email || !email.includes("@") || email.length < 5) {
     return NextResponse.json({ error: "Vul een geldig e-mailadres in." }, { status: 400 });
+  }
+
+  const firstName = schoonNaam(body.firstName);
+  const lastName = schoonNaam(body.lastName);
+  if (!naamOk(firstName, lastName)) {
+    return NextResponse.json({ error: "Vul een voornaam en een achternaam in." }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -58,6 +65,8 @@ export async function POST(
         profileId: id,
         profileName: profile.name as string,
         email,
+        firstName,
+        lastName,
         invitedBy: user.id,
       });
 
