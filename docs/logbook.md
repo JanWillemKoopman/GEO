@@ -13245,3 +13245,15 @@ niet kan slepen.
 Getest: `tsc --noEmit`, `test:unit` (5150), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in een
 browser (conventie 10): het menu met schermen, de samengeklapte regels en de knop zijn gebouwd en op
 code getest, niet met een echt scherm.
+
+## 30 september 2026: iconen van Lucide naar Solar Bold
+
+De eigenaar vond de zijbalkiconen te standaard en te dun (Lucide op lijndikte 1,5). Besluit: Solar
+(`@solar-icons/react`, 480 Design, CC BY 4.0), stijl Bold. Alle 61 tekeningen lopen via
+`lib/icons.ts`, dus de wissel raakte alleen dat bestand, `components/icon.tsx` (de lijndikte is
+vervallen) en `next.config.ts`; `lucide-react` is uit `package.json` gehaald.
+
+Bewuste afwijking van `merkstrategie.md` §15.1 (geen gevulde vlakken in een icoon). Drie betekenissen
+hadden geen gelijke in Solar: `versleep` (pijlen omhoog en omlaag), `open` (cirkel met stip) en
+`merkprofiel` (identiteitskaart in plaats van vingerafdruk). CC BY 4.0 vraagt bronvermelding: onderaan
+`/support`. Nog te doen: `merkstrategie.md` §15.1 en §30 aanpassen aan dit besluit.

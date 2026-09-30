@@ -21,20 +21,24 @@
  * klant anders uit. Een set met één lijndikte is daarmee geen versiering maar
  * het herstel van iets dat stuk was.
  *
- * ── WAAROM LUCIDE ──────────────────────────────────────────────────────────
+ * ── WAAROM SOLAR, STIJL BOLD (30 september 2026) ───────────────────────────
  *
- * Lucide (ISC-licentie, gratis, ruim 1.600 iconen) tekent op een raster van
- * 24×24 met één lijndikte en ronde uiteinden. Dat is precies wat
- * `docs/merkstrategie.md` §15.1 vraagt: minimalistisch, technisch, rustig,
- * precies. Geen gevulde vlakken, geen kleur in het icoon zelf, dus §16.1
- * ("neutral-first, kleur krijgt betekenis") blijft heel: het icoon erft
- * `currentColor` en kleurt dus mee met de tekst ernaast, nooit ernaast.
+ * Eerst stond hier Lucide, een lijnset. Die las als te dun en te standaard.
+ * Solar (480 Design, licentie CC BY 4.0, gratis, ruim 1.400 tekeningen in zes
+ * stijlen) is gekozen op verzoek van de eigenaar, in de stijl Bold: gevulde
+ * vormen op een raster van 24×24. Het icoon erft `currentColor` en kleurt dus
+ * mee met de tekst ernaast, nooit ernaast, dus §16.1 van
+ * `docs/merkstrategie.md` ("neutral-first") blijft heel.
  *
- * De keuze per icoon volgt §15.5, de visuele metafoor van "een systeem dat
- * zichzelf uitbreidt": netwerken, structuren, lagen, verbindingen. Vandaar
- * oplopende punten met verbindingen ertussen bij Strategie. En vandaar dat
- * §15.4 hier meegewogen is: geen robot, geen brein, geen glittertje bij alles
- * wat AI aanraakt, en geen tandwiel bij Instellingen.
+ * ⚠️ Dit wijkt af van `docs/merkstrategie.md` §15.1, dat gevulde vlakken in een
+ * icoon afraadt. De eigenaar koos er bewust voor; zie `docs/logbook.md`.
+ *
+ * ⚠️ CC BY 4.0 vraagt bronvermelding. Die staat in `app/(app)/support`, zie
+ * het logboek van 30 september 2026.
+ *
+ * Solar heeft geen greep (`versleep`), geen lege cirkel (`open`) en geen
+ * vingerafdruk (`merkprofiel`). Die drie zijn de dichtstbijzijnde tekening:
+ * pijlen omhoog en omlaag, een cirkel met stip, een identiteitskaart.
  *
  * ── DE REGELS ──────────────────────────────────────────────────────────────
  *
@@ -58,192 +62,101 @@
  * Bewust ZONDER `server-only`: de zijbalk is client, de paginakoppen zijn
  * server, en beide lezen deze tabel.
  */
+import { type IcoonNaam } from "@/lib/icon-names";
+import type { Icon as Tekening } from "@solar-icons/react/lib/types";
 import {
-  Ellipsis,
-  GripVertical,
-  Info,
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  ArrowUpRight,
-  BookOpen,
-  Building2,
-  CalendarRange,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  ChartNoAxesCombined,
-  Circle,
-  CircleDashed,
-  CircleHelp,
-  Compass,
-  LogOut,
-  Plug,
-  ClipboardCheck,
-  Copy,
-  Download,
-  Eye,
-  EyeOff,
-  FilePen,
-  FilePlus2,
-  FileQuestionMark,
-  FingerprintPattern,
-  Globe,
-  Map,
-  Menu,
-  MessageCircle,
-  Minus,
-  Moon,
-  Orbit,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Radar,
-  ListChecks,
-  RotateCcw,
-  RotateCw,
-  Scale,
-  Search,
-  Send,
-  Shield,
-  SlidersHorizontal,
-  Tag,
-  Trash2,
-  Sun,
-  TriangleAlert,
-  Upload,
-  UserRound,
-  Waypoints,
-  Boxes,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+  AddIcon,
+  AltArrowDownIcon,
+  AltArrowRightIcon,
+  ArrowDownIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowRightUpIcon,
+  ArrowUpIcon,
+  BookIcon,
+  BuildingsIcon,
+  CalendarIcon,
+  ChartIcon,
+  ChatRoundDotsIcon,
+  CheckIcon,
+  ChecklistIcon,
+  CircleDotIcon,
+  CircleDashedIcon,
+  ClipboardCheckIcon,
+  CloseIcon,
+  CompassIcon,
+  CopyIcon,
+  DangerTriangleIcon,
+  DownloadMinimalisticIcon,
+  EyeIcon,
+  EyeClosedIcon,
+  FileAddIcon,
+  FilePenIcon,
+  FileQuestionMarkIcon,
+  GlobeIcon,
+  HamburgerMenuIcon,
+  InfoCircleIcon,
+  LogoutIcon,
+  MagnifierIcon,
+  MapIcon,
+  MenuDotsIcon,
+  MinusIcon,
+  MoonIcon,
+  PlanetIcon,
+  PlugCircleIcon,
+  QuestionCircleIcon,
+  RadarIcon,
+  RefreshIcon,
+  RestartIcon,
+  RoutingIcon,
+  ScaleIcon,
+  SendSquareIcon,
+  ShieldIcon,
+  SidebarCloseIcon,
+  SidebarOpenIcon,
+  SortVerticalIcon,
+  SunIcon,
+  TagIcon,
+  TrashBinMinimalisticIcon,
+  TuningIcon,
+  UploadMinimalisticIcon,
+  UserIdIcon,
+  UserRoundedIcon,
+  WidgetIcon,
+} from "@solar-icons/react/bold";
 
 /**
  * Elke betekenis die de app tekent, in de volgorde waarin je ze tegenkomt:
  * eerst de zeven hoofdstukken van de zijbalk, dan de bediening, dan de standen.
  */
-export type IcoonNaam =
-  // ── De zeven hoofdstukken van de zijbalk ────────────────────────────────
-  | "overzicht"
-  | "taken"
-  | "clusters"
-  | "strategie"
-  | "analytics"
-  | "merkprofiel"
-  | "instellingen"
-  | "admin"
-  // ── Bediening ───────────────────────────────────────────────────────────
-  | "menu"
-  | "sluiten"
-  | "toevoegen"
-  | "uitklappen"
-  | "inklappen"
-  | "openen"
-  | "verder"
-  | "terug"
-  | "naar"
-  | "omhoog"
-  | "omlaag"
-  | "extern"
-  | "kopieer"
-  | "downloaden"
-  | "profiel"
-  | "help"
-  | "meer"
-  | "versleep"
-  | "label"
-  | "prullenbak"
-  // ── Standen ─────────────────────────────────────────────────────────────
-  | "klaar"
-  | "loopt"
-  | "open"
-  | "mislukt"
-  | "letop"
-  | "info"
-  | "nvt"
-  | "stijging"
-  | "daling"
-  // ── Soorten werk en kansen ──────────────────────────────────────────────
-  | "nieuwepagina"
-  | "paginabijwerken"
-  | "publiceren"
-  | "meten"
-  | "goedkeuring"
-  | "feit"
-  | "herstel"
-  | "offsite"
-  // ── Onderwerpen in de Support-handleiding ────────────────────────────────
-  // Eén tekening per bestemming uit de zijbalk, zodat een lijst van tien
-  // uitlegblokken niet leest als tien keer hetzelfde blok met een andere
-  // titel (`docs/designsystem.md` §6b.3, regel 5: een icoon zodra de SOORT
-  // verschilt). Vier bestemmingen lenen het icoon van hun eigen hoofdstuk
-  // (`overzicht`, `analytics`, `merkprofiel`, en `meten` voor Clusters), de
-  // rest krijgt hier zijn eerste tekening.
-  | "zoekmachine"
-  | "opnieuw"
-  | "plannen"
-  | "bibliotheek"
-  | "concurrenten"
-  | "reputatie"
-  // ── Zijbalk (29 september 2026) ─────────────────────────────────────────
-  | "ontdekken"
-  | "koppeling"
-  | "uitloggen"
-  // ── De weergave van de app zelf ─────────────────────────────────────────
-  | "licht"
-  | "donker"
-  // Alleen zichtbaar voor staf: wisselen naar wat een klant ziet
-  // (`components/preview-toggle.tsx`).
-  | "klantweergave"
-  | "eigenweergave"
-  // ── De onderbalk op een telefoon (17 september 2026) ────────────────────
-  // Drie nieuwe betekenissen voor de Sales-onderbalk (`components/bottom-nav.tsx`,
-  // redesign2026.md §8.12.4). De sidebar geeft alleen zijn zeven hoofdstukken
-  // een icoon (regel 4 hierboven), maar een tabbalk van vijf posities werkt
-  // zoals overal elders zo'n balk werkt: elke positie draagt er zelf een, want
-  // zonder tekening is een tabblad alleen een woord op 22 pixels afstand van
-  // het volgende. "Overzicht" en "Vragen" en "Plan" lenen hun tekening van hun
-  // hoofdstuk of van een bestaande betekenis hierboven; deze drie zijn nieuw.
-  | "markten"
-  | "bedrijven"
-  | "verstuurd"
-  // ── Het inlogtoneel (17 september 2026, stap 8) ──────────────────────────
-  // De wachtwoordwissel in een veld: een open oog voor "toon", een
-  // doorgestreept oog voor "verberg". Bewust dezelfde tekening als
-  // `klantweergave`/`eigenweergave` hierboven, met een eigen naam: dat is
-  // een universele conventie en geen eigen keuze, en de twee functies staan
-  // nooit naast elkaar op een scherm, dus er is niets om te verwarren.
-  | "wachtwoordtonen"
-  | "wachtwoordverbergen";
+export type { IcoonNaam };
 
-export const ICONEN: Record<IcoonNaam, LucideIcon> = {
+export const ICONEN: Record<IcoonNaam, Tekening> = {
   // ── DE ZEVEN HOOFDSTUKKEN ───────────────────────────────────────────────
   //
   // `Orbit` bovenaan is geen woordgrapje op de productnaam maar het antwoord
   // op de vraag die dit hoofdstuk stelt: waar sta je ten opzichte van de rest.
   // Een middelpunt met een lichaam eromheen is precies dat beeld.
-  overzicht: Orbit,
-  taken: ListChecks,
+  overzicht: PlanetIcon,
+  taken: ChecklistIcon,
   // Punten die met elkaar verbonden zijn en oplopen: contentplan, clusters en
   // bibliotheek zijn stappen in één volgorde en geen losse keuzes. Hier stond
   // eerst `Route`, maar die leek op 18 pixels te veel op de schuifjes van
   // Instellingen, en juist ingeklapt staan die twee koppen vlak bij elkaar.
-  strategie: Waypoints,
+  strategie: RoutingIcon,
   // Losse blokjes die bij elkaar horen: een cluster is precies dat, een groep
   // vragen over één onderwerp. Toegevoegd op 23 september 2026, toen Clusters
   // een eigen hoofdstuk werd (docs/tasks/clusters-ontdekken.md).
-  clusters: Boxes,
-  analytics: ChartNoAxesCombined,
+  clusters: WidgetIcon,
+  analytics: ChartIcon,
   // Merkprofiel gaat over identiteit: wie ben jij volgens ORBIT ENGINE. Een
   // vingerafdrukpatroon zegt dat abstract, zonder een persoon te tekenen (dit
   // is een merk, geen gebruiker).
-  merkprofiel: FingerprintPattern,
+  merkprofiel: UserIdIcon,
   // Schuifjes en geen tandwiel. Het tandwiel is het cliché waar §15.2 voor
   // waarschuwt, en instellingen zijn hier ook echt afstellen: hoe vaak meten,
   // wie mag erbij, welke koppeling staat aan.
-  instellingen: SlidersHorizontal,
+  instellingen: TuningIcon,
   // Een radar tekent precies wat deze sectie doet: een gebied afzoeken en
   // zichtbaar maken wat erin zit. Geen doelwit met een kruis erin, want dat
   // maakt van een prospect een prooi, en geen geldteken, want de module gaat
@@ -251,54 +164,54 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // scheidingslijn: de klant ziet het nooit (plan §4.3).
   // Het schild is niet "beveiligd" maar "afgeschermd": dit hoofdstuk staat al
   // onder een scheidingslijn omdat de klant het nooit ziet (`lib/nav.ts`).
-  admin: Shield,
+  admin: ShieldIcon,
 
   // ── BEDIENING ───────────────────────────────────────────────────────────
-  menu: Menu,
-  sluiten: X,
+  menu: HamburgerMenuIcon,
+  sluiten: CloseIcon,
   // Iets nieuws aanmaken ("Nieuw merk", "Nieuw label maken"). Stond er tot
   // 23 september 2026 als een los plusteken in de tekst, tegen §11 regel 9.
-  toevoegen: Plus,
+  toevoegen: AddIcon,
   // De zijbalk klapt in en uit. Het paneel-icoon toont de handeling én de
   // richting, waar « en » alleen richting toonden.
-  uitklappen: PanelLeftOpen,
-  inklappen: PanelLeftClose,
-  openen: ChevronDown,
-  verder: ChevronRight,
-  terug: ArrowLeft,
+  uitklappen: SidebarOpenIcon,
+  inklappen: SidebarCloseIcon,
+  openen: AltArrowDownIcon,
+  verder: AltArrowRightIcon,
+  terug: ArrowLeftIcon,
   // Vooruit binnen de app, achter een tekstlink: "Naar de cijfers", "Cluster
   // loopt". Niet hetzelfde als `extern`, die de app verlaat.
-  naar: ArrowRight,
+  naar: ArrowRightIcon,
   // Een regel een plek verplaatsen. Zelfde tekening als `stijging` en `daling`,
   // andere betekenis: dit is een handeling van de gebruiker en geen meting.
   // Regel 3 hierboven: de naam is de betekenis, niet de tekening.
-  omhoog: ArrowUp,
-  omlaag: ArrowDown,
-  extern: ArrowUpRight,
-  kopieer: Copy,
-  downloaden: Download,
-  profiel: UserRound,
+  omhoog: ArrowUpIcon,
+  omlaag: ArrowDownIcon,
+  extern: ArrowRightUpIcon,
+  kopieer: CopyIcon,
+  downloaden: DownloadMinimalisticIcon,
+  profiel: UserRoundedIcon,
   // Een vraagteken in een cirkel: de standaardtekening voor hulp, en de enige
   // in deze set die dat woord letterlijk uitbeeldt. Voor Support, rechtsboven
   // in de bovenbalk, naast de andere iconen die over "jou" en het scherm gaan.
-  help: CircleHelp,
+  help: QuestionCircleIcon,
   // Drie puntjes: alles wat een rij kan, maar niet vaak genoeg om er ruimte
   // voor op te eisen. Het contentplan had per regel vijf zichtbare bedieningen
   // (twee pijlen, een keuzelijst, twee tekstlinks) en dat woog zwaarder dan de
   // titel ernaast.
-  meer: Ellipsis,
+  meer: MenuDotsIcon,
   // De greep om te slepen. Verschijnt pas als de muis over de rij komt: zonder
   // greep is niet te zien dát een rij versleepbaar is, met een altijd zichtbare
   // greep staat er op elke regel een teken dat niets zegt zolang je niet sleept.
-  versleep: GripVertical,
+  versleep: SortVerticalIcon,
   // Een kaartlabel: een woord dat je ergens aan hangt om het terug te vinden.
   // Geen map en geen bookmark, want dit is geen plek en geen leeswijzer maar
   // een groep waar iets bij hoort (`lib/cluster-labels.ts`).
-  label: Tag,
+  label: TagIcon,
   // De prullenbak zegt "hier gaat het heen" en niet "hier is het weg": wat de
   // knop doet is archiveren (migratie 0044), en terugzetten kan altijd. Geen
   // kruis, want een kruis betekent in deze set "mislukt".
-  prullenbak: Trash2,
+  prullenbak: TrashBinMinimalisticIcon,
 
   // ── STANDEN ─────────────────────────────────────────────────────────────
   //
@@ -306,20 +219,20 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // waarom ze bestaan: `components/geo-scorecard.tsx` legt uit dat identiteit
   // nooit alleen op kleur mag leunen. Een klant die rood en groen niet
   // onderscheidt, ziet hier het verschil tussen een vinkje en een kruis.
-  klaar: Check,
+  klaar: CheckIcon,
   // Een onderbroken cirkel: er draait iets, maar het is nog niet rond.
-  loopt: CircleDashed,
-  open: Circle,
-  mislukt: X,
-  letop: TriangleAlert,
+  loopt: CircleDashedIcon,
+  open: CircleDotIcon,
+  mislukt: CloseIcon,
+  letop: DangerTriangleIcon,
   // Ter informatie: een melding die niets vraagt en niets waarschuwt. Voor
   // `Alert intent="info"` (23 september 2026).
-  info: Info,
+  info: InfoCircleIcon,
   // Conventie 3: niet van toepassing is een streepje, nooit een 0 en nooit een
   // kruis. Een kruis zou "fout" zeggen over iets dat niet gemeten hoefde.
-  nvt: Minus,
-  stijging: ArrowUp,
-  daling: ArrowDown,
+  nvt: MinusIcon,
+  stijging: ArrowUpIcon,
+  daling: ArrowDownIcon,
 
   // ── SOORTEN WERK EN KANSEN ──────────────────────────────────────────────
   //
@@ -335,25 +248,25 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   // Verandert de tekening ooit, dan is dat één regel hier.
   //
   // Een blad met een plus erop: er komt een pagina bij die er nog niet is.
-  nieuwepagina: FilePlus2,
+  nieuwepagina: FileAddIcon,
   // Hetzelfde blad met een pen: de pagina bestaat al en wordt bijgewerkt. Het
   // verschil tussen deze twee is precies het verschil dat de klant moet zien.
-  paginabijwerken: FilePen,
+  paginabijwerken: FilePenIcon,
   // Naar buiten: geschreven, goedgekeurd, en het enige wat nog moet gebeuren
   // is dat het online komt.
-  publiceren: Upload,
+  publiceren: UploadMinimalisticIcon,
   // Een radar tast af wat er is zonder het te veranderen: dat is wat een
   // meetronde doet. Geen vergrootglas, want dat is zoeken en niet meten.
-  meten: Radar,
+  meten: RadarIcon,
   // Een lijst met een vinkje: nakijken en bevestigen, en dan gaat het verder.
-  goedkeuring: ClipboardCheck,
+  goedkeuring: ClipboardCheckIcon,
   // Een vraag óp een blad: dit is geen chatvraag maar een openstaand feit in
   // het merkdossier dat alleen de klant kan invullen.
-  feit: FileQuestionMark,
+  feit: FileQuestionMarkIcon,
   // Terugdraaien en opnieuw: er ging iets mis in de pijplijn en het moet over.
-  herstel: RotateCcw,
+  herstel: RestartIcon,
   // Werk buiten de eigen site: een vermelding, een profiel, een bron elders.
-  offsite: Globe,
+  offsite: GlobeIcon,
 
   // ── ONDERWERPEN IN DE SUPPORT-HANDLEIDING ───────────────────────────────
   //
@@ -364,55 +277,55 @@ export const ICONEN: Record<IcoonNaam, LucideIcon> = {
   //
   // Een vergrootglas: het klassieke teken voor zoeken, en Zoekverkeer gaat
   // over precies dat, zichtbaarheid in Google.
-  zoekmachine: Search,
+  zoekmachine: MagnifierIcon,
   // Met de klok mee ronddraaien: een nieuwe ronde die weer bij stap 01
   // begint. Bewust een andere tekening dan `herstel` (tegen de klok in): dat
   // is een pijplijn die opnieuw moet na een storing, dit is de cyclus die
   // gewoon doorgaat (regel 3: de naam is de betekenis, niet de tekening).
-  opnieuw: RotateCw,
+  opnieuw: RefreshIcon,
   // Een kalenderblad met een reeks erin: het contentplan zet pagina's in de
   // tijd, geen los kruisje op één dag.
-  plannen: CalendarRange,
+  plannen: CalendarIcon,
   // Een open boek: waar de geschreven teksten zelf staan, geen taak erover.
-  bibliotheek: BookOpen,
+  bibliotheek: BookIcon,
   // Een weegschaal: Concurrenten zet merken tegen elkaar af.
-  concurrenten: Scale,
+  concurrenten: ScaleIcon,
   // Een spraakballon: Mijn reputatie gaat over wat een AI-assistent over je
   // ZEGT, niet over of je genoemd wordt.
-  reputatie: MessageCircle,
+  reputatie: ChatRoundDotsIcon,
 
   // ── ZIJBALK (29 september 2026) ─────────────────────────────────────────
   // Een kompas: op zoek naar clusters die je nog niet hebt.
-  ontdekken: Compass,
+  ontdekken: CompassIcon,
   // Een stekker: een koppeling met een andere dienst (Search Console).
-  koppeling: Plug,
+  koppeling: PlugCircleIcon,
   // De deur uit: de rij Uitloggen in het profielmenu.
-  uitloggen: LogOut,
+  uitloggen: LogoutIcon,
 
   // De themaschakelaar. Het icoon toont waar je heen gaat en niet waar je bent:
   // sta je in de lichte stand, dan zie je de maan. Dat is de conventie in vrijwel
   // elke app die dit heeft, en de knop draagt bovendien een `aria-label` die het
   // uitspreekt, dus de betekenis hangt nergens aan het plaatje alleen.
-  licht: Sun,
-  donker: Moon,
+  licht: SunIcon,
+  donker: MoonIcon,
   // Een open oog voor "kijk mee zoals een klant kijkt", een doorgestreept oog
   // voor "je bent daar nu, terug naar jezelf". Alleen zichtbaar voor staf.
-  klantweergave: Eye,
-  eigenweergave: EyeOff,
+  klantweergave: EyeIcon,
+  eigenweergave: EyeClosedIcon,
 
   // ── De onderbalk op een telefoon ─────────────────────────────────────────
   // Een gebied op een kaart: sales onderzoekt een markt vóór er een klant is,
   // niet een individueel bedrijf. Bewust een andere tekening dan `offsite`
   // (ook `Globe`-achtig maar een andere betekenis: bereik buiten de eigen
   // site), om twee betekenissen nooit op elkaar te laten lijken.
-  markten: Map,
+  markten: MapIcon,
   // Een pand: de bedrijven die sales kent, vóór ze een prospect zijn.
-  bedrijven: Building2,
+  bedrijven: BuildingsIcon,
   // Een verstuurd bericht: wat er de deur uit is, de laatste stap in
   // outreach.
-  verstuurd: Send,
+  verstuurd: SendSquareIcon,
 
   // ── Het inlogtoneel ───────────────────────────────────────────────────────
-  wachtwoordtonen: Eye,
-  wachtwoordverbergen: EyeOff,
+  wachtwoordtonen: EyeIcon,
+  wachtwoordverbergen: EyeClosedIcon,
 };

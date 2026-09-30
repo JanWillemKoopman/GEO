@@ -452,20 +452,22 @@ achtergrondpatroon meelezen); dat achtergrondpatroon (`.workspace-canvas`) is me
 
 ## 6. Iconen
 
-[Lucide](https://lucide.dev) blijft (ISC-licentie, al in gebruik, een lijnset met dezelfde bouw als
-OKX' eigen pictogramfont, dat zelf niet overdraagbaar is). De keuze per betekenis staat in
-`lib/icons.ts`, het omhulsel dat maat en lijndikte vastzet in `components/icon.tsx`.
+[Solar](https://solar-icons.vercel.app) (480 Design, licentie CC BY 4.0, stijl **Bold**: gevulde vormen)
+sinds 30 september 2026, in plaats van Lucide, dat als te dun en te standaard las. De keuze per
+betekenis staat in `lib/icons.ts`, het omhulsel dat de maat vastzet in `components/icon.tsx`.
+Bronvermelding (verplicht onder CC BY) staat onderaan `/support`.
 
-| Eigenschap | Was (Nova) | Nu (OKX) |
+| Eigenschap | Was (OKX, Lucide) | Nu (Solar Bold) |
 |---|---|---|
-| Lijndikte | 1,75 | **1,5** |
+| Tekenstijl | lijn, dikte 1,5 | **gevuld**, geen lijndikte |
 | In een tekstregel | 16px | 16px |
-| In een knop | 16px | **18px**, 16 in `.btn-sm`, 14 in `.btn-xs`; afgedwongen in `app/globals.css`, niet per aanroeper |
-| Losse pictogramknop | 20px | 16px klein, 24px groot |
+| In een knop | 18px, 16 in `.btn-sm`, 14 in `.btn-xs` | ongewijzigd, afgedwongen in `app/globals.css` |
+| Losse pictogramknop | 16px klein, 24px groot | ongewijzigd |
 | Kleur | `currentColor` | `currentColor`, ongewijzigd |
 
-Lijndikte 1,5 hoort bij tekst op gewicht 500 in plaats van 600 (§3.2): een lichtere letter naast een
-even zware lijn oogt onbalans.
+⚠️ Dit wijkt af van `merkstrategie.md` §15.1, dat gevulde vlakken in een icoon afraadt. De eigenaar
+koos hier bewust voor. Solar mist een greep, een lege cirkel en een vingerafdruk; `versleep`,
+`open` en `merkprofiel` gebruiken de dichtstbijzijnde tekening.
 
 **De zes regels van Nova blijven onverkort gelden** (ze gaan over gebruik, niet over de tekenstijl
 van een specifiek systeem): een icoon staat nooit alleen zonder label, één betekenis heeft één

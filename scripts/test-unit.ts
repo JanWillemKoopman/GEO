@@ -281,7 +281,8 @@ import { alleRijen } from "@/lib/supabase/pagineer";
 // Sprint 4: de acht types, de score en de haak.
 // Sprint 5: de werkstroom, de mail en de contactregels.
 // Sprint 6: het publieke rapport.
-import { ICONEN } from "@/lib/icons";
+import { ICOON_NAMEN } from "@/lib/icon-names";
+const ICONEN: Record<string, true> = Object.fromEntries(ICOON_NAMEN.map((n) => [n, true as const]));
 import { DOORVERWIJZINGEN } from "@/lib/redirects";
 import { findGaps, gapLink } from "@/lib/profile-gaps";
 import {
