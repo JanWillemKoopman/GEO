@@ -71,10 +71,10 @@ export async function AppShell({
         // naar een lijst gaat kost een klik om terug te komen waar je was.
         <Link
           href={workspace.active ? `/merk/${workspace.active.id}` : "/merk"}
-          className="text-[1.375rem] leading-none"
+          className="text-[1rem] leading-none"
         >
           <span className="brand-logo">
-            <span className="brand-logo-o">O</span>RBIT
+            <span className="brand-logo-o">O</span>RBIT ENGINE
           </span>
         </Link>
       }

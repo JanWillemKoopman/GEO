@@ -3477,7 +3477,8 @@ a.notificatie-rij:hover {
    plaats van Archivo Black met -0,07em (26 augustus 2026): de eigenaar wil het
    woordmerk van de referentie, een lichte letter waar de ruimte tussen de
    tekens het merk draagt. Altijd hoofdletters. De grootte staat op de plek
-   zelf (in de zijbalk 22 pixels, 4 meer dan voorheen). */
+   zelf (in de zijbalk 16 pixels sinds 30 september 2026, toen er ENGINE achter
+   kwam: 22 pixels paste niet met twee woorden). */
 .brand-logo {
   font-family: var(--font-sans);
   font-weight: 300;
