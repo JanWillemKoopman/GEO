@@ -103,6 +103,19 @@ export const DOORVERWIJZINGEN: Doorverwijzing[] = [
     destination: "/merk/:id/analytics?tabel=concurrenten",
     permanent: true,
   },
+  // Het kennisoverzicht en de tegenstrijdige feiten waren twee Admin-schermen
+  // zonder menuregel. Ze zijn op 30 september 2026 samengevoegd op "Feiten en
+  // kennis", met de botsingen als kop erboven.
+  {
+    source: "/merk/:id/admin/kennis",
+    destination: "/merk/:id/merkprofiel/feiten-en-kennis",
+    permanent: true,
+  },
+  {
+    source: "/merk/:id/admin/feiten",
+    destination: "/merk/:id/merkprofiel/feiten-en-kennis",
+    permanent: true,
+  },
   // Diagnose is op 30 september 2026 opgegaan in het onboardinggesprek.
   { source: "/merk/:id/admin", destination: "/merk/:id/admin/onboarding", permanent: true },
   { source: "/profielen/:id/plan", destination: "/merk/:id/strategie/plan", permanent: true },

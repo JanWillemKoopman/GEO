@@ -376,8 +376,8 @@ hoe het in de code zit.
   routes in `MENSELIJKE_STATUS_TOEGESTAAN` in `scripts/test-unit.ts` (§4 regel 2 van het plan).
 - **Wie leest.** Blok A van de schrijver (`kennisVoor()` en `kiesVoorBlokA()`: nooit afgeleid,
   bevestigd eerst, alleen wat voor deze dienst en deze pagina geldt, niets wat op een open conflict
-  staat), het kennisgat van een kans (`lib/kansen/kennisgat.ts`) en het kennisoverzicht onder Admin
-  (`/merk/[id]/admin/kennis`, alleen medewerkers, besluit V6 en V11).
+  staat), het kennisgat van een kans (`lib/kansen/kennisgat.ts`) en "Feiten en kennis" onder Mijn bedrijf
+  (`/merk/[id]/merkprofiel/feiten-en-kennis`, alleen medewerkers, besluit V6 en V11).
 - **Zes bewakingstests** in `scripts/test-unit.ts`: niemand buiten `lib/kennis/` schrijft in
   `klantkennis`; verklaard en bevestigd alleen van de toegestane routes, ook via een omweg; geen code
   noemt een kolom die de inventaris op "niet meer gebruiken" zette; niemand schrijft of leest nog
