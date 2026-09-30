@@ -13282,9 +13282,8 @@ wat er over een klant te weten valt.
   ingeklapt onderaan.
 - **Namen gewisseld:** de kop heet nu "Mijn bedrijf" en de bestemming daaronder "Merkdossier"
   (`/merkprofiel/bewerken`, adres ongewijzigd).
-- ⚠️ **Alleen voor medewerkers**, ondanks de plek onder een klantkop. Besluit V6 en V11 houden de kennislaag
-  dicht voor de klant. Een klant ziet onder "Mijn bedrijf" alleen "Merkdossier". Wil de eigenaar dat de klant
-  dit ook ziet, dan is dat een nieuw besluit: de RLS van `klantkennis` en de routes zijn dan aan de beurt.
+- ⚠️ **Alleen voor medewerkers** was de eerste versie, ondanks de plek onder een klantkop (zie het
+  volgende blok: dat is dezelfde dag omgekeerd).
 
 Getest: `tsc --noEmit`, `test:unit` (5193), `test:chain` (847) en `build` groen. ⚠️ Niet bekeken in een
 browser (conventie 10): het scherm is gebouwd en op code getest, niet met echte klantdata.
@@ -13347,3 +13346,44 @@ wordt door server- en clientcomponenten gelezen. Twee betekenissen zijn nieuw ge
 
 Het besluit van 30 september (Solar) zei dat `merkstrategie.md` §15.1 en §30 nog moesten worden
 aangepast. Phosphor bold is een lijnset, dus de afwijking van §15.1 (geen gevulde vlakken) vervalt.
+
+## 30 september 2026 (4): Feiten en kennis leest de klant ook, en vermoedens worden zichtbaar gebruikt of niet
+
+Na het eerste gebruik met echte data (Myfinance) drie dingen die niet klopten of niet duidelijk waren, en
+een besluit van de eigenaar dat V6 en V11 omkeert.
+
+- **Besluit: de klant ziet "Feiten en kennis".** V6 en V11 (26 september 2026) hielden het kennisoverzicht
+  dicht voor de klant, tegen het advies in. Omgekeerd voor dit scherm. De klant leest dezelfde twee
+  tabbladen, met het filter en de tabel, maar zonder knoppen en zonder wat voor de consultant is (botsingen,
+  open punten voor het gesprek, geraakte pagina's). De tabel `klantkennis` blijft in de database dicht
+  (RLS, 0116): het scherm leest via de server nadat `getProfile()` (onder de rechten van de gebruiker) het
+  merk teruggaf. De route om iets te wijzigen blijft alleen voor medewerkers. De klant kan dus nog niets
+  bevestigen of afkeuren; dat blijft via de consultant, en de handleiding zegt dat ook zo. Wil de eigenaar
+  dat de klant zelf afkeurt, dan is dat een volgend besluit (de route, de actor en de eigenaarscontrole).
+- **Waarom Myfinance drie keer stond:** een merknaam en twee schrijfwijzen ("My Finance", "MyFinance"),
+  maar het scherm toonde het type gegeven (`soort`) niet, dus ook "fabrikant" en "landelijk" stonden kaal.
+  Nu staat het type als klein label boven de tekst.
+- **"fabrikant" is een misgreep van het onderzoek** (Myfinance levert software en boekhouddiensten). Van de
+  156 actuele regels bij dit merk zijn 64 vermoedens (bron ai, geen citaat, gebruik intern). Daarom blijft
+  de regel: wat een model alleen denkt gaat niet naar een pagina (`magInBlokA`, conventie 1, ook een
+  check-constraint in de database). Alles met een citaat van de site, een antwoord van de klant of het
+  gesprek gaat wel mee, zonder goedkeuring (ongeveer 78 regels).
+- **Het filter volgt nu de schrijver** en niet de status: Alles, Wordt gebruikt, Wordt niet gebruikt,
+  Afgekeurd. `gebruikVan()` (`lib/kennis/overzicht.ts`) zegt per regel ja of nee met de reden (vermoeden,
+  alleen intern, botsing, verlopen), en een test bewaakt dat het scherm nooit iets anders zegt dan
+  `magInBlokA()`.
+- **Iconen rechts in de tabel:** klopt (alleen bij een vermoeden, bevestigt en laat het meegaan),
+  aanpassen (potlood) en afkeuren (prullenbak). Afkeuren is niet wissen: het item blijft bewaard en komt
+  niet stil terug bij de volgende onderzoeksronde, want een echt gewiste regel zou bij de volgende ronde
+  opnieuw gevonden worden. Per blok staat "Bevestig alle vermoedens", met een tweede klik als vangnet.
+- **Nieuw: Terugzetten** (`zetTerug()` in `lib/kennis/vastleggen.ts`, ketenscenario 25). Een afkeuring
+  ongedaan maken, met "Ongedaan maken" direct na het afkeuren. Niet als het item verloor bij een botsing:
+  die is opgelost ten gunste van de ander en `zetBotsingen()` legt hem niet opnieuw vast. De kopie op het
+  profiel (naam, plaats, concurrent) volgt terug (`herstelKopie()`), alleen als er één veld bij hoort en
+  nooit over een waarde heen die intussen iets anders zegt.
+- **Kleiner:** de kolom heet "Bron" met korte woorden (Website, Klant, Gesprek, Onderzoek), en de pagina
+  is niet meer in leesbreedte (720 pixels) gepropt.
+
+Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen. ⚠️ Nog niet bekeken in een browser als
+klant (conventie 10). Niet gedaan: de breedte van Merkdossier (`merkprofiel/bewerken`); die pagina heeft
+zelf geen smalle beperking en de oorzaak zit in een onderdeel binnen de wizard.

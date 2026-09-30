@@ -7846,6 +7846,18 @@ async function main(): Promise<void> {
       ok("scenario 25: de aangepaste tekst wel, de oude niet", a.includes("meestal twee dagen") && !a.includes("duurt een dag"), a);
       ok("scenario 25: wat niet op de site mag niet", !a.includes("Polen"), a);
       ok("scenario 25: het bevestigde vermoeden wel", a.includes("spoedreparaties"), a);
+
+      // Terugzetten (30 september 2026): een afkeuring ongedaan maken.
+      ok("scenario 25: terugzetten kan alleen bij een afgekeurd item", !(await doe(gezien, "terugzetten")).ok);
+      ok("scenario 25: een vervangen item komt niet terug", !(await doe(oud, "terugzetten")).ok);
+      const terug = await doe(fout, "terugzetten");
+      const r6 = await rij(fout);
+      ok("scenario 25: terugzetten maakt het item weer actueel, zonder wie het afwees", terug.ok && r6.afgewezen_op == null && r6.afgewezen_door == null && r6.status === "waargenomen", JSON.stringify(r6));
+      const basis2 = await laadSchrijfbasis(shim, stuk);
+      ok("scenario 25: het teruggezette item gaat weer naar de schrijver", (basis2?.blokken.bedrijf ?? "").includes("zonnepanelen"), basis2?.blokken.bedrijf);
+      ok("scenario 25: nog eens terugzetten kan niet", !(await doe(fout, "terugzetten")).ok);
+      const afgewezenOpnieuw = await doe(fout, "afwijzen");
+      ok("scenario 25: en opnieuw afkeuren kan gewoon", afgewezenOpnieuw.ok && (await rij(fout)).afgewezen_op != null);
     }
 
     // ── Scenario 26: tegenstrijdigheden en "niet van toepassing" (K7 deel 2) ──

@@ -317,22 +317,20 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
     // `admin/kennis` (het kennisoverzicht) en `admin/feiten` (de
     // tegenstrijdigheden). Die twee zijn weg en verwijzen door.
     //
-    // ⚠️ Alleen voor medewerkers, ondanks de plek onder een klantkop. Besluit
-    // V6 en V11 van `docs/tasks/van-pijplijn-naar-kennissysteem.md`: de tabel
-    // `klantkennis` is voor de klant dicht (RLS) en bevat wat een model alleen
-    // denkt. Een klant met deze regel in zijn menu zou op een 404 uitkomen.
-    // De kop "Mijn bedrijf" blijft voor een klant een kop met één regel.
-    ...(staff
-      ? [
-          {
-            href: `/merk/${brandId}/merkprofiel/feiten-en-kennis`,
-            label: "Feiten en kennis",
-            hoofdstuk: "Mijn bedrijf" as const,
-            icoon: "goedkeuring" as const,
-            staffOnly: true,
-          },
-        ]
-      : []),
+    // ⚠️ Voor de klant om te lezen, voor de consultant om te beheren. Besluit V6
+    // en V11 (26 september 2026) hielden de kennislaag dicht voor de klant; de
+    // eigenaar heeft dat op 30 september 2026 omgekeerd voor dit scherm. De klant
+    // ziet dezelfde tabbladen zonder knoppen, zonder tegenstrijdigheden en zonder
+    // de interne onderwerpen. De tabel `klantkennis` zelf blijft dicht (RLS): het
+    // scherm leest via de server, nadat is gecontroleerd dat het merk van deze
+    // gebruiker is, en de route om iets te wijzigen blijft alleen voor
+    // medewerkers.
+    {
+      href: `/merk/${brandId}/merkprofiel/feiten-en-kennis`,
+      label: "Feiten en kennis",
+      hoofdstuk: "Mijn bedrijf" as const,
+      icoon: "goedkeuring" as const,
+    },
     // ⚠️ "Vraagt jouw input" stond hier tot 28 augustus 2026. Het heet nu
     // "Openstaande vragen" en staat onder Strategie, zie het blok hierboven.
 

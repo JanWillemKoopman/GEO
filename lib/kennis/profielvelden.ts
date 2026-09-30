@@ -76,3 +76,29 @@ export function kopieNaHandeling(
   }
   return treffers.length === 1 ? treffers[0] : null;
 }
+
+/**
+ * Wat er op `profiles` moet veranderen nu een mens een afgewezen item terugzet:
+ * de omgekeerde weg van `kopieNaHandeling(.., null)`. Alleen als er precies één
+ * veld bij dit item hoort, want anders is niet te zeggen waar de waarde terug
+ * moet. Een lijstveld krijgt de waarde er weer bij (als hij er niet al staat), een
+ * tekstveld alleen als het leeg is: een waarde die intussen door iets anders is
+ * gezet, wordt nooit overschreven.
+ */
+export function kopieNaTerugzetten(
+  profiel: Partial<Record<keyof BronProfiel, unknown>>,
+  item: Pick<Klantkennis, "domein" | "soort" | "bewering" | "herkomst_tabel">,
+): KopieWijziging | null {
+  if (item.herkomst_tabel !== "profiles" && item.herkomst_tabel !== "profile_facets") return null;
+  const velden = veldenVoor(item);
+  if (velden.length !== 1) return null;
+  const veld = velden[0]!.veld;
+  const huidig = profiel[veld];
+  if (Array.isArray(huidig)) {
+    const lijst = huidig.filter((w): w is string => typeof w === "string");
+    if (lijst.some((w) => gelijk(w, item.bewering))) return null;
+    return { veld, waarde: [...lijst, item.bewering] };
+  }
+  if (huidig == null || (typeof huidig === "string" && huidig.trim() === "")) return { veld, waarde: item.bewering };
+  return null;
+}

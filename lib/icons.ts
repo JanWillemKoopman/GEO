@@ -104,6 +104,7 @@ import {
   NotePencilIcon,
   PaperPlaneTiltIcon,
   PathIcon,
+  PencilSimpleIcon,
   PlanetIcon,
   PlugsIcon,
   PlusIcon,
@@ -211,6 +212,9 @@ export const ICONEN: Record<IcoonNaam, ComponentType<IconProps>> = {
   // knop doet is archiveren (migratie 0044), en terugzetten kan altijd. Geen
   // kruis, want een kruis betekent in deze set "mislukt".
   prullenbak: TrashIcon,
+  // Een pen: een tekst aanpassen (Feiten en kennis, 30 september 2026). Niet
+  // `paginabijwerken`: dat is een blad met een pen en betekent een hele pagina.
+  bewerken: PencilSimpleIcon,
 
   // ── STANDEN ─────────────────────────────────────────────────────────────
   //

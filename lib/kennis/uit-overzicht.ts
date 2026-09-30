@@ -4,7 +4,8 @@ import "server-only";
  * DE HANDELINGEN OP HET KENNISOVERZICHT (K7 van
  * `docs/tasks/van-pijplijn-naar-kennissysteem.md`).
  *
- * Bevestigen, aanpassen, afwijzen ("dit klopt niet") en "niet op de site", elk
+ * Bevestigen, aanpassen, afwijzen ("dit klopt niet"), terugzetten (een afwijzing
+ * ongedaan maken, 30 september 2026) en "niet op de site", elk
  * via de schrijfingang (`vastleggen.ts`), altijd met een mens als actor: alleen
  * de consultant gebruikt dit scherm (besluit V6). Welke handeling bij welk item
  * kan, zegt `handelingenVoor()` in `overzicht.ts`; deze module controleert dat
@@ -12,9 +13,9 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Klantkennis } from "@/lib/types/database";
-import { bevestig, nietOpSite, vervang, wijsAf, type HandelingUitkomst, type NieuwKennisItem } from "@/lib/kennis/vastleggen";
+import { bevestig, nietOpSite, vervang, wijsAf, zetTerug, type HandelingUitkomst, type NieuwKennisItem } from "@/lib/kennis/vastleggen";
 import { handelingenVoor, nieuwGebruikBijAanpassen, type OverzichtActie } from "@/lib/kennis/overzicht";
-import { werkKopieBij } from "@/lib/kennis/profielkopie";
+import { herstelKopie, werkKopieBij } from "@/lib/kennis/profielkopie";
 
 export const MAX_BEWERING = 2000;
 
@@ -65,6 +66,12 @@ export async function handelOpOverzicht(
       const uitkomst = await wijsAf(admin, item, mens);
       // De kopie op het profiel volgt (K8 deel 3): de meting telt er niet meer op.
       if (uitkomst.ok) await werkKopieBij(admin, oud, null);
+      return uitkomst;
+    }
+    case "terugzetten": {
+      const uitkomst = await zetTerug(admin, item, mens);
+      // En de kopie volgt terug, zodat de meting de waarde weer telt.
+      if (uitkomst.ok) await herstelKopie(admin, oud);
       return uitkomst;
     }
     case "niet_op_site":

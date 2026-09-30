@@ -40,6 +40,7 @@ export const ICOON_NAMEN = [
   "versleep",
   "label",
   "prullenbak",
+  "bewerken",
   // ── Standen ─────────────────────────────────────────────────────────────
   "klaar",
   "loopt",
