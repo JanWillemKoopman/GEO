@@ -1176,6 +1176,8 @@ async function main(): Promise<void> {
     const klantAdres = `klant-${Date.now()}@voorbeeld.nl`;
     const uitnodiging = await createInvite({
       accountId,
+      firstName: "Test",
+      lastName: "Klant",
       email: klantAdres.toUpperCase(), // hoofdletters: adressen zijn ongevoelig
       role: "member",
       invitedBy: userId,
@@ -1219,13 +1221,27 @@ async function main(): Promise<void> {
     // en geen lidmaatschap van een account.
     const { createStaffInvite } = await import("@/lib/invites");
     const consultantAdres = `consultant-${Date.now()}@voorbeeld.nl`;
-    const staf = await createStaffInvite({ email: consultantAdres.toUpperCase(), invitedBy: userId });
+    const staf = await createStaffInvite({
+      email: consultantAdres.toUpperCase(),
+      firstName: "Co",
+      lastName: "Sultant",
+      invitedBy: userId,
+    });
     ok("een consultantuitnodiging wordt aangemaakt", staf !== null);
     const stafGevonden = await lookupInvite(staf!.token);
     ok("de link herkent hem als consultant", stafGevonden.soort === "consultant" && stafGevonden.state === "geldig");
     ok("een klantlink blijft een klantlink", (await lookupInvite(uitnodiging!.token)).soort === "klant");
     const stafGeaccepteerd = await acceptInvite(staf!.token, "Wachtwoord1");
     ok("de consultant komt binnen", stafGeaccepteerd.ok);
+    const { rows: stafNaam } = await db.client.query(
+      `select raw_user_meta_data->>'voornaam' as voornaam, raw_user_meta_data->>'achternaam' as achternaam
+         from auth.users where email = $1`,
+      [consultantAdres.toLowerCase()],
+    );
+    ok(
+      "de naam uit de uitnodiging staat op het nieuwe account",
+      stafNaam[0]?.voornaam === "Co" && stafNaam[0]?.achternaam === "Sultant",
+    );
     const { rows: stafRij } = await db.client.query(
       `select s.role from public.staff_users s join auth.users u on u.id = s.user_id where u.email = $1`,
       [consultantAdres.toLowerCase()],
@@ -1278,6 +1294,8 @@ async function main(): Promise<void> {
     // een overnameroute voor een bestaand account.
     const tweedeUitnodiging = await createInvite({
       accountId,
+      firstName: "Test",
+      lastName: "Klant",
       email: klantAdres,
       role: "admin",
       invitedBy: userId,
@@ -1298,6 +1316,8 @@ async function main(): Promise<void> {
     // Een ingetrokken uitnodiging werkt niet meer, ook al is hij niet verlopen.
     const derde = await createInvite({
       accountId,
+      firstName: "Test",
+      lastName: "Klant",
       email: `ander-${Date.now()}@voorbeeld.nl`,
       role: "member",
       invitedBy: userId,
@@ -1543,6 +1563,8 @@ async function main(): Promise<void> {
         profileId: profielNieuwEmail,
         profileName: "Nog geen accountklant",
         email: "nieuwe-klant@voorbeeld.nl",
+        firstName: "Nina",
+        lastName: "de Vries",
         invitedBy: consultantId,
       });
       ok("het nieuwe account wordt aangemaakt", nieuw.ok, nieuw.error ?? "");

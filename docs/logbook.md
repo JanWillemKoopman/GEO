@@ -13442,3 +13442,10 @@ andere vraagkaart, twee grijze etiketten per vraag en andere knoppen ("Opslaan" 
 
 Getest: `tsc --noEmit`, `test:unit`, `test:chain` en `build` groen, en bekeken in een browser met
 voorbeelddata. ⚠️ Nog niet bekeken met echte klantdata (conventie 10): er staan hier geen Supabase-sleutels.
+
+**30 september 2026: elk nieuw account heeft een voor- en achternaam.** Klant toevoegen (Toewijzen, Instellingen)
+en consultant uitnodigen vragen nu voornaam, achternaam en e-mailadres, alle drie verplicht (API weigert anders
+met 400). De naam reist mee met de uitnodiging (migratie 0136) en wordt bij activeren in de metadata van het
+account gezet; een bestaande gebruiker zonder naam krijgt hem erbij, een bestaande naam wordt nooit overschreven.
+Accounts van vóór deze wijziging hebben geen naam en tonen in de zijbalk hun e-mailadres. Getest: 6 unit- en
+1 ketenasserties erbij.

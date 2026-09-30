@@ -498,6 +498,8 @@ import {
   passwordRules,
   passwordOk,
   mayInvite,
+  naamOk,
+  schoonNaam,
 } from "@/lib/invite-rules";
 import { rolVan, isSuperuserEmail, SUPERUSER_EMAIL } from "@/lib/roles";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
@@ -6848,6 +6850,12 @@ group("wie mag uitnodigen", () => {
   ok("een beheerder van ORBIT ENGINE mag altijd", mayInvite(null, true) === true);
   ok("een lid van ORBIT ENGINE-staf ook", mayInvite("member", true) === true);
   ok("zonder rol en zonder staf niet", mayInvite(null, false) === false);
+  ok("voor- en achternaam samen zijn genoeg", naamOk("Eva", "de Vries") === true);
+  ok("zonder achternaam niet", naamOk("Eva", "") === false);
+  ok("zonder voornaam niet", naamOk("", "de Vries") === false);
+  ok("een naam van alleen spaties telt als leeg", naamOk(schoonNaam("   "), "Jansen") === false);
+  ok("dubbele spaties worden één spatie", schoonNaam("  Jan   Willem ") === "Jan Willem");
+  ok("een absurd lange naam wordt geweigerd", naamOk("a".repeat(81), "Jansen") === false);
 });
 
 group("de drie rollen", () => {
