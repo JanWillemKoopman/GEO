@@ -498,6 +498,7 @@ import {
   passwordOk,
   mayInvite,
 } from "@/lib/invite-rules";
+import { rolVan, isSuperuserEmail, SUPERUSER_EMAIL } from "@/lib/roles";
 import { EDITABLE_PROFILE_FIELDS } from "@/lib/profile-editable";
 import { MONTHS_AHEAD, DEFAULT_FUNNELS } from "@/lib/plan-constants";
 import {
@@ -6839,6 +6840,23 @@ group("wie mag uitnodigen", () => {
   ok("een beheerder van ORBIT ENGINE mag altijd", mayInvite(null, true) === true);
   ok("een lid van ORBIT ENGINE-staf ook", mayInvite("member", true) === true);
   ok("zonder rol en zonder staf niet", mayInvite(null, false) === false);
+});
+
+group("de drie rollen", () => {
+  ok("het vaste adres met bevestiging is superuser",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: true, inStaffTabel: false }) === "superuser");
+  ok("hoofdletters en spaties maken niets uit", isSuperuserEmail("  Koopman.JanWillem@Gmail.com "));
+  // Een onbevestigd adres bewijst niets: anders zou een registratie op dit adres genoeg zijn.
+  ok("zonder bevestiging geen superuser",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: false, inStaffTabel: false }) === "klant");
+  ok("staf zonder het vaste adres is consultant",
+    rolVan({ email: "anna@outerorbit.nl", emailBevestigd: true, inStaffTabel: true }) === "consultant");
+  ok("de superuser wint van een rij in de staftabel",
+    rolVan({ email: SUPERUSER_EMAIL, emailBevestigd: true, inStaffTabel: true }) === "superuser");
+  ok("een gewone gebruiker is klant",
+    rolVan({ email: "klant@bedrijf.nl", emailBevestigd: true, inStaffTabel: false }) === "klant");
+  ok("geen adres is klant",
+    rolVan({ email: null, emailBevestigd: false, inStaffTabel: false }) === "klant");
 });
 
 group("monthsSinceStart", () => {

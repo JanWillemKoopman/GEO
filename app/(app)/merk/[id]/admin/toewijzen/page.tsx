@@ -5,14 +5,14 @@ import { isStaff } from "@/lib/staff";
 import { membersOf } from "@/lib/accounts";
 import { listPendingInvites } from "@/lib/invites";
 import { PageHeader } from "@/components/page-header";
-import { AssignBox } from "../../_components/assign-box";
 import { PackageBox } from "../../_components/package-box";
 import { overdrachtZonderCluster } from "@/lib/cluster-start";
 import { TeamBox } from "@/app/(app)/instellingen/team-box";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isSuperuserEmail, ROL_LABEL, ROL_UITLEG, type Rol } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Toewijzen" };
+export const metadata = { title: "Toegang" };
 
 /**
  * Dit merk aan een klantaccount koppelen. Doe je ná het gesprek, niet tijdens,
@@ -49,17 +49,39 @@ export default async function ToewijzenPage({
       ).data
     : null;
 
-  // Meerdere mensen bij hetzelfde merk: dat loopt via het account eronder
-  // (`account_users`, migratie 0046), niet via het merk zelf. `AssignBox`
-  // hierboven kiest de hoofdeigenaar en het account; dit blok laat de
-  // beheerder daarna extra mensen bij dát account uitnodigen, met dezelfde
-  // route als `/instellingen` (`POST /api/accounts/[id]/invites`), die een
-  // beheerder van ORBIT ENGINE altijd toelaat (`mayInvite` in
-  // lib/invite-rules.ts).
-  const accountId = (account?.id as string | undefined) ?? null;
-  const [members, pending] = accountId
+  // Wie bij dit merk kan loopt via het account eronder (`account_users`,
+  // migratie 0046), niet via het merk zelf. Eén formulier nodigt uit: hangt het
+  // merk nog aan geen klant, dan maakt het eerste adres het klantaccount aan
+  // (`assign-by-email`); daarna gaat elk adres via
+  // `POST /api/accounts/[id]/invites`, die een consultant altijd toelaat
+  // (`mayInvite` in lib/invite-rules.ts). De keuzelijst met bestaande accounts
+  // (`AssignBox`) is op 30 september 2026 weggehaald: hij liet je een merk aan
+  // een verkeerd account hangen en het verschil met het e-mailveld was niet uit
+  // te leggen.
+  //
+  // Zolang `assigned_at` leeg is hangt het merk nog aan het account van de
+  // consultant zelf. Die tel je niet als klant: de klant komt er pas bij met de
+  // eerste uitnodiging hieronder.
+  const gekoppeld = Boolean(profile.assigned_at);
+  const accountId = gekoppeld ? ((account?.id as string | undefined) ?? null) : null;
+  const [ledenRuw, pending] = accountId
     ? await Promise.all([membersOf(accountId, user.id), listPendingInvites(accountId)])
     : [[], []];
+
+  // Wie in dit account is eigenlijk een consultant? Die staat in `staff_users`
+  // en wordt hier niet als klant getoond.
+  const { data: stafRijen } = ledenRuw.length
+    ? await createAdminClient()
+        .from("staff_users")
+        .select("user_id")
+        .in("user_id", ledenRuw.map((l) => l.userId))
+    : { data: [] as { user_id: string }[] };
+  const stafIds = new Set((stafRijen ?? []).map((r) => r.user_id as string));
+  const members = ledenRuw.map((l) => ({
+    email: l.email,
+    isYou: l.isYou,
+    rol: (isSuperuserEmail(l.email) ? "superuser" : stafIds.has(l.userId) ? "consultant" : "klant") as Rol,
+  }));
 
   // Een merk zonder cluster overdragen levert gegarandeerd een klant op die op
   // een leeg overzicht kijkt en zelf niets kan starten, want een cluster
@@ -76,8 +98,8 @@ export default async function ToewijzenPage({
     <div className="flex flex-col gap-6 wil-lezen">
       <PageHeader
         eyebrow="Admin"
-        title="Toewijzen"
-        description="Dit merk aan een klantaccount koppelen."
+        title="Toegang"
+        description="Wie dit merk kan zien, en het uitnodigen van de klant."
       />
 
       {clusterWaarschuwing && (
@@ -87,35 +109,31 @@ export default async function ToewijzenPage({
         </div>
       )}
 
-      <AssignBox
+      <TeamBox
+        accountId={accountId}
+        accountName={gekoppeld ? ((account?.name as string | undefined) ?? "dit merk") : "dit merk"}
+        members={members}
+        pending={pending}
+        mayInvite
         profileId={id}
-        currentUserId={profile.user_id}
-        assignedAt={profile.assigned_at}
       />
 
-      {accountId ? (
-        <TeamBox
-          accountId={accountId}
-          accountName={(account?.name as string | undefined) ?? "dit account"}
-          members={members}
-          pending={pending}
-          mayInvite
-        />
-      ) : (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Wie er bij dit merk kan</span>
-          <p className="text-sm text-secondary">
-            Wijs dit merk eerst toe aan een klantaccount hierboven. Daarna kun je hier extra
-            mensen voor dat account uitnodigen.
-          </p>
-        </div>
-      )}
+      <div className="card flex flex-col gap-2">
+        <span className="mono-label">Wie kan wat</span>
+        <ul className="flex flex-col gap-1 text-sm text-secondary">
+          {(["superuser", "consultant", "klant"] as const).map((r) => (
+            <li key={r}>
+              <strong className="text-[var(--text-primary)]">{ROL_LABEL[r]}.</strong> {ROL_UITLEG[r]}
+            </li>
+          ))}
+        </ul>
+      </div>
 
       <PackageBox
         accountId={accountId}
-        accountName={(account?.name as string | undefined) ?? null}
-        current={(account?.package_pages_per_month as number | null | undefined) ?? null}
-        startedAt={(account?.started_at as string | null | undefined) ?? null}
+        accountName={accountId ? ((account?.name as string | undefined) ?? null) : null}
+        current={accountId ? ((account?.package_pages_per_month as number | null | undefined) ?? null) : null}
+        startedAt={accountId ? ((account?.started_at as string | null | undefined) ?? null) : null}
       />
     </div>
   );

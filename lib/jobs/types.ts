@@ -225,7 +225,11 @@ export interface RecommendationPayload {
 export interface JobPayloads {
   /** Hoeveelste ronde dit is (migratie 0102). 0 = de eerste, vanaf de aanmaakroute. */
   profile_light_scan: { round?: number };
-  profile_discover: Record<string, never>;
+  /**
+   * `maxPages`: hoeveel pagina's deze ronde volledig gelezen worden. Alleen gezet
+   * door "Onderzoek opnieuw"; leeg betekent het maximum (`MAX_PAGES_HARD_CAP`).
+   */
+  profile_discover: { maxPages?: number };
   profile_research: Record<string, never>;
   /**
    * ⚠️ `chain: false` betekent: doe deze stap, maar plan zijn opvolger niet in.

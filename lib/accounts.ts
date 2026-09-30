@@ -96,7 +96,7 @@ export async function isMember(userId: string, accountId: string | null): Promis
 export async function membersOf(
   accountId: string,
   currentUserId: string,
-): Promise<{ email: string; role: AccountRole; isYou: boolean }[]> {
+): Promise<{ userId: string; email: string; role: AccountRole; isYou: boolean }[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("account_users")
@@ -109,6 +109,7 @@ export async function membersOf(
 
   return data
     .map((r) => ({
+      userId: r.user_id as string,
       email: opId.get(r.user_id as string) ?? "onbekend adres",
       role: r.role as AccountRole,
       isYou: r.user_id === currentUserId,

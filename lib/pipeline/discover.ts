@@ -120,7 +120,10 @@ export interface DiscoveryResult {
  */
 const MAX_FACTS = 50;
 
-export async function discoverSite(profileId: string): Promise<DiscoveryResult> {
+export async function discoverSite(
+  profileId: string,
+  opts: { maxPages?: number } = {},
+): Promise<DiscoveryResult> {
   const admin = createAdminClient();
 
   const { data: row } = await admin.from("profiles").select("*").eq("id", profileId).single();
@@ -142,7 +145,11 @@ export async function discoverSite(profileId: string): Promise<DiscoveryResult> 
   // eenmalige onboarding en het kost alleen tijd, geen geld. De per-profiel
   // instelling (`max_inventory_pages`) blijft gelden voor de latere
   // verversingen, waar hij wél een kostenafweging is.
-  const maxPages = MAX_PAGES_HARD_CAP;
+  //
+  // Uitzondering: een consultant die "Onderzoek opnieuw" start kan het aantal
+  // zelf lager zetten (bijvoorbeeld 30 voor een kleine site, sneller klaar).
+  // Nooit hoger dan het maximum: daarboven past de taak niet in zijn tijdbudget.
+  const maxPages = Math.min(Math.max(Math.round(opts.maxPages ?? MAX_PAGES_HARD_CAP), 5), MAX_PAGES_HARD_CAP);
 
   // ── Stap 2: waar richten we ons op? ───────────────────────────────────────
   //

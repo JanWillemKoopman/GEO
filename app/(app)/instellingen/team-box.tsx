@@ -6,6 +6,7 @@ import { useToast } from "@/components/toast";
 import { CopyButton } from "@/components/copy-button";
 import { inviteState } from "@/lib/invite-rules";
 import type { AccountRole } from "@/lib/types/database";
+import { ROL_LABEL, ROL_UITLEG, type Rol } from "@/lib/roles";
 
 export interface PendingInvite {
   id: string;
@@ -37,18 +38,25 @@ export function TeamBox({
   members,
   pending,
   mayInvite,
+  profileId,
 }: {
-  accountId: string;
+  /**
+   * `null` als het merk nog aan geen klant hangt (alleen op het scherm
+   * Toewijzen). Het eerste adres dat je dan uitnodigt maakt het klantaccount aan
+   * en koppelt het merk eraan, via `profileId`.
+   */
+  accountId: string | null;
   accountName: string;
-  members: { email: string; role: AccountRole; isYou: boolean }[];
+  /** `rol` ontbreekt op `/instellingen`: daar is iedereen klant. */
+  members: { email: string; isYou: boolean; rol?: Rol }[];
   pending: PendingInvite[];
   mayInvite: boolean;
+  profileId?: string;
 }) {
   const toast = useToast();
   const router = useRouter();
   const [intrekken, setIntrekken] = useState<string | null>(null);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<AccountRole>("member");
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
 
@@ -58,14 +66,37 @@ export function TeamBox({
     setBusy(true);
     setLink(null);
     try {
-      const res = await fetch(`/api/accounts/${accountId}/invites`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), role }),
-      });
-      const json = (await res.json().catch(() => null)) as
-        | { link?: string; error?: string }
+      // Iedereen die je hier uitnodigt is klant: het verschil tussen "lid" en
+      // "beheerder" bestond alleen om collega's mogen uitnodigen, en dat doet de
+      // consultant. Daarom geen keuze meer op het scherm.
+      const res = accountId
+        ? await fetch(`/api/accounts/${accountId}/invites`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email.trim(), role: "member" }),
+          })
+        : await fetch(`/api/profiles/${profileId}/assign-by-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email.trim() }),
+          });
+      const raw = (await res.json().catch(() => null)) as
+        | { link?: string; inviteLink?: string | null; error?: string; bestaandeGebruiker?: boolean }
         | null;
+      const json = raw && { ...raw, link: raw.link ?? raw.inviteLink ?? undefined };
+
+      // Een bestaande gebruiker krijgt bij het koppelen geen link: hij logt
+      // gewoon in en ziet het merk.
+      if (res.ok && !accountId && json?.bestaandeGebruiker) {
+        setEmail("");
+        router.refresh();
+        toast({
+          intent: "succes",
+          title: `${email.trim()} is gekoppeld`,
+          description: "Dit adres heeft al een account en ziet het merk bij het inloggen.",
+        });
+        return;
+      }
 
       if (!res.ok || !json?.link) {
         toast({
@@ -98,12 +129,18 @@ export function TeamBox({
   return (
     <div className="card flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <span className="mono-label">Wie er bij {accountName} kan</span>
+        <span className="mono-label">Wie toegang heeft tot {accountName}</span>
         <p className="text-sm text-muted">
-          Een beheerder kan anderen uitnodigen. Een lid kan meekijken en
-          goedkeuren, maar niemand toevoegen.
+          {ROL_UITLEG.klant}
         </p>
       </div>
+
+      {accountId === null && (
+        <p className="text-sm text-secondary">
+          Nog geen klant gekoppeld. Nodig hieronder het e-mailadres van de klant uit: daarmee
+          wordt het klantaccount aangemaakt en dit merk eraan gekoppeld.
+        </p>
+      )}
 
       <ul className="flex flex-col gap-2">
         {members.map((m) => (
@@ -115,8 +152,8 @@ export function TeamBox({
               {m.email}
               {m.isYou && <span className="text-muted"> (jij)</span>}
             </span>
-            <span className={m.role === "admin" ? "chip" : "chip chip-neutral"}>
-              {m.role === "admin" ? "Beheerder" : "Lid"}
+            <span className={m.rol && m.rol !== "klant" ? "chip" : "chip chip-neutral"}>
+              {ROL_LABEL[m.rol ?? "klant"]}
             </span>
           </li>
         ))}
@@ -199,19 +236,9 @@ export function TeamBox({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="naam@bedrijf.nl"
-              aria-label="E-mailadres om uit te nodigen"
+              aria-label="E-mailadres van de klant"
               disabled={busy}
             />
-            <select
-              className="field field-select sm:w-40"
-              value={role}
-              onChange={(e) => setRole(e.target.value as AccountRole)}
-              aria-label="Rol"
-              disabled={busy}
-            >
-              <option value="member">Lid</option>
-              <option value="admin">Beheerder</option>
-            </select>
             <button
               type="submit"
               className="btn-primary shrink-0"
@@ -223,7 +250,7 @@ export function TeamBox({
         </form>
       ) : (
         <p className="text-sm text-muted">
-          Alleen een beheerder van dit account kan iemand uitnodigen.
+          Alleen een consultant kan iemand uitnodigen. Vraag je consultant om een collega toe te voegen.
         </p>
       )}
 

@@ -309,9 +309,9 @@ const handlers: { [T in JobType]: Handler<T> } = {
 
   // ── Fase 0: ontdekken. Nul AI-kosten, en het fundament onder al het
   // volgende (docs/tasks/onboarding-2.0.md blok B).
-  profile_discover: async ({ admin, job }) => {
+  profile_discover: async ({ admin, job }, payload) => {
     if (!job.profile_id) throw new Error("profile_discover zonder profile_id.");
-    const ontdekt = await discoverSite(job.profile_id);
+    const ontdekt = await discoverSite(job.profile_id, { maxPages: payload?.maxPages });
 
     // Een trage site: de pagina's die niet op tijd kwamen, alsnog rustig lezen
     // in de achtergrond (punt 4 van de kwaliteitsdoorlichting). Aanvullen en

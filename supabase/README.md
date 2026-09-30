@@ -842,3 +842,9 @@ september 2026), waarvan het bestand niet in deze map staat; 0130 gebruikt daaro
 exists` met dezelfde vorm. Leeg betekent: de soort volgt uit `page_type` (`soortVanPlanPagina()` in
 `lib/plan-writing.ts`). Besluit B33 in `docs/tasks/contentketen-opnieuw.md` §2. Op productie
 toegepast op 29 september 2026.
+
+## 0131: rollen superuser en consultant
+
+Zet `staff_users.role` op `superuser` voor `koopman.janwillem@gmail.com` en op `consultant` voor alle
+andere staf, en maakt `consultant` de standaardwaarde. De app leidt de rol zelf af (`lib/roles.ts`);
+dit maakt de tabel gelijk. Additief en idempotent. Op productie toegepast op 30 september 2026.

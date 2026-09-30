@@ -13209,3 +13209,15 @@ de lezer zoeken welke de echte is) blijft dus staan; alleen de tweede, getalloze
 `.vraag-dot` in `globals.css` blijft, want die twee gebruiken hem.
 
 Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
+
+## 30 september 2026: drie rollen, Toegang in plaats van Toewijzen, 0-meting eenvoudiger, Onderzoek opnieuw met paginaaantal
+
+**Rollen.** De app kent nu drie rollen (`lib/roles.ts`): superuser (alleen `koopman.janwillem@gmail.com`, vast in code en met een bevestigd adres, dus nergens in te stellen), consultant (een rij in `staff_users`, migratie 0131, kan alles wat staf al kon) en klant (via een uitnodiging). "Lid" en "Beheerder" zijn uit het scherm gehaald: het verschil was alleen wie collega's mag uitnodigen, en dat doet de consultant. De kolom `account_users.role` blijft bestaan. Op productie stonden 4 staf-rijen, allemaal `superuser`; nu 1 superuser en 3 consultants (testaccounts).
+
+**Toegang.** `/admin/toewijzen` heet nu "Toegang". De keuzelijst met bestaande accounts is weg (hij liet je een merk aan het verkeerde account hangen). Eén e-mailveld: hangt het merk nog aan geen klant, dan maakt het eerste adres het klantaccount aan; daarna nodigt elk adres uit bij dat account. De lijst toont wie toegang heeft, met een rol per adres.
+
+**Onderzoek opnieuw** vraagt nu hoeveel pagina's er gelezen worden (5 tot 150, `profile_discover.maxPages`) en heeft het veld voor extra adressen. De knop "Pagina's toevoegen" is weg.
+
+**0-meting**: drie vragen met een antwoord (kent hij het merk, genoemd bij een koopvraag, iets onjuist), bron en datum erbij. Het dossier en de concurrentenlijst zijn van dit scherm gehaald: ze staan al bij Merkdossier en Concurrenten indelen.
+
+Nog niet gebouwd: consultants uitnodigen vanuit de app (nu een rij in `staff_users`), en per consultant alleen de eigen klanten tonen (alle staf ziet nu alle merken).

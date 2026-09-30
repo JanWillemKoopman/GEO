@@ -371,7 +371,7 @@ export function brandNav(brandId: string, staff = false): NavItem[] {
           },
           {
             href: `/merk/${brandId}/admin/toewijzen`,
-            label: "Toewijzen",
+            label: "Toegang",
             hoofdstuk: "Admin" as const,
             icoon: "label" as const,
             staffOnly: true,

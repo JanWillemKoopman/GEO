@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { rolVan, type Rol } from "@/lib/roles";
 
 /**
  * Is dit een account van ORBIT ENGINE zelf?
@@ -18,22 +19,43 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * terwijl die persoon zelf op de klantweergave staat.
  */
 export const isStaffAccount = cache(async (userId: string): Promise<boolean> => {
-  if (!userId) return false;
+  return (await echteRolVan(userId)) !== "klant";
+});
+
+/**
+ * De echte rol van deze gebruiker: superuser, consultant of klant.
+ *
+ * De superuser is het vaste adres uit `lib/roles.ts` (met een bevestigd
+ * e-mailadres) en heeft geen rij in `staff_users` nodig. Een consultant is een
+ * rij in `staff_users`. Faalt zacht naar `klant`: een storing mag nooit iemand
+ * onbedoeld meer rechten geven.
+ */
+export const echteRolVan = cache(async (userId: string): Promise<Rol> => {
+  if (!userId) return "klant";
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("staff_users")
-      .select("user_id")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const [{ data, error }, gebruiker] = await Promise.all([
+      admin.from("staff_users").select("user_id").eq("user_id", userId).maybeSingle(),
+      // Een storing hier haalt alleen het superuser-recht weg, niet dat van een
+      // consultant: die staat in de tabel hierboven.
+      admin.auth.admin
+        .getUserById(userId)
+        .then((r) => r.data)
+        .catch(() => null),
+    ]);
     if (error) {
       console.error("Beheerderscontrole mislukt:", error.message);
-      return false;
+      return "klant";
     }
-    return Boolean(data);
+    const email = gebruiker?.user?.email ?? null;
+    return rolVan({
+      email,
+      emailBevestigd: Boolean(gebruiker?.user?.email_confirmed_at),
+      inStaffTabel: Boolean(data),
+    });
   } catch (err) {
     console.error("Beheerderscontrole mislukt:", err);
-    return false;
+    return "klant";
   }
 });
 

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProfile } from "@/lib/profiles";
 import { requireUser } from "@/lib/auth";
@@ -6,11 +5,11 @@ import { isStaff } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileProgress } from "../../_components/profile-progress";
 import { LlmKnowledgePanel } from "../../_components/llm-knowledge-panel";
-import { ConfidenceChip } from "@/components/confidence-chip";
 import { onboardingHeadline } from "@/lib/pipeline/onboarding-summary";
+import { summariseKnows } from "@/lib/pipeline/baseline-verdict";
+import { engineLabel } from "@/lib/engines/label";
 import type { BaselineVerdict, CategoryVerdict } from "@/lib/pipeline/baseline-verdict";
-import { ProfileHero } from "../../_components/profile-hero";
-import { ProfileSection } from "../../_components/profile-section";
+import { PageHeader } from "@/components/page-header";
 import type { ProfileLlmBaseline } from "@/lib/types/database";
 
 export const metadata = { title: "0-meting" };
@@ -52,33 +51,12 @@ export default async function NulmetingPage({
   }
 
   const supabase = await createClient();
-  const [{ data: baselineRows }, { data: synthesisRow }, { data: entityRows }] =
-    await Promise.all([
-      // Wat AI-assistenten al over dit merk weten (blok B fase 3).
-      supabase
-        .from("profile_llm_baseline")
-        .select("*")
-        .eq("profile_id", id)
-        .order("measured_at"),
-      // De synthese (fase 5): het dossier in gewone taal.
-      supabase
-        .from("profile_facets")
-        .select("summary, confidence")
-        .eq("profile_id", id)
-        .eq("facet", "synthese")
-        .maybeSingle(),
-      // Blok 5, Concurrenten: alleen wat écht als concurrent geldt. Een
-      // marktplaats of brancheorganisatie komt wél uit de meting maar hoort niet
-      // in deze lijst (migratie 0024/0026, `entity_role`).
-      supabase
-        .from("entities")
-        .select("canonical_name, entity_role")
-        .eq("profile_id", id)
-        .eq("entity_role", "concurrent")
-        .order("canonical_name"),
-    ]);
+  const { data: baselineRows } = await supabase
+    .from("profile_llm_baseline")
+    .select("*")
+    .eq("profile_id", id)
+    .order("measured_at");
 
-  // ── De kop: één zin en drie cijfers (ux-design.md regel 1) ───────────────
   const baselines = (baselineRows ?? []) as ProfileLlmBaseline[];
   const knowsVerdicts = baselines
     .filter((r) => r.block === "kent")
@@ -90,106 +68,91 @@ export default async function NulmetingPage({
     .filter((v): v is CategoryVerdict => v !== null);
 
   const merknaam = profile.brand_name ?? profile.name;
-  const samenvatting = {
+  const kent = summariseKnows(knowsVerdicts);
+  const genoemd = categoryVerdicts.filter((v) => v.mentioned).length;
+  const onjuist = knowsVerdicts.flatMap((v) =>
+    v.checks.filter((c) => c.verdict === "tegengesproken"),
+  ).length;
+  const engines = [...new Set(baselines.map((r) => r.engine))];
+  const gemetenOp = baselines.length
+    ? new Date(baselines[baselines.length - 1].measured_at).toLocaleDateString("nl-NL", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  const kop = onboardingHeadline({
     brandName: merknaam,
     knowsVerdicts,
     categoryVerdicts,
-    // Geen structurele dekkingsanalyse meer op dit scherm (die staat nu op
-    // "Aanbodboom"), en `onboardingHeadline` gebruikt `coverage` niet in zijn
-    // tekst. Leeg is dus correct, geen tweede query voor een ongebruikt veld.
+    // `onboardingHeadline` gebruikt `coverage` niet in zijn tekst.
     coverage: { coverage: [], missing: 0, weak: 0, assessed: 0 },
-  };
+  });
 
-  const dossier =
-    (synthesisRow as { summary?: string | null } | null)?.summary ?? null;
-  const dossierConfidence =
-    (synthesisRow as { confidence?: number | null } | null)?.confidence ?? null;
-
-  // Twee bronnen, één lijst: wat de meting tegenkwam (`entities`) en wat de
-  // klant zelf noteerde (`profiles.competitors`). Ze overlappen deels, en twee
-  // lijsten naast elkaar tonen laat je zich afvragen welke de echte is.
-  const concurrenten = [
-    ...new Set([
-      ...((entityRows ?? []) as { canonical_name: string }[]).map((e) => e.canonical_name),
-      ...profile.competitors,
-    ]),
-  ].sort((a, b) => a.localeCompare(b, "nl"));
+  // Drie cijfers en niets meer. Elk antwoordt op één vraag van de klant, en het
+  // eerste (kent hij je) is een woord, geen getal, omdat "3 van de 6" zonder
+  // uitleg niets zegt.
+  const tegels = [
+    {
+      vraag: "Kent de AI-assistent het merk?",
+      antwoord:
+        kent.asked === 0
+          ? "Niet gemeten"
+          : kent.level === "kent"
+            ? "Ja"
+            : kent.level === "wisselend"
+              ? "Soms"
+              : "Nee",
+      toelichting: kent.asked === 0 ? null : `Herkend bij ${kent.recognised} van ${kent.asked} manieren van vragen.`,
+    },
+    {
+      vraag: "Wordt het merk genoemd bij een koopvraag?",
+      antwoord: categoryVerdicts.length === 0 ? "Niet gemeten" : `${genoemd} van ${categoryVerdicts.length}`,
+      toelichting:
+        categoryVerdicts.length === 0
+          ? null
+          : "Vragen als een klant ze stelt, zonder de merknaam. Dit is het getal dat later moet stijgen.",
+    },
+    {
+      vraag: "Zegt de assistent iets wat niet klopt?",
+      antwoord: kent.asked === 0 ? "Niet gemeten" : onjuist === 0 ? "Nee" : `${onjuist} gegeven${onjuist === 1 ? "" : "s"}`,
+      toelichting: kent.asked === 0 ? null : "Vergeleken met wat er op de eigen site staat.",
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
-      {/* ── Wie is dit, en hoe staat het ervoor ────────────────────────────
-          Het scherm dat de consultant deelt in de demo. */}
-      <ProfileHero brandName={merknaam} url={profile.url} headline={onboardingHeadline(samenvatting)} />
+      <PageHeader
+        eyebrow="Admin"
+        title="0-meting"
+        description={`De stand van zaken voordat ORBIT ENGINE aan het werk gaat: wat een AI-assistent nu over ${merknaam} weet. Later meten we hetzelfde opnieuw, zodat je het verschil kunt laten zien.`}
+      />
 
-      {/* ── 2. Het dossier ───────────────────────────────────────────────────
-          Alles wat ORBIT ENGINE over de klant weet uit de nulmeting: de samenvatting in
-          gewone taal, en de nulmeting zelf, uitgesplitst per vraag. */}
-      {dossier && (
-        <ProfileSection
-          id="dossier"
-          title="Het dossier"
-          description="Wat ORBIT ENGINE van de website begreep, in gewone taal. De basis onder alles wat ORBIT ENGINE schrijft."
-        >
-          <div className="card flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="mono-label">Wat ORBIT ENGINE van de site begreep</span>
-              <ConfidenceChip confidence={dossierConfidence} />
-            </div>
-            <p className="text-secondary">{dossier}</p>
-          </div>
-        </ProfileSection>
-      )}
-
-      <ProfileSection
-        id="ai-kennis"
-        title="Wat AI-assistenten over dit merk weten"
-        description="De nulmeting, uitgesplitst per vraag: wat ChatGPT antwoordde en waar dat vandaan kwam."
-      >
+      {baselines.length === 0 ? (
         <LlmKnowledgePanel rows={baselines} />
-      </ProfileSection>
+      ) : (
+        <>
+          {kop && <p className="max-w-2xl text-secondary">{kop}</p>}
 
-      {/* ── Concurrenten ────────────────────────────────────────────────────
-          Lezend, zoals het merk ze kent. Het beheer (welk genoemd merk telt
-          echt als concurrent) zit bij Analytics: dat is een cijfervraag, en
-          het bepaalt de noemer van het aandeel. Hier hoort alleen de lijst. */}
-      <ProfileSection
-        id="concurrenten"
-        title="Concurrenten"
-        description="De partijen waar de klant ook naar kijkt, en die ORBIT ENGINE in AI-antwoorden tegenkomt."
-      >
-        <div className="card flex flex-col gap-3">
-          {concurrenten.length === 0 ? (
-            <>
-              <span className="mono-label">Nog geen concurrenten vastgelegd</span>
-              <p className="text-secondary">
-                ORBIT ENGINE vult deze lijst zelf aan zodra het merken in AI-antwoorden tegenkomt.
-                Staan er nu al een paar bekend, zet ze dan bij{" "}
-                <Link href={`/merk/${id}/merkprofiel/bewerken`} className="link">
-                  Merkdossier
-                </Link>{" "}
-                onder &ldquo;Met wie je vergeleken wordt&rdquo;.
-              </p>
-            </>
-          ) : (
-            <>
-              <ul className="flex flex-wrap gap-2">
-                {concurrenten.map((naam) => (
-                  <li key={naam} className="chip">
-                    {naam}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-sm text-muted">
-                Welke van deze merken meetellen in het aandeel bepaal je bij{" "}
-                <Link href={`/merk/${id}/analytics?tabel=concurrenten`} className="link">
-                  Analytics
-                </Link>
-                .
-              </p>
-            </>
-          )}
-        </div>
-      </ProfileSection>
+          <div className="grid gap-4 md:grid-cols-3">
+            {tegels.map((t) => (
+              <div key={t.vraag} className="card flex flex-col gap-2">
+                <span className="mono-label">{t.vraag}</span>
+                <span className="text-2xl font-medium">{t.antwoord}</span>
+                {t.toelichting && <p className="text-sm text-muted">{t.toelichting}</p>}
+              </div>
+            ))}
+          </div>
+
+          <p className="text-sm text-muted">
+            Gemeten op {gemetenOp} met {engines.map(engineLabel).join(", ")}, in {baselines.length}{" "}
+            vragen. De vragen en de volledige antwoorden staan hieronder.
+          </p>
+
+          <LlmKnowledgePanel rows={baselines} />
+        </>
+      )}
     </div>
   );
 }

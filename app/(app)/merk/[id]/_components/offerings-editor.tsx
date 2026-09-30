@@ -401,7 +401,7 @@ export function OfferingsEditor({
       {!toevoegen ? (
         <button
           type="button"
-          className="btn-outline btn-sm w-fit"
+          className="btn-primary btn-sm w-fit"
           onClick={() => beginToevoegen(null)}
           disabled={wacht}
         >
