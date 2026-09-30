@@ -13223,3 +13223,25 @@ Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
 **Later op dezelfde dag: 0-meting weggehaald, consultants uitnodigen.** De 0-meting (`/admin/0-meting`) is verwijderd op verzoek van de eigenaar: hij gebruikt hem niet en de data was dun (één AI-assistent, 3 tot 9 koopvragen per merk). De kennistest zelf blijft draaien en de antwoorden blijven in `profile_llm_baseline` staan; alleen het scherm is weg. Het oude adres `/profielen/:id` en de links vanuit Alle merken en de onboarding wijzen nu naar de Aanbodboom. Admin heeft daarmee zes bestemmingen. De superuser nodigt consultants uit op `/beheer` met dezelfde werkwijze als bij klanten (link die je zelf doorstuurt, twee weken geldig, één keer te zien): migratie 0132 (`staff_invites`), dezelfde `/uitnodiging/[token]`-pagina, accepteren maakt een rij in `staff_users`.
 
 Bewust nog niet gebouwd, op verzoek van de eigenaar: per consultant alleen de eigen klanten tonen (alle staf ziet nu alle merken), en collega-uitnodigingen door klanten uitzetten. Ook een consultant weer weghalen kan nog niet vanuit de app.
+
+## 30 september 2026 (2): een rustiger bord
+
+Opdracht van de eigenaar: punt 4 van het UX-voorstel uitvoeren. De eigenaar vond het planscherm zelf al
+ingewikkeld; het bord toonde twaalf maanden onder elkaar, en elke pagina had een menu met tot vijftien
+keuzes.
+
+- **Drie maanden open.** De eerste drie maanden die nog komen staan open, de rest dicht als één regel
+  per aaneengesloten stuk met het aantal pagina's erin. Een maand waar iets op de klant wacht blijft
+  altijd open. De klant ziet het bord nog steeds (eigenaar: "De klant mag dit bord wel zien").
+- **"Plan in oktober"** op elk idee, met de eerste maand die nog komt en plek heeft al ingevuld.
+- **Een menu met schermen:** hooguit vier keuzes op het eerste scherm, de lijst met maanden pas na
+  "Verplaatsen".
+
+Eén afwijking van het voorstel, om niets kwijt te raken: "Een plek eerder" en "Een plek later" (het
+enige middel om de volgorde te wijzigen zonder muis) en "Terug naar de ideeënlijst" stonden niet in de
+vier keuzes van het voorstel. Ze staan nu achter Verplaatsen. Zonder dat verdween de volgorde voor wie
+niet kan slepen.
+
+Getest: `tsc --noEmit`, `test:unit` (5150), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in een
+browser (conventie 10): het menu met schermen, de samengeklapte regels en de knop zijn gebouwd en op
+code getest, niet met een echt scherm.
