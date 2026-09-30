@@ -452,22 +452,18 @@ achtergrondpatroon meelezen); dat achtergrondpatroon (`.workspace-canvas`) is me
 
 ## 6. Iconen
 
-[Solar](https://solar-icons.vercel.app) (480 Design, licentie CC BY 4.0, stijl **Bold**: gevulde vormen)
-sinds 30 september 2026, in plaats van Lucide, dat als te dun en te standaard las. De keuze per
-betekenis staat in `lib/icons.ts`, het omhulsel dat de maat vastzet in `components/icon.tsx`.
-Bronvermelding (verplicht onder CC BY) staat onderaan `/support`.
+[Phosphor](https://phosphoricons.com) (MIT-licentie, gewicht **bold**) sinds 30 september 2026, in
+plaats van Lucide (te dun) en de korte tussenstap Solar Bold. De keuze per betekenis staat in
+`lib/icons.ts`, het omhulsel dat maat en gewicht vastzet in `components/icon.tsx`. Bij MIT is geen
+zichtbare bronvermelding nodig; de licentietekst reist mee met het npm-pakket.
 
-| Eigenschap | Was (OKX, Lucide) | Nu (Solar Bold) |
+| Eigenschap | Was (OKX, Lucide) | Nu (Phosphor bold) |
 |---|---|---|
-| Tekenstijl | lijn, dikte 1,5 | **gevuld**, geen lijndikte |
+| Tekenstijl | lijn, dikte 1,5 | lijn, gewicht `bold`; wisselen is één woord in `icon.tsx` |
 | In een tekstregel | 16px | 16px |
 | In een knop | 18px, 16 in `.btn-sm`, 14 in `.btn-xs` | ongewijzigd, afgedwongen in `app/globals.css` |
 | Losse pictogramknop | 16px klein, 24px groot | ongewijzigd |
 | Kleur | `currentColor` | `currentColor`, ongewijzigd |
-
-⚠️ Dit wijkt af van `merkstrategie.md` §15.1, dat gevulde vlakken in een icoon afraadt. De eigenaar
-koos hier bewust voor. Solar mist een greep, een lege cirkel en een vingerafdruk; `versleep`,
-`open` en `merkprofiel` gebruiken de dichtstbijzijnde tekening.
 
 **De zes regels van Nova blijven onverkort gelden** (ze gaan over gebruik, niet over de tekenstijl
 van een specifiek systeem): een icoon staat nooit alleen zonder label, één betekenis heeft één

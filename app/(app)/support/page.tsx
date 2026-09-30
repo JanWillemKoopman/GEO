@@ -106,19 +106,6 @@ export default async function SupportPage() {
           ))}
         </div>
       </div>
-
-      <p className="text-xs text-secondary">
-        Iconen: Solar Icons van 480 Design, onder licentie{" "}
-        <a
-          href="https://creativecommons.org/licenses/by/4.0/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="link"
-        >
-          CC BY 4.0
-        </a>
-        .
-      </p>
     </div>
   );
 }

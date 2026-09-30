@@ -5,11 +5,12 @@ import { ICONEN, type IcoonNaam } from "@/lib/icons";
  *
  * ── WAAROM EEN OMHULSEL EN NIET RECHTSTREEKS UIT DE BIBLIOTHEEK ────────────
  *
- * Sinds 30 september 2026 tekent de app in Solar, stijl Bold (gevulde vormen,
- * geen lijnen). Een gevuld icoon heeft geen lijndikte meer: die prop bestaat
- * hier niet, en het omhulsel zet alleen nog de maat vast. De reden voor de
- * wissel: de lijnset (Lucide op lijndikte 1,5) las als te dun en te standaard.
- * Gevulde vormen lezen op 16 pixels sneller weg dan een dunne lijn.
+ * Sinds 30 september 2026 tekent de app in Phosphor, gewicht `bold`: dikke,
+ * ronde lijnen. Het gewicht staat hier op één plek vast, zodat de hele app
+ * met één woord van gewicht kan wisselen (`thin`, `light`, `regular`, `bold`,
+ * `fill`, `duotone`). De reden voor de wissel: de lijnset daarvoor (Lucide op
+ * lijndikte 1,5) las als te dun en te standaard, en de tussenstap Solar Bold
+ * werd na één dag weer verlaten.
  *
  * ⚠️ **Het icoon kleurt nooit zichzelf.** Het erft `currentColor` van de tekst
  * ernaast. Zo blijft de betekenislaag van `docs/designsystem.md` §2.3 de enige
@@ -40,6 +41,7 @@ export function Icon({
   return (
     <Tekening
       size={size}
+      weight="bold"
       aria-hidden
       className={`shrink-0${className ? ` ${className}` : ""}`}
     />

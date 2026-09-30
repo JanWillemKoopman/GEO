@@ -1,9 +1,9 @@
 /**
  * De namen van alle iconen, los van de tekeningen in `lib/icons.ts`.
  *
- * Waarom een eigen bestand: `lib/icons.ts` importeert Solar, en dat pakket is
- * alleen ESM, terwijl `scripts/test-unit.ts` via tsx in CommonJS draait. Een
- * test die alleen wil weten of een naam bestaat, hoeft geen React-set te laden.
+ * Waarom een eigen bestand: `lib/icons.ts` importeert de iconenset, en een test
+ * die alleen wil weten of een naam bestaat, hoeft geen React-set te laden
+ * (het vorige pakket, Solar, was alleen ESM en brak `scripts/test-unit.ts`).
  * `ICONEN` is getypt als `Record<IcoonNaam, …>`, dus deze lijst en de tekeningen
  * kunnen niet uit elkaar lopen: `tsc` faalt bij een naam zonder tekening.
  *

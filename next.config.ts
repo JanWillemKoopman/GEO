@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
     // dat verzamelbestand bij elke wijziging opnieuw. Dit zet de import om naar
     // de losse bestanden, en dat scheelt bij het ontwikkelen seconden per
     // schermwissel.
-    optimizePackageImports: ["@solar-icons/react"],
+    optimizePackageImports: ["@phosphor-icons/react"],
   },
   async redirects() {
     return DOORVERWIJZINGEN;

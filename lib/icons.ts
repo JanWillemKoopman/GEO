@@ -21,24 +21,21 @@
  * klant anders uit. Een set met één lijndikte is daarmee geen versiering maar
  * het herstel van iets dat stuk was.
  *
- * ── WAAROM SOLAR, STIJL BOLD (30 september 2026) ───────────────────────────
+ * ── WAAROM PHOSPHOR, GEWICHT BOLD (30 september 2026) ─────────────────────
  *
- * Eerst stond hier Lucide, een lijnset. Die las als te dun en te standaard.
- * Solar (480 Design, licentie CC BY 4.0, gratis, ruim 1.400 tekeningen in zes
- * stijlen) is gekozen op verzoek van de eigenaar, in de stijl Bold: gevulde
- * vormen op een raster van 24×24. Het icoon erft `currentColor` en kleurt dus
- * mee met de tekst ernaast, nooit ernaast, dus §16.1 van
- * `docs/merkstrategie.md` ("neutral-first") blijft heel.
+ * Eerst stond hier Lucide, een dunne lijnset. Die las als te dun en te
+ * standaard. Phosphor (MIT-licentie, gratis, ruim 1.500 tekeningen in zes
+ * gewichten) is gekozen op verzoek van de eigenaar. Eén tekenstijl in alle
+ * gewichten betekent dat wisselen tussen dun, dik of gevuld één woord is in
+ * `components/icon.tsx`, zonder dat een tekening verandert. Het icoon erft
+ * `currentColor` en kleurt dus mee met de tekst ernaast, nooit ernaast, dus
+ * §16.1 van `docs/merkstrategie.md` ("neutral-first") blijft heel.
  *
- * ⚠️ Dit wijkt af van `docs/merkstrategie.md` §15.1, dat gevulde vlakken in een
- * icoon afraadt. De eigenaar koos er bewust voor; zie `docs/logbook.md`.
+ * Geïmporteerd uit `@phosphor-icons/react/dist/ssr`, omdat deze tabel zowel in
+ * server- als in clientcomponenten wordt gelezen.
  *
- * ⚠️ CC BY 4.0 vraagt bronvermelding. Die staat in `app/(app)/support`, zie
- * het logboek van 30 september 2026.
- *
- * Solar heeft geen greep (`versleep`), geen lege cirkel (`open`) en geen
- * vingerafdruk (`merkprofiel`). Die drie zijn de dichtstbijzijnde tekening:
- * pijlen omhoog en omlaag, een cirkel met stip, een identiteitskaart.
+ * Phosphor heeft geen radar (`meten`, nu een uitzendend signaal) en geen
+ * vraagteken op een blad (`feit`, nu een zegel met vraagteken).
  *
  * ── DE REGELS ──────────────────────────────────────────────────────────────
  *
@@ -63,69 +60,70 @@
  * server, en beide lezen deze tabel.
  */
 import { type IcoonNaam } from "@/lib/icon-names";
-import type { Icon as Tekening } from "@solar-icons/react/lib/types";
+import type { ComponentType } from "react";
+import type { IconProps } from "@phosphor-icons/react";
 import {
-  AddIcon,
-  AltArrowDownIcon,
-  AltArrowRightIcon,
+  ArrowClockwiseIcon,
+  ArrowCounterClockwiseIcon,
   ArrowDownIcon,
   ArrowLeftIcon,
+  ArrowLineLeftIcon,
+  ArrowLineRightIcon,
   ArrowRightIcon,
-  ArrowRightUpIcon,
   ArrowUpIcon,
-  BookIcon,
+  ArrowUpRightIcon,
+  BellIcon,
+  BookOpenIcon,
   BuildingsIcon,
-  CalendarIcon,
-  ChartIcon,
-  ChatRoundDotsIcon,
+  CalendarBlankIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  ChartBarIcon,
+  ChatCircleIcon,
   CheckIcon,
-  ChecklistIcon,
-  CircleDotIcon,
+  CircleIcon,
   CircleDashedIcon,
-  ClipboardCheckIcon,
-  CloseIcon,
+  ClipboardTextIcon,
   CompassIcon,
   CopyIcon,
-  DangerTriangleIcon,
-  DownloadMinimalisticIcon,
+  DotsSixVerticalIcon,
+  DotsThreeIcon,
+  DownloadSimpleIcon,
   EyeIcon,
-  EyeClosedIcon,
-  FileAddIcon,
-  FilePenIcon,
-  FileQuestionMarkIcon,
+  EyeSlashIcon,
+  FilePlusIcon,
+  FingerprintIcon,
   GlobeIcon,
-  HamburgerMenuIcon,
-  InfoCircleIcon,
-  LogoutIcon,
-  MagnifierIcon,
-  MapIcon,
-  MenuDotsIcon,
+  InfoIcon,
+  ListIcon,
+  ListChecksIcon,
+  MagnifyingGlassIcon,
+  MapTrifoldIcon,
   MinusIcon,
   MoonIcon,
-  PenIcon,
+  NotePencilIcon,
+  PaperPlaneTiltIcon,
+  PathIcon,
+  PencilSimpleIcon,
   PlanetIcon,
-  PlugCircleIcon,
-  QuestionCircleIcon,
-  RadarIcon,
-  RefreshIcon,
-  RestartIcon,
-  RoutingIcon,
-  ScaleIcon,
-  SendSquareIcon,
+  PlugsIcon,
+  PlusIcon,
+  QuestionIcon,
+  BroadcastIcon,
+  ScalesIcon,
+  SealQuestionIcon,
   ShieldIcon,
-  SidebarCloseIcon,
-  SidebarOpenIcon,
-  SortVerticalIcon,
+  SignOutIcon,
+  SlidersHorizontalIcon,
+  SquaresFourIcon,
   SunIcon,
   TagIcon,
-  TrashBinMinimalisticIcon,
-  TuningIcon,
-  UploadMinimalisticIcon,
-  UserIdIcon,
-  UserRoundedIcon,
-  WidgetIcon,
-  BellIcon,
-} from "@solar-icons/react/bold";
+  TrashIcon,
+  UploadSimpleIcon,
+  UserIcon,
+  WarningIcon,
+  XIcon,
+} from "@phosphor-icons/react/dist/ssr";
 
 /**
  * Elke betekenis die de app tekent, in de volgorde waarin je ze tegenkomt:
@@ -133,32 +131,32 @@ import {
  */
 export type { IcoonNaam };
 
-export const ICONEN: Record<IcoonNaam, Tekening> = {
+export const ICONEN: Record<IcoonNaam, ComponentType<IconProps>> = {
   // ── DE ZEVEN HOOFDSTUKKEN ───────────────────────────────────────────────
   //
   // `Orbit` bovenaan is geen woordgrapje op de productnaam maar het antwoord
   // op de vraag die dit hoofdstuk stelt: waar sta je ten opzichte van de rest.
   // Een middelpunt met een lichaam eromheen is precies dat beeld.
   overzicht: PlanetIcon,
-  taken: ChecklistIcon,
+  taken: ListChecksIcon,
   // Punten die met elkaar verbonden zijn en oplopen: contentplan, clusters en
   // bibliotheek zijn stappen in één volgorde en geen losse keuzes. Hier stond
   // eerst `Route`, maar die leek op 18 pixels te veel op de schuifjes van
   // Instellingen, en juist ingeklapt staan die twee koppen vlak bij elkaar.
-  strategie: RoutingIcon,
+  strategie: PathIcon,
   // Losse blokjes die bij elkaar horen: een cluster is precies dat, een groep
   // vragen over één onderwerp. Toegevoegd op 23 september 2026, toen Clusters
   // een eigen hoofdstuk werd (docs/tasks/clusters-ontdekken.md).
-  clusters: WidgetIcon,
-  analytics: ChartIcon,
+  clusters: SquaresFourIcon,
+  analytics: ChartBarIcon,
   // Merkprofiel gaat over identiteit: wie ben jij volgens ORBIT ENGINE. Een
   // vingerafdrukpatroon zegt dat abstract, zonder een persoon te tekenen (dit
   // is een merk, geen gebruiker).
-  merkprofiel: UserIdIcon,
+  merkprofiel: FingerprintIcon,
   // Schuifjes en geen tandwiel. Het tandwiel is het cliché waar §15.2 voor
   // waarschuwt, en instellingen zijn hier ook echt afstellen: hoe vaak meten,
   // wie mag erbij, welke koppeling staat aan.
-  instellingen: TuningIcon,
+  instellingen: SlidersHorizontalIcon,
   // Een radar tekent precies wat deze sectie doet: een gebied afzoeken en
   // zichtbaar maken wat erin zit. Geen doelwit met een kruis erin, want dat
   // maakt van een prospect een prooi, en geen geldteken, want de module gaat
@@ -169,17 +167,17 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   admin: ShieldIcon,
 
   // ── BEDIENING ───────────────────────────────────────────────────────────
-  menu: HamburgerMenuIcon,
-  sluiten: CloseIcon,
+  menu: ListIcon,
+  sluiten: XIcon,
   // Iets nieuws aanmaken ("Nieuw merk", "Nieuw label maken"). Stond er tot
   // 23 september 2026 als een los plusteken in de tekst, tegen §11 regel 9.
-  toevoegen: AddIcon,
+  toevoegen: PlusIcon,
   // De zijbalk klapt in en uit. Het paneel-icoon toont de handeling én de
   // richting, waar « en » alleen richting toonden.
-  uitklappen: SidebarOpenIcon,
-  inklappen: SidebarCloseIcon,
-  openen: AltArrowDownIcon,
-  verder: AltArrowRightIcon,
+  uitklappen: ArrowLineRightIcon,
+  inklappen: ArrowLineLeftIcon,
+  openen: CaretDownIcon,
+  verder: CaretRightIcon,
   terug: ArrowLeftIcon,
   // Vooruit binnen de app, achter een tekstlink: "Naar de cijfers", "Cluster
   // loopt". Niet hetzelfde als `extern`, die de app verlaat.
@@ -189,23 +187,23 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   // Regel 3 hierboven: de naam is de betekenis, niet de tekening.
   omhoog: ArrowUpIcon,
   omlaag: ArrowDownIcon,
-  extern: ArrowRightUpIcon,
+  extern: ArrowUpRightIcon,
   kopieer: CopyIcon,
-  downloaden: DownloadMinimalisticIcon,
-  profiel: UserRoundedIcon,
+  downloaden: DownloadSimpleIcon,
+  profiel: UserIcon,
   // Een vraagteken in een cirkel: de standaardtekening voor hulp, en de enige
   // in deze set die dat woord letterlijk uitbeeldt. Voor Support, rechtsboven
   // in de bovenbalk, naast de andere iconen die over "jou" en het scherm gaan.
-  help: QuestionCircleIcon,
+  help: QuestionIcon,
   // Drie puntjes: alles wat een rij kan, maar niet vaak genoeg om er ruimte
   // voor op te eisen. Het contentplan had per regel vijf zichtbare bedieningen
   // (twee pijlen, een keuzelijst, twee tekstlinks) en dat woog zwaarder dan de
   // titel ernaast.
-  meer: MenuDotsIcon,
+  meer: DotsThreeIcon,
   // De greep om te slepen. Verschijnt pas als de muis over de rij komt: zonder
   // greep is niet te zien dát een rij versleepbaar is, met een altijd zichtbare
   // greep staat er op elke regel een teken dat niets zegt zolang je niet sleept.
-  versleep: SortVerticalIcon,
+  versleep: DotsSixVerticalIcon,
   // Een kaartlabel: een woord dat je ergens aan hangt om het terug te vinden.
   // Geen map en geen bookmark, want dit is geen plek en geen leeswijzer maar
   // een groep waar iets bij hoort (`lib/cluster-labels.ts`).
@@ -213,10 +211,10 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   // De prullenbak zegt "hier gaat het heen" en niet "hier is het weg": wat de
   // knop doet is archiveren (migratie 0044), en terugzetten kan altijd. Geen
   // kruis, want een kruis betekent in deze set "mislukt".
-  prullenbak: TrashBinMinimalisticIcon,
+  prullenbak: TrashIcon,
   // Een pen: een tekst aanpassen (Feiten en kennis, 30 september 2026). Niet
   // `paginabijwerken`: dat is een blad met een pen en betekent een hele pagina.
-  bewerken: PenIcon,
+  bewerken: PencilSimpleIcon,
 
   // ── STANDEN ─────────────────────────────────────────────────────────────
   //
@@ -227,12 +225,12 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   klaar: CheckIcon,
   // Een onderbroken cirkel: er draait iets, maar het is nog niet rond.
   loopt: CircleDashedIcon,
-  open: CircleDotIcon,
-  mislukt: CloseIcon,
-  letop: DangerTriangleIcon,
+  open: CircleIcon,
+  mislukt: XIcon,
+  letop: WarningIcon,
   // Ter informatie: een melding die niets vraagt en niets waarschuwt. Voor
   // `Alert intent="info"` (23 september 2026).
-  info: InfoCircleIcon,
+  info: InfoIcon,
   // Conventie 3: niet van toepassing is een streepje, nooit een 0 en nooit een
   // kruis. Een kruis zou "fout" zeggen over iets dat niet gemeten hoefde.
   nvt: MinusIcon,
@@ -253,23 +251,23 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   // Verandert de tekening ooit, dan is dat één regel hier.
   //
   // Een blad met een plus erop: er komt een pagina bij die er nog niet is.
-  nieuwepagina: FileAddIcon,
+  nieuwepagina: FilePlusIcon,
   // Hetzelfde blad met een pen: de pagina bestaat al en wordt bijgewerkt. Het
   // verschil tussen deze twee is precies het verschil dat de klant moet zien.
-  paginabijwerken: FilePenIcon,
+  paginabijwerken: NotePencilIcon,
   // Naar buiten: geschreven, goedgekeurd, en het enige wat nog moet gebeuren
   // is dat het online komt.
-  publiceren: UploadMinimalisticIcon,
+  publiceren: UploadSimpleIcon,
   // Een radar tast af wat er is zonder het te veranderen: dat is wat een
   // meetronde doet. Geen vergrootglas, want dat is zoeken en niet meten.
-  meten: RadarIcon,
+  meten: BroadcastIcon,
   // Een lijst met een vinkje: nakijken en bevestigen, en dan gaat het verder.
-  goedkeuring: ClipboardCheckIcon,
+  goedkeuring: ClipboardTextIcon,
   // Een vraag óp een blad: dit is geen chatvraag maar een openstaand feit in
   // het merkdossier dat alleen de klant kan invullen.
-  feit: FileQuestionMarkIcon,
+  feit: SealQuestionIcon,
   // Terugdraaien en opnieuw: er ging iets mis in de pijplijn en het moet over.
-  herstel: RestartIcon,
+  herstel: ArrowCounterClockwiseIcon,
   // Werk buiten de eigen site: een vermelding, een profiel, een bron elders.
   offsite: GlobeIcon,
 
@@ -282,30 +280,30 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   //
   // Een vergrootglas: het klassieke teken voor zoeken, en Zoekverkeer gaat
   // over precies dat, zichtbaarheid in Google.
-  zoekmachine: MagnifierIcon,
+  zoekmachine: MagnifyingGlassIcon,
   // Met de klok mee ronddraaien: een nieuwe ronde die weer bij stap 01
   // begint. Bewust een andere tekening dan `herstel` (tegen de klok in): dat
   // is een pijplijn die opnieuw moet na een storing, dit is de cyclus die
   // gewoon doorgaat (regel 3: de naam is de betekenis, niet de tekening).
-  opnieuw: RefreshIcon,
+  opnieuw: ArrowClockwiseIcon,
   // Een kalenderblad met een reeks erin: het contentplan zet pagina's in de
   // tijd, geen los kruisje op één dag.
-  plannen: CalendarIcon,
+  plannen: CalendarBlankIcon,
   // Een open boek: waar de geschreven teksten zelf staan, geen taak erover.
-  bibliotheek: BookIcon,
+  bibliotheek: BookOpenIcon,
   // Een weegschaal: Concurrenten zet merken tegen elkaar af.
-  concurrenten: ScaleIcon,
+  concurrenten: ScalesIcon,
   // Een spraakballon: Mijn reputatie gaat over wat een AI-assistent over je
   // ZEGT, niet over of je genoemd wordt.
-  reputatie: ChatRoundDotsIcon,
+  reputatie: ChatCircleIcon,
 
   // ── ZIJBALK (29 september 2026) ─────────────────────────────────────────
   // Een kompas: op zoek naar clusters die je nog niet hebt.
   ontdekken: CompassIcon,
   // Een stekker: een koppeling met een andere dienst (Search Console).
-  koppeling: PlugCircleIcon,
+  koppeling: PlugsIcon,
   // De deur uit: de rij Uitloggen in het profielmenu.
-  uitloggen: LogoutIcon,
+  uitloggen: SignOutIcon,
 
   // De themaschakelaar. Het icoon toont waar je heen gaat en niet waar je bent:
   // sta je in de lichte stand, dan zie je de maan. Dat is de conventie in vrijwel
@@ -316,22 +314,22 @@ export const ICONEN: Record<IcoonNaam, Tekening> = {
   // Een open oog voor "kijk mee zoals een klant kijkt", een doorgestreept oog
   // voor "je bent daar nu, terug naar jezelf". Alleen zichtbaar voor staf.
   klantweergave: EyeIcon,
-  eigenweergave: EyeClosedIcon,
+  eigenweergave: EyeSlashIcon,
 
   // ── De onderbalk op een telefoon ─────────────────────────────────────────
   // Een gebied op een kaart: sales onderzoekt een markt vóór er een klant is,
   // niet een individueel bedrijf. Bewust een andere tekening dan `offsite`
   // (ook `Globe`-achtig maar een andere betekenis: bereik buiten de eigen
   // site), om twee betekenissen nooit op elkaar te laten lijken.
-  markten: MapIcon,
+  markten: MapTrifoldIcon,
   // Een pand: de bedrijven die sales kent, vóór ze een prospect zijn.
   bedrijven: BuildingsIcon,
   // Een verstuurd bericht: wat er de deur uit is, de laatste stap in
   // outreach.
-  verstuurd: SendSquareIcon,
+  verstuurd: PaperPlaneTiltIcon,
 
   // ── Het inlogtoneel ───────────────────────────────────────────────────────
   wachtwoordtonen: EyeIcon,
-  wachtwoordverbergen: EyeClosedIcon,
+  wachtwoordverbergen: EyeSlashIcon,
   notificaties: BellIcon,
 };
