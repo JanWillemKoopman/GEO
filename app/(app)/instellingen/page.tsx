@@ -52,6 +52,8 @@ export default async function InstellingenPage() {
           account={t.account}
           // Elke klant uit dít account mag wijzigen (één klantrol, migratie 0135).
           mayEdit={t.rol !== null || staff}
+          // Opzeggen is admin-werk: een klant vraagt het bij Outer Orbit aan.
+          mayCancel={staff}
         />
       ))}
 

@@ -27,14 +27,20 @@ import type { Account } from "@/lib/types/database";
  * Besluit 14: opzeggen verwijdert niets en sluit niets af op de dag zelf. Tot de
  * opzegdatum verandert er niets aan wat de klant ziet. Dat staat ook in de
  * bevestiging, want "abonnement opzeggen" leest anders als "alles kwijt".
+ *
+ * Sinds 30 september 2026 zegt alleen de admin op (`mayCancel`): een klant vraagt
+ * het bij Outer Orbit aan, dat staat ook in de weigering van de route.
  */
 export function AccountBox({
   account,
   mayEdit,
+  mayCancel,
 }: {
   account: Account;
   /** Alleen een admin van dit account mag wijzigen. Een member leest mee. */
   mayEdit: boolean;
+  /** Alleen de admin zegt een abonnement op. Een klant ziet de knop niet. */
+  mayCancel: boolean;
 }) {
   const { refresh, refreshing } = useRefresh();
   const toast = useToast();
@@ -173,7 +179,7 @@ export function AccountBox({
           <button type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={wacht}>
             {wacht ? "Bezig…" : "Opslaan"}
           </button>
-          {actief && (
+          {actief && mayCancel && (
             <button
               type="button"
               className="text-sm text-secondary hover:underline"

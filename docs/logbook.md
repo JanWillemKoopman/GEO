@@ -13463,3 +13463,7 @@ om te testen en uit te leggen. Ook het verschil tussen klant-`admin` en klant-`m
   admin dus ook mee; nog niet aangepast.
 - ⚠️ Nog niet bekeken in een browser als klant en als admin (conventie 10). Klantteksten die "je consultant bij
   Outer Orbit" zeggen blijven staan: dat is de persoon achter het account, geen rol in de app.
+- **Opzeggen is admin-werk (later dezelfde dag).** Een klant zegt zijn abonnement niet meer zelf op: de knop
+  "Abonnement opzeggen" staat alleen nog bij de admin (`mayCancel`), en `PATCH /api/accounts/[id]` met
+  `cancel` geeft een klant een 403 met de melding dat de consultant het regelt. Account verwijderen kon een klant
+  al niet. Opzeggen zet nog steeds alleen een datum (besluit 14).

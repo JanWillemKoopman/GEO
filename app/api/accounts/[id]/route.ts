@@ -53,7 +53,22 @@ export async function PATCH(
 
   const admin = createAdminClient();
 
+  // ── Opzeggen, alleen door de admin ──────────────────────────────────────
+  //
+  // Sinds 30 september 2026 (besluit van de eigenaar) zegt een klant zijn
+  // abonnement niet meer zelf op: de knop is uit het scherm, en deze controle is
+  // de garantie op de achterkant (conventie 1). Een klant zonder deze plek kon
+  // met een rechtstreekse aanroep nog steeds een opzegdatum zetten.
   if (body.cancel === true) {
+    if (!staff) {
+      return NextResponse.json(
+        {
+          error:
+            "Opzeggen doet je consultant bij Outer Orbit voor je. Neem contact op, dan regelen we het.",
+        },
+        { status: 403 },
+      );
+    }
     const { error } = await admin
       .from("accounts")
       .update({ cancelled_at: new Date().toISOString() })
