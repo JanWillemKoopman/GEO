@@ -13209,3 +13209,25 @@ de lezer zoeken welke de echte is) blijft dus staan; alleen de tweede, getalloze
 `.vraag-dot` in `globals.css` blijft, want die twee gebruiken hem.
 
 Getest: `tsc --noEmit`, `test:unit` (5099), `test:chain` (838) en `build` groen.
+
+## 30 september 2026 (2): een rustiger bord
+
+Opdracht van de eigenaar: punt 4 van het UX-voorstel uitvoeren. De eigenaar vond het planscherm zelf al
+ingewikkeld; het bord toonde twaalf maanden onder elkaar, en elke pagina had een menu met tot vijftien
+keuzes.
+
+- **Drie maanden open.** De eerste drie maanden die nog komen staan open, de rest dicht als één regel
+  per aaneengesloten stuk met het aantal pagina's erin. Een maand waar iets op de klant wacht blijft
+  altijd open. De klant ziet het bord nog steeds (eigenaar: "De klant mag dit bord wel zien").
+- **"Plan in oktober"** op elk idee, met de eerste maand die nog komt en plek heeft al ingevuld.
+- **Een menu met schermen:** hooguit vier keuzes op het eerste scherm, de lijst met maanden pas na
+  "Verplaatsen".
+
+Eén afwijking van het voorstel, om niets kwijt te raken: "Een plek eerder" en "Een plek later" (het
+enige middel om de volgorde te wijzigen zonder muis) en "Terug naar de ideeënlijst" stonden niet in de
+vier keuzes van het voorstel. Ze staan nu achter Verplaatsen. Zonder dat verdween de volgorde voor wie
+niet kan slepen.
+
+Getest: `tsc --noEmit`, `test:unit` (5150), `test:chain` (840) en `build` groen. ⚠️ Niet bekeken in een
+browser (conventie 10): het menu met schermen, de samengeklapte regels en de knop zijn gebouwd en op
+code getest, niet met een echt scherm.

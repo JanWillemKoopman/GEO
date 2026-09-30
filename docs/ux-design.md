@@ -1290,9 +1290,29 @@ waaronder een keuzelijst waarin je met Ctrl meer moest kiezen.
   pagina" of "bestaande pagina verbeteren") en het label. Het cluster en de potentie staan achter
   "Waarom dit idee?".
 
-Nog niet gedaan, en bewust niet stil meegenomen: de vier stappen (idee, gepland, jouw beurt, live) als
-één route door bibliotheek en plan, en het bord terug naar drie open maanden met een knop "Plan in" naast
-het slepen. Die wachten op een ontwerp dat de eigenaar kan aanklikken.
+**Het bord is rustiger (punt 4 van hetzelfde voorstel, ook 30 september 2026).**
+
+- **Drie maanden open in plaats van twaalf** (`bordGroepen()` in `lib/plan-bord.ts`): de eerste drie
+  maanden die nog komen. De rest staat dicht als één regel per aaneengesloten stuk, zoals "November 2026
+  tot en met juni 2027: 14 pagina's", en klapt open met één klik op die regel. Het zijn dezelfde
+  maandkaarten als altijd. ⚠️ Een maand waar iets op de klant wacht (een tekst voor akkoord, of een
+  maand die nog gestart moet worden) staat altijd open, hoe ver weg of voorbij ook.
+- **"Plan in oktober" op elk idee** in de ideeënlijst: de eerste maand die nog komt en plek heeft
+  (`voorgesteldeMaand()`, dezelfde regel als het venster "Nieuw pagina-idee"). Eén klik, geen menu en
+  geen slepen. Staat de gekozen maand dicht, dan zegt een melding waar de pagina heen ging.
+- **Een menu met schermen.** Het menu van een pagina telde tot vijftien regels. Nu staan er op het
+  eerste scherm hooguit vier: Verplaatsen, Andere dag, Soort wijzigen (alleen de consultant) en
+  Definitief verwijderen. "Schrijf deze pagina nu" staat er voor de consultant nog bovenop, apart, want
+  dat is de enige keuze die geld kost. De lijst met maanden, "Een plek eerder" en "Een plek later" en
+  "Terug naar de ideeënlijst" staan pas achter Verplaatsen; de andere soorten achter Soort wijzigen.
+  Een idee heeft alleen "Andere maand" (de lijst met maanden) en "Definitief verwijderen".
+- **Wat bleef.** Slepen naar een van de open maanden, en alles wat het menu al kon: het staat alleen
+  een scherm dieper. Wie naar een maand in een dichte regel wil slepen, klapt die eerst open, of kiest
+  "Andere maand".
+
+Nog niet gedaan: de vier stappen (idee, gepland, jouw beurt, live) als één route door bibliotheek en
+plan (punt 2 van het voorstel). Dat verandert twee schermen en wacht op een ontwerp dat de eigenaar
+kan aanklikken.
 
 ## 6. Eén werkmodel
 

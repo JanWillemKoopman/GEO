@@ -547,7 +547,8 @@ import {
 } from "@/lib/plan-writing";
 import { SOORTEN as PAGINASOORTEN, soortVan } from "@/lib/pagina/soorten";
 import { voorgesteldeMaand, schoneDoelvragen } from "@/lib/pagina-idee";
-import { maandTitel } from "@/lib/plan-schedule";
+import { maandTitel, maandKort } from "@/lib/plan-schedule";
+import { bordGroepen, restRegel, MAANDEN_IN_BEELD } from "@/lib/plan-bord";
 import { leesZoekresultaten } from "@/lib/ai-overview/parse-serp";
 import {
   zoekopdrachtenVoor,
@@ -21384,6 +21385,58 @@ group("het venster: drie vragen, de soort als tegels, de rest onder Meer opties"
   ok("geen keuzelijst waarin je met Ctrl moet klikken", !v.includes("multiple"));
   ok("verbeteren, lezer en dienst onder Meer opties", v.includes("<details") && v.indexOf("<details") < v.indexOf("Voor wie is de pagina?"));
   ok("en meteen een maand, met een voorstel", v.includes("(voorgesteld)") && v.includes("Nog niet inplannen, zet het in de ideeënlijst"));
+});
+
+// ── Een rustiger bord (30 september 2026, punt 4 van het UX-voorstel) ──────
+console.log("\nEen rustiger bord: drie maanden open, één menu met schermen");
+
+group("het bord: de eerste drie maanden die nog komen staan open", () => {
+  type M = { id: string; voorbij: boolean; vraagtActie: boolean };
+  const maanden = (aantal: number, voorbij: number[] = [], actie: number[] = []): M[] =>
+    Array.from({ length: aantal }, (_, i) => ({ id: `m${i + 1}`, voorbij: voorbij.includes(i), vraagtActie: actie.includes(i) }));
+  const lees = (m: M) => m;
+  const beeld = (g: ReturnType<typeof bordGroepen<M>>) =>
+    g.map((x) => (x.soort === "maand" ? x.maand.id : `[${x.maanden.map((m) => m.id).join(",")}]`)).join(" ");
+
+  eq("drie in beeld is de afspraak", String(MAANDEN_IN_BEELD), "3");
+  eq("een vers plan: drie open, negen in één regel", beeld(bordGroepen(maanden(12), lees)), "m1 m2 m3 [m4,m5,m6,m7,m8,m9,m10,m11,m12]");
+  eq("een voorbije maand telt niet mee en staat in een eigen regel", beeld(bordGroepen(maanden(12, [0]), lees)), "[m1] m2 m3 m4 [m5,m6,m7,m8,m9,m10,m11,m12]");
+  eq("iets dat op de klant wacht blijft open, ook ver weg", beeld(bordGroepen(maanden(12, [], [7]), lees)), "m1 m2 m3 [m4,m5,m6,m7] m8 [m9,m10,m11,m12]");
+  eq("ook een voorbije maand met een tekst voor akkoord", beeld(bordGroepen(maanden(6, [0, 1], [0]), lees)), "m1 [m2] m3 m4 m5 [m6]");
+  eq("een korter plan staat helemaal open", beeld(bordGroepen(maanden(2), lees)), "m1 m2");
+  eq("geen maanden geeft niets", beeld(bordGroepen([], lees)), "");
+  eq("elke maand komt precies één keer voor", String(bordGroepen(maanden(12, [0], [9]), lees).reduce((n, g) => n + (g.soort === "maand" ? 1 : g.maanden.length), 0)), "12");
+  const rest = bordGroepen(maanden(12), lees).find((g) => g.soort === "rest");
+  ok("een groep heeft de sleutel van zijn eerste maand", rest?.soort === "rest" && rest.sleutel === "m4");
+});
+
+group("de regel van een samengeklapte groep", () => {
+  eq("meer maanden", restRegel(["November 2026", "December 2026", "Juni 2027"], 14), "November 2026 tot en met juni 2027: 14 pagina's");
+  eq("één maand met één pagina", restRegel(["Augustus 2026"], 1), "Augustus 2026: 1 pagina");
+  eq("leeg zegt het zo", restRegel(["Juli 2027", "Juni 2028"], 0), "Juli 2027 tot en met juni 2028: nog leeg");
+  ok("geen gedachtestreepje in de regel", !/[—–]/.test(restRegel(["A 2026", "B 2027"], 2)));
+});
+
+group("Plan in oktober: de maand zoals je hem in een zin zegt", () => {
+  const nu = new Date("2026-09-30T10:00:00Z");
+  eq("dit jaar zonder jaartal", maandKort("2026-09-12", 2, nu), "oktober");
+  eq("een ander jaar met jaartal", maandKort("2026-09-12", 5, nu), "januari 2027");
+  eq("onbekende start: het maandnummer, geen gok", maandKort("geen datum", 4, nu), "maand 4");
+});
+
+group("het bord: het menu van een pagina heeft schermen", () => {
+  // Alleen code: de kop van het bestand beschrijft ook het menu van 26 augustus.
+  const v = leesBestand("app/(app)/merk/[id]/strategie/plan/plan-view.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+  ok("de knop op een idee noemt de maand", v.includes("Plan in {voorstel.kort}"));
+  ok("het eerste scherm heeft Verplaatsen, Andere dag, Soort wijzigen en Verwijderen", ["Verplaatsen", "Andere dag", "Soort wijzigen", "Definitief verwijderen"].every((t) => v.includes(t)));
+  ok("de oude regels zijn weg", !v.includes("Datum aanpassen") && !v.includes("Verplaats naar") && !v.includes("Soort pagina, nu"));
+  const verplaats = v.indexOf('scherm === "verplaats"');
+  const lijst = v.indexOf(".filter((m) => m.id !== huidigeMaand)");
+  ok("de lijst met maanden staat pas op het scherm Verplaatsen", verplaats > 0 && lijst > verplaats);
+  ok("een menu kent een terugknop", v.includes("function MenuTerug"));
+  ok("een idee heeft Andere maand en Verwijderen", v.includes('ga("maand")') && v.includes("Andere maand"));
+  ok("de maanden buiten beeld staan achter een regel die opent", v.includes("restRegel(titels, paginas)") && v.includes("aria-expanded={open}"));
+  ok("slepen blijft bestaan", v.includes("onDropHier") && v.includes("draggable"));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
