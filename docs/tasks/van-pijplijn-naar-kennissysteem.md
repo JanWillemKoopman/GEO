@@ -513,7 +513,7 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
   gespreksscherm verandert niets in de kennislaag. (3) Botsingen tussen kennisitems staan op de
   conflictlijst met `kennis_ids`, maar het huidige conflictscherm toont alleen die tussen feiten.
 - **Verdeeld over twee sessies (27 september 2026):**
-  - *Deel 1:* het scherm onder Admin (`/merk/[id]/admin/kennis`), de vier handelingen
+  - *Deel 1:* het scherm onder Admin (`/merk/[id]/admin/kennis`, sinds 30 september 2026 "Feiten en kennis" op `/merk/[id]/merkprofiel/feiten-en-kennis`), de vier handelingen
     (`lib/kennis/overzicht.ts` en `uit-overzicht.ts`, route `api/profiles/[id]/kennis/[itemId]`) en de
     klaar-als hierboven.
   - *Deel 2:* de drie bevindingen uit K5, en "merkprofiel bewerken".

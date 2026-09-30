@@ -465,7 +465,7 @@ const ICOON_PER_HOOFDSTUK: Record<Hoofdstuk, IcoonNaam> = {
   Clusters: "clusters",
   Strategie: "strategie",
   Analytics: "analytics",
-  Merkdossier: "merkprofiel",
+  "Mijn bedrijf": "merkprofiel",
   Admin: "admin",
 };
 
@@ -480,7 +480,7 @@ const ICOON_PER_LABEL: Record<string, IcoonNaam> = {
   "Search console": "zoekmachine",
   Concurrenten: "concurrenten",
   "Mijn reputatie": "reputatie",
-  "Mijn bedrijf": "merkprofiel",
+  Merkdossier: "merkprofiel",
 };
 
 /** De belofte in één zin, zichtbaar naast de titel (schrijfstijl.md §4: kop is de belofte, subkop is één zin uitleg). */
@@ -495,7 +495,7 @@ const KICKER: Record<string, string> = {
   "Search console": "Levert je content ook bezoekers op uit Google?",
   Concurrenten: "Wie er nog meer genoemd wordt, en waar jij staat.",
   "Mijn reputatie": "Niet óf je genoemd wordt, maar hoé.",
-  "Mijn bedrijf": "Wie je bent volgens ORBIT ENGINE, en of dat klopt.",
+  Merkdossier: "Wie je bent volgens ORBIT ENGINE, en of dat klopt.",
 };
 
 /**
@@ -760,8 +760,8 @@ const CONTENT: Partial<Record<Hoofdstuk, Record<string, React.ReactNode>>> = {
     ),
   },
 
-  Merkdossier: {
-    "Mijn bedrijf": (
+  "Mijn bedrijf": {
+    Merkdossier: (
       <>
         <p className="text-secondary">
           Wie ben je volgens ORBIT ENGINE, en klopt dat? ORBIT ENGINE heeft het meeste al van je
