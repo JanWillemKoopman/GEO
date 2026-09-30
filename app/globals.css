@@ -1971,9 +1971,9 @@ textarea.field {
    `backdrop-filter`, en een doorschijnende balk boven een tabel die eronder
    doorschuift is precies waar dat effect onrustig wordt. */
 .topbar {
-  position: relative;
   height: var(--topbar-h);
-  background-color: transparent;
+  background-color: #f2f2f2;
+  position: relative;
 }
 /* ⚠️ Vanaf 29 september 2026 is de bovenbalk op desktop (vanaf lg) volledig
    doorzichtig, zonder rand, en plakt hij niet meer: er staat alleen nog de
@@ -1986,18 +1986,6 @@ textarea.field {
 .werkruimte {
   --header-h: 0px;
 }
-:root,
-:root[data-theme="light"] {
-  --topbar-bg-light: #f1f1f1;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --topbar-bg-light: var(--bg-base);
-  }
-}
-:root[data-theme="dark"] {
-  --topbar-bg-light: var(--bg-base);
-}
 @media (max-width: 1023px) {
   .werkruimte {
     --header-h: var(--topbar-h);
@@ -2006,7 +1994,7 @@ textarea.field {
     position: sticky;
     top: 0;
     z-index: 30;
-    background-color: var(--topbar-bg-light);
+    background-color: var(--bg-base);
     border-bottom: var(--border-width-xs) solid var(--line-muted);
   }
 }
