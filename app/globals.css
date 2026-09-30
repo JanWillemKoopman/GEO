@@ -2344,10 +2344,10 @@ textarea.field {
 
 /* ── De mobiele bovenbalk (17 september 2026, stap 6) ─────────────────────
    52px, GEMETEN uit `redesign2026.md` §8.12.3. Andere inhoud en niet alleen
-   een andere hoogte: geen woordmerk, geen merkkiezer, geen vier knoppen. Een
-   terugknop, de titel van het scherm, en hooguit één knop rechts. De
-   merkkiezer verhuist naar het "Meer"-blad (`.meer-blad`); die past niet
-   tussen een terugknop en een titel zonder dat er iets moet inschikken. */
+   een andere hoogte: alleen de titel van het scherm. Sinds 30 september 2026
+   zonder terugknop en zonder losse knoppen; rechts blijft 56 pixels vrij voor
+   de hamburgerknop (`.hamburger`), die vast in de hoek staat en niet in deze
+   balk, zodat hij boven het geopende menu blijft liggen. */
 .topbar-mobiel {
   position: sticky;
   top: 0;
@@ -2356,7 +2356,7 @@ textarea.field {
   align-items: center;
   gap: 4px;
   height: 52px;
-  padding: 0 8px;
+  padding: 0 60px 0 16px;
   background-color: var(--bg-base);
   border-bottom: var(--border-width-xs) solid var(--line-muted);
 }
@@ -2422,14 +2422,6 @@ textarea.field {
   outline: var(--border-width-sm) solid var(--border-focus);
   outline-offset: -2px;
 }
-/* GEMETEN minimum voor een vinger (`redesign2026.md` §8.12.3): 44px. Alleen
-   voor `.meer-blad.tsx`, dat op een telefoon rendert; de zijbalk zelf blijft
-   op 36px, want daar wijst een muis aan. */
-.nav-item-lg {
-  height: 44px;
-  padding: 0 16px;
-}
-
 /* De kop boven een groep bestemmingen.
 
    ⚠️ Stond op gewicht 500 (17 september 2026), juist omdat 600 zwaarder was
@@ -2450,81 +2442,231 @@ textarea.field {
   color: var(--text-subtle);
 }
 
-/* ── De onderbalk ───────────────────────────────────────────────────────────
-   Het enige echt nieuwe navigatiecomponent van de hele redesign (17 september
-   2026, stap 6). Op een telefoon vervangt hij de zijbalk volledig; er is geen
-   ingeklapte of uitgeklapte stand, hij is er gewoon of niet.
+/* ── Het mobiele menu (30 september 2026) ───────────────────────────────────
+   Vervangt de onderbalk en het "Meer"-blad: één hamburgerknop rechtsboven en
+   een paneel dat het hele scherm vult. Zie `components/mobiel-menu.tsx` voor
+   het waarom.
 
-   GEMETEN uit `redesign2026.md` §8.12.4: 56px plus de veilige zone onderaan
-   (een notch of een thuisbalk op recente telefoons mag deze balk niet
-   overlappen), vijf posities, gelijk verdeeld.
+   De beweging, in drie lagen die tegelijk lopen:
+   1. het paneel schuift van rechts in over 0,5 seconde, met een curve die snel
+      vertrekt en zacht landt (dezelfde vorm als een iOS-blad);
+   2. de pagina eronder wijkt 16% naar links, krimpt naar 94% en wordt
+      donkerder, zodat je ziet dat hij er nog is;
+   3. de regels in het menu komen één voor één binnen, 25 ms na elkaar.
+   Bij sluiten is er geen trap: alles gaat in één keer weg.
 
-   ⚠️ HET ACTIEVE PICTOGRAM WORDT NIET GEVULD. Het plan noemt dat als OKX'
-   eigen patroon. Alle iconen hebben één gewicht (Phosphor bold), dus een
-   actieve tekening die zich nog eens vult bestaat niet.
-   De actieve staat blijft dus wat hij overal in dit systeem is: een kleur- en
-   gewichtsverschil, --text-subtle naar --text-primary, geen tweede tekening.
-   Dit is de enige plek in `redesign2026.md` waar de letterlijke OKX-vorm om
-   die reden niet is gevolgd. */
-.onderbalk {
+   Het paneel blijft in de DOM. `visibility` springt pas ná het uitschuiven op
+   `hidden` (de vertraging in de overgang), zodat een gesloten menu niet
+   aanklikbaar is en geen schermlezer het voorleest. */
+.mobiel-menu {
+  --menu-curve: cubic-bezier(0.32, 0.72, 0, 1);
+  --menu-duur: 0.5s;
   position: fixed;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 30;
+  inset: 0;
+  z-index: 45;
   display: flex;
-  height: 56px;
-  /* De veilige zone telt mee in de hoogte, niet als losse marge eronder: een
-     balk die naar 56px plus 34px (een notch) springt duwt de pagina-inhoud
-     verrassend ver omhoog. Dit houdt de zichtbare balk altijd 56px. */
-  padding-bottom: env(safe-area-inset-bottom);
-  background-color: var(--bg-surface);
-  border-top: var(--border-width-xs) solid var(--line-muted);
-}
-.onderbalk-item {
-  position: relative;
-  display: flex;
-  flex: 1;
   flex-direction: column;
+  background-color: var(--bg-base);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition:
+    transform var(--menu-duur) var(--menu-curve),
+    visibility 0s linear var(--menu-duur);
+  outline: none;
+}
+.mobiel-menu[data-open] {
+  transform: translateX(0);
+  visibility: visible;
+  transition:
+    transform var(--menu-duur) var(--menu-curve),
+    visibility 0s;
+  box-shadow: var(--shadow-xl);
+}
+.mobiel-app {
+  /* Krimpen rond het midden van wat je ZIET, niet rond het midden van de hele
+     pagina: op een lange, gescrolde pagina schuift het zichtbare stuk anders
+     een paar honderd pixels weg. `MobielMenu` zet `--menu-oorsprong` bij het
+     openen. */
+  transform-origin: 0 var(--menu-oorsprong, 50vh);
+  transition:
+    transform var(--menu-duur, 0.5s) cubic-bezier(0.32, 0.72, 0, 1),
+    filter var(--menu-duur, 0.5s) cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius var(--menu-duur, 0.5s) cubic-bezier(0.32, 0.72, 0, 1);
+}
+body:has(.mobiel-menu[data-open]) .mobiel-app {
+  transform: translateX(-16%) scale(0.94);
+  filter: brightness(0.7);
+}
+.mobiel-menu-kop {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-width: 56px;
-  color: var(--text-subtle);
+  flex-shrink: 0;
+  height: 52px;
+  padding: 0 60px 0 16px;
+  padding-top: env(safe-area-inset-top);
+  box-sizing: content-box;
 }
-/* Het bolletje bij "openstaande vragen", hier omdat "Vragen" niet in élke
-   balkstand een eigen positie heeft (de Sales-balk heeft er geen). Boven het
-   pictogram van "Meer" en niet ervoor: ervoor duwt het label uit het midden. */
-.onderbalk-item-badge {
-  position: absolute;
-  top: 2px;
-  right: calc(50% - 14px);
+.mobiel-menu-inhoud {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px 12px calc(24px + env(safe-area-inset-bottom));
 }
-.onderbalk-item[aria-current] {
-  color: var(--text-primary);
+/* Een regel in het menu: groter dan in de zijbalk. 48 pixels hoog, want hier
+   wijst een vinger aan en geen muis (het GEMETEN minimum is 44px,
+   `redesign2026.md` §8.12.3), en 17 pixels tekst, want het menu heeft het hele
+   scherm en hoeft niet te passen naast een pagina. */
+.mobiel-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: var(--radius-lg);
+  font-size: 1.0625rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
-.onderbalk-item:active {
+.mobiel-menu-item:active {
   background-color: var(--interactive-hover);
 }
-.onderbalk-item-label {
-  font-size: 0.625rem; /* 10px, GEMETEN */
+.mobiel-menu-item[aria-current] {
+  background-color: var(--interactive-hover);
+  color: var(--text-primary);
   font-weight: 500;
-  line-height: 0.75rem;
 }
-
-/* ── Het "Meer"-blad ────────────────────────────────────────────────────────
-   Hergebruikt `.drawer` in zijn mobiele stand (7.14): een blad van onderen is
-   een blad van onderen, of het nu een rijdetail draagt of de rest van de
-   navigatie. Dit blok voegt alleen toe wat een navigatieblad specifiek nodig
-   heeft: een regel met een merk erin en een uitlogknop onderaan die zich
-   onderscheidt van de gewone `.nav-item`-regels erboven. */
-.meer-blad-merk {
+.mobiel-menu-item:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: -2px;
+}
+.mobiel-menu-merk {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px;
-  margin-bottom: 8px;
   border-radius: var(--radius-xl);
   background-color: var(--bg-layer-2);
+}
+.mobiel-menu-jij {
+  display: flex;
+  flex-direction: column;
+  padding-top: 16px;
+  border-top: var(--border-width-xs) solid var(--line-muted);
+}
+.mobiel-menu-profiel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 12px 8px;
+}
+.mobiel-menu-profiel-icoon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--bg-layer-2);
+  color: var(--text-secondary);
+}
+/* De trap: elke regel draagt `--i` (0 tot 12) uit de component. */
+.mobiel-menu-rij {
+  opacity: 0;
+  transform: translateX(32px);
+  transition:
+    opacity 0.2s var(--ease-standard),
+    transform 0.2s var(--ease-standard);
+}
+.mobiel-menu[data-open] .mobiel-menu-rij {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.4s var(--ease-out) calc(120ms + var(--i, 0) * 25ms),
+    transform 0.5s var(--menu-curve) calc(120ms + var(--i, 0) * 25ms);
+}
+
+/* De hamburgerknop: drie strepen die tot een kruis draaien. Vast in de hoek en
+   boven het paneel (z-index 46 tegen 45), zodat het dezelfde knop is die opent
+   en sluit en je de draai ziet gebeuren. 44 pixels, het GEMETEN minimum voor een
+   vinger. */
+.hamburger {
+  position: fixed;
+  top: calc(4px + env(safe-area-inset-top));
+  right: 8px;
+  z-index: 46;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  color: var(--text-primary);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+.hamburger:active {
+  background-color: var(--interactive-hover);
+}
+.hamburger:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: 2px;
+}
+.hamburger-streep {
+  grid-area: 1 / 1;
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background-color: currentColor;
+  transition:
+    transform 0.45s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s var(--ease-standard),
+    width 0.45s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.hamburger-streep:nth-child(1) {
+  transform: translateY(-7px);
+}
+.hamburger-streep:nth-child(3) {
+  transform: translateY(7px);
+  width: 14px;
+  justify-self: center;
+  margin-left: 8px;
+}
+.hamburger[data-open] .hamburger-streep:nth-child(1) {
+  transform: rotate(45deg);
+}
+.hamburger[data-open] .hamburger-streep:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0);
+}
+.hamburger[data-open] .hamburger-streep:nth-child(3) {
+  width: 22px;
+  margin-left: 0;
+  transform: rotate(-45deg);
+}
+/* Er wacht iets: een notificatie of een open vraag. */
+.hamburger-stip {
+  position: absolute;
+  top: 9px;
+  right: 7px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobiel-menu,
+  .mobiel-menu[data-open],
+  .mobiel-app,
+  .mobiel-menu-rij,
+  .mobiel-menu[data-open] .mobiel-menu-rij,
+  .hamburger-streep {
+    transition: none;
+  }
+  body:has(.mobiel-menu[data-open]) .mobiel-app {
+    transform: none;
+  }
 }
 
 /* ── Tabbladen ──────────────────────────────────────────────────────────────
@@ -2910,7 +3052,7 @@ textarea.field {
 /* ── Broodroostermelding ────────────────────────────────────────────────────
    Klein, rond en rustig (29 september 2026): één regel met een gekleurde stip
    ervoor en "Bekijk alle notificaties" eronder. Rechtsonder op een breed
-   scherm, onderaan boven de onderbalk op een telefoon. Zie components/toast.tsx
+   scherm, onderaan over de volle breedte op een telefoon. Zie components/toast.tsx
    voor het waarom.
 
    De vorm volgt het systeem: het vlak van alles wat zweeft
@@ -2929,11 +3071,11 @@ textarea.field {
   gap: 8px;
   pointer-events: none;
 }
-/* Op de telefoon staat de onderbalk (56px plus de veilige zone) onderaan; de
-   melding komt daar net boven, over de volle breedte met 16px marge. */
-:root:has(.onderbalk) .toast-regio {
+/* Op de telefoon (herkenbaar aan het mobiele menu) over de volle breedte met
+   16px marge, boven de veilige zone onderaan. */
+:root:has(.mobiel-menu) .toast-regio {
   left: 16px;
-  bottom: calc(56px + env(safe-area-inset-bottom) + 12px);
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
   align-items: stretch;
 }
 .toast-card {
@@ -2952,7 +3094,7 @@ textarea.field {
   box-shadow: var(--shadow-lg);
   animation: toast-in var(--duration-base) var(--ease-standard);
 }
-:root:has(.onderbalk) .toast-card {
+:root:has(.mobiel-menu) .toast-card {
   width: auto;
 }
 .toast-card[data-leaving] {
@@ -3381,7 +3523,7 @@ a.notificatie-rij:hover {
 }
 
 /* ── Het bolletje bij "openstaande vragen" (28 augustus 2026) ───────────────
-   Staat rechts in de bovenbalk en op mobiel in de onderbalk, dus naast ÉLK
+   Staat rechts in de bovenbalk en op mobiel op de menuknop, dus naast ÉLK
    scherm van de app. Daarom ademt hij traag: vier seconden per gang, van de
    groene tint uit het systeem naar een donkerder variant ervan en terug. Snel
    knipperen is een alarm, en dit is een uitnodiging, er staat werk klaar dat
@@ -3859,9 +4001,10 @@ a.notificatie-rij:hover {
 .stappenflow-voet {
   position: fixed;
   inset-inline: 0;
-  /* Boven de onderbalk (56px, `.onderbalk`) en zijn eigen veilige zone: zonder
-     deze optelsom komt de opslagbalk boven op de navigatie te staan. */
-  bottom: calc(56px + env(safe-area-inset-bottom));
+  /* Onderaan het scherm, boven de veilige zone (een thuisbalk). Tot 30
+     september 2026 stond hier 56px extra voor de onderbalk, die er niet meer is. */
+  bottom: 0;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -3872,19 +4015,14 @@ a.notificatie-rij:hover {
 }
 
 /* Een actiebalk die onderaan het scherm vastzit, zoals "Bevestig en start de
-   meting" (`ConfirmBar`). Op een telefoon staat daar al de onderbalk (56px plus
-   zijn veilige zone), en die lag er tot de UX-audit van 23 september 2026
-   precies overheen: de enige knop van het scherm viel erachter. De regel kijkt
-   of de onderbalk er is in plaats van naar een breedte, want welke structuur er
-   komt beslist de server op de useragent (`lib/apparaat.ts`), niet de CSS. */
+   meting" (`ConfirmBar`). Tot 30 september 2026 schoof hij op een telefoon 56px
+   omhoog, boven de onderbalk; die balk is vervangen door het menu achter de
+   hamburgerknop, dus hij staat nu overal onderaan. */
 .vaste-actiebalk {
   position: fixed;
   inset-inline: 0;
   bottom: 0;
   z-index: 20;
-}
-body:has(.onderbalk) .vaste-actiebalk {
-  bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
 @media print {

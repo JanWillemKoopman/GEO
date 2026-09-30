@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
-import { BottomNav } from "@/components/bottom-nav";
+import { MobielMenu } from "@/components/mobiel-menu";
 import { MobileTopbar } from "@/components/mobile-topbar";
 import { NavLade } from "@/components/nav-lade";
 import { brandNav, generalNav, titelVoorPad, type NavItem } from "@/lib/nav";
@@ -22,13 +22,15 @@ import type { BrandOption } from "@/lib/workspace";
  * met zoveel woorden dat dat een geschaalde desktopervaring is en geen eigen
  * mobiel ontwerp: `telefoon` (van `isTelefoon()` in `AppShell`, bepaald in de
  * middleware van stap 5) schakelt nu tussen twee VOLLEDIG andere opbouwen,
- * `BottomNav`/`MobileTopbar` tegenover `Sidebar`/`.topbar`, niet tussen twee
- * groottes van dezelfde opbouw.
+ * `MobileTopbar`/`MobielMenu` tegenover `Sidebar`/`.topbar`, niet tussen twee
+ * groottes van dezelfde opbouw. Tot 30 september 2026 was de mobiele tak een
+ * onderbalk met "Meer"; sindsdien is het een hamburgerknop met een
+ * schermvullend menu (zie `components/mobiel-menu.tsx` voor het waarom).
  *
  * De hamburgerlade van vóór stap 6 is op 21 september 2026 weg: op de
  * desktoptak (`telefoon` is dan `false`) hoort geen hamburgermenu meer, ook
  * niet als vangnet voor een smal browservenster. `telefoon` beslist welke van
- * de twee takken er rendert; wie zich vergist zit tussen `BottomNav` en
+ * de twee takken er rendert; wie zich vergist zit tussen `MobielMenu` en
  * `.topbar`/`Sidebar` in en heeft geen eigen derde opbouw.
  */
 export function WorkspaceChrome({
@@ -43,7 +45,8 @@ export function WorkspaceChrome({
   openQuestions,
   notificaties,
   previewToggle,
-  accountMenu,
+  naam,
+  email,
   profiel,
   children,
 }: {
@@ -52,7 +55,7 @@ export function WorkspaceChrome({
   /** Beheerder? Dan komt het CSM-paneel in de zijbalk (fase 8). */
   staff: boolean;
   /**
-   * Hoeveel vragen er open staan. Voedt het bolletje in de onderbalk op mobiel;
+   * Hoeveel vragen er open staan. Voedt het stipje op de menuknop op mobiel;
    * de teller rechts in de bovenbalk komt als `openQuestions` binnen. De zijbalk
    * droeg tot 29 september 2026 hetzelfde stipje en doet dat niet meer.
    */
@@ -62,27 +65,28 @@ export function WorkspaceChrome({
   telefoon: boolean;
   onSelectBrand: (brandId: string) => void;
   /** De server action achter "Uitloggen". Op desktop zit hij al verwerkt in
-   *  `accountMenu`; het "Meer"-blad heeft de kale functie nodig om zijn eigen
+   *  `profiel`; het mobiele menu heeft de kale functie nodig om zijn eigen
    *  rij te bouwen. */
   signOutAction: () => void | Promise<void>;
   logo: React.ReactNode;
   /** De teller "3 openstaande vragen". Leeg zodra er niets open staat. */
   openQuestions?: React.ReactNode;
-  /** Het belletje dat de lijst met notificaties opent. Rechtsboven, op de
-   *  telefoon naast het profiel. */
+  /** Het belletje dat de lijst met notificaties opent. Rechtsboven op
+   *  desktop; op de telefoon zit het als regel in het menu. */
   notificaties?: React.ReactNode;
   /** De wisselknop naar de klantweergave, `null` voor wie dat recht niet heeft. */
   previewToggle?: React.ReactNode;
-  /** Het profielicoon in de bovenbalk van de telefoon. */
-  accountMenu: React.ReactNode;
+  /** Naam en e-mailadres voor het profielblok in het mobiele menu. */
+  naam: string;
+  email: string;
   /** Het profiel met naam onderaan de zijbalk (en de lade), 29 september 2026. */
   profiel: React.ReactNode;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
 
-  // Eén berekening voor de hele mobiele tak: `BottomNav` (de vier primaire
-  // posities plus "Meer") en `MobileTopbar` (de titel) hebben hem allebei
+  // Eén berekening voor de hele mobiele tak: `MobielMenu` (de hoofdstukken)
+  // en `MobileTopbar` (de titel) hebben hem allebei
   // nodig, en twee kopieën van dezelfde lijst lopen op termijn uit elkaar.
   // Kost niets op desktop: `telefoon` is dan `false` en dit stuk JSX rendert
   // nooit, maar de berekening zelf is goedkoop genoeg (platte array-opbouw)
@@ -98,32 +102,26 @@ export function WorkspaceChrome({
   if (telefoon) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <MobileTopbar
-          titel={titel}
-          actie={
-            <div className="flex items-center gap-1">
-              {notificaties}
-              {accountMenu}
-            </div>
-          }
-        />
+        {/* `.mobiel-app` is wat er bij het openen van het menu iets opzij
+            wijkt en krimpt (globals.css, `.mobiel-menu`). */}
+        <div className="mobiel-app flex min-h-dvh flex-col">
+          <MobileTopbar titel={titel} />
+          <main className="min-w-0 flex-1 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="stand">{children}</div>
+          </main>
+        </div>
 
-        {/* 56px onderbalk plus zijn veilige zone: de inhoud moet daar nooit
-            onder verdwijnen. `.stand` regelt zijn eigen zijmarge en bovenmarge
-            al; deze wikkel voegt alleen de ondermarge toe die uniek is voor de
-            mobiele tak. */}
-        <main className="min-w-0 flex-1 pb-[calc(56px+env(safe-area-inset-bottom)+16px)]">
-          <div className="stand">{children}</div>
-        </main>
-
-        <BottomNav
-          activeBrand={activeBrand}
-          brands={brands}
-          previewToggle={previewToggle}
-          openVragen={openVragen}
+        <MobielMenu
           alles={alles}
+          brands={brands}
+          activeBrand={activeBrand}
           onSelectBrand={onSelectBrand}
           signOutAction={signOutAction}
+          previewToggle={previewToggle}
+          logo={logo}
+          naam={naam}
+          email={email}
+          openVragen={openVragen}
         />
       </div>
     );

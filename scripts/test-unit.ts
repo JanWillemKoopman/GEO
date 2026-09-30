@@ -17913,12 +17913,28 @@ group("UX-audit P0.1: onder 1024 pixels is er toch een menu", () => {
   ok("de lade toont dezelfde zijbalk, geen tweede menu", lade.includes("<Sidebar"));
 });
 
-group("UX-audit P0.2: een vaste actiebalk ligt boven de onderbalk", () => {
+group("Mobiel menu: hamburger en schermvullend paneel (30 september 2026)", () => {
+  const chrome = leesBestand("components/workspace-chrome.tsx");
+  ok("de telefoon krijgt het menu", chrome.includes("<MobielMenu"));
+  ok("geen onderbalk meer", !bestaatBestand("components/bottom-nav.tsx") && !chrome.includes("BottomNav"));
+  const balk = leesBestand("components/mobile-topbar.tsx");
+  ok("geen terugknop linksboven", !balk.includes("router.back") && !balk.includes('"Terug"'));
+  const menu = leesBestand("components/mobiel-menu.tsx");
+  ok("dezelfde hoofdstukken als de zijbalk", menu.includes("hoofdstukken(alles)"));
+  ok("notificaties staan in het menu", menu.includes("notificatiesOpenen()"));
+  ok("en het profiel met zijn pagina's", menu.includes('href="/instellingen"') && menu.includes('href="/support"') && menu.includes("signOutAction"));
+  const css = leesBestand("app/globals.css");
+  ok("het paneel schuift van rechts in", css.includes("transform: translateX(100%)"));
+  ok("en staat stil voor wie minder beweging wil", /prefers-reduced-motion[\s\S]*\.mobiel-menu-rij/.test(css));
+});
+
+group("UX-audit P0.2: een vaste actiebalk ligt onderaan", () => {
   const balk = leesBestand("app/(app)/analyses/[id]/_editors/confirm-bar.tsx");
   ok("de bevestigbalk gebruikt de gedeelde vorm", balk.includes("vaste-actiebalk"));
   ok("en zet zelf geen bottom-0 meer", !balk.includes("bottom-0"));
   const css = leesBestand("app/globals.css");
-  ok("met onderbalk schuift hij omhoog", css.includes("body:has(.onderbalk) .vaste-actiebalk"));
+  // Sinds 30 september 2026 is er geen onderbalk meer om boven te gaan staan.
+  ok("hij schuift niet meer omhoog voor een onderbalk", !css.includes(".onderbalk"));
 });
 
 group("UX-audit P1.2, P1.4, P1.10: één woord per begrip", () => {
@@ -18002,9 +18018,6 @@ group("UX-audit P1.8, P1.9: merkdossier zonder crawlgereedschap, support per bes
 });
 
 group("UX-audit P2.5 tot P2.12: onderbalk, zijbalk, lege staten, reputatie, 404", () => {
-  const onder = leesBestand("components/bottom-nav.tsx");
-  ok("de onderbalk heeft Clusters", onder.includes('label: "Clusters"'));
-  ok("en geen eigen woord Zichtbaar", !onder.includes('label: "Zichtbaar"'));
   const zijbalk = leesBestand("components/sidebar.tsx");
   ok("alleen jij staat bij de kop, niet bij elke regel", !zijbalk.includes("item.staffOnly &&") && zijbalk.includes("kop.afgeschermd &&"));
   ok("een hoofdstuk met één bestemming is één regel", zijbalk.includes("kop.items.length === 1"));

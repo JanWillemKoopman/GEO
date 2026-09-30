@@ -25,15 +25,14 @@ export type StappenflowStap = {
  * (Vorige): de hoofdknop staat gewoon als eerste in de JSX. Zelfde uitkomst,
  * geen omgekeerde volgorde in de DOM nodig om hem te krijgen.
  *
- * ── VASTZITTEN, ZONDER DE ONDERBALK TE OVERLAPPEN ───────────────────────────
+ * ── VASTZITTEN ONDERAAN ─────────────────────────────────────────────────────
  *
  * De balk is `fixed`, net als `ConfirmBar`
  * (`app/(app)/analyses/[id]/_editors/confirm-bar.tsx`, hetzelfde patroon voor
  * de desktopstand), met dezelfde spacer-truc zodat de laatste regel van de
- * sectie er nooit onder verdwijnt. `bottom` is niet 0 maar `56px` plus de
- * veilige zone: dat is precies de hoogte van `BottomNav` (`.onderbalk` in
- * globals.css), en zonder die optelsom komt de opslagbalk boven op de
- * navigatie te staan.
+ * sectie er nooit onder verdwijnt. Tot 30 september 2026 stond hij 56px hoger,
+ * boven de onderbalk van een telefoon; die balk is vervangen door het menu
+ * achter de hamburgerknop (`components/mobiel-menu.tsx`).
  */
 export function Stappenflow({
   stappen,

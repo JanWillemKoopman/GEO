@@ -15,7 +15,8 @@ import { ThemeMenuItem } from "@/components/theme-toggle";
  * geen naam bekend is, met het menu naar boven open. Het menu telt nu vijf
  * dingen: Mijn account, de weergave (licht of donker), Support en Uitloggen. De
  * themaschakelaar en het Support-icoon zijn daarvoor uit de bovenbalk gehaald.
- * Op een telefoon blijft het een icoon in de bovenbalk (`plek="topbalk"`).
+ * Op een telefoon zit het profiel sinds 30 september 2026 in het schermvullende
+ * menu (`components/mobiel-menu.tsx`); `plek="topbalk"` wordt nergens meer gebruikt.
  *
  * Hieronder de geschiedenis van het menu zoals het rechtsboven stond.
  *

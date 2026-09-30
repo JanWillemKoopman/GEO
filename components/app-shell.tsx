@@ -92,9 +92,8 @@ export async function AppShell({
       }
       notificaties={<NotificatieKnop />}
       previewToggle={staffAccount ? <PreviewToggle previewing={!staff} /> : null}
-      accountMenu={
-        <ProfileMenu naam={naam} email={email} signOutAction={signOut} plek="topbalk" />
-      }
+      naam={naam}
+      email={email}
       profiel={<ProfileMenu naam={naam} email={email} signOutAction={signOut} plek="zijbalk" />}
     >
       {children}

@@ -85,7 +85,7 @@ export const ICOON_NAMEN = [
   "klantweergave",
   "eigenweergave",
   // ── De onderbalk op een telefoon (17 september 2026) ────────────────────
-  // Drie nieuwe betekenissen voor de Sales-onderbalk (`components/bottom-nav.tsx`,
+  // Drie nieuwe betekenissen voor de Sales-onderbalk (de onderbalk is op 30 september 2026 weg,
   // redesign2026.md §8.12.4). De sidebar geeft alleen zijn zeven hoofdstukken
   // een icoon (regel 4 hierboven), maar een tabbalk van vijf posities werkt
   // zoals overal elders zo'n balk werkt: elke positie draagt er zelf een, want

@@ -490,6 +490,13 @@ bundels en de bestaande waarden waren al kort en zonder opsmuk.
 staat elke overgang uit (`.thema-wisselt`), anders veegt het scherm van de ene stand naar de andere
 in plaats van in één keer om te klappen.
 
+**Eén uitzondering: het mobiele menu** (`.mobiel-menu`, 30 september 2026). Het paneel schuift in
+0,5 seconde van rechts in met `cubic-bezier(0.32, 0.72, 0, 1)` (snel weg, zacht landen), de pagina
+eronder wijkt 16% opzij en krimpt naar 94%, en de regels komen 25 ms na elkaar binnen. Dat is
+bewust langer dan `--duration-slow`: een paneel dat het hele scherm vult en in 200 ms verschijnt
+leest als een paginawissel, niet als een laag die eroverheen schuift. De eigenaar vroeg om een
+moderne animatie; nergens anders in de app geldt deze duur.
+
 ---
 
 ## 8. Opmaak en de drie standen
@@ -547,7 +554,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `.chip` + `-success` / `-danger` / `-warning` / `-info` / `-attention` / `-neutral` / `-outline` | `--radius-md` (4px, niet meer een pil), gewicht 500. `-attention` draagt sinds stap 10 de accentkleur, niet roze (§2.5). Een status loopt via `TONE_CHIP` (`lib/analysis-status.ts`) of `STAND_CHIP` (`lib/pagina-stand.ts`), nooit via inline kleuren |
 | `.chip-stijging` / `.chip-daling` | Een verschil ten opzichte van de vorige meting, op de `--trend-*`-tokens. Nooit `chip-success`/`chip-danger` voor een richting (§2.6) |
 | `.alert` + `-success` / `-warning` / `-danger` / `-info` (`Alert`) | Blok in de pagina, geen zwevende toast, 8px rond. De vorm voor een melding die bij een plek in de pagina hoort (een formulier, een veld) |
-| `.toast-card` (`useToast`, `components/toast.tsx`) | De kleine melding rechtsonder (op de telefoon boven de onderbalk), sinds 29 september 2026. 340px, 12px rond, `--bg-elevated-contrast` met kaartrand en `--shadow-lg`. Eén regel met een stip in één van drie kleuren (`--intent-success-solid` gelukt, `--intent-warning-solid` goed om te weten, `--intent-danger-solid` mis of actie nodig), daaronder "Bekijk alle notificaties". Verdwijnt vanzelf na 4,5 seconden, rood na 8; de muis erop zet de klok stil |
+| `.toast-card` (`useToast`, `components/toast.tsx`) | De kleine melding rechtsonder (op de telefoon onderaan over de volle breedte), sinds 29 september 2026. 340px, 12px rond, `--bg-elevated-contrast` met kaartrand en `--shadow-lg`. Eén regel met een stip in één van drie kleuren (`--intent-success-solid` gelukt, `--intent-warning-solid` goed om te weten, `--intent-danger-solid` mis of actie nodig), daaronder "Bekijk alle notificaties". Verdwijnt vanzelf na 4,5 seconden, rood na 8; de muis erop zet de klok stil |
 | `NotificatieKnop` + lade `breed` (`components/notificaties.tsx`) | Het belletje in de bovenbalk met een rode teller, en de lijst met alle notificaties als lade van rechts, een kwart van het scherm breed (minimaal 380px). Zelfde stip en kleuren als `.toast-card`; een ongelezen regel staat vet |
 | `.vlak` / `.vlak-gevuld` | Een blok binnen een kaart: rand, 8px rond, 12px lucht; `-gevuld` legt `--bg-surface-raised` eronder. Nooit `--bg-layer-2` als vulling van een blok, dat is de chipkleur |
 | `.tabel` / `.tabel-dicht` / `.tabel-klikbaar` | Elke tabel. Kop in kleine kapitalen, rijen gescheiden door `--line-muted`, 10px lucht (6px in `-dicht`). Een gekozen rij (`aria-selected`) is een rand en een waas |
@@ -632,7 +639,7 @@ tweede omzetting. Dat stond ook al open ná de Nova-ronde en is niet opnieuw dic
 10. **Een eigen klasse staat in `@layer components`.** Buiten een laag wint CSS altijd van Tailwinds
     hulpklassen, en dan doet een `p-3` of `border-[...]` in een scherm stil niets. Tot 23 september
     2026 stond alles buiten een laag; 126 randkleuren en een handvol maten kwamen daardoor nooit door.
-    Een lettermaat onder 12px bestaat niet (behalve het label van 10px in de onderbalk), en 6px radius
+    Een lettermaat onder 12px bestaat niet, en 6px radius
     evenmin.
 
 ---

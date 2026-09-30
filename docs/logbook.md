@@ -13482,3 +13482,20 @@ om te testen en uit te leggen. Ook het verschil tussen klant-`admin` en klant-`m
   "Abonnement opzeggen" staat alleen nog bij de admin (`mayCancel`), en `PATCH /api/accounts/[id]` met
   `cancel` geeft een klant een 403 met de melding dat de consultant het regelt. Account verwijderen kon een klant
   al niet. Opzeggen zet nog steeds alleen een datum (besluit 14).
+
+## 30 september 2026: mobiel menu achter een hamburgerknop
+
+**Wens van de eigenaar.** Op een telefoon is de onderbalk weg (was 56 pixels hoog op elk scherm, met zonder
+actief merk maar twee knoppen: "Merken" en "Meer"), en de terugknop linksboven ook (hij deed hetzelfde als die
+van de browser). Rechtsboven staat nu één hamburgerknop die een schermvullend menu van rechts laat inschuiven
+(`components/mobiel-menu.tsx`). Daarin staan dezelfde hoofdstukken als in de desktopzijbalk (één bron:
+`hoofdstukken()` in `lib/nav.ts`), de merkkiezer, en wat op desktop achter het belletje en het profiel zit:
+Notificaties, Mijn account, Support, Weergave en Uitloggen. Een stipje op de knop zegt dat er een notificatie
+of open vraag wacht, want dat signaal stond eerder op de onderbalk en het belletje.
+
+- `BottomNav` en `MeerBlad` zijn verwijderd. De vaste actiebalk, de stappenflow en de kleine meldingen stonden
+  56 pixels hoger om boven de onderbalk te blijven; die optelsom is eraf.
+- De beweging (0,5 seconde, pagina wijkt opzij en krimpt, regels trapsgewijs) is een bewuste uitzondering op
+  `designsystem.md` §7; `prefers-reduced-motion` zet hem uit.
+- ⚠️ Nog niet bekeken op een echte telefoon (conventie 10): alleen typecheck, tests en build.
+
