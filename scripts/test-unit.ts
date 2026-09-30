@@ -9447,6 +9447,16 @@ group("er is nog maar één plek met de drie lagen", () => {
   ok("access.ts kent de beheerderslaag", accessBron.includes("isStaff(userId)"));
 });
 
+// 30 september 2026: de superuser is lid van elk account (migratie 0134). Het
+// verwijderslot mag daardoor niet meer op "ik zit erin" leunen, anders is geen
+// enkel klantaccount meer te verwijderen.
+group("verwijderslot na 0134", () => {
+  const route = readFileSync("app/api/accounts/[id]/route.ts", "utf8");
+  const beheer = readFileSync("app/(app)/beheer/page.tsx", "utf8");
+  ok("route gebruikt ownAccountIdsOf", route.includes("eigenAccountIds: await ownAccountIdsOf("));
+  ok("beheerpagina gebruikt ownAccountIdsOf", beheer.includes("ownAccountIdsOf(user.id)"));
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 console.log("\nHet budgetplafond (F1, herstelplan na audit T5)");
 
