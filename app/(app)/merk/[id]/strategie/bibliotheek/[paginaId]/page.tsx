@@ -122,10 +122,25 @@ export default async function PaginaScherm({
         existingUrl: tekst.existingUrl,
         publishedUrl: tekst.publishedUrl,
       });
+      // De publicatieknop staat in "Aan zet", bovenaan (1 oktober 2026). Hij
+      // stond los onderaan, onder vier opleverkaarten en een handleiding: de
+      // enige handeling die na goedkeuren nog telt, zat het verst weg. "Aan
+      // zet" is volgens zijn eigen afspraak de plek van de hoofdknop.
+      const publiceren = !tekst.needsReview ? (
+        <PublishBox
+          analysisId={tekst.analysisId}
+          pieceId={rij.pieceId}
+          publishedAt={tekst.publishedAt}
+          publishedUrl={tekst.publishedUrl}
+          check={tekst.check}
+          checkedAt={tekst.checkedAt}
+          blokkades={0}
+        />
+      ) : undefined;
       return (
         <div className="flex flex-col gap-6">
           {kop}
-          <AanZet stand={rij.stand} />
+          <AanZet stand={rij.stand} actie={publiceren} />
           <Goedkeuren
             profileId={id}
             analysisId={tekst.analysisId}
@@ -163,17 +178,6 @@ export default async function PaginaScherm({
               existingUrl={tekst.existingUrl}
               siteUrl={profile.url}
               hasSchema={Boolean(tekst.schemaJsonLd?.trim())}
-            />
-          )}
-          {!tekst.needsReview && (
-            <PublishBox
-              analysisId={tekst.analysisId}
-              pieceId={rij.pieceId}
-              publishedAt={tekst.publishedAt}
-              publishedUrl={tekst.publishedUrl}
-              check={tekst.check}
-              checkedAt={tekst.checkedAt}
-              blokkades={0}
             />
           )}
         </div>
@@ -234,7 +238,7 @@ export default async function PaginaScherm({
 function WatDezePaginaDoet({ why, voorWie }: { why: string | null; voorWie: string | null }) {
   if (!why && !voorWie) return null;
   return (
-    <section className="card flex flex-col gap-3">
+    <section className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-6">
       <h2 className="type-section">Waarom deze pagina</h2>
       {why && <p className="type-body text-secondary">{why}</p>}
       {voorWie && (

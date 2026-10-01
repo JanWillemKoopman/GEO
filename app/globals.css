@@ -1972,6 +1972,43 @@ textarea.field {
   animation: uitklap-in var(--duration-slow) var(--ease-out);
 }
 
+/* ── Een vraag die net beantwoord is (1 oktober 2026) ───────────────────────
+   De vraagkaart klapt na opslaan in tot één regel. Dat gebeurde in één frame,
+   en het oog zag een sprong in plaats van een bevestiging. Nu vaagt de regel
+   in en verschijnt het vinkje met een kleine groei: één keer, alleen bij de
+   vraag die je net beantwoordde. De teller en de balk erboven lopen al mee. */
+.vraag-net-gedaan {
+  animation: uitklap-in var(--duration-slow) var(--ease-out);
+}
+.vraag-vinkje {
+  display: inline-flex;
+}
+.vraag-net-gedaan .vraag-vinkje {
+  animation: vinkje-in 320ms var(--ease-out);
+}
+@keyframes vinkje-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── De delen van één sectie (1 oktober 2026) ───────────────────────────────
+   Binnen één kaart gescheiden door een lijn en lucht, niet door een eigen
+   kader per deel. Eerst gebruikt door Opleveren op het paginascherm, waar vier
+   kaarten één sectie werden. */
+.oplever-deel {
+  border-top: var(--border-width-xs) solid var(--border-subtle);
+  padding-top: 20px;
+}
+.oplever-deel:not(:last-child) {
+  padding-bottom: 20px;
+}
+
 /* ── Uitklappen (1 oktober 2026) ────────────────────────────────────────────
    Het pijltje draaide wel, maar de inhoud stond er in één keer: het oog zag
    een sprong in plaats van een blok dat openging. 200 ms invagen met 4 pixels
@@ -3909,7 +3946,8 @@ a.notificatie-rij:hover {
   .menu-surface,
   .collapsible-inhoud,
   details[open]:not([class*="sol-"]) > :not(summary),
-  .lijst-verdwijnt {
+  .vraag-net-gedaan,
+  .vraag-net-gedaan .vraag-vinkje {
     animation: none;
   }
   .skeleton {

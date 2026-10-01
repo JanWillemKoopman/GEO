@@ -199,12 +199,13 @@ export function OnboardingWizard() {
 
         <div className="flex flex-col gap-2">
           <button
+            aria-busy={pending}
             type="button"
             onClick={() => void submit(false)}
             disabled={pending || !canSubmit}
             className="btn-primary btn-lg"
           >
-            {pending ? "Onderzoek starten…" : "Start het onderzoek"}
+            Start het onderzoek
           </button>
           <span className="text-sm text-muted">
             Het onderzoek duurt ongeveer tien minuten en loopt door als je dit scherm sluit. Verder

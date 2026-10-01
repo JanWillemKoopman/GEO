@@ -210,12 +210,13 @@ export function CreatePlanBox({
             {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
           </span>
           <button
+            aria-busy={wacht}
             type="button"
             className="btn-primary btn-lg w-fit"
             onClick={() => void maak()}
             disabled={wacht}
           >
-            {wacht ? "Bezig met opstellen…" : "Stel het contentplan op"}
+            Stel het contentplan op
           </button>
         </div>
       )}

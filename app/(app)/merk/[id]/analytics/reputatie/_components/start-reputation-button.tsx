@@ -148,12 +148,13 @@ export function StartReputationButton({
       </fieldset>
       <div className="flex flex-wrap gap-2">
         <button
+          aria-busy={pending}
           type="button"
           className="btn-primary btn-sm"
           disabled={wacht}
           onClick={() => void start()}
         >
-          {pending ? "Starten…" : "Ja, start de meting"}
+          Ja, start de meting
         </button>
         <button
           type="button"

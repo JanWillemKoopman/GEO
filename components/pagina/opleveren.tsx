@@ -23,6 +23,16 @@ import { markeerZinnen } from "@/lib/tekst-markering";
  * wie vóór het goedkeuren kopieert, plakt misschien een versie met een gele zin
  * op zijn site.
  *
+ * ── ÉÉN SECTIE, GEEN VIER KAARTEN (1 oktober 2026) ──────────────────────────
+ *
+ * Het waren vier kaarten onder elkaar (zoekmachines, adres, veelgestelde
+ * vragen, op je site zetten), met daaronder nog een handleiding en los de
+ * publicatieknop: na goedkeuren zes vlakken van gelijk gewicht. Nu is het één
+ * sectie met een kop die de stand volgt ("Bij de tekst" vóór goedkeuren, "Op je
+ * site zetten" erna), en de delen staan gescheiden door een lijn in plaats van
+ * een eigen kader. Na goedkeuren staat het kopiëren bovenaan, want daar komt
+ * de klant voor; de publicatieknop staat in "Aan zet" boven aan het scherm.
+ *
  * De kopieervormen en hun uitleg per CMS komen uit `lib/kopieervormen.ts`; de
  * sjabloonexport uit `lib/pipeline/content-export.ts`, als het onderzoek de
  * opbouw van de site herkende.
@@ -98,111 +108,12 @@ export function Opleveren({
   const heeftMeta = Boolean(metaTitel?.trim() || metaBeschrijving?.trim());
 
   return (
-    <div className="flex flex-col gap-6">
-      {heeftMeta && (
-        <section className="card flex flex-col gap-3">
-          <h2 className="type-section flex items-center gap-1">
-            Zo staat de pagina in zoekmachines
-            <InfoHint label="Wat is dit?">
-              Google en AI-assistenten tonen deze titel en omschrijving als ze naar je pagina verwijzen. Je
-              zet ze in de instellingen van de pagina op je site, meestal onder SEO.
-            </InfoHint>
-          </h2>
-          {metaTitel?.trim() && (
-            <div className="flex flex-col gap-1">
-              <span className="mono-label">Titel</span>
-              <p className="type-body">{metaTitel}</p>
-              {goedgekeurd && <CopyButton value={metaTitel} label="Kopieer de titel" copiedLabel="Gekopieerd" />}
-            </div>
-          )}
-          {metaBeschrijving?.trim() && (
-            <div className="flex flex-col gap-1">
-              <span className="mono-label">Omschrijving</span>
-              <p className="type-body" dangerouslySetInnerHTML={{ __html: metaHtml ?? "" }} />
-              {goedgekeurd && (
-                <CopyButton value={metaBeschrijving} label="Kopieer de omschrijving" copiedLabel="Gekopieerd" />
-              )}
-            </div>
-          )}
-        </section>
-      )}
-
-      <section className="card flex flex-col gap-3">
-        <h2 className="type-section flex items-center gap-1">
-          Adres en interne links
-          <InfoHint label="Wat is dit?">
-            Het voorgestelde webadres, en welke pagina&apos;s je aan elkaar zou moeten linken. Beide
-            zijn een voorstel: geen pagina op je site verandert hierdoor vanzelf.
-          </InfoHint>
-        </h2>
-        <div className="flex flex-col gap-1">
-          <span className="mono-label">{adres.isReal ? "Adres" : "Voorgesteld adres"}</span>
-          <p className="type-body">
-            <code className="rounded bg-[var(--bg-layer-2)] px-1 py-0.5 text-xs">{adres.url}</code>
-          </p>
-          {goedgekeurd && <CopyButton value={adres.url} label="Kopieer het adres" copiedLabel="Gekopieerd" />}
-        </div>
-        {vanDeze.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <span className="mono-label">Link vanaf deze pagina naar</span>
-            <ul className="flex flex-col gap-1">
-              {vanDeze.map((l) => (
-                <li key={l.url} className="type-body text-secondary">
-                  {l.titel} <span className="text-muted">({l.url})</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {naarDeze.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <span className="mono-label">Zet op deze bestaande pagina&apos;s een link naar deze pagina</span>
-            <ul className="flex flex-col gap-1">
-              {naarDeze.map((l) => (
-                <li key={l.url} className="type-body text-secondary">
-                  {l.titel} <span className="text-muted">({l.url})</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {vanDeze.length === 0 && naarDeze.length === 0 && (
-          <p className="type-body text-muted">Geen passende pagina gevonden om aan te linken.</p>
-        )}
-      </section>
-
-      {faq.length > 0 && (
-        <section className="card flex flex-col gap-3">
-          <h2 className="type-section">Veelgestelde vragen</h2>
-          <dl className="flex flex-col gap-3">
-            {faq.map((f, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                <dt className="type-body font-medium">{f.q}</dt>
-                <dd className="type-body text-secondary" dangerouslySetInnerHTML={{ __html: faqHtml[i] ?? "" }} />
-              </div>
-            ))}
-          </dl>
-          {goedgekeurd && faqOpties.length > 0 && (
-            <ul className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
-              {faqOpties.map((optie) => (
-                <li key={optie.vorm}>
-                  <CopyButton
-                    value={optie.waarde}
-                    label={optie.label.replace("Kopieer", "Kopieer de vragen")}
-                    copiedLabel="Gekopieerd"
-                    className="w-fit text-sm font-medium hover:underline"
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
+    <section className="card flex flex-col" aria-labelledby="opleveren-kop">
+      <h2 id="opleveren-kop" className="type-section pb-4">
+        {goedgekeurd ? "Op je site zetten" : "Bij de tekst"}
+      </h2>
       {goedgekeurd && (
-        <section className="card flex flex-col gap-4">
-          <h2 className="type-section">Zet de pagina op je site</h2>
-
+        <section className="oplever-deel flex flex-col gap-4">
           {tekstOpties.length > 0 && (
             <div className="flex flex-col gap-2">
               <p className="mono-label">De tekst, in het formaat dat bij je site past</p>
@@ -278,9 +189,108 @@ export function Opleveren({
               </span>
             )}
           </div>
-
         </section>
       )}
-    </div>
+      {heeftMeta && (
+        <section className="oplever-deel flex flex-col gap-3">
+          <h3 className="type-body-emphasis flex items-center gap-1">
+            Zo staat de pagina in zoekmachines
+            <InfoHint label="Wat is dit?">
+              Google en AI-assistenten tonen deze titel en omschrijving als ze naar je pagina verwijzen. Je
+              zet ze in de instellingen van de pagina op je site, meestal onder SEO.
+            </InfoHint>
+          </h3>
+          {metaTitel?.trim() && (
+            <div className="flex flex-col gap-1">
+              <span className="mono-label">Titel</span>
+              <p className="type-body">{metaTitel}</p>
+              {goedgekeurd && <CopyButton value={metaTitel} label="Kopieer de titel" copiedLabel="Gekopieerd" />}
+            </div>
+          )}
+          {metaBeschrijving?.trim() && (
+            <div className="flex flex-col gap-1">
+              <span className="mono-label">Omschrijving</span>
+              <p className="type-body" dangerouslySetInnerHTML={{ __html: metaHtml ?? "" }} />
+              {goedgekeurd && (
+                <CopyButton value={metaBeschrijving} label="Kopieer de omschrijving" copiedLabel="Gekopieerd" />
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="oplever-deel flex flex-col gap-3">
+        <h3 className="type-body-emphasis flex items-center gap-1">
+          Adres en interne links
+          <InfoHint label="Wat is dit?">
+            Het voorgestelde webadres, en welke pagina&apos;s je aan elkaar zou moeten linken. Beide
+            zijn een voorstel: geen pagina op je site verandert hierdoor vanzelf.
+          </InfoHint>
+        </h3>
+        <div className="flex flex-col gap-1">
+          <span className="mono-label">{adres.isReal ? "Adres" : "Voorgesteld adres"}</span>
+          <p className="type-body">
+            <code className="rounded bg-[var(--bg-layer-2)] px-1 py-0.5 text-xs">{adres.url}</code>
+          </p>
+          {goedgekeurd && <CopyButton value={adres.url} label="Kopieer het adres" copiedLabel="Gekopieerd" />}
+        </div>
+        {vanDeze.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="mono-label">Link vanaf deze pagina naar</span>
+            <ul className="flex flex-col gap-1">
+              {vanDeze.map((l) => (
+                <li key={l.url} className="type-body text-secondary">
+                  {l.titel} <span className="text-muted">({l.url})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {naarDeze.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="mono-label">Zet op deze bestaande pagina&apos;s een link naar deze pagina</span>
+            <ul className="flex flex-col gap-1">
+              {naarDeze.map((l) => (
+                <li key={l.url} className="type-body text-secondary">
+                  {l.titel} <span className="text-muted">({l.url})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {vanDeze.length === 0 && naarDeze.length === 0 && (
+          <p className="type-body text-muted">Geen passende pagina gevonden om aan te linken.</p>
+        )}
+      </section>
+
+      {faq.length > 0 && (
+        <section className="oplever-deel flex flex-col gap-3">
+          <h3 className="type-body-emphasis">Veelgestelde vragen</h3>
+          <dl className="flex flex-col gap-3">
+            {faq.map((f, i) => (
+              <div key={i} className="flex flex-col gap-1">
+                <dt className="type-body font-medium">{f.q}</dt>
+                <dd className="type-body text-secondary" dangerouslySetInnerHTML={{ __html: faqHtml[i] ?? "" }} />
+              </div>
+            ))}
+          </dl>
+          {goedgekeurd && faqOpties.length > 0 && (
+            <ul className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-3">
+              {faqOpties.map((optie) => (
+                <li key={optie.vorm}>
+                  <CopyButton
+                    value={optie.waarde}
+                    label={optie.label.replace("Kopieer", "Kopieer de vragen")}
+                    copiedLabel="Gekopieerd"
+                    className="w-fit text-sm font-medium hover:underline"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+    </section>
   );
 }

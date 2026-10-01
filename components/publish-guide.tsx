@@ -1,4 +1,4 @@
-import { InfoHint } from "@/components/info-hint";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { ExternalLink } from "@/components/external-link";
 import { suggestedPath } from "@/lib/pipeline/slug";
 import type { ContentAction, ContentType } from "@/lib/types/database";
@@ -13,6 +13,10 @@ import type { ContentAction, ContentType } from "@/lib/types/database";
  *
  * De toon is die van een collega die het even voordoet, niet die van een
  * handleiding: de doelgroep is een ondernemer, niet een webbouwer.
+ *
+ * Sinds 1 oktober 2026 een dicht uitklapblok en geen kaart meer: wie dit één
+ * keer gelezen heeft, hoeft het niet bij elke pagina opnieuw onder ogen te
+ * krijgen, en de kopieerknoppen erboven zijn de eigenlijke handeling.
  */
 
 export function PublishGuide({
@@ -34,14 +38,11 @@ export function PublishGuide({
   const host = siteUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
 
   return (
-    <div className="card flex flex-col gap-3">
-      <span className="mono-label flex items-center gap-1">
-        Wat doe je hiermee?
-        <InfoHint label="Publiceren">
-          Een tekst die in je bibliotheek blijft liggen, levert niets op. Deze stappen zijn alles
-          wat er nog tussen zit.
-        </InfoHint>
-      </span>
+    <CollapsibleSection title="Hoe zet je hem op je site?" compact card defaultOpen={false}>
+      <p className="text-sm text-secondary">
+        Een tekst die in je bibliotheek blijft liggen, levert niets op. Deze stappen zijn alles wat
+        er nog tussen zit.
+      </p>
 
       <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm text-secondary">
         <li>
@@ -100,6 +101,6 @@ export function PublishGuide({
         Staat hij live? Dan zie je het effect bij de volgende maandelijkse meting. AI-assistenten
         pikken een nieuwe pagina meestal binnen enkele weken op.
       </p>
-    </div>
+    </CollapsibleSection>
   );
 }
