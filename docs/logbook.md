@@ -13580,3 +13580,35 @@ Getest: `tsc --noEmit`, `test:unit` (5332), `test:chain` (846) en `build` groen.
 zijn met de gecompileerde stijlen gefotografeerd op 390 en 1280 pixels, licht en donker, zonder
 horizontale overloop. ⚠️ Niet bekeken met echte klantdata (conventie 10): hier staan geen sleutels voor de
 database. Details per scherm in `docs/ux-design.md` §5, de regels in `docs/designsystem.md`.
+
+## 1 oktober 2026: een voorbeeldaccount dat nooit geld kost (RunX)
+
+Opdracht van de eigenaar: een demo-account van een klant die twaalf maanden actief is, met een pakket
+van 10 pagina's per maand, meerdere clusters en drie maanden ingepland, zonder kosten. Plan en stand:
+`docs/tasks/demo-account-runx.md`. Gekozen is route A: de echte naam RunX, met op elk scherm de regel
+dat het een voorbeeldaccount is en geen klant.
+
+**De belangrijkste vondst was wat er zonder slot zou gebeuren.** Een ingeladen merk met acht actieve
+clusters wordt door de maandcron gewoon gemeten (8 × ~$0,82 per maand), en de ochtendronde laat de
+ingeplande pagina's van de komende tien dagen schrijven. Het dagbudget op nul remt alleen wat een
+gebruiker start, niet de crons. Daarom `profiles.is_demo` (migratie 0138) en één functie in
+`lib/demo.ts`, gevraagd door de maandcron, de cronroute van het plan (ochtendronde en Search Console),
+`checkBudgetForProfile()` en de werker als vangnet.
+
+**De demo wordt ingeladen langs de echte wegen.** Merkprofiel via `slaProfielOp()`, aanbod via
+`voegKnoopToe()`, antwoorden via `answerFact()`, kansen via `legKansenVast()`, voorraad via
+`syncBacklog()`, en de scores via `computeAggregates()` over ingeladen antwoorden: zo kan een cijfer op
+het scherm nooit afwijken van de antwoorden eronder. Wat normaal een AI-aanroep is (antwoorden, rapporten,
+teksten) komt uit databestanden; de ruwe kolommen dragen `{"bron":"demo"}` en `ai_calls` blijft leeg. De
+classificatie van genoemde merken zou een AI-aanroep zijn; alle partijen staan daarom vooraf vast
+(`PARTIJEN` in `merk.ts`), en de loader stopt als er toch een onbekende opduikt.
+
+**Alle datums zijn relatief aan vandaag**, ook de status van de pagina's in de lopende maand. Opnieuw
+inladen is dus verjongen. Een kalendereffect maakte dat in de eerste versie niet waar: een nulmeting op
+de 10e februari ligt minder dan 21 dagen voor de 1e maart, en kreeg dan een meetmoment minder dan
+dezelfde nulmeting in maart. De nulmetingen van latere clusters staan daarom op de 8e om 06:00.
+
+Getest: `tsc --noEmit`, `test:unit` (5340), `test:chain` en `build` groen. Het ketenscenario laadt het
+hele jaar met een AI-koppeling die bij elke aanroep faalt: 81 meetmomenten, 81 rapporten, 150 pagina's,
+nul AI-aanroepen, en een maand later opnieuw inladen verdubbelt niets. ⚠️ Nog niet op productie
+ingeladen (conventie 10): de remmen gelden pas als de code op `main` staat.

@@ -1,6 +1,7 @@
 # Demo-account RunX: een klant die al twaalf maanden actief is
 
-> Opgesteld op 1 oktober 2026 op verzoek van de eigenaar. Status: **plan, nog niets gebouwd.**
+> Opgesteld op 1 oktober 2026 op verzoek van de eigenaar. Status: **gebouwd en getest, nog niet
+> ingeladen op productie** (zie "Stand van de bouw" hieronder).
 > Doel: één merk in ORBIT ENGINE dat opent alsof het een trouwe, succesvolle klant is van twaalf
 > maanden, met een pakket van 10 pagina's per maand, acht clusters, een jaar meetgeschiedenis,
 > 120 geplaatste pagina's en de komende drie maanden (30 pagina's) ingepland. Bouwen kost **geen
@@ -27,6 +28,47 @@ Drie dingen moeten **vóór** het inladen gebeuren, anders kost de demo alsnog g
    Udenhout, testdoorloop) heeft vandaag 2 meetperiodes, 1 rapport, 5 pagina's en 1 planmaand. Geen
    enkel scherm is ooit getoond met 13 meetpunten, 8 clusters en 150 pagina's. Reken erop dat er
    daar dingen scheef staan die eerst opgelost moeten worden.
+
+## Stand van de bouw (1 oktober 2026)
+
+Besluiten van de eigenaar: route A (§2), en prospects loggen niet zelf in (§9.2 vervalt).
+
+| WP | Stand |
+|---|---|
+| 1 Slot | Gebouwd. Migratie `0138` staat op productie; `lib/demo.ts` en de vijf plekken uit §9.1 |
+| 2 Verhaal en rekenmodule | Gebouwd: `lib/demo/runx/vragen.ts`, `rekenen.ts`, `jaar.ts` |
+| 3 Databestanden | Gebouwd: `merk.ts`, `plan.ts`, `klantvragen.ts` |
+| 4 en 7 Teksten | Alle 150 pagina's hebben een tekst (`teksten/`), samen ruim 39.000 woorden |
+| 5 Laadroute | Gebouwd: `laden.ts`, `POST /api/beheer/demo/runx` en de knop "Voorbeeldaccount RunX" onder Beheer |
+| 6 Proefrit | In de ketentest: het hele jaar ingeladen met een AI-koppeling die bij elke aanroep faalt, daarna een maand later verjongd. Op productie nog niet, want de code moet eerst op `main` staan (zie hieronder) |
+| 8 Verjongen | Gebouwd: opnieuw op de knop drukken schuift alles naar vandaag |
+
+**Waar de bouw van dit plan afwijkt, en waarom:**
+
+- **De status van de pagina's in de lopende maand** staat niet vast (§6.3) maar volgt uit hun datum
+  ten opzichte van vandaag (`statusOp()` in `jaar.ts`): op de 1e van de maand kan er nog niets van die
+  maand live staan, op de 20e de helft. Zo klopt de demo op elke dag. De open vraag van §7 hangt
+  daarom aan de eerste pagina die op goedkeuring wacht, als open vraag van die pagina (besluit B3).
+- **Aantallen.** 81 meetmomenten (13, 13, 13, 13, 11, 9, 6 en 3 per cluster), 81 rapporten, 46
+  beantwoorde, 5 overgeslagen en 4 open vragen. De effectmeting komt uit dezelfde metingen: met
+  `nu` op 1 oktober 2026 zijn 65 pagina's gestegen en 51 gelijk gebleven (twee pronkpagina's, scheenbeenklachten en beginnen met hardlopen, horen bij die laatste groep). Dat is minder rooskleurig
+  dan §8 voorspelde, en eerlijker: een pagina heet alleen gestegen als zijn doelvragen in de meting
+  ook echt omsloegen.
+- **De voorraad** telt 8 kaarten in plaats van 12: vier voorraadkansen raken vragen die een open kans al
+  had, en `legKansenVast()` maakt ze terecht bewijs bij die kans (V7).
+- **De teksten** zijn gemiddeld 266 woorden; de dertien pronkpagina's 600 tot 900. §6.4 rekende op 700
+  tot 1.400 voor elke pagina. Wordt een pagina in een gesprek te kort bevonden, dan is hij in
+  `teksten/` uit te breiden zonder iets anders te raken.
+- **Niet ingeladen:** de reputatieanalyse (§8, bewust) en de kennistest (`profile_llm_baseline`). Die
+  laatste kan later; zonder voelt geen scherm leeg.
+- **Kansen** houden de status `open`, ook als hun pagina geplaatst is: de app zet die status vandaag
+  nergens anders, dus de demo doet dat ook niet.
+
+**Om de demo op productie te krijgen:**
+
+1. Deze branch naar `main` (pas dan gelden de remmen van het slot voor de crons op productie).
+2. Na de deploy: Beheer → "Voorbeeldaccount RunX" → Inladen. Duurt een paar minuten, tien stappen.
+3. Nalopen met het scenario van §10, en het logboek bijwerken met wat er op productie te zien was.
 
 ## 1. Wat er nagezocht is, en waar dit plan op rust
 

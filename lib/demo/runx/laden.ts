@@ -58,8 +58,9 @@ import { dagIn, demoId, isoDag, maandStart, meet, toeval } from "@/lib/demo/runx
 
 type Admin = SupabaseClient;
 
-export const PROFIEL_ID = demoId("profiel");
-export const ACCOUNT_ID = demoId("account");
+import { PROFIEL_ID, ACCOUNT_ID } from "@/lib/demo/runx/ids";
+
+export { PROFIEL_ID, ACCOUNT_ID };
 
 /** De stappen, in volgorde. De route voert er één per verzoek uit. */
 export const STAPPEN = ["basis", ...CLUSTERS.map((c) => `cluster:${c.sleutel}`), "plan", "afronden"] as const;
@@ -98,10 +99,25 @@ export async function voerStapUit(admin: Admin, stap: string, opties: { gebruike
 
 // ── Hulpjes ─────────────────────────────────────────────────────────────────
 
+/**
+ * Upsert in delen van 500, gegroepeerd op welke kolommen een rij heeft.
+ *
+ * ⚠️ Een upsert met rijen van verschillende vorm vult een kolom die in de ene
+ * rij ontbreekt met `null`, niet met zijn standaardwaarde. Bij `content_pieces`
+ * gaf dat een fout op de verplichte kolom `review_notes` zodra er een tweede
+ * versie naast een eerste stond. Per vorm opslaan houdt elke standaardwaarde heel.
+ */
 async function upsert(admin: Admin, tabel: string, rijen: Record<string, unknown>[], onConflict = "id"): Promise<void> {
-  for (let i = 0; i < rijen.length; i += 500) {
-    const { error } = await admin.from(tabel).upsert(rijen.slice(i, i + 500), { onConflict });
-    if (error) throw new Error(`${tabel}: ${error.message}`);
+  const perVorm = new Map<string, Record<string, unknown>[]>();
+  for (const r of rijen) {
+    const vorm = Object.keys(r).sort().join(",");
+    perVorm.set(vorm, [...(perVorm.get(vorm) ?? []), r]);
+  }
+  for (const groep of perVorm.values()) {
+    for (let i = 0; i < groep.length; i += 500) {
+      const { error } = await admin.from(tabel).upsert(groep.slice(i, i + 500), { onConflict });
+      if (error) throw new Error(`${tabel}: ${error.message}`);
+    }
   }
 }
 

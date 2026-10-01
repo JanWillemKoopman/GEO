@@ -6,3 +6,9 @@ export interface DemoTekst {
   tekst: string;
   faq: { q: string; a: string }[];
 }
+
+/** Extra secties voor een pagina, ingevoegd vóór de afsluitende sectie (`uitbreiden()`). */
+export interface Uitbreiding {
+  tekst: string;
+  faq?: { q: string; a: string }[];
+}
