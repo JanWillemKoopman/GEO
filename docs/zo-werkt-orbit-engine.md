@@ -9,8 +9,8 @@
 > Wijkt de app af van wat hier staat, dan is de app leidend. Dit document beschrijft wat de app
 > vandaag doet; waar iets nog niet af is, staat dat er eerlijk bij.
 >
-> **Wil je dieper?** De technische doorloop per stap, met wat de AI precies meekrijgt, staat in
-> [`doorloop-van-klant-tot-content.md`](./doorloop-van-klant-tot-content.md). Waarom iets is zoals
+> **Wil je dieper?** De technische beschrijving per stap, met welke techniek en welke data erin en eruit gaat, staat in
+> [`pijplijn-technisch-overzicht.md`](./pijplijn-technisch-overzicht.md). Waarom iets is zoals
 > het is, staat in [`logbook.md`](./logbook.md).
 
 ---

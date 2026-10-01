@@ -9,14 +9,14 @@
 > ([JanWillemKoopman/GEO#208](https://github.com/JanWillemKoopman/GEO/pull/208)), het verwijderen van de
 > Sales-module en van het scherm Diagnose, en de nieuwe zijbalk (die raakt de pijplijn niet). De eerste versie van dit
 > document (29 september 2026) beschreef de stand na fase 2; fase 3 tot en met 5 en de Sales- en
-> Diagnosewijziging zijn in deze versie verwerkt. Waar dit document afwijkt van de oudere
-> documentatie in `docs/` (bijvoorbeeld `doorloop-van-klant-tot-content.md`), is de code leidend en staat
-> de afwijking in [bijlage G](#bijlage-g-waar-dit-document-afwijkt-van-de-oudere-documentatie).
+> Diagnosewijziging zijn in deze versie verwerkt. Waar dit document afweek van de oudere
+> documentatie in `docs/` (de doorloop, op 1 oktober 2026 verwijderd), was de code leidend; de afwijkingen staan
+> in [bijlage G](#bijlage-g-waar-dit-document-afwijkt-van-de-oudere-documentatie).
 >
 > **Wat wel en niet is gecontroleerd.** De code is gelezen. Er is voor dit document geen
 > betaalde AI-aanroep gedaan en geen database van productie bevraagd. De testsuites zijn bij de
 > samenvoeging wel gedraaid (zie het einde van bijlage H). Bedragen en
-> doorlooptijden komen uit de projectdocumentatie (`CLAUDE.md`, `docs/doorloop-van-klant-tot-content.md`)
+> doorlooptijden komen uit de projectdocumentatie (`CLAUDE.md` en de inmiddels verwijderde doorloop van klant tot content)
 > en zijn hier niet opnieuw gemeten; ze staan er als richtwaarde. Het project houdt zelf de regel aan dat
 > "gebouwd" niet "geverifieerd" is (`CLAUDE.md`, conventie 10). Waar ik uit de code iets afleid dat ik niet
 > heb kunnen nameten, staat dat er met "afgeleid uit de code" bij.
@@ -2780,7 +2780,7 @@ Alle cron-routes vragen `Authorization: Bearer <CRON_SECRET>` en geven anders 40
 ## Bijlage F. Kosten
 
 Alle bedragen zijn **richtwaarden uit de projectdocumentatie** (`CLAUDE.md`,
-`docs/doorloop-van-klant-tot-content.md`, opmerkingen in de code) en zijn voor dit document niet opnieuw
+de inmiddels verwijderde doorloop van klant tot content, opmerkingen in de code) en zijn voor dit document niet opnieuw
 gemeten. De echte kosten staan per aanroep in `ai_calls.cost_usd`.
 
 | Onderdeel | Richtwaarde |
@@ -2800,7 +2800,9 @@ gemeten. De echte kosten staan per aanroep in `ai_calls.cost_usd`.
 ## Bijlage G. Waar dit document afwijkt van de oudere documentatie
 
 Bij het nalezen tegen de code bleek een aantal beweringen in `docs/doorloop-van-klant-tot-content.md` (peildatum
-26 september 2026, gecontroleerd tegen `main` na PR #162) niet meer of niet te kloppen. De code is leidend.
+26 september 2026, gecontroleerd tegen `main` na PR #162) niet meer of niet te kloppen. De code is leidend. Dat
+document en `docs/processtappen-nieuwe-pagina.md` zijn op 1 oktober 2026 verwijderd; deze tabel blijft staan
+als verslag van wat er niet meer klopte.
 
 | Onderwerp | Oudere documentatie | Code op `main` |
 |---|---|---|

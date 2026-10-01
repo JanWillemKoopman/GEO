@@ -901,8 +901,8 @@ Per werkpakket: **doel**, **wat**, **niet**, **klaar als**. De nummers zijn vast
 
 #### D1 De documentatie
 - **Doel:** de documentatie beschrijft het systeem dat er staat.
-- **Wat:** `docs/architecture.md` opnieuw rond de vijf lagen van §1; `docs/doorloop-van-klant-tot-content.md`
-  en `docs/processtappen-nieuwe-pagina.md` bijgewerkt; `CLAUDE.md` waar nodig; dit document naar
+- **Wat:** `docs/architecture.md` opnieuw rond de vijf lagen van §1; `docs/pijplijn-technisch-overzicht.md`
+  en `docs/zo-werkt-orbit-engine.md` bijgewerkt; `CLAUDE.md` waar nodig; dit document naar
   "afgerond", met de uitkomsten in `docs/logbook.md`.
 - **Klaar als:** een nieuwe sessie die alleen de documentatie leest, kan uitleggen hoe een klantfeit van
   het gesprek in een pagina komt, en hoe een meting terug in de klantkennis komt.
@@ -1042,8 +1042,8 @@ per pagina opnieuw.
   (de SEO-meetlaag) gaat op in N3 en M2, sprint 4 (bestaande pagina's verbeteren) in de kans met
   handeling "verbeteren" (N2) en het kennisgat (N6), sprint 5 (autonomie tot aan de publicatieknop)
   komt pas na dit plan.
-- **`docs/doorloop-van-klant-tot-content.md`** beschrijft de app zoals hij vandaag is en wordt per
-  werkpakket bijgewerkt waar het gedrag verandert. Deel III daarvan (de tien punten om te bespreken) is
+- **`docs/doorloop-van-klant-tot-content.md`** is op 1 oktober 2026 verwijderd; de app zoals hij
+  vandaag is staat nu in `docs/pijplijn-technisch-overzicht.md`. Deel III van de doorloop (de tien punten om te bespreken) is
   in dit plan verwerkt: punt 1 in C1, punt 2 in A3, punt 3 in N2, punt 7 in K3 en K8, punt 8 in K7 en A4,
   punt 9 in A5. Punt 5 (het zoekvolume is een schatting) deels in N3: Search Console wordt bewijs van
   echte vraag; echte zoekvolumes blijven buiten de scope. Punt 4 (hoe dicht de nabootsing van ChatGPT
