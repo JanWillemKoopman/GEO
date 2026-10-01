@@ -9,6 +9,15 @@ import { Standbalk } from "./standbalk";
  * Terug, de ene naam van de pagina, één regel met soort, cluster en datum, de
  * standbalk. De kaart "Aan zet" komt direct hieronder en wordt door het scherm
  * zelf gevuld, want alleen dat weet welke knop er hoort.
+ *
+ * ── DE STAND STAAT ER ÉÉN KEER (1 oktober 2026) ─────────────────────────────
+ *
+ * De stand stond er drie keer: als label naast de titel, in de standbalk, en
+ * als zin in "Aan zet". Het label naast de titel staat er nu alleen nog als de
+ * standbalk niets laat zien (een pagina zonder fase, zoals "Nog niet
+ * ingepland") of als er iets mis is: dan is het de waarschuwing, geen
+ * herhaling. "Loopt achter" blijft altijd, want dat zegt de balk niet. De
+ * terugweg is gewone tekst en geen label in kapitalen meer.
  */
 export function PaginaKop({
   terug,
@@ -26,11 +35,12 @@ export function PaginaKop({
   stand: PaginaStand;
 }) {
   const regel = [soort, cluster, datum ? `gepland ${formatDag(datum)}` : null].filter(Boolean).join(" · ");
+  const toonLabel = stand.fase === null || stand.toon === "fout";
   return (
     <header className="flex flex-col gap-4">
       <Link
         href={terug.href}
-        className="mono-label flex w-fit items-center gap-1.5 transition-colors hover:text-[var(--text-primary)]"
+        className="type-compact flex w-fit items-center gap-1.5 text-muted transition-colors hover:text-[var(--text-primary)]"
       >
         <Icon naam="terug" size={14} />
         {terug.label}
@@ -45,9 +55,11 @@ export function PaginaKop({
               hier dus het accent, net als de stang van de kaart "Aan zet"
               eronder. In de lijsten (bibliotheek, plan) blijft hij oranje: daar
               is hij het signaal tussen tientallen rijen. */}
-          <span className={`${stand.toon === "wacht" ? "chip chip-attention" : STAND_CHIP[stand.toon]} shrink-0`}>
-            {stand.label}
-          </span>
+          {toonLabel && (
+            <span className={`${stand.toon === "wacht" ? "chip chip-attention" : STAND_CHIP[stand.toon]} shrink-0`}>
+              {stand.label}
+            </span>
+          )}
           {stand.looptAchter && <span className="chip chip-danger shrink-0">Loopt achter</span>}
         </div>
         {regel && <p className="type-caption text-muted">{regel}</p>}

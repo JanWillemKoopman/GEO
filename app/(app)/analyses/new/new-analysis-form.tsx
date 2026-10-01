@@ -269,11 +269,12 @@ export function NewAnalysisForm({
       )}
 
       <button
+        aria-busy={pending}
         type="submit"
         disabled={pending || !mixCheck.ok}
         className="btn-primary btn-lg w-full"
       >
-        {pending ? "Cluster aanmaken…" : "Start cluster"}
+        Start cluster
       </button>
     </form>
   );

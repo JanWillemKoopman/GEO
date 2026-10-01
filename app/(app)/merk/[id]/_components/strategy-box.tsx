@@ -213,12 +213,13 @@ export function StrategyBox({
           gesprek als laatste stap vast te leggen en niet als eerste. */}
       <div className="flex flex-col gap-1.5">
         <button
+          aria-busy={wacht}
           type="button"
           className="btn-primary w-fit"
           disabled={wacht}
           onClick={() => void save()}
         >
-          {wacht ? "Bezig…" : "Gesprek vastleggen en onderwerpen definitief maken"}
+          Gesprek vastleggen en onderwerpen definitief maken
         </button>
         <span className="text-sm text-muted">
           ORBIT ENGINE vervangt de voorlopige onderwerpen door een definitieve lijst, met wat je

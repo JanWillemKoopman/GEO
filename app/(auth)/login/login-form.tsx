@@ -89,8 +89,8 @@ export function LoginForm({
         </Alert>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
-        {pending ? "Bezig…" : "Inloggen"}
+      <button aria-busy={pending} type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
+        Inloggen
       </button>
     </form>
   );

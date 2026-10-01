@@ -314,7 +314,7 @@ function ZijNav({ groepen }: { groepen: NavHoofdstuk[] }) {
     >
       {groepen.map((groep) => (
         <div key={groep.naam} className="flex flex-col gap-1">
-          <span className="flex items-center gap-2 px-3 pb-1.5 text-[0.9375rem] font-medium text-[var(--text-primary)]">
+          <span className="flex items-center gap-2 px-3 pb-1.5 type-compact-emphasis text-[var(--text-primary)]">
             <span className="flex text-[var(--text-primary)]">
               <Icon naam={ICOON_PER_HOOFDSTUK[groep.naam]} size={16} />
             </span>

@@ -61,8 +61,8 @@ export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals })
 
   if (brands.length === 0) {
     return (
-      <div className="card flex flex-col gap-2">
-        <span className="mono-label">Nog geen merken</span>
+      <div className="flex flex-col gap-2">
+        <h3 className="type-body-emphasis">Nog geen merken</h3>
         <p className="text-secondary">
           Zodra je het eerste merk aanmaakt, staat het hier.
         </p>
@@ -317,12 +317,13 @@ function Rij({ brand }: { brand: CsmBrand }) {
       <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
         {brand.paginasTeLaat > 0 && (
           <button
+            aria-busy={bezig}
             type="button"
             className="btn-outline btn-sm"
             disabled={bezig}
             onClick={() => void verzetEnHerinplannen()}
           >
-            {bezig ? "Bezig…" : "Verzet en herinplannen"}
+            Verzet en herinplannen
           </button>
         )}
         {/* Wacht dit merk op een gesprek, dan is de sessie de volgende stap en

@@ -92,7 +92,7 @@ export function TopicsPanel({
   if (topics.length === 0) {
     return (
       <div className="card flex flex-col gap-3">
-        <span className="mono-label">Onderwerpen om op te meten</span>
+        <h3 className="type-body-emphasis">Onderwerpen om op te meten</h3>
         <p className="text-secondary">
           ORBIT ENGINE kon uit je aanbod geen onderwerpen afleiden. Dat gebeurt als de
           website te weinig prijsgaf om diensten uit te herkennen, bijvoorbeeld
@@ -324,12 +324,13 @@ export function TopicsPanel({
 
             <div className="flex flex-wrap gap-2">
               <button
+                aria-busy={bezig}
                 type="button"
                 className="btn-primary btn-sm"
                 disabled={bezig || !checkMix(mix).ok}
                 onClick={() => void start(t.id, mix)}
               >
-                {bezig ? "Starten…" : "Starten met deze verdeling"}
+                Starten met deze verdeling
               </button>
               <button
                 type="button"
@@ -416,12 +417,13 @@ export function TopicsPanel({
             )}
             {!t.analysis_id && t.stage !== "concept" && staff && (
               <button
+                aria-busy={bezig}
                 type="button"
                 className="btn-outline btn-sm"
                 disabled={bezig}
                 onClick={() => void start(t.id)}
               >
-                {bezig ? "Starten…" : "Cluster starten"}
+                Cluster starten
               </button>
             )}
             {/* ⚠️ Een aparte knop en geen veld dat altijd openstaat. Negen van de

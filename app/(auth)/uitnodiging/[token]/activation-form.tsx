@@ -127,8 +127,8 @@ export function ActivationForm({
         </Alert>
       )}
 
-      <button type="submit" className="btn-primary btn-lg mt-2 w-full" disabled={!mag}>
-        {busy ? "Bezig met activeren…" : "Activeer mijn account"}
+      <button aria-busy={busy} type="submit" className="btn-primary btn-lg mt-2 w-full" disabled={!mag}>
+        Activeer mijn account
       </button>
     </form>
   );

@@ -250,6 +250,7 @@ export function BrandWizard({
           )}
           {laatste ? (
             <button
+              aria-busy={busy}
               type="button"
               className="btn-primary btn-lg"
               onClick={() =>
@@ -259,10 +260,11 @@ export function BrandWizard({
               }
               disabled={wacht}
             >
-              {busy ? "Opslaan…" : "Opslaan en terug naar het overzicht"}
+              Opslaan en terug naar het overzicht
             </button>
           ) : (
             <button
+              aria-busy={busy}
               type="button"
               className="btn-primary"
               disabled={wacht}
@@ -272,7 +274,7 @@ export function BrandWizard({
                   : setStap(CLIENT_STEPS[stapIndex + 1])
               }
             >
-              {busy ? "Opslaan…" : "Volgende"}
+              Volgende
             </button>
           )}
         </div>

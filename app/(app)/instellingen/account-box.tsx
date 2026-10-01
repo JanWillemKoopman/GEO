@@ -180,8 +180,8 @@ export function AccountBox({
 
       {mayEdit && (
         <div className="flex flex-wrap items-center gap-3">
-          <button type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={wacht || !gewijzigd}>
-            {wacht ? "Bezig…" : "Opslaan"}
+          <button aria-busy={wacht} type="button" className="btn-primary btn-sm w-fit" onClick={() => void bewaar()} disabled={wacht || !gewijzigd}>
+            Opslaan
           </button>
           {!gewijzigd && !wacht && (
             <span className="text-sm text-muted">Alles staat bij.</span>
@@ -209,7 +209,6 @@ export function AccountBox({
             "Aan het einde van de betaalde maand stopt ORBIT ENGINE met meten en schrijven. Tot dat moment verandert er niets aan wat je ziet.",
         }}
         confirmLabel="Ja, zeg op"
-        confirmingLabel="Bezig…"
         busy={wacht}
         onCancel={() => setOpzegDialoog(false)}
         onConfirm={() => void zegOp()}

@@ -128,13 +128,13 @@ export function PublishBox({
         /* Regel 8 van §11: hooguit één hoofdactie per scherm. Dit is hem. Is de
            pagina al live, dan is er niets meer te doen en wordt het een gewone
            knop naar de gegevens. */
-        className={publishedAt ? "btn-outline btn-sm" : "btn-accent btn-sm"}
+        className={publishedAt ? "btn-outline" : "btn-accent"}
       >
         {publishedAt ? "Publicatie" : "Meld dat hij live staat"}
       </button>
 
       {open && (
-        <div className="menu-surface popover absolute right-0 z-30 mt-1 w-[min(26rem,calc(100vw-2rem))] p-4">
+        <div className="menu-surface popover absolute left-0 z-30 mt-1 w-[min(26rem,calc(100vw-2rem))] p-4">
           {state === "error" && problem ? (
             <ErrorNotice error={problem} onRetry={() => void publish()} />
           ) : publishedAt ? (
@@ -203,12 +203,13 @@ function NogNiet({
 
         <div className="flex flex-wrap gap-2">
           <button
+            aria-busy={bezig}
             type="button"
             className="btn-primary btn-sm"
             disabled={bezig}
             onClick={onPubliceer}
           >
-            {bezig ? "Controleren…" : "Ja, dit staat live"}
+            Ja, dit staat live
           </button>
           <button
             type="button"

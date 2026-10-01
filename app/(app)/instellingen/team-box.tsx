@@ -275,11 +275,12 @@ export function TeamBox({
               disabled={busy}
             />
             <button
+              aria-busy={busy}
               type="submit"
               className="btn-primary shrink-0"
               disabled={busy || !email.trim() || !voornaam.trim() || !achternaam.trim()}
             >
-              {busy ? "Bezig…" : "Uitnodigen"}
+              Uitnodigen
             </button>
           </div>
         </form>
@@ -291,7 +292,7 @@ export function TeamBox({
 
       {link && (
         <div className="card card-rail flex flex-col gap-2">
-          <span className="mono-label">De uitnodigingslink</span>
+          <h3 className="type-body-emphasis">De uitnodigingslink</h3>
           <p className="text-sm text-secondary">
             Stuur deze link naar je klant. Hij is twee weken geldig en werkt één
             keer. <strong>Je ziet hem nu voor het laatst</strong>: ORBIT ENGINE bewaart

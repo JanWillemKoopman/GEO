@@ -22,7 +22,10 @@ import { VERPLICHT_UITLEG, vraagVorm } from "@/lib/feitenvraag";
  *   • Geen knop "alles overslaan". Het besluit van 23 september 2026 is dat de
  *     klant elke vraag gezien heeft (§1).
  *   • Een beantwoorde vraag klapt in tot één regel met het antwoord en
- *     "Wijzig", zodat de lijst korter wordt naarmate het werk opschiet.
+ *     "Wijzig", zodat de lijst korter wordt naarmate het werk opschiet. Sinds
+ *     1 oktober 2026 gebeurt dat met een korte overgang en een vinkje dat
+ *     verschijnt (`.vraag-net-gedaan`): de kaart veranderde in één frame van
+ *     vorm, en dan ziet het oog een sprong in plaats van "gelukt".
  */
 export interface Vraag {
   id: string;
@@ -128,6 +131,9 @@ export function Vraagkaart({
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  // Alleen een vraag die in dit bezoek beantwoord wordt, krijgt de bevestiging;
+  // een vraag die al beantwoord binnenkwam, staat er gewoon.
+  const [netGedaan, setNetGedaan] = useState(false);
   const labelId = `vraag-${vraag.id}`;
 
   async function stuur(body: { answer?: string; skip?: boolean }) {
@@ -164,8 +170,11 @@ export function Vraagkaart({
   if (!bewerken) {
     const overgeslagen = stand.status === "overgeslagen";
     return (
-      <div className="card flex items-start gap-3">
-        <span className={overgeslagen ? "text-muted" : "text-[var(--trend-up-text)]"} aria-hidden>
+      <div className={`card flex items-start gap-3${netGedaan ? " vraag-net-gedaan" : ""}`}>
+        <span
+          className={`vraag-vinkje ${overgeslagen ? "text-muted" : "text-[var(--trend-up-text)]"}`}
+          aria-hidden
+        >
           <Icon naam={overgeslagen ? "nvt" : "klaar"} size={16} />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -243,10 +252,11 @@ export function Vraagkaart({
             <button
               type="button"
               className="btn-primary btn-sm"
+              aria-busy={bezig}
               disabled={bezig || !waarde.trim()}
               onClick={() => void stuur({ answer: waarde.trim() })}
             >
-              {bezig ? "Opslaan…" : "Antwoord opslaan"}
+              Antwoord opslaan
             </button>
           )}
           <button

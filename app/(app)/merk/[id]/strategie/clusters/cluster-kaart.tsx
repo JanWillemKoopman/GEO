@@ -88,22 +88,19 @@ export function ClusterKaart({
   const [fout, setFout] = useState<string | null>(null);
   const [vraagPrullenbak, setVraagPrullenbak] = useState(false);
   const [nieuwLabel, setNieuwLabel] = useState<string | null>(null);
-  const [labelMenuOpen, setLabelMenuOpen] = useState(false);
   const [meerMenuOpen, setMeerMenuOpen] = useState(false);
-  const labelMenuRef = useRef<HTMLDivElement>(null);
   const meerMenuRef = useRef<HTMLDivElement>(null);
 
   const label = labels.find((l) => l.id === analyse.label_id) ?? null;
 
   useEffect(() => {
-    if (!labelMenuOpen && !meerMenuOpen) return;
+    if (!meerMenuOpen) return;
     function buiten(e: MouseEvent) {
-      if (labelMenuRef.current && !labelMenuRef.current.contains(e.target as Node)) setLabelMenuOpen(false);
       if (meerMenuRef.current && !meerMenuRef.current.contains(e.target as Node)) setMeerMenuOpen(false);
     }
     function toets(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        setLabelMenuOpen(false);
+        setMeerMenuOpen(false);
         setMeerMenuOpen(false);
       }
     }
@@ -113,7 +110,7 @@ export function ClusterKaart({
       document.removeEventListener("mousedown", buiten);
       document.removeEventListener("keydown", toets);
     };
-  }, [labelMenuOpen, meerMenuOpen]);
+  }, [meerMenuOpen]);
 
   async function zetLabel(labelId: string | null) {
     setFout(null);
@@ -130,7 +127,7 @@ export function ClusterKaart({
         return;
       }
       setNieuwLabel(null);
-      setLabelMenuOpen(false);
+      setMeerMenuOpen(false);
       refresh();
     } catch {
       setFout(GEEN_VERBINDING);
@@ -249,7 +246,7 @@ export function ClusterKaart({
 
   return (
     <div
-      className={`card flex flex-col gap-3${heleKaartIsLink ? " card-link" : ""}`}
+      className={`cluster-regel flex flex-col gap-3${heleKaartIsLink ? " cluster-regel-link" : ""}`}
       role={heleKaartIsLink ? "link" : undefined}
       tabIndex={heleKaartIsLink ? 0 : undefined}
       onClick={heleKaartIsLink ? naarActie : undefined}
@@ -267,11 +264,11 @@ export function ClusterKaart({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           {kopLink && !gearchiveerd && !heleKaartIsLink ? (
-            <Link href={kopLink} className="truncate text-lg font-medium hover:underline">
+            <Link href={kopLink} className="type-section truncate hover:underline">
               {getClusterDisplayName(analyse.name)}
             </Link>
           ) : (
-            <span className="block truncate text-lg font-medium">{getClusterDisplayName(analyse.name)}</span>
+            <span className="type-section block truncate">{getClusterDisplayName(analyse.name)}</span>
           )}
           <LastUpdated at={analyse.updated_at} className="mono-label mt-1 block" />
         </div>
@@ -288,25 +285,35 @@ export function ClusterKaart({
           )}
           <StatusBadge status={analyse.status} />
           {!gearchiveerd && (
-            <div className="relative" ref={labelMenuRef}>
+            <div className="relative" ref={meerMenuRef}>
               <button
                 type="button"
-                aria-label={`Label voor ${getClusterDisplayName(analyse.name)}`}
+                aria-label={`Meer acties voor ${getClusterDisplayName(analyse.name)}`}
                 aria-haspopup="menu"
-                aria-expanded={labelMenuOpen}
+                aria-expanded={meerMenuOpen}
                 disabled={opSlot}
-                onClick={() => setLabelMenuOpen((o) => !o)}
+                onClick={() => setMeerMenuOpen((o) => !o)}
                 className="icon-btn"
               >
-                <Icon naam="label" size={16} />
+                <Icon naam="meer" size={16} />
               </button>
 
-              {labelMenuOpen && (
+              {meerMenuOpen && (
                 <div
                   role="menu"
-                  aria-label={`Label voor ${getClusterDisplayName(analyse.name)}`}
+                  aria-label={`Acties voor ${getClusterDisplayName(analyse.name)}`}
                   className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 text-left"
                 >
+                  <Link
+                    href={`/analyses/${analyse.id}/instellingen`}
+                    role="menuitem"
+                    onClick={() => setMeerMenuOpen(false)}
+                    className="menu-item"
+                  >
+                    <Icon naam="instellingen" size={16} />
+                    Cluster instellingen
+                  </Link>
+                  <div className="menu-scheiding" />
                   <span className="menu-kop">Label</span>
                   <button
                     type="button"
@@ -358,12 +365,13 @@ export function ClusterKaart({
                       />
                       <div className="flex gap-2">
                         <button
+                          aria-busy={opSlot}
                           type="button"
                           className="btn-primary btn-sm"
                           disabled={opSlot}
                           onClick={maakLabelEnKoppel}
                         >
-                          {opSlot ? "Bezig…" : "Opslaan"}
+                          Opslaan
                         </button>
                         <button
                           type="button"
@@ -376,48 +384,7 @@ export function ClusterKaart({
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-            </div>
-          )}
-          {!gearchiveerd && (
-            <div className="relative" ref={meerMenuRef}>
-              <button
-                type="button"
-                aria-label={`Meer acties voor ${getClusterDisplayName(analyse.name)}`}
-                aria-haspopup="menu"
-                aria-expanded={meerMenuOpen}
-                disabled={opSlot}
-                onClick={() => setMeerMenuOpen((o) => !o)}
-                className="icon-btn"
-              >
-                <Icon naam="meer" size={16} />
-              </button>
-
-              {meerMenuOpen && (
-                <div
-                  role="menu"
-                  aria-label={`Acties voor ${getClusterDisplayName(analyse.name)}`}
-                  className="menu-surface absolute right-0 top-full z-30 mt-1 w-64 text-left"
-                >
-                  <Link
-                    href={`/analyses/${analyse.id}/instellingen`}
-                    role="menuitem"
-                    onClick={() => setMeerMenuOpen(false)}
-                    className="menu-item"
-                  >
-                    <Icon naam="instellingen" size={16} />
-                    Cluster instellingen
-                  </Link>
-                  <Link
-                    href={analyticsLink}
-                    role="menuitem"
-                    onClick={() => setMeerMenuOpen(false)}
-                    className="menu-item"
-                  >
-                    <Icon naam="analytics" size={16} />
-                    AI zichtbaarheid
-                  </Link>
+                  <div className="menu-scheiding" />
                   <button
                     type="button"
                     role="menuitem"
@@ -481,9 +448,9 @@ export function ClusterKaart({
           Die is er niet meer, dus staat de knop hier. */}
       {!gearchiveerd && analyse.status === "mislukt" && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
-          <button type="button" className="btn-outline btn-sm" disabled={opSlot} onClick={() => void hervat()}>
+          <button aria-busy={opSlot} type="button" className="btn-outline btn-sm" disabled={opSlot} onClick={() => void hervat()}>
             <Icon naam="herstel" size={14} />
-            {opSlot ? "Bezig…" : "Probeer het opnieuw"}
+            Probeer het opnieuw
           </button>
           <span className="text-sm text-muted">
             Wat al gemeten is blijft staan, dus je begint niet van voren af aan.
@@ -494,13 +461,14 @@ export function ClusterKaart({
       {gearchiveerd && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
           <button
+            aria-busy={opSlot}
             type="button"
             className="btn-outline btn-sm"
             disabled={opSlot}
             onClick={() => zetArchief(false)}
           >
             <Icon naam="herstel" size={14} />
-            {opSlot ? "Bezig…" : "Terugzetten"}
+            Terugzetten
           </button>
           <span className="text-sm text-muted">
             Zolang dit cluster hier staat, wordt er niet meer gemeten.
@@ -532,7 +500,6 @@ export function ClusterKaart({
             "het meten weer verder."
           }
           confirmLabel="Naar de prullenbak"
-          confirmingLabel="Bezig…"
           busy={opSlot}
           danger
           onConfirm={() => zetArchief(true)}

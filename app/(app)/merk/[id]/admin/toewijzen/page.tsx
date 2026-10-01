@@ -95,7 +95,7 @@ export default async function ToewijzenPage({
 
       {clusterWaarschuwing && (
         <div className="card card-rail card-rail-warning flex flex-col gap-1">
-          <span className="mono-label">Nog niets om naar te kijken</span>
+          <h2 className="type-body-emphasis">Nog niets om naar te kijken</h2>
           <p className="text-sm text-secondary">{clusterWaarschuwing}</p>
         </div>
       )}
@@ -109,8 +109,8 @@ export default async function ToewijzenPage({
         profileId={id}
       />
 
-      <div className="card flex flex-col gap-2">
-        <span className="mono-label">Wie kan wat</span>
+      <div className="flex flex-col gap-2">
+        <h2 className="type-body-emphasis">Wie kan wat</h2>
         <ul className="flex flex-col gap-1 text-sm text-secondary">
           {(["admin", "klant"] as const).map((r) => (
             <li key={r}>

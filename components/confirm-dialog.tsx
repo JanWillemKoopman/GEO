@@ -88,8 +88,9 @@ export function ConfirmDialog({
             className={danger ? "btn-danger" : "btn-primary"}
             onClick={onConfirm}
             disabled={busy || confirmDisabled}
+            aria-busy={busy}
           >
-            {busy ? (confirmingLabel ?? "Bezig…") : confirmLabel}
+            {busy && confirmingLabel ? confirmingLabel : confirmLabel}
           </button>
         </DialogKnoppen>
       </div>

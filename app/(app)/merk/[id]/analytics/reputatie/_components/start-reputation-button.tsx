@@ -49,7 +49,7 @@ export function StartReputationButton({
   if (!mayStart) {
     return (
       <div className="card flex flex-col gap-2">
-        <span className="mono-label">Zo zet je hem in gang</span>
+        <h3 className="type-body-emphasis">Zo zet je hem in gang</h3>
         <p className="text-secondary">{deniedMessage}</p>
       </div>
     );
@@ -148,12 +148,13 @@ export function StartReputationButton({
       </fieldset>
       <div className="flex flex-wrap gap-2">
         <button
+          aria-busy={pending}
           type="button"
           className="btn-primary btn-sm"
           disabled={wacht}
           onClick={() => void start()}
         >
-          {pending ? "Starten…" : "Ja, start de meting"}
+          Ja, start de meting
         </button>
         <button
           type="button"

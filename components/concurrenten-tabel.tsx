@@ -218,10 +218,10 @@ export async function ConcurrentenTabel({
     <div className="flex flex-col gap-6">
       {/* ── 1. Ranglijst ───────────────────────────────────────────────────── */}
       {rankings === null || rankings.fragmented ? (
-        <div className="card flex flex-col gap-1">
-          <span className="mono-label">
+        <div className="flex flex-col gap-1">
+          <h3 className="type-body-emphasis">
             {rankings === null ? "Nog niet gemeten" : "Een versnipperde markt"}
-          </span>
+          </h3>
           <p className="text-secondary">
             {rankings === null
               ? "Zodra de eerste meetronde klaar is, staat hier wie er naast jou genoemd wordt."

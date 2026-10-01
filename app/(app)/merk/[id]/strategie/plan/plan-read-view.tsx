@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Icon } from "@/components/icon";
 import { CollapsibleSection } from "@/components/collapsible-section";
+import { Lijst, LijstRegel } from "@/components/lijst";
 import {
   PLAN_STATUS_META,
   MONTH_STATUS_META,
@@ -79,10 +79,13 @@ export function PlanReadView({
           Bovenaan en in gewone taal. Het planbord opende met "pakket 10 per
           maand · 12 ingepland · 40 content beschikbaar", en dat is de taal van
           degene die het plan maakt, niet van degene die ermee moet werken. */}
-      <div className="card card-rail flex flex-col gap-1">
-        <span className="mono-label">Wat er van jou gevraagd wordt</span>
-        <p className="text-secondary">{stap}</p>
-      </div>
+      {/* Sinds 1 oktober 2026 een zin direct onder de kop en geen kaart met een
+          label meer: hij staat al bovenaan, en een kader eromheen maakte er een
+          blok van naast de maanden in plaats van de inleiding erop. */}
+      <p className="type-body max-w-[44rem]">
+        <span className="font-medium">Van jou gevraagd: </span>
+        <span className="text-secondary">{stap}</span>
+      </p>
 
       {deze && (
         <MaandKaart
@@ -197,10 +200,10 @@ function MaandKaart({
   const eerste = opDatum.find((p) => p.scheduled_for && p.status !== "geplaatst");
 
   return (
-    <div className="card flex flex-col gap-4">
+    <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="type-body-emphasis">
+          <h2 className="type-section">
             {lopend ? "Deze maand" : maandTitel(plan.started_on, month.month_number)}
             {lopend && kalender && <span className="text-muted"> · {kalender.label}</span>}
           </h2>
@@ -216,75 +219,67 @@ function MaandKaart({
         </p>
       </div>
 
+      {/* Een lijst en geen tabel (1 oktober 2026). De tabel had zes kolommen
+          (een ervan zonder inhoud) en schoof op een telefoon zijwaarts. Nu
+          staat per pagina de titel, daaronder datum, cluster, nieuw of
+          bestaand en soort, en rechts de stand of de handeling. Zelfde vorm
+          als de Bibliotheek (`components/lijst.tsx`). */}
       {opDatum.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="tabel">
-            <thead>
-              <tr>
-                <th>Titel</th>
-                <th>Gepland</th>
-                <th>Cluster</th>
-                <th>Nieuw of optimalisatie</th>
-                <th>Soort pagina</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {opDatum.map((page) => {
-                const meta = PLAN_STATUS_META[page.status];
-                const href = contentHref(
-                  page.content_piece_id,
-                  page.topic_id ? (analyseVanOnderwerp.get(page.topic_id) ?? null) : null,
-                );
-                const cluster = page.source_analysis_id
-                  ? (clusterNaam[page.source_analysis_id] ?? null)
-                  : null;
-                return (
-                  <tr
-                    key={page.id}
-                    className="align-baseline"
-                  >
-                    <td className="min-w-[14rem]">
-                      {href ? (
-                        <Link href={href} className="font-medium hover:underline">
-                          {page.title}
-                        </Link>
-                      ) : (
-                        <span className="font-medium">{page.title}</span>
-                      )}
-                      {/* Bij `gepland` zegt de datum alles; de chip zou daar tien
-                          keer per maand hetzelfde zeggen. Zelfde regel als op het
-                          bord. */}
+        <Lijst label={lopend ? "Pagina's van deze maand" : `Pagina's van ${maandTitel(plan.started_on, month.month_number)}`}>
+          {opDatum.map((page) => {
+            const meta = PLAN_STATUS_META[page.status];
+            const href = contentHref(
+              page.content_piece_id,
+              page.topic_id ? (analyseVanOnderwerp.get(page.topic_id) ?? null) : null,
+            );
+            const cluster = page.source_analysis_id
+              ? (clusterNaam[page.source_analysis_id] ?? null)
+              : null;
+            const bijzaak = [
+              page.scheduled_for ? formatDagNL(page.scheduled_for) : "geen datum",
+              cluster,
+              page.recommendation_action ? CONTENT_ACTION_LABEL[page.recommendation_action] : null,
+              PAGE_TYPE_LABEL[page.page_type],
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <LijstRegel
+                key={page.id}
+                titel={
+                  href ? (
+                    <Link href={href} className="hover:underline">
+                      {page.title}
+                    </Link>
+                  ) : (
+                    page.title
+                  )
+                }
+                bijzaak={bijzaak}
+                rechts={
+                  page.status !== "gepland" || (href && meta.actionRequired) ? (
+                    <>
+                      {/* "Gepland" staat er niet bij: het geldt voor bijna elke
+                          regel en zou per maand tien keer hetzelfde zeggen. */}
                       {page.status !== "gepland" && (
-                        <span className={`${paginaChip(meta.tone)} ml-2`}>{meta.label}</span>
+                        <span className={paginaChip(meta.tone)}>{meta.label}</span>
                       )}
                       {href && meta.actionRequired && (
-                        <Link href={href} className="btn-outline btn-sm ml-2 inline-flex">
+                        <Link href={href} className="btn-outline btn-sm">
                           {page.status === "ter_goedkeuring" ? "Nakijken" : "Plaatsen"}
-                          <Icon naam="naar" size={14} />
                         </Link>
                       )}
-                    </td>
-                    <td className="mono-label whitespace-nowrap">
-                      {page.scheduled_for ? formatDagNL(page.scheduled_for) : "geen datum"}
-                    </td>
-                    <td className="text-secondary">{cluster ?? "-"}</td>
-                    <td className="text-secondary">
-                      {page.recommendation_action
-                        ? CONTENT_ACTION_LABEL[page.recommendation_action]
-                        : "-"}
-                    </td>
-                    <td className="text-secondary">{PAGE_TYPE_LABEL[page.page_type]}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </>
+                  ) : undefined
+                }
+              />
+            );
+          })}
+        </Lijst>
       )}
 
       {magVrijgeven && month.status !== "goedgekeurd" && telling.echt > 0 && (
-        <div className="flex flex-col gap-2 border-t border-[var(--border-subtle)] pt-4">
+        <div className="flex flex-col gap-2">
           <p className="text-sm text-secondary">
             Zolang deze maand niet gestart is, schrijft ORBIT ENGINE er niets van.
           </p>
@@ -299,7 +294,7 @@ function MaandKaart({
           />
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

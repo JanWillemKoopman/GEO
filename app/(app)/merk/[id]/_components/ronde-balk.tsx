@@ -28,6 +28,15 @@ import type { RondeMaand } from "@/lib/ronde";
  *   • "jij" alleen bij de stap die nu aan de beurt is. Het stond ook bij stappen
  *     die al klaar waren, en dan zag de klant twee keer "jij" zonder te weten
  *     welke telde.
+ *
+ * ── RUSTIGER, ZONDER IETS WEG TE HALEN (1 oktober 2026) ────────────────────
+ *
+ * Vijf stappen met elk een icoon, een naam, een stand, een toelichting en bij
+ * één een label: twintig regels tekst boven de taken, voor een blok dat zegt
+ * waar je staat en niet wat je moet doen. De toelichting staat nu alleen nog
+ * bij de stap die aan de beurt is; bij de andere staat hij in de tooltip. Zo
+ * leest de rij als vijf stappen met één uitgelicht, in plaats van vijf blokjes
+ * die allemaal even veel zeggen.
  */
 export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
   return (
@@ -50,6 +59,7 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
             key={fase.id}
             aria-current={fase.actief ? "step" : undefined}
             className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-xl)] px-3 py-2.5"
+            title={!fase.actief && fase.detail ? fase.detail : undefined}
             style={{
               // ⚠️ De stap van nu krijgt een eigen vlak. Een ander icoontje en
               // iets dikkere letters (tot 23 september 2026) vielen tussen vijf
@@ -90,7 +100,7 @@ export function RondeBalk({ ronde }: { ronde: RondeMaand }) {
             </span>
 
             <span className="mono-label truncate">{fase.stand}</span>
-            {fase.detail && <span className="text-sm text-muted">{fase.detail}</span>}
+            {fase.actief && fase.detail && <span className="text-sm text-muted">{fase.detail}</span>}
 
             {fase.actief && (
               // Aan de beurt is geen waarschuwing (UX-audit P2.1): oranje zegt

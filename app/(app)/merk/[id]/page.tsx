@@ -292,7 +292,9 @@ export default async function OverzichtPage({
 
       {/* ── 1. Deze maand ──────────────────────────────────────────────────
           De vijf stappen van de ronde, met wie er aan zet is. Zie
-          `lib/ronde.ts`. Onderaan sinds de UX-audit (zie de volgorde hierboven). */}
+          `lib/ronde.ts`. Bovenaan, boven de taken: besluit van de eigenaar,
+          30 september 2026 (`docs/logbook.md`), dat de UX-audit van
+          23 september terugdraaide. */}
       <SectionErrorBoundary label="Deze maand">
         <RondeBalk ronde={maand} />
       </SectionErrorBoundary>

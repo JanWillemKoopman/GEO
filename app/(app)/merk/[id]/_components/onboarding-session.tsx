@@ -414,7 +414,7 @@ export function OnboardingSession({
                 belangrijkste kansen het eerst genoemd (`ordenKansen()`). */}
             {kennisronde.length > 0 && (
               <div className="card flex flex-col gap-3">
-                <span className="mono-label">Wat dit gesprek het meest oplevert</span>
+                <h3 className="type-body-emphasis">Wat dit gesprek het meest oplevert</h3>
                 <p className="text-sm text-muted">
                   Dit weet ORBIT ENGINE nog niet over de onderwerpen waar de belangrijkste pagina&apos;s over
                   gaan. Vraag dit het eerst.
@@ -619,7 +619,7 @@ export function OnboardingSession({
 
           {schrijfWaarschuwingen.length > 0 && (
             <div className="card card-warning flex flex-col gap-2">
-              <span className="mono-label">Dit maakt de teksten zwakker</span>
+              <h3 className="type-body-emphasis">Dit maakt de teksten zwakker</h3>
               <p className="text-sm text-secondary">
                 ORBIT ENGINE gebruikt deze drie velden rechtstreeks bij het schrijven van elke pagina. Dun ingevuld
                 betekent een tekst die minder van {brandName} klinkt, zonder dat er ergens een
@@ -732,7 +732,7 @@ export function OnboardingSession({
               de klant kijkt mee. `refreshConfirmation()` bouwt de twee zinnen
               daarvoor, zodat er in dit bestand geen bedrag voorkomt. */}
           <div className="card flex flex-col gap-3">
-            <span className="mono-label">Het onderzoek bijwerken</span>
+            <h3 className="type-body-emphasis">Het onderzoek bijwerken</h3>
             {plan.tasks.length === 0 ? (
               <p className="text-secondary">
                 Er is niets veranderd waar het onderzoek anders van wordt. ORBIT ENGINE gaat
@@ -754,12 +754,13 @@ export function OnboardingSession({
             )}
             <div className="flex flex-wrap items-center gap-3">
               <button
+                aria-busy={bijwerken === "bezig"}
                 type="button"
                 className="btn-primary w-fit"
                 disabled={plan.tasks.length === 0 || bijwerken === "bezig"}
                 onClick={() => setBevestigBijwerken(true)}
               >
-                {bijwerken === "bezig" ? "Bezig…" : "Onderzoek bijwerken"}
+                Onderzoek bijwerken
               </button>
               {bijwerken === "gedaan" && (
                 <span className="text-sm text-secondary">
@@ -790,7 +791,6 @@ export function OnboardingSession({
             : undefined
         }
         confirmLabel="Onderzoek bijwerken"
-        confirmingLabel="Bezig…"
         busy={bijwerken === "bezig"}
         onConfirm={() => void werkBij()}
         onCancel={() => setBevestigBijwerken(false)}
@@ -809,7 +809,6 @@ export function OnboardingSession({
             "De inventaris en het aanbod zijn gebaseerd op de oude website. Draai \"Onderzoek bijwerken\" zodra je klaar bent, anders blijft ORBIT ENGINE werken met de oude pagina's.",
         }}
         confirmLabel="Website wijzigen"
-        confirmingLabel="Bezig…"
         busy={standen.url === "opslaan"}
         onConfirm={() => void bewaarUrl()}
         onCancel={() => setBevestigUrl(false)}

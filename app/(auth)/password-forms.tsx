@@ -47,8 +47,8 @@ export function PasswordResetRequestForm() {
         </Alert>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
-        {pending ? "Versturen…" : "Stuur me een herstel-link"}
+      <button aria-busy={pending} type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
+        Stuur me een herstel-link
       </button>
     </form>
   );
@@ -125,8 +125,8 @@ export function NewPasswordForm() {
         </Alert>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
-        {pending ? "Opslaan…" : "Wachtwoord opslaan"}
+      <button aria-busy={pending} type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
+        Wachtwoord opslaan
       </button>
     </form>
   );

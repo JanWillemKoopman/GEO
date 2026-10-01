@@ -45,7 +45,7 @@ function CriteriumAs({
 
   return (
     <div className="card flex flex-col gap-2">
-      <span className="mono-label">{CRITERION_LABEL[criterium]}</span>
+      <h3 className="type-body-emphasis">{CRITERION_LABEL[criterium]}</h3>
       {eigenPlaats !== null && ofParties !== null ? (
         <>
           <span className="data-card-waarde">

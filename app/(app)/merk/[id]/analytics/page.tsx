@@ -394,8 +394,8 @@ export default async function AnalyticsPage({
           waar het werk uit deze meting staat; sinds 22 september 2026 is dat
           de enige plek waar een klant dat verband nog te zien krijgt. */}
       {clusterConclusie && (
-        <div className="card flex flex-col gap-3">
-          <span className="mono-label">Wat dit cluster laat zien</span>
+        <div className="flex flex-col gap-3">
+          <h2 className="type-body-emphasis">Wat dit cluster laat zien</h2>
           <p className="text-secondary">{clusterConclusie.samenvatting}</p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <Link href={`/merk/${id}/strategie/vragen`} className="link type-caption">
@@ -482,8 +482,8 @@ export default async function AnalyticsPage({
           de AI-zichtbaarheidsscore, want het is het bewijs dat er iets
           gebeurt, niet de meting van hoe goed het gaat. */}
       {opbrengstLeeg ? (
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">{opbrengstLeeg.kop}</span>
+        <div className="flex flex-col gap-2">
+          <h2 className="type-body-emphasis">{opbrengstLeeg.kop}</h2>
           <p className="text-secondary">{opbrengstLeeg.uitleg}</p>
           {opbrengstLeeg.geruststelling && (
             <p className="text-sm text-muted">{opbrengstLeeg.geruststelling}</p>
@@ -491,7 +491,7 @@ export default async function AnalyticsPage({
         </div>
       ) : (
         <div className="card flex flex-col gap-3">
-          <span className="mono-label">Wat het in Google opleverde</span>
+          <h2 className="type-body-emphasis">Wat het in Google opleverde</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="flex flex-col gap-1">
               <span className="data-card-label">Pagina&apos;s live</span>

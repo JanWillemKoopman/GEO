@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { useToast } from "@/components/toast";
 import { renderMarkdown } from "@/lib/markdown";
 import { markeerZinnen } from "@/lib/tekst-markering";
@@ -17,6 +18,13 @@ import { GEEN_VERBINDING_TITEL, GEEN_VERBINDING_UITLEG } from "@/lib/meldingen";
  *
  * Geen cijfers en geen tabbladen met bevindingen (§6.9): de punten van de
  * eindredacteur staan ingeklapt onder "Wat ORBIT ENGINE nog ziet".
+ *
+ * Volgorde sinds 1 oktober 2026: wat je moet weten om te beslissen staat vóór
+ * de knop "Keur goed". De gegevens van je huidige pagina die niet in de nieuwe
+ * tekst staan, stonden eronder, en wie al goedgekeurd had las pas daarna dat
+ * er een telefoonnummer was weggevallen. De vraag van ORBIT ENGINE en die
+ * gegevens zijn gewone tekst met een kop en geen kaart meer; een kaart houden
+ * alleen de dingen waar je iets mee doet (de gele zinnen, de tekst zelf).
  */
 export function Goedkeuren({
   profileId,
@@ -136,8 +144,8 @@ export function Goedkeuren({
   return (
     <div className="flex flex-col gap-6">
       {notitie && !goedgekeurd && (
-        <section className="card flex flex-col gap-2">
-          <h2 className="type-section">Een vraag van ORBIT ENGINE</h2>
+        <section className="flex flex-col gap-1">
+          <h2 className="type-body-emphasis">Een vraag van ORBIT ENGINE</h2>
           <p className="type-body text-secondary">{notitie}</p>
         </section>
       )}
@@ -193,6 +201,23 @@ export function Goedkeuren({
         </section>
       ) : (
         <article className="card prose" dangerouslySetInnerHTML={{ __html: html }} />
+      )}
+
+      {verdwenen.length > 0 && !goedgekeurd && (
+        <section className="flex flex-col gap-2">
+          <h2 className="type-body-emphasis">Gegevens van je huidige pagina</h2>
+          <p className="type-body text-secondary">
+            Deze gegevens staan op je huidige pagina en niet in de nieuwe tekst. Horen ze erbij, vraag dan een
+            aanpassing. Zijn ze niet meer actueel, dan kun je gewoon goedkeuren.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {verdwenen.map((g) => (
+              <li key={g} className="chip">
+                {g}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {!goedgekeurd && (
@@ -254,34 +279,16 @@ export function Goedkeuren({
         </section>
       )}
 
-      {verdwenen.length > 0 && !goedgekeurd && (
-        <section className="card flex flex-col gap-2">
-          <h2 className="type-section">Gegevens van je huidige pagina</h2>
-          <p className="type-body text-secondary">
-            Deze gegevens staan op je huidige pagina en niet in de nieuwe tekst. Horen ze erbij, vraag dan een
-            aanpassing. Zijn ze niet meer actueel, dan kun je gewoon goedkeuren.
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {verdwenen.map((g) => (
-              <li key={g} className="chip">
-                {g}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {punten.length > 0 && !goedgekeurd && (
-        <details className="card">
-          <summary className="type-section cursor-pointer">Wat ORBIT ENGINE nog ziet</summary>
-          <ul className="mt-3 flex flex-col gap-2">
+        <CollapsibleSection title="Wat ORBIT ENGINE nog ziet" compact card defaultOpen={false}>
+          <ul className="flex flex-col gap-2">
             {punten.map((p, i) => (
               <li key={i} className="type-body text-secondary">
                 <span className="text-primary">{p.waar}:</span> {p.probleem} {p.hoe}
               </li>
             ))}
           </ul>
-        </details>
+        </CollapsibleSection>
       )}
     </div>
   );

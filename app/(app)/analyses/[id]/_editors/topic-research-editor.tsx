@@ -72,8 +72,8 @@ export function TopicResearchEditor({
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={() => void save()} disabled={saving} className="btn-primary">
-          {saving ? "Opslaan…" : "Wijzigingen opslaan"}
+        <button aria-busy={saving} onClick={() => void save()} disabled={saving} className="btn-primary">
+          Wijzigingen opslaan
         </button>
         {saved && (
           <span className="flex items-center gap-1.5 text-sm text-[var(--trend-up-text)]">

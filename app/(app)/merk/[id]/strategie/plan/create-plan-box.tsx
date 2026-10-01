@@ -109,7 +109,7 @@ export function CreatePlanBox({
   return (
     <div className="flex flex-col gap-4">
       <div className="card flex flex-col gap-3">
-        <span className="mono-label">Nog geen contentplan</span>
+        <h3 className="type-body-emphasis">Nog geen contentplan</h3>
         <p className="text-secondary">
           Een contentplan geeft je {MONTHS_AHEAD} maanden vooruit. ORBIT ENGINE vult
           elke maand vanzelf met de sterkste pagina-ideeën uit je metingen, jij keurt per
@@ -210,12 +210,13 @@ export function CreatePlanBox({
             {note.length}/{MAX_STRATEGY_NOTE_LENGTH}
           </span>
           <button
+            aria-busy={wacht}
             type="button"
             className="btn-primary btn-lg w-fit"
             onClick={() => void maak()}
             disabled={wacht}
           >
-            {wacht ? "Bezig met opstellen…" : "Stel het contentplan op"}
+            Stel het contentplan op
           </button>
         </div>
       )}

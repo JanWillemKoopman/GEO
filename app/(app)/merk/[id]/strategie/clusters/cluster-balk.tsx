@@ -137,7 +137,7 @@ export function ClusterBalk({
           <select
             value={statusfilter}
             onChange={(e) => kiesStatus(e.target.value)}
-            className="field field-select w-auto"
+            className="field field-sm field-select w-auto"
             aria-label="Filter op status"
           >
             <option value={STATUSFILTER_ALLES}>Alle statussen</option>
@@ -151,7 +151,7 @@ export function ClusterBalk({
           <select
             value={filter}
             onChange={(e) => kiesLabel(e.target.value)}
-            className="field field-select w-auto"
+            className="field field-sm field-select w-auto"
             aria-label="Filter op label"
           >
             <option value={LABELFILTER_ALLES}>Alle labels</option>

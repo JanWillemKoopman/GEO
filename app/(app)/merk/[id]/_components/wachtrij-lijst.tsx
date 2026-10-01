@@ -26,23 +26,31 @@ import {
  * cluster, en nergens waarom een taak ertoe deed of wat de klik zou doen. Dit
  * is het blok waar de klant ziet wat hij moet doen, dus het krijgt de ruimte:
  *
- * - Eén kolom, een sectie per band. Links de sectie zelf (icoon, naam, een
- *   groene teller, de weg naar dat hoofdstuk), rechts de taken. Zo blijven de
- *   vier blokken herkenbaar en loopt het oog van boven naar beneden, in plaats
- *   van zigzag over twee kolommen waarvan de verdeling van hoogtes afhing.
- * - Elke taak is een eigen regel met drie lagen: waar het over gaat (bij een
- *   cluster de clusternaam, `wachtrijRegel()`), één zin waarom, en een knop die
- *   zegt wat er gebeurt. De hele regel is de link; de knop is een `<span>`,
- *   geen tweede `<a>`.
- * - De dringendste taak van het hele scherm (`eersteId`, de eerste na
- *   `sortWork()`) krijgt de enige primaire knop. Het scherm vraagt zo op één
- *   plek om een klik, en dat is de plek waar de klant het meeste vrijmaakt.
+ * - Eén kolom, een sectie per band. Links de sectie zelf (icoon, naam, hoeveel
+ *   er open staat, de weg naar dat hoofdstuk), rechts de taken.
+ * - Elke taak is één regel met twee lagen: waar het over gaat
+ *   (`wachtrijRegel()`) en één zin waarom. De hele regel is de link.
  *
- * ── DE TELLERS ZIJN GROEN, DE PRIMAIRE KNOP DONKER ──────────────────────────
+ * ── GEEN KNOPPEN, WEL EEN WOORD (30 september en 1 oktober 2026) ───────────
  *
- * Groen is hier dezelfde `chip-success` als "Klaar voor jouw akkoord" op het
- * clusteroverzicht: iets ligt klaar en wacht op de klant, er is niets mis. Rood
- * blijft gereserveerd voor een blokkade (`WachtrijKaart` hieronder).
+ * Op 30 september 2026 verdwenen de knoppen uit deze lijst: er stonden er soms
+ * tien onder elkaar, en tien knoppen zijn er nul. Daarna stond er per regel
+ * alleen nog een pijltje, en zei het scherm nergens meer wat de klik deed. De
+ * startpagina van een product dat de klant door zijn taken leidt, had zo geen
+ * zichtbare volgende stap.
+ *
+ * Sinds 1 oktober 2026 noemt de dringendste regel van het scherm (`eersteId`,
+ * de eerste na `sortWork()`) zijn handeling in woorden naast de punthaak
+ * ("Beantwoord de vragen"), in de leeskleur en zonder knopvorm. Eén regel
+ * spreekt, de rest wijst alleen. Zo blijft het besluit van 30 september
+ * staan (geen knoppen) en heeft het scherm toch één plek die zegt: begin hier.
+ *
+ * ── ÉÉN VLAK, ÉÉN TELLER PER SECTIE (1 oktober 2026) ───────────────────────
+ *
+ * De regels stonden in een omlijnd vak, in een sectie, in een kaart: drie
+ * randen om één lijst. Het vak is weg; de regels hebben alleen nog hun
+ * scheidingslijn. Het aantal per sectie is gewone tekst en geen label meer,
+ * want het totaal staat al als label boven de lijst.
  */
 const SECTIE_ICOON: Record<WachtrijSectie["kop"], IcoonNaam> = {
   Cluster: "goedkeuring",
@@ -56,13 +64,14 @@ export function WachtrijLijst({
   eersteId,
 }: {
   overzicht: WachtrijOverzicht;
-  /** De dringendste taak, die als enige een primaire knop krijgt. */
+  /** De dringendste taak, de enige regel die zijn handeling in woorden noemt. */
   eersteId?: string;
 }) {
+  const eerste = eersteId ?? null;
   return (
     <div className="flex flex-col gap-5">
       {overzicht.waarschuwingen.map((item) => (
-        <WachtrijKaart key={item.id} item={item} />
+        <WachtrijKaart key={item.id} item={item} spreekt={item.id === eerste} />
       ))}
       {overzicht.secties.length > 0 && (
         <div className="card overflow-hidden !p-0">
@@ -79,7 +88,7 @@ export function WachtrijLijst({
                 <SectieKop sectie={sectie} />
                 <div className="flex min-w-0 flex-col gap-5">
                   {subkoppen.map((sub) => (
-                    <SubkopBlok key={sub.subkop} sub={sub} />
+                    <SubkopBlok key={sub.subkop} sub={sub} eersteId={eerste} />
                   ))}
                   {/* Meer dan vier taken in dit blok: de rest staat in het
                       hoofdstuk zelf (`beperkSectie()` in `lib/wachtrij.ts`). */}
@@ -110,10 +119,7 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
         </span>
         {sectie.kop}
       </h3>
-      {/* Neutraal, niet groen (UX-audit P2.1): groen betekent "gelukt". */}
-      <span className="chip chip-neutral">
-        {sectie.aantal} open
-      </span>
+      <span className="type-caption text-muted tabular">{sectie.aantal} open</span>
       <Link
         href={sectie.overzichtHref}
         className="inline-flex items-center gap-1 text-sm text-secondary hover:underline md:mt-1"
@@ -125,14 +131,14 @@ function SectieKop({ sectie }: { sectie: WachtrijSectie }) {
   );
 }
 
-function SubkopBlok({ sub }: { sub: WachtrijSubkop }) {
+function SubkopBlok({ sub, eersteId }: { sub: WachtrijSubkop; eersteId: string | null }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1">
       <span className="mono-label">{sub.subkop}</span>
-      <ul className="vlak flex flex-col divide-y divide-[var(--line-muted)] overflow-hidden p-0">
+      <ul className="-mx-3 flex flex-col divide-y divide-[var(--line-muted)]">
         {sub.items.map((item) => (
           <li key={item.id}>
-            <TaakRegel item={item} />
+            <TaakRegel item={item} spreekt={item.id === eersteId} />
           </li>
         ))}
       </ul>
@@ -140,24 +146,26 @@ function SubkopBlok({ sub }: { sub: WachtrijSubkop }) {
   );
 }
 
-function TaakRegel({ item }: { item: WorkItem }) {
+function TaakRegel({ item, spreekt }: { item: WorkItem; spreekt: boolean }) {
   const { titel, cluster } = wachtrijRegel(item);
   return (
     <Link
       href={item.href}
-      className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 transition-colors hover:bg-[var(--bg-surface-raised)]"
+      // Alleen de sprekende regel mag afbreken (zijn handeling valt op een
+      // telefoon onder de tekst); een losse punthaak blijft op dezelfde regel.
+      className={`flex ${spreekt ? "flex-wrap" : ""} items-center gap-x-6 gap-y-2 rounded-[var(--radius-md)] px-3 py-3 transition-colors hover:bg-[var(--bg-surface-raised)]`}
     >
       {/* Twee regels: wat en waarom (UX-audit P2.2). Het cluster en de extra
           informatie staan in de tooltip; vier regels per taak maakten de lijst
           twee keer zo traag om te scannen. */}
       <div
-        className="flex min-w-0 flex-1 basis-72 flex-col gap-1"
+        className={`flex min-w-0 flex-1 flex-col gap-1 ${spreekt ? "basis-72" : ""}`}
         title={[cluster ? `Cluster: ${cluster}` : null, item.meta].filter(Boolean).join(". ") || undefined}
       >
         <span className="font-medium">{titel}</span>
         <span className="text-sm text-secondary">{item.why}</span>
       </div>
-      <ActiePijl label={item.actionLabel ?? "Bekijken"} />
+      <ActiePijl label={item.actionLabel ?? "Bekijken"} spreekt={spreekt} />
     </Link>
   );
 }
@@ -167,13 +175,22 @@ function TaakRegel({ item }: { item: WorkItem }) {
  *
  * Er stonden er op het overzicht soms tien onder elkaar, elk met een omlijnde
  * knop, en dan is er geen knop meer die iets betekent. De hele regel is al de
- * link; het pijltje laat zien dat er iets opent, en de tekst van de actie staat
- * in de tooltip en voor schermlezers.
+ * link; de punthaak laat zien dat er iets opent, en de tekst van de actie staat
+ * in de tooltip en voor schermlezers. Alleen de regel die `spreekt` (de
+ * dringendste van het scherm) zet die tekst zichtbaar naast de punthaak.
  */
-function ActiePijl({ label }: { label: string }) {
+function ActiePijl({ label, spreekt }: { label: string; spreekt: boolean }) {
+  if (spreekt) {
+    return (
+      <span className="type-compact-emphasis flex shrink-0 items-center gap-1 text-[var(--text-primary)]">
+        {label}
+        <Icon naam="verder" size={16} />
+      </span>
+    );
+  }
   return (
-    <span className="shrink-0 text-secondary" title={label}>
-      <Icon naam="naar" size={18} />
+    <span className="shrink-0 text-muted" title={label}>
+      <Icon naam="verder" size={16} />
       <span className="sr-only">{label}</span>
     </span>
   );
@@ -184,10 +201,10 @@ function ActiePijl({ label }: { label: string }) {
  *
  * ⚠️ De type-chip (`item.typeLabel`) staat er sinds 21 september 2026 altijd
  * bij. ⚠️ De hele kaart is de link (`.card-link`), sinds 22 september 2026. De
- * knop rechts is een `<span>` en geen tweede `<a>`, en is omlijnd: de enige
- * primaire knop van het scherm hoort bij de dringendste taak (`TaakRegel`).
+ * actie rechts is een `<span>` en geen tweede `<a>`. Een blokkade is meestal
+ * de dringendste taak, en dan noemt deze kaart zijn handeling in woorden.
  */
-function WachtrijKaart({ item }: { item: WorkItem }) {
+function WachtrijKaart({ item, spreekt }: { item: WorkItem; spreekt: boolean }) {
   const blokkerend = workChipTone(item.kind) === "danger";
 
   return (
@@ -207,7 +224,7 @@ function WachtrijKaart({ item }: { item: WorkItem }) {
         <span className="text-sm text-secondary">{item.why}</span>
         {item.meta && <span className="mono-label">{item.meta}</span>}
       </div>
-      <ActiePijl label={item.actionLabel ?? "Bekijken"} />
+      <ActiePijl label={item.actionLabel ?? "Bekijken"} spreekt={spreekt} />
     </Link>
   );
 }

@@ -150,8 +150,8 @@ export default async function ReputatiePage({
     return (
       <div className="flex flex-col gap-8">
         <Kop />
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">Nog niet gemeten</span>
+        <div className="flex flex-col gap-2">
+          <h2 className="type-body-emphasis">Nog niet gemeten</h2>
           <p className="text-secondary">
             ORBIT ENGINE vraagt ChatGPT hoe er over {merk} gepraat wordt: per product, met de
             bronnen erbij, en met de vraag die een koper stelt. Je ziet per product of ChatGPT je
@@ -190,8 +190,8 @@ export default async function ReputatiePage({
     return (
       <div className="flex flex-col gap-8">
         <Kop />
-        <div className="card flex flex-col gap-2">
-          <span className="mono-label">De meting loopt</span>
+        <div className="flex flex-col gap-2">
+          <h2 className="type-body-emphasis">De meting loopt</h2>
           <p className="text-secondary">
             ORBIT ENGINE heeft {laatste.questions_done} van de {laatste.questions_planned || "?"}{" "} AI-vragen gesteld. Er {open === 1 ? "staat nog 1 stap" : `staan nog ${open ?? 0} stappen`}{" "}
             open.
@@ -214,7 +214,7 @@ export default async function ReputatiePage({
       <div className="flex flex-col gap-8">
         <Kop />
         <div className="card card-danger flex flex-col gap-2">
-          <span className="mono-label">De meting is niet gelukt</span>
+          <h2 className="type-body-emphasis">De meting is niet gelukt</h2>
           {/* ⚠️ Geen half cijfer. Een cijfer op twee antwoorden is geen cijfer,
               en zo eentje één keer tonen kost het vertrouwen in alle volgende. */}
           {laatste.notes.length > 0 ? (
@@ -469,8 +469,8 @@ export default async function ReputatiePage({
             />
           </div>
           {bewijsgat && (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">Waar niets over te vinden was</span>
+            <div className="flex flex-col gap-1">
+              <h3 className="type-body-emphasis">Waar niets over te vinden was</h3>
               <p className="text-secondary">{bewijsgat}</p>
             </div>
           )}
@@ -484,7 +484,7 @@ export default async function ReputatiePage({
 
           {cijfers.length > 0 && (
             <div className="card flex flex-col gap-2">
-              <span className="mono-label">De cijfers die ChatGPT over je leest</span>
+              <h3 className="type-body-emphasis">De cijfers die ChatGPT over je leest</h3>
               <ul className="flex flex-col gap-2">
                 {cijfers.map((c) => (
                   <li key={c.domain} className="flex flex-wrap items-baseline justify-between gap-2">
@@ -640,7 +640,7 @@ function Patroon({
 }) {
   return (
     <div className="card flex flex-col gap-2">
-      <span className="mono-label">{kop}</span>
+      <h3 className="type-body-emphasis">{kop}</h3>
       {punten.length === 0 ? (
         <p className="type-compact text-muted">{leeg}</p>
       ) : (

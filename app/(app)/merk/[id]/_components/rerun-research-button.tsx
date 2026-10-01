@@ -207,12 +207,13 @@ export function RerunResearchButton({
       )}
       <div className="flex flex-wrap gap-2">
         <button
+          aria-busy={wacht}
           type="button"
           className="btn-primary btn-sm"
           disabled={wacht}
           onClick={() => void run()}
         >
-          {wacht ? "Starten…" : "Ja, opnieuw onderzoeken"}
+          Ja, opnieuw onderzoeken
         </button>
         <button
           type="button"

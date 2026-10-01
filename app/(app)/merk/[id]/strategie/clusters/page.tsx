@@ -247,10 +247,10 @@ export default async function ClustersPage({
 
         {inPrullenbak ? (
           zichtbaar.length === 0 ? (
-            <div className="card flex flex-col gap-1">
-              <span className="mono-label">
+            <div className="flex flex-col gap-1 py-2">
+              <h2 className="type-body-emphasis">
                 {gearchiveerd.length === 0 ? "De prullenbak is leeg" : "Geen clusters met dit filter"}
-              </span>
+              </h2>
               <p className="text-secondary">
                 {gearchiveerd.length === 0
                   ? "Clusters die je hier neerzet verdwijnen uit je overzicht en worden niet meer gemeten. Ze blijven wel staan, dus terugzetten kan altijd."
@@ -258,7 +258,7 @@ export default async function ClustersPage({
               </p>
             </div>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="clusterlijst" aria-label="Clusters in de prullenbak">
               {zichtbaar.map((a) => (
                 <li key={a.id}>
                   <ClusterKaart analyse={a} labels={labels} gearchiveerd />
@@ -286,7 +286,11 @@ export default async function ClustersPage({
             geen enkele met dit label of deze status. Kies een ander filter.
           </EmptyState>
         ) : (
-          <ul className="flex flex-col gap-3">
+          // Eén lijst en geen stapel losse kaarten (1 oktober 2026), zoals de
+          // Bibliotheek: tien kaarten onder elkaar lazen als tien even zware
+          // blokken. Geen `Lijst` uit components/lijst.tsx, want die knipt af
+          // wat buiten zijn rand valt, en de menu's van een cluster vallen dat.
+          <ul className="clusterlijst" aria-label="Je clusters">
             {zichtbaar.map((a) => (
               <li key={a.id}>
                 <ClusterKaart

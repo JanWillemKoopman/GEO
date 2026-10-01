@@ -78,11 +78,12 @@ export function ConfirmBar({
           style={{ maxWidth: "var(--stand-werken)" }}
         >
           <button
+            aria-busy={pending}
             onClick={() => void confirm()}
             disabled={pending}
             className="btn-primary btn-lg w-full sm:w-auto"
           >
-            {pending ? "Meting starten…" : "Bevestig en start de meting"}
+            Bevestig en start de meting
           </button>
           {error ? (
             <span className="text-sm text-[var(--intent-danger-content)]" role="alert">
