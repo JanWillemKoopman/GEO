@@ -909,3 +909,14 @@ is een voorbeeldaccount met ingeladen data (`docs/tasks/demo-account-runx.md`): 
 ochtendronde, de Search Console-ophaling, elke betaalde knop en de werker slaan het over (`lib/demo.ts`).
 Additief en idempotent. Op productie toegepast op 1 oktober 2026 (migratienaam `demo_account`);
 nagerekend: 9 merken, 0 met de vlag.
+
+## 0139: tellers voor het klantenoverzicht
+
+Functie `beheer_klantcijfers(maandstart, fouten_sinds, gsc_van, gsc_tot, gsc_vorige_van, gsc_vorige_tot)`:
+één regel per account met de tellers onder het klantenoverzicht van de beheerder (`/beheer/klanten`,
+`lib/klantenoverzicht.ts`). Telt in de database omdat `ai_calls` (9.572 regels) en `search_console_days`
+(32.209) boven de grens van 1.000 regels per Supabase-query uitkomen. Kosten horen bij het account dat
+het merk nu heeft, niet bij het account op het moment van de aanroep. Alleen `service_role` mag hem
+aanroepen. Additief en idempotent. Op productie toegepast op 1 oktober 2026 (migratienaam
+`beheer_klantcijfers`); nagerekend: 6 regels voor 6 accounts, `anon` en `authenticated` hebben geen
+toegang, en $60,05 van de $61,92 aan AI-kosten valt bij een klant (de rest hoort bij geen merk of account).
