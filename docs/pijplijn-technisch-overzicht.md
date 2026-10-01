@@ -21,6 +21,16 @@
 > bereikstreepje): dat is wat het model krijgt. Bij een wijziging in een prompt is de code leidend; de
 > plek in de code staat bij elk blok.
 >
+> **Stroomschema's, routes en datamodel.** Elke hoofdstap begint met een stroomschema (Mermaid) van wie wie
+> aanroept. Bijlage I zet alle 80 API-routes op een rij met hun toegangs- en kostencontroles, en bijlage J
+> elke tabel van de productiedatabase met kolommen, regels en leesrechten.
+>
+> **Onder elke prompt staat de uitvoer.** Een tabel met de velden die het model moet teruggeven, met het
+> type, de toegestane waarden en of een veld leeg mag zijn. De tabellen zijn gegenereerd uit de
+> Zod-schema's in de code. Het model ziet alleen de veldnamen, de typen en de toegestane waarden (en een
+> beschrijving waar de code `.describe()` gebruikt, dat is op één plek zo); de toelichtingen in het
+> commentaar van de schema's ziet het model niet.
+>
 > **Wat wel en niet is gecontroleerd.** De code is gelezen. Er is voor dit document geen betaalde
 > AI-aanroep gedaan. Op productie zijn op 1 oktober 2026 twee dingen nagekeken: de schakelaars in Vercel
 > (bijlage D) en een paar tellingen in de database (aantal merken, accounts, gepubliceerde pagina's,
@@ -122,6 +132,8 @@ team wat er op elk moment achter de schermen gebeurt.
   - [Bijlage F. Kosten](#bijlage-f-kosten)
   - [Bijlage G. Waar dit document afwijkt van de oudere documentatie](#bijlage-g-waar-dit-document-afwijkt-van-de-oudere-documentatie)
   - [Bijlage H. Aandachtspunten voor het technische team](#bijlage-h-aandachtspunten-voor-het-technische-team)
+  - [Bijlage I. Alle API-routes](#bijlage-i-alle-api-routes)
+  - [Bijlage J. Het datamodel per tabel](#bijlage-j-het-datamodel-per-tabel)
 
 ---
 
@@ -223,7 +235,8 @@ idempotent (nooit `drop`).
 
 ## 4. Het datamodel in het kort
 
-Het volledige schema staat in `supabase/migrations/`. De tabellen die in dit document terugkomen, per laag:
+Het volledige schema staat in `supabase/migrations/`; elke tabel met zijn kolommen, regels en leesrechten staat in
+[bijlage J](#bijlage-j-het-datamodel-per-tabel). De tabellen die in dit document terugkomen, per laag:
 
 | Laag | Tabellen | Betekenis |
 |---|---|---|
@@ -257,6 +270,33 @@ Enkele afspraken over het model die de code afdwingt:
 
 Deze hoofdstap beschrijft de mechanismen die in elke andere hoofdstap terugkomen. Lees hem eerst; de
 latere hoofdstappen verwijzen ernaar met "zie 0.x".
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant S as Scherm
+    participant R as API-route
+    participant DB as Postgres (jobs)
+    participant C as pg_cron
+    participant W as Werker (/api/cron/worker)
+    participant H as Taakhandler
+    participant AI as OpenAI
+    S->>R: klik
+    R->>R: getUser, eigenaar, mayTriggerCost, dagplafond
+    R->>DB: enqueue(type, payload, dedupe_key)
+    R-->>S: 202, meteen antwoord
+    loop elke minuut
+        C->>W: pg_net GET met CRON_SECRET
+        W->>DB: reclaim_stuck_jobs(5), claim_jobs(5)
+        W->>H: taak uitvoeren (binnen 240 s)
+        H->>AI: callStructured of callPlain
+        AI-->>H: JSON of tekst
+        H->>DB: ai_calls (kosten, raw_json, input_json)
+        H->>DB: resultaat opslaan, opvolger enqueue
+        W->>DB: markDone, of bij een fout queued met 2, 4, 8 min
+    end
+```
 
 ### 0.1 De wachtrij met taken
 
@@ -460,6 +500,28 @@ Uit `CLAUDE.md` (conventies) en zichtbaar in de code:
 hele rest van de pijplijn leunt op deze laag: elke route controleert de eigenaar, en de kostenremmen (0.5)
 gebruiken de Admin-rol.
 
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor G as Gebruiker
+    participant L as Inlogscherm
+    participant RL as rate_limit_hit
+    participant A as Supabase Auth
+    participant MW as Middleware
+    participant P as Pagina of route
+    G->>L: e-mail en wachtwoord
+    L->>RL: 10 per adres, 60 per IP per 15 min
+    L->>A: signInWithPassword
+    A-->>G: sessiecookie
+    G->>MW: volgende verzoek
+    MW->>A: token verversen
+    MW->>P: x-apparaat, x-pad
+    P->>P: rolVan: Admin (vast adres, bevestigd) of Klant
+    P->>P: isStaff = Admin en geen klantweergave-cookie
+    P->>P: toegang: lid van het account, oude eigenaar, of Admin
+```
+
 ### 1.1 Het model: gebruiker, account, merk, Admin
 
 - **Wat.** Vier begrippen: een **gebruiker** (`auth.users`), een **account** (de laag boven het merk, de
@@ -573,6 +635,25 @@ onderzoek van hoofdstap 3.*
 **Doel van de hoofdstap.** Met zo min mogelijk invoer een merk vastleggen, zodat de pijplijn het onderzoek kan
 doen vóór er een gesprek met de klant is.
 
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor C as Consultant (Admin)
+    participant S as /merk/nieuw
+    participant R as POST /api/profiles
+    participant DB as Postgres
+    participant Q as Wachtrij
+    C->>S: naam, website, andere schrijfwijzen
+    S->>R: JSON
+    R->>R: login, mayTriggerCost(merk_onderzoeken), checkBudget
+    R->>R: checkUrlFormat, isReachable (6 s)
+    R->>DB: profiles (status bezig), account via defaultAccountFor
+    R->>DB: kennislaag (slaProfielOp), profile_field_sources
+    R->>Q: profile_light_scan (ronde 0)
+    R-->>S: 201 met id
+```
+
 ### 2.1 De consultant vult drie velden in
 
 - **Wat.** Bedrijfsnaam (verplicht), website (verplicht) en andere schrijfwijzen van de naam (optioneel).
@@ -634,6 +715,33 @@ vooronderzoek en daarna ongeveer 7,5 minuut. Kost: richtwaarde 25 dollarcent, me
 **Doel van de hoofdstap.** Vóór het eerste gesprek weten wie het bedrijf is, wat het aanbiedt, wie de
 concurrenten zijn en wat AI-assistenten er al over weten. De consultant verkoopt op wat de app gevonden heeft
 en weet welke vragen hij in het gesprek moet stellen.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant Q as Wachtrij
+    participant LS as profile_light_scan
+    participant DI as profile_discover
+    participant TA as technical_audit
+    participant PR as profile_research
+    participant OF as profile_offering
+    participant PT as propose_topics
+    participant MA as profile_market
+    participant LB as profile_llm_baseline
+    participant SY as profile_synthesis
+    Q->>LS: titels en omschrijvingen, tot 1.000 pagina's, tot 5 rondes
+    LS->>DI: daarna
+    DI->>DI: tot 150 pagina's lezen, crawl_focus (AI) bij meer
+    DI->>TA: parallel
+    DI->>PR: daarna
+    PR->>PR: AI met zoeken, status klaar (blokkerend)
+    PR->>OF: aanbodboom (AI, zonder zoeken), citaten nalopen
+    OF->>PT: als er knopen zijn (AI)
+    OF->>MA: marktonderzoek (AI met zoeken)
+    MA->>LB: kennistest, vier blokken (AI, oordeel in code)
+    LB->>SY: samenvatting (Sol), feiten en klussen nalopen
+```
 
 ### 3.0 De volgorde van de taken
 
@@ -754,6 +862,13 @@ SECTIES VAN DE SITE (dit is feitelijk, uit de sitemap):
 {per sectie: pad · aantal pagina's · bijvoorbeeld drie adressen}
 ```
 
+Uitvoer (Zod-schema `CrawlFocus`, `schemaName` `crawl_focus`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `prioritySegments` | lijst van tekst |  | verplicht |
+| `reasoning` | tekst |  | verplicht |
+
 ### 3.3 De technische audit
 
 - **Wat.** Kunnen AI-assistenten de site überhaupt lezen?
@@ -835,6 +950,27 @@ Geëxtraheerde website-tekst (kan onvolledig zijn):
 """
 {intakeblok}
 ```
+
+Uitvoer (Zod-schema `ProfileResearch`, `schemaName` `profile_research`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `brandName` | tekst |  | verplicht |
+| `industry` | tekst |  | verplicht |
+| `businessModel` | keuze | `retailer`, `platform`, `dienstverlener`, `fabrikant`, `overig` | verplicht |
+| `products` | lijst van tekst |  | verplicht |
+| `serviceScope` | keuze | `onbekend`, `lokaal`, `landelijk`, `internationaal` | verplicht |
+| `serviceRegions` | lijst van tekst |  | verplicht |
+| `marketLanguage` | tekst |  | verplicht |
+| `toneOfVoice` | tekst |  | verplicht |
+| `personas` | lijst van objecten |  | verplicht |
+| `personas[].name` | tekst |  | verplicht |
+| `personas[].needs` | lijst van tekst |  | verplicht |
+| `valueProps` | lijst van tekst |  | verplicht |
+| `competitors` | lijst van tekst |  | verplicht |
+| `summary` | tekst |  | verplicht |
+| `proofPoints` | lijst van tekst |  | verplicht |
+| `styleSamples` | lijst van tekst |  | verplicht |
 
 ### 3.5 Het aanbod als boom
 
@@ -923,6 +1059,22 @@ PAGINA'S ({aantal blokken} van de {aantal} gelezen pagina's, uit {secties} secti
 """
 ```
 
+Uitvoer (Zod-schema `OfferingTree`, `schemaName` `offering_tree`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `businessModel` | keuze | `retailer`, `platform`, `dienstverlener`, `fabrikant`, `overig` | verplicht |
+| `nodes` | lijst van objecten |  | verplicht |
+| `nodes[].kind` | keuze | `dienst`, `product`, `categorie`, `merk`, `vestiging` | verplicht |
+| `nodes[].name` | tekst |  | verplicht |
+| `nodes[].parent` | tekst |  | verplicht |
+| `nodes[].description` | tekst |  | verplicht |
+| `nodes[].audience` | tekst |  | verplicht |
+| `nodes[].priceIndication` | tekst |  | verplicht |
+| `nodes[].evidenceUrl` | tekst |  | verplicht |
+| `nodes[].evidenceQuote` | tekst |  | verplicht |
+| `gaps` | lijst van tekst |  | verplicht |
+
 ### 3.6 Onderwerpen voorstellen
 
 - **Wat.** Vijf tot acht onderwerpen waarop het merk gemeten kan worden. Dit zijn de kandidaten voor de
@@ -994,6 +1146,16 @@ UIT HET STRATEGISCH GESPREK MET DE KLANT:
 Weeg dit mee: een onderwerp dat hier direct op aansluit weegt zwaarder dan een dat alleen uit de website volgt.
 ```
 
+Uitvoer (Zod-schema `TopicProposals`, `schemaName` `topic_proposals`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `topics` | lijst van objecten |  | verplicht |
+| `topics[].title` | tekst |  | verplicht |
+| `topics[].rationale` | tekst |  | verplicht |
+| `topics[].offerings` | lijst van tekst |  | verplicht |
+| `topics[].priority` | getal |  | verplicht |
+
 ### 3.7 De markt
 
 - **Wat.** Begrijpen waarom concurrenten winnen en welke externe websites gezag hebben in deze markt.
@@ -1043,6 +1205,19 @@ Website: {url}
 Concurrenten die het eerdere onderzoek al vond (controleer ze en vul aan):
 {competitors}]
 ```
+
+Uitvoer (Zod-schema `MarketResearch`, `schemaName` `market_research`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `competitors` | lijst van objecten |  | verplicht |
+| `competitors[].name` | tekst |  | verplicht |
+| `competitors[].why` | tekst |  | verplicht |
+| `competitors[].evidenceUrl` | tekst |  | verplicht |
+| `sourceDomains` | lijst van objecten |  | verplicht |
+| `sourceDomains[].domain` | tekst |  | verplicht |
+| `sourceDomains[].whyItMatters` | tekst |  | verplicht |
+| `positioning` | tekst |  | verplicht |
 
 ### 3.8 De kennistest: wat weten AI-assistenten al over dit bedrijf?
 
@@ -1106,6 +1281,8 @@ Zijn er meerdere bedrijven, merken of begrippen die "{merk}" heten? Zo ja, noem 
 categorie (met zoeken, voor de drie belangrijkste diensten of producten):
 Welke aanbieders van {dienst, in kleine letters} in {plaats} kun je aanbevelen?
 ```
+
+Uitvoer: vrije tekst (`callPlain()`), geen schema. De app bewaart het antwoord letterlijk en beoordeelt het daarna zelf.
 
 ### 3.9 De samenvatting
 
@@ -1183,6 +1360,22 @@ DE PAGINA'S (hieruit moeten je citaten komen):
 """
 ```
 
+Uitvoer (Zod-schema `ProfileSynthesis`, `schemaName` `profile_synthesis`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `dossier` | tekst |  | verplicht |
+| `gaps` | lijst van tekst |  | verplicht |
+| `facts` | lijst van objecten |  | verplicht |
+| `facts[].text` | tekst |  | verplicht |
+| `facts[].sourceUrl` | tekst |  | verplicht |
+| `facts[].quote` | tekst |  | verplicht |
+| `klussen` | lijst van objecten |  | verplicht |
+| `klussen[].text` | tekst |  | verplicht |
+| `klussen[].plaats` | tekst |  | mag null |
+| `klussen[].sourceUrl` | tekst |  | verplicht |
+| `klussen[].quote` | tekst |  | verplicht |
+
 ### 3.10 Het onderzoek is klaar
 
 - **Techniek.** `profiles.status = 'klaar'` is al gezet door 3.4. De merkfase wordt afgeleid, niet
@@ -1217,6 +1410,27 @@ toegestaan gebruik. Vóór deze laag stond klantkennis verspreid over `profiles`
 `profile_offerings`, `profile_facets`, `fact_requests` en meer. De schrijver las maar een deel. De laag
 volgt uit het plan `docs/tasks/van-pijplijn-naar-kennissysteem.md`; hij is gebouwd in de werkpakketten K1 tot
 en met K8 (26 en 27 september 2026).
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant B as Bron (onderzoek, gesprek, antwoord, upload)
+    participant V as lib/kennis/vastleggen.ts
+    participant K as klantkennis
+    participant FC as fact_conflicts
+    participant G as gebeurtenissen
+    participant W as gebeurtenis_verwerken
+    participant S as Brief en schrijver
+    B->>V: legVast(item, door)
+    V->>V: controleerItem, magNieuwMetStatus, kennisSleutel
+    V->>K: insert of nieuwe versie (vervangen_door)
+    V->>FC: botsingenMet: andere waarde voor hetzelfde gegeven
+    V->>G: kennis_gewijzigd
+    G->>W: per abonnee een taak
+    W->>W: kansen en pagina's markeren, velden_te_verversen
+    S->>K: kennisVoor: magInBlokA, setVoorBlokA (tot 150 items)
+```
 
 ### 4.1 Het model: het kennisitem
 
@@ -1334,6 +1548,20 @@ Systeemprompt, letterlijk:
 Je deelt feiten over één bedrijf in. Je herschrijft niets en je voegt niets toe. Per feit geef je: SOORT, precies één van: prijs, termijn (levertijd, doorlooptijd, reactietijd), plaats (een vestiging of een plaats waar iets gebeurt), werkgebied (de plaatsen waar het bedrijf werkt), dienst (wat het bedrijf wel of niet doet), product (een merk of type dat het levert), certificering (keurmerk, erkenning), garantie, werkwijze (hoe het bedrijf werkt), cijfer (aantallen en jaren als bewijs: medewerkers, jaren ervaring, klanten, een beoordeling), openingstijd, contact (adres, telefoon, e-mail), overig. WAARDE: staat er een getal of bandbreedte, zet het laagste in waardeMin en het hoogste in waardeMax (bij één getal beide gelijk), en de eenheid in eenheid ('EUR', 'EUR per maand', 'week', 'dag', 'minuten', 'jaar', 'procent', of het ding dat geteld wordt: 'monteurs', 'tuinen per jaar'). Neem het getal letterlijk over zoals het in het feit staat; '€ 2.200' is 2200, '4,9' is 4.9, 'twaalf' is 12. Staat er geen getal, laat waardeMin en waardeMax leeg en zet de kern in waardeTekst (bij een werkgebied de plaatsen, bij contact het adres of nummer). GELDT VOOR: waarop het feit slaat, zo specifiek als het feit zegt: 'intake op kantoor', 'intake in de auto', 'hybride warmtepomp', 'cv-ketelvervanging', 'onderhoudscontract', 'adres', 'telefoon'. Geldt het voor het hele bedrijf, laat het leeg. Twee prijzen voor twee verschillende dingen horen twee verschillende waarden in geldtVoor te krijgen. BEWIJSKRACHT: sterk bij een concreet cijfer dat vertrouwen wekt (35 jaar ervaring, twaalf monteurs, 1.800 onderhoudscontracten, 93 procent geslaagd, een keurmerk); gewoon bij een concreet feit; geen bij een praktisch gegeven zonder overtuigingskracht (een adres, een voorbehoud). Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `FactClassification`, `schemaName` `fact_classification`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `feiten` | lijst van objecten |  | verplicht |
+| `feiten[].nummer` | getal (geheel getal) |  | verplicht |
+| `feiten[].soort` | keuze | `prijs`, `termijn`, `plaats`, `werkgebied`, `dienst`, `product`, `certificering`, `garantie`, `werkwijze`, `cijfer`, `openingstijd`, `contact`, `overig` | verplicht |
+| `feiten[].waardeMin` | getal |  | mag null |
+| `feiten[].waardeMax` | getal |  | mag null |
+| `feiten[].eenheid` | tekst |  | mag null |
+| `feiten[].waardeTekst` | tekst |  | mag null |
+| `feiten[].geldtVoor` | tekst |  | mag null |
+| `feiten[].bewijskracht` | keuze | `geen`, `gewoon`, `sterk` | verplicht |
+
 ### 4.7 Materiaal aanleveren: het merkdossier en de handmatige upload
 
 - **Wat.** Twee manieren waarop de klant of de consultant zelf materiaal aanlevert, elk met één goedkope
@@ -1370,6 +1598,16 @@ Systeemprompt, letterlijk:
 Je zet materiaal dat een ondernemer zelf aanlevert om in CONTROLEERBARE FEITEN over zijn bedrijf. Je schrijft niets, je vat niets samen, je rekent niets om: je selecteert en ordent. OPDRACHT: geef vraag-antwoordparen. De vraag is wat een klant zou vragen; het antwoord is wat er letterlijk in het materiaal staat. HARDE REGELS: (1) Het ANTWOORD moet LETTERLIJK in de aangeleverde tekst voorkomen, teken voor teken. Niet afronden ('€ 45,00' wordt niet '45 euro'), niet samenvatten, niet omrekenen, geen 'ongeveer' toevoegen. Een bijgeschaafd antwoord wordt weggegooid door de controle die hierachter zit, dus dat kost alleen maar een feit. (2) Geef bij elk paar de letterlijke ZIN of REGEL uit het materiaal waar het antwoord in staat. Het antwoord moet in die zin voorkomen. (3) Stel de vraag in gewone taal, zoals een klant hem zou stellen: 'Wat kost een eerste consult?', niet 'Tarief consult regulier'. Eén feit per vraag. (4) Kies alleen wat HARD is: bedragen, termijnen, aantallen, openingstijden, voorwaarden, wat er wel of niet bij zit, namen van diensten of vestigingen. Sfeerteksten en marketingzinnen sla je over. Daar kan een pagina niets mee bewijzen. (5) Zet `perishable` op true bij alles wat verloopt: prijzen, tarieven, looptijden, openingstijden, actievoorwaarden. Op false bij wat blijft: oprichtingsjaar, vestigingsplaats, certificeringen. (6) Liever tien scherpe feiten dan veertig vage. Bij twijfel: weglaten.
 ```
 
+Uitvoer (Zod-schema `DossierFacts`, `schemaName` `dossier_facts`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `facts` | lijst van objecten |  | verplicht |
+| `facts[].question` | tekst |  | verplicht |
+| `facts[].answer` | tekst |  | verplicht |
+| `facts[].sourceSentence` | tekst |  | verplicht |
+| `facts[].perishable` | ja of nee |  | verplicht |
+
 **Prompt: de handmatige upload** (`kind` `upload_kennis`; bron `lib/pipeline/upload-kennis.ts`, `UPLOAD_SYSTEM`; Luna, `deterministic`, zonder zoeken)
 
 Systeemprompt, letterlijk:
@@ -1387,6 +1625,18 @@ Hieronder het materiaal dat is aangeleverd. Haal er de feiten, de kennis en de v
 
 {tekst, hooguit 30.000 tekens}
 ```
+
+Uitvoer (Zod-schema `UploadKennis`, `schemaName` `upload_kennis`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `items` | lijst van objecten |  | verplicht |
+| `items[].domein` | keuze | `identiteit`, `aanbod`, `bewijs`, `doelgroep`, `positionering`, `verhaal`, `stem` | verplicht |
+| `items[].soort` | tekst |  | verplicht |
+| `items[].bewering` | tekst |  | verplicht |
+| `items[].zekerheid` | keuze | `staat_er`, `vermoeden` | verplicht |
+| `items[].citaat` | tekst |  | verplicht |
+| `items[].verloopt` | ja of nee |  | verplicht |
 
 ### 4.8 Het scherm Feiten en kennis
 
@@ -1410,6 +1660,29 @@ niets, behalve bij "onderzoek bijwerken".*
 **Doel van de hoofdstap.** Aanvullen wat een website nooit vertelt: commerciële keuzes, verhalen, de stem van
 het bedrijf en wat verboden is. Deze invoer gaat letterlijk naar de schrijver van elke pagina, dus hier wordt
 een groot deel van de latere tekstkwaliteit bepaald.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor C as Consultant
+    actor K as Klant
+    participant S as Kennismakingsgesprek
+    participant R as API-routes
+    participant KL as Kennislaag
+    participant Q as Wachtrij
+    C->>S: open punten en kennisronde lezen
+    K->>C: antwoorden in het gesprek
+    C->>R: PATCH /api/profiles/[id] per veld
+    R->>KL: slaProfielOp, herkomst gesprek
+    C->>R: stemvoorbeelden
+    R-->>R: after(): haalStemvoorbeeldenOp
+    C->>R: PUT strategy (gesprek vastleggen)
+    R->>KL: legGesprekVast
+    R->>Q: propose_topics (concept wordt definitief)
+    C->>R: POST refresh (onderzoek bijwerken)
+    R->>Q: alleen de geraakte stappen, chain false
+```
 
 ### 5.1 Het scherm
 
@@ -1516,6 +1789,30 @@ hoofdstap mag ook later.*
 **Doel van de hoofdstap.** Na de verkoop het merk naar het account van de klant zetten, zodat de klant kan
 inloggen, vragen kan beantwoorden en teksten kan goedkeuren. De consultant houdt volledige toegang.
 
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor C as Consultant (Admin)
+    participant R as POST assign-by-email
+    participant DB as Postgres
+    actor K as Klant
+    participant A as POST /api/invites/accept
+    C->>R: e-mail, voornaam, achternaam
+    R->>DB: findUserByEmail (eerste 200 gebruikers)
+    alt gebruiker bestaat
+        R->>DB: profiles en analyses naar zijn account
+    else nieuw
+        R->>DB: accounts (trigger: Admin wordt lid)
+        R->>DB: account_invites (alleen de hash van het token)
+        R-->>C: uitnodigingslink, 14 dagen geldig
+        C->>K: link zelf doorsturen
+        K->>A: wachtwoord kiezen
+        A->>DB: gebruiker, account_users (admin), naam in metadata
+    end
+    C->>DB: PATCH accounts: pakket 10, 20 of 40, startdatum
+```
+
 ### 6.1 Toewijzen op e-mailadres
 
 - **Wat.** De consultant vult het e-mailadres, de voornaam en de achternaam van de klant in (naam verplicht
@@ -1599,6 +1896,29 @@ onderwerp aan een AI-assistent stellen. Die vragen zijn de meetlat: score, rappo
 over deze vragen. De hoofdstap eindigt bij een bewuste poort: er wordt pas gemeten na een klik van de
 consultant.
 
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor C as Consultant
+    participant R as POST topics of analyses
+    participant Q as Wachtrij
+    participant PA as prepare_analysis
+    participant GP as generate_prompts (per fase)
+    participant CV as calibrate_volumes
+    participant S as Conceptscherm
+    C->>R: onderwerp goedkeuren en starten
+    R->>R: mayTriggerCost(analyse_starten), budget, status klaar, geen concept
+    R->>Q: analyses (bezig), prepare_analysis
+    Q->>PA: topic_research (AI met zoeken)
+    PA->>GP: oriëntatie, overweging, beslissing
+    GP->>GP: AI, verboden namen en dubbelen eruit, aanvul- en georondes
+    GP->>CV: de laatste: dubbelen over clusters weg, concept_klaar
+    CV->>CV: volume_calibration (AI) of gemeten volumes
+    C->>S: vragen lezen en aanpassen
+    C->>R: POST confirm (meting_starten, budget)
+```
+
 ### 7.1 Een onderwerp kiezen en het cluster starten
 
 - **Wat.** Uit de voorgestelde onderwerpen (3.6) keurt de consultant er één goed, of hij typt zelf een
@@ -1671,6 +1991,13 @@ Gewenste hoek en doelgroep van de klant (houd hier rekening mee): {content_brief
 Pagina's van de website (url · titel: korte inhoud):
 {hooguit 40 pagina's: - url · "titel": eerste 400 tekens}
 ```
+
+Uitvoer (Zod-schema `TopicResearch`, `schemaName` `topic_research`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `contentSummary` | tekst |  | verplicht |
+| `competitors` | lijst van tekst, elk met de beschrijving "Alleen de bedrijfsnaam of merknaam, bv. \"Ebiketogo\". Geen toelichting, geen link." (die beschrijving ziet het model) |  | verplicht |
 
 ### 7.3 De meetvragen opstellen
 
@@ -1791,6 +2118,18 @@ Herhaal NIET de vragen die er al zijn:
 - {bestaande vragen}
 ```
 
+Uitvoer (Zod-schema `PromptSet`, `schemaName` `prompt_set`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `prompts` | lijst van objecten |  | verplicht |
+| `prompts[].text` | tekst |  | verplicht |
+| `prompts[].intent` | tekst |  | verplicht |
+| `prompts[].intentType` | keuze | `informational`, `commercial`, `transactional` | verplicht |
+| `prompts[].specificity` | keuze | `head`, `long_tail` | verplicht |
+| `prompts[].purchaseIntent` | ja of nee |  | verplicht |
+| `prompts[].cluster` | tekst |  | verplicht |
+
 ### 7.4 Afronden en de vragen wegen
 
 - **Techniek.** De laatste `generate_prompts` van de analyse (geteld met `requireCount` op nog lopende
@@ -1825,6 +2164,14 @@ Gebruik deze vaste ijkpunten om de schaal steeds hetzelfde te laten betekenen, o
 - 5-15: een sterk technische of zeer smalle B2B-vraag die alleen specialisten stellen.
 ```
 
+Uitvoer (Zod-schema `VolumeCalibration`, `schemaName` `volume_calibration`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `weights` | lijst van objecten |  | verplicht |
+| `weights[].index` | getal |  | verplicht |
+| `weights[].volume` | getal |  | verplicht |
+
 ### 7.5 De goedkeuringspoort
 
 - **Wat.** De analyse staat op `concept_klaar`. De consultant (met de klant) leest de vragen op
@@ -1852,6 +2199,31 @@ Gebruik deze vaste ijkpunten om de schaal steeds hetzelfde te laten betekenen, o
 **Doel van de hoofdstap.** Vaststellen of het merk genoemd wordt als een koper een vraag stelt, hoe prominent,
 en wie er in plaats van het merk genoemd wordt. Dit is de nulmeting waartegen later het effect van pagina's
 wordt gemeten.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant R as POST confirm
+    participant Q as Wachtrij
+    participant M as measure_prompt
+    participant AI as ChatGPT (Luna, met zoeken)
+    participant J as Beoordeling (Luna)
+    participant AG as aggregate_week
+    participant PC as profile_competitors
+    R->>Q: per vraag een taak, 8 zwaarste 3 keer
+    R->>Q: measure_ai_overview (aan op productie)
+    Q->>M: taak
+    M->>AI: de vraag, SIMULATE_SYSTEM
+    AI-->>M: antwoord (minstens 40 tekens)
+    M->>J: buildMentionUser
+    J-->>M: mentions (tekstvangnet erover)
+    M->>Q: laatste taak: aggregate_week
+    Q->>AG: drempel 70 procent, score, marge, concurrenten
+    AG->>AG: classify_entities (AI) voor onbepaalde namen
+    AG->>PC: concurrentprofiel (AI, citaten)
+    PC->>Q: generate_report
+```
 
 ### 8.1 De meettaken worden ingepland
 
@@ -1910,6 +2282,8 @@ Gebruikersbericht: alleen de tekst van de meetvraag (`prompt.text`), zonder iets
 ```text
 {prompt.text}
 ```
+
+Uitvoer: vrije tekst (`callPlain()`), geen schema. De app bewaart het antwoord letterlijk en beoordeelt het daarna zelf.
 
 ### 8.3 Wie wordt er genoemd?
 
@@ -1970,6 +2344,18 @@ AI-antwoord om te analyseren:
 """
 ```
 
+Uitvoer (Zod-schema `Mention`, `schemaName` `mention`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `mentions` | lijst van objecten |  | verplicht |
+| `mentions[].entity` | tekst |  | verplicht |
+| `mentions[].isOwnBrand` | ja of nee |  | verplicht |
+| `mentions[].mentioned` | ja of nee |  | verplicht |
+| `mentions[].position` | getal |  | mag null |
+| `mentions[].role` | keuze | `eerste_aanbeveling`, `een_van_meerdere`, `zijdelings` | mag null |
+| `mentions[].citedSources` | lijst van tekst |  | verplicht |
+
 ### 8.4 De merken worden ingedeeld
 
 - **Wat.** Is een genoemd merk een echte concurrent, of iets anders?
@@ -2013,6 +2399,15 @@ Bij twijfel tussen 'concurrent' en iets anders: kies het andere. Een merk dat on
 Geef voor ELK merk hieronder een rij terug, met de naam exact zoals hij hier staat:
 - {namen}
 ```
+
+Uitvoer (Zod-schema `EntityClassification`, `schemaName` `entity_classification`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `entities` | lijst van objecten |  | verplicht |
+| `entities[].name` | tekst |  | verplicht |
+| `entities[].role` | keuze | `concurrent`, `eigen_merk`, `eigen_product`, `brancheorganisatie`, `vergelijker`, `niet_relevant` | verplicht |
+| `entities[].reason` | tekst |  | verplicht |
 
 ### 8.5 De meting wordt afgesloten
 
@@ -2096,6 +2491,17 @@ AANBIEDER: {naam}
   fragment 2: "{fragment}"
 ```
 
+Uitvoer (Zod-schema `CompetitorProfileSet`, `schemaName` `competitor_profiles`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `competitors` | lijst van objecten |  | verplicht |
+| `competitors[].name` | tekst |  | verplicht |
+| `competitors[].attributes` | lijst van objecten |  | verplicht |
+| `competitors[].attributes[].attribute` | keuze | `prijs`, `locatie`, `specialisme`, `assortiment`, `snelheid`, `beschikbaarheid`, `service`, `reputatie`, `ervaring`, `duurzaamheid` | verplicht |
+| `competitors[].attributes[].evidence` | tekst |  | verplicht |
+| `competitors[].summary` | tekst |  | verplicht |
+
 **Uitkomst van hoofdstap 8:** `tracking_runs` en `tracking_run_mentions` per vraag en herhaling,
 `visibility_scores` voor periode 0, `competitor_breakdown`, `entities`, en een analyse op `gemeten`.
 
@@ -2107,6 +2513,26 @@ AANBIEDER: {naam}
 
 **Doel van de hoofdstap.** Van meting naar besluit: waar verliest het merk, waarom, en welke pagina's zijn nodig
 om dat te veranderen. De aanbevelingen worden later de kaarten in het contentplan.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant Q as Wachtrij
+    participant GR as generate_report
+    participant AI as Luna
+    participant C as Controles in code
+    participant K as legKansenVast
+    Q->>GR: periode
+    GR->>GR: gemiste vragen, bewijsdossier, structuur (code)
+    GR->>AI: gap_analysis
+    GR->>AI: report (judging), met de open kansen van het merk
+    AI-->>GR: aanbevelingen met V-codes, rol, kernvraag
+    GR->>C: resolveTargets, samenvoegen, bestaande pagina, claims, rangorde
+    GR->>K: per aanbeveling een kans, of extra bewijs bij een open kans
+    K->>K: bewijs per bron, commerciële waarde, kennisgat
+    GR->>Q: offsite_scan, recalculate_potential (nulmeting)
+```
 
 ### 9.1 Wat zijn de gemiste vragen?
 
@@ -2143,6 +2569,20 @@ Systeemprompt, letterlijk:
 ```text
 Je bent een GEO-analist (Generative Engine Optimization). Op basis van meetdata identificeer je concrete zichtbaarheids-gaps: categorieën waarin concurrenten vaker door AI-assistenten genoemd worden dan het eigen merk, mét bewijs (run-ID's, bronnen). PRIORITEER de gaps op de vragen met het HOOGSTE GEWICHT (populair en of koopklaar) waar het eigen merk niet genoemd wordt. Daar liggen de waardevolste kansen. Werk uitsluitend met de aangeleverde cijfers, verzin niets. BEWIJSREGEL: het bewijsdossier vermeldt per vraag welke bedrijven in dát antwoord genoemd werden. Noem een concurrent alleen bij een specifieke vraag als die naam ONDER DIE VRAAG in het dossier staat. Staat er dat er geen enkel bedrijf genoemd werd, dan is dat je bevinding. Haal er geen concurrent bij uit een andere vraag of uit het marktbeeld. Antwoord in het Nederlands.
 ```
+
+Uitvoer (Zod-schema `GapAnalysis`, `schemaName` `gap_analysis`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `gaps` | lijst van objecten |  | verplicht |
+| `gaps[].competitor` | tekst |  | verplicht |
+| `gaps[].cluster` | tekst |  | verplicht |
+| `gaps[].evidence` | tekst |  | verplicht |
+| `gaps[].evidenceRunIds` | lijst van tekst |  | verplicht |
+| `gaps[].citedSourcesForCompetitor` | lijst van tekst |  | verplicht |
+| `strengths` | lijst van objecten |  | verplicht |
+| `strengths[].cluster` | tekst |  | verplicht |
+| `strengths[].evidence` | tekst |  | verplicht |
 
 ### 9.4 Het rapport en de aanbevelingen
 
@@ -2206,6 +2646,36 @@ Systeemprompt, letterlijk:
 ```text
 Je schrijft een kort, jargonvrij rapport voor een ondernemer zonder SEO-achtergrond over hun zichtbaarheid in AI-assistenten (GEO). Gebruik geen vaktermen als 'share of voice'. Leg uit in gewone taal. BEWIJSREGEL: noem een concurrent alleen bij een specifieke vraag als die naam ONDER DIE VRAAG in het bewijsdossier staat. Staat er dat er geen enkel bedrijf genoemd werd, schrijf dan dat de AI bij die vraag geen enkele aanbieder noemt. Dat is een kans om de eerste te zijn, niet een concurrent die wint. Het marktbeeld onderaan gaat over de hele meting en mag NOOIT gebruikt worden om te zeggen wie een specifieke vraag wint. PRIORITEER je aanbevelingen op de zwaarwegende vragen (populair en of koopklaar) waar de klant slecht scoort. Die leveren het meeste op. Eindig met concrete, uitvoerbare aanbevelingen. Bepaal per aanbeveling of dit een BESTAANDE pagina van de klant verbetert (kies dan de meest relevante URL uit de meegegeven paginalijst, action = "verbeteren") of dat er een GEHEEL NIEUWE pagina nodig is (action = "nieuw", existingUrl = null). Kies alleen "verbeteren" als een pagina uit de lijst daadwerkelijk over hetzelfde onderwerp gaat. NEEM HET ADRES LETTERLIJK OVER uit de paginalijst hieronder, teken voor teken, inclusief https:// en het domein. Verzin nooit een pad, en kies geen pagina die niet in die lijst staat. Kies je "nieuw", laat existingUrl dan echt leeg; een adres invullen bij een nieuwe pagina maakt de aanbeveling dubbelzinnig. Wijs bij ELKE aanbeveling met de codes (V1, V2, …) aan welke gemiste vragen die pagina moet gaan winnen: minimaal één, en alleen vragen die inhoudelijk bij die pagina horen. Eén pagina mag meerdere verwante vragen bedienen; verdeel de zwaarste vragen over de aanbevelingen en laat geen zware vraag onbenoemd. HET AANTAL AANBEVELINGEN LIGT NIET VAST. Geef een aanbeveling voor ELKE gemiste vraag die aan alle vier deze eisen voldoet, niet meer en niet minder: (1) er is een gemeten gemis met bewijs (een V-code), (2) de klant heeft er via zijn aanbod of feiten iets echts over te zeggen, (3) er is geen bestaande pagina die dit onderwerp al goed dekt (anders is het 'verbeteren', geen nieuwe kans), (4) hij overlapt inhoudelijk niet met een andere aanbeveling in dit rapport. Voldoen er twee, geef er twee; voldoen er tien, geef er tien. Rond nooit af naar een 'nette' lijst. Kwam je een gemeten gemis tegen dat je NIET tot aanbeveling maakte, zet hem dan in declinedGaps met welke van de vier eisen hij niet haalde (geen bewijs, niets waars te zeggen, al gedekt door een bestaande pagina, of overlapt met een andere aanbeveling). Dat is geen extra werk maar de andere kant van dezelfde beslissing die je toch al nam. BESCHRIJF ELKE AANBEVELING ALS PAGINA, NIET ALS OPDRACHT. `title` is het onderwerp zoals een bezoeker het zou zoeken ("Mollenbestrijding in de Alblasserwaard"), nooit een gebiedende wijs ("Laat zien dat je snel bent") en nooit een belofte over wat er op de pagina komt. `rol` zegt in één zin wat deze pagina doet dat de andere pagina's van dit merk niet doen, ook de open kansen hieronder. `kernvraag` is de ene vraag die deze pagina móet beantwoorden om bestaansrecht te hebben, zoals de lezer hem stelt (bij een prijspagina: "Wat kost het?"). `why` is de onderbouwing uit de meting voor de consultant: welk gemis deze pagina dicht. Geen schrijfinstructies in `why`, geen "benadruk", "noem" of "laat zien". Eis 4 geldt voor het HELE MERK: onder "Open kansen van dit merk" staan pagina's die al voorgesteld zijn, uit dit en andere clusters. Dekt een gemis dezelfde pagina als zo'n open kans, geef dan toch de aanbeveling, maar zet in `bestaandeKans` de code van die kans (K1, K2, …): dan wordt het extra bewijs bij die kans en geen tweede pagina. Anders is `bestaandeKans` null. Geef priority als rangnummer: 1 is de belangrijkste aanbeveling, 2 de volgende, enzovoort. Vraag daarnaast in factRequests om CONCRETE FEITEN die je mist en die de content aantoonbaar beter zouden maken (bv. 'Hoeveel jaar bestaan jullie?', 'Wat is jullie levertijd?', 'Hoeveel klanten per jaar?'). Alleen feiten die een ondernemer uit zijn hoofd weet, en alleen als ze deze pagina's echt concreter maken, geen vragenlijst om het vragen. Antwoord in het Nederlands.
 ```
+
+Uitvoer (Zod-schema `Report`, `schemaName` `report`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `headlineScore` | getal |  | verplicht |
+| `summary` | tekst |  | verplicht |
+| `gaps` | lijst van objecten |  | verplicht |
+| `gaps[].cluster` | tekst |  | verplicht |
+| `gaps[].problem` | tekst |  | verplicht |
+| `gaps[].evidenceRunIds` | lijst van tekst |  | verplicht |
+| `recommendations` | lijst van objecten |  | verplicht |
+| `recommendations[].title` | tekst |  | verplicht |
+| `recommendations[].type` | keuze | `article`, `faq`, `landing`, `comparison` | verplicht |
+| `recommendations[].targetIntent` | tekst |  | verplicht |
+| `recommendations[].why` | tekst |  | verplicht |
+| `recommendations[].priority` | getal |  | verplicht |
+| `recommendations[].action` | keuze | `nieuw`, `verbeteren` | verplicht |
+| `recommendations[].existingUrl` | tekst |  | mag null |
+| `recommendations[].targetQuestionIds` | lijst van tekst |  | verplicht |
+| `recommendations[].rol` | tekst |  | verplicht |
+| `recommendations[].kernvraag` | tekst |  | verplicht |
+| `recommendations[].bestaandeKans` | tekst |  | mag null |
+| `factRequests` | lijst van objecten |  | verplicht |
+| `factRequests[].question` | tekst |  | verplicht |
+| `factRequests[].reason` | tekst |  | verplicht |
+| `declinedGaps` | lijst van objecten |  | verplicht |
+| `declinedGaps[].cluster` | tekst |  | verplicht |
+| `declinedGaps[].problem` | tekst |  | verplicht |
+| `declinedGaps[].reason` | tekst |  | verplicht |
 
 ### 9.5 Van aanbeveling naar kans
 
@@ -2289,6 +2759,15 @@ Onderwerpen:
    voorbeeldvragen: "…", "…"]}
 ```
 
+Uitvoer (Zod-schema `SearchDemandCalibration`, `schemaName` `search_demand_calibration`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `scores` | lijst van objecten |  | verplicht |
+| `scores[].index` | getal |  | verplicht |
+| `scores[].volume` | getal |  | verplicht |
+| `scores[].reasoning` | tekst |  | verplicht |
+
 ### 9.6 Wat er daarna op de achtergrond gebeurt
 
 - **Techniek.** `generateReport()` plant `offsite_scan` in (hoofdstap 18) en, bij de nulmeting,
@@ -2308,6 +2787,25 @@ starten", een kans "pagina-idee" en de voorraad "ideeënlijst"; in de code staan
 **Doel van de hoofdstap.** Van losse kansen naar een planning: welke pagina's in welke maand, binnen het
 verkochte pakket. Het vrijgeven van een maand is het moment waarop de klant akkoord geeft en het schrijfwerk
 begint.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor C as Consultant
+    actor K as Klant
+    participant P as Contentplan
+    participant R as Planroutes
+    participant DB as planned_pages
+    P->>DB: syncBacklog: kansen worden pagina-ideeën
+    C->>R: POST plan (content_schrijven, pakket nodig)
+    R->>DB: 12 maanden, open maanden vullen, buffer per maand
+    K->>R: verschuiven, datum, Plan in oktober
+    C->>R: soort kiezen (vóór de voorbereiding)
+    K->>C: akkoord
+    C->>R: maand starten (plan_goedkeuren, budget)
+    R->>R: bereidMaandVoor (hoofdstap 11)
+```
 
 ### 10.1 De kansen komen in de voorraad
 
@@ -2411,6 +2909,28 @@ richtwaarde 6 tot 7,5 dollarcent per pagina.*
 welke vragen de ondernemer moet beantwoorden om de pagina eigener te maken dan een concurrent of een AI zonder
 hem kan. Vanaf hier werkt de contentketen die op 25 en 26 september 2026 opnieuw is gebouwd
 (`docs/tasks/contentketen-opnieuw.md`).
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant R as bereidVoor
+    participant DB as Postgres
+    participant Q as Wachtrij
+    participant B as pagina_brief
+    participant G as DataForSEO SERP
+    participant AI as Sol (met zoeken)
+    R->>DB: content_pieces (briefing), vaste open vraag
+    R->>Q: fact_register, eerste pagina_brief met de rij
+    Q->>B: invoer: pagina, merk, blok A, doelvragen, eerdere vragen
+    B->>G: tot 8 zoekopdrachten (artikel, gids, FAQ, vergelijking)
+    G-->>B: geschoonde resultaten
+    B->>AI: BRIEF_SYSTEEM en briefInvoer
+    AI-->>B: onderzoek en tot 8 vragen
+    B->>B: verwerkBrief (code)
+    B->>DB: eerst vragen en koppelingen, dan brief_json
+    B->>Q: volgende brief in de rij, probeerTeSchrijven
+```
 
 ### 11.1 Per pagina komt een paginarij en een open vraag
 
@@ -2660,6 +3180,27 @@ Zoekopdracht: "{zoekopdracht}"
 [Gerelateerde zoekopdrachten: {…; …}]
 ```
 
+Uitvoer (Zod-schema `ContentBriefSchema`, `schemaName` `content_brief`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `zoekintentie` | tekst |  | verplicht |
+| `deelvragen` | lijst van tekst |  | verplicht |
+| `vakkennis` | lijst van objecten |  | verplicht |
+| `vakkennis[].uitleg` | tekst |  | verplicht |
+| `vakkennis[].bron_url` | tekst |  | verplicht |
+| `valkuilen` | lijst van tekst |  | verplicht |
+| `vragen` | lijst van objecten |  | verplicht |
+| `vragen[].vraag` | tekst |  | verplicht |
+| `vragen[].waarom` | tekst |  | verplicht |
+| `vragen[].soort` | keuze | `feit`, `praktijk`, `werkwijze`, `twijfel`, `onderscheid` | verplicht |
+| `vragen[].antwoord_type` | keuze | `ja_nee`, `bedrag`, `getal`, `tekst_kort`, `tekst_lang`, `keuze` | verplicht |
+| `vragen[].opties` | lijst van tekst |  | mag null |
+| `vragen[].merkbreed` | ja of nee |  | verplicht |
+| `vragen[].kern` | ja of nee |  | verplicht |
+| `ook_voor_deze_pagina` | lijst van tekst |  | verplicht |
+| `kern_eerder` | tekst |  | mag null |
+
 ### 11.3 Wat is "bedrijfskennis" (blok A)?
 
 - **Wat.** Het vaste pakket dat zowel de brief als de schrijver krijgt. De code stelt het samen, geen AI.
@@ -2734,6 +3275,23 @@ Zoekopdracht: "{zoekopdracht}"
 
 **Doel van de hoofdstap.** Ophalen wat alleen de ondernemer weet. Dit is het moment dat het verschil maakt
 tussen een eigen pagina en een algemene AI-tekst.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor K as Klant of consultant
+    participant S as Vragenscherm of paginascherm
+    participant R as PATCH /api/profiles/[id]/facts
+    participant KL as Kennislaag
+    participant P as probeerTeSchrijven
+    S->>K: kernvraag, open vraag, gerichte vragen
+    K->>R: antwoord (tot 3.000 of 1.500 tekens) of overslaan
+    R->>R: answerFact, beoordeelClaim
+    R->>KL: legAntwoordVast
+    R-->>K: opgeslagen
+    R->>P: after(): voor elke pagina van deze vraag
+```
 
 ### 12.1 De vragen staan per pagina
 
@@ -2812,6 +3370,28 @@ dollarcent per pagina.*
 
 **Doel van de hoofdstap.** Eén sterke schrijfbeurt die de kennis van de ondernemer, het onderzoek en de stem
 van het bedrijf omzet in een pagina die de ondernemer zo op zijn site zet.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant P as probeerTeSchrijven
+    participant DB as content_pieces
+    participant Q as Wachtrij
+    participant S as pagina_schrijven
+    participant AI as Sol (achtergrondmodus)
+    P->>P: schrijfpoort: brief klaar, nul open vragen, datum binnen 10 dagen
+    P->>DB: status briefing naar draft (wie wint, plant)
+    P->>Q: pagina_schrijven
+    Q->>S: laadSchrijfbasis
+    S->>AI: schrijfSysteem en schrijfInvoer (start)
+    S->>Q: ophaaltaak met oplopende vertraging
+    Q->>S: haalStructuredOp
+    AI-->>S: pagina (JSON)
+    S->>S: mechanische reparatie, JSON-LD
+    S->>DB: tekst, raw_json, gebruikte_kennis
+    S->>Q: pagina_controle
+```
 
 ### 13.1 De schrijfpoort
 
@@ -3007,6 +3587,19 @@ onderwerp: Het onderwerp van deze pagina blijft wat het nu is, voor dezelfde lez
 {daarna altijd:} Wat de bezoeker volgens de zoekintentie wil weten, krijgt een plek op deze pagina en wordt niet het nieuwe onderwerp ervan. De concrete gegevens die er nu op staan (prijzen, pakketten, voorwaarden, contactgegevens) blijven erop, tenzij de bedrijfskennis zegt dat ze niet meer kloppen.
 ```
 
+Uitvoer (Zod-schema `PaginaSchema`, `schemaName` `pagina`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `titel` | tekst |  | verplicht |
+| `meta_titel` | tekst |  | verplicht |
+| `meta_beschrijving` | tekst |  | verplicht |
+| `tekst_markdown` | tekst |  | verplicht |
+| `faq` | lijst van objecten |  | verplicht |
+| `faq[].vraag` | tekst |  | verplicht |
+| `faq[].antwoord` | tekst |  | verplicht |
+| `notitie_voor_ondernemer` | tekst |  | mag null |
+
 ### 13.4 Mechanische reparatie
 
 - **Techniek.** `gerepareerd()` → `repareerMechanisch()` (`lib/pagina/mechanisch.ts`), zonder model, en nooit
@@ -3058,6 +3651,28 @@ herschrijving.*
 **Doel van de hoofdstap.** Voorkomen dat er iets verzonnens over het bedrijf op de site komt, en een tekst die
 duidelijk niet goed is één keer laten verbeteren. Wat daarna nog twijfelachtig is, legt de app aan de
 ondernemer voor in plaats van het zelf te beslissen.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant Q as Wachtrij
+    participant C as pagina_controle
+    participant CO as Controles in code
+    participant AI as Sol (eindredacteur)
+    participant H as pagina_herschrijven
+    participant DB as content_pieces
+    Q->>C: tekst
+    C->>CO: harde beweringen, verboden woorden
+    C->>AI: CONTROLE_SYSTEEM en controleInvoer
+    AI-->>C: oordeel, verzonnen, punten
+    alt niet goed, verzonnen of verboden woord
+        C->>Q: pagina_herschrijven (hooguit één keer)
+        Q->>H: herschrijfInvoer
+        H->>CO: opnieuw controleren, nieuwe versie blijft
+    end
+    C->>DB: ready, needs_review, gele zinnen, verdwenen gegevens
+```
 
 ### 14.1 Controle in code: harde beweringen
 
@@ -3162,6 +3777,19 @@ ZINNEN DIE DE CONTROLE IN CODE NIET IN DE INFORMATIE TERUGVOND
 {of, zonder zulke zinnen: "De controle in code vond geen zinnen met een harde bewering zonder bron."}
 ```
 
+Uitvoer (Zod-schema `ControleSchema`, `schemaName` `pagina_controle`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `oordeel` | keuze | `goed`, `niet_goed` | verplicht |
+| `verzonnen` | lijst van objecten |  | verplicht |
+| `verzonnen[].zin` | tekst |  | verplicht |
+| `verzonnen[].waarom` | tekst |  | verplicht |
+| `punten` | lijst van objecten |  | verplicht |
+| `punten[].waar` | tekst |  | verplicht |
+| `punten[].probleem` | tekst |  | verplicht |
+| `punten[].hoe` | tekst |  | verplicht |
+
 ### 14.4 De beslissing
 
 - **Techniek.** `moetHerschrijven(beoordeling, verboden)` (puur): herschrijven als het oordeel `niet_goed`
@@ -3227,6 +3855,8 @@ Zinnen met een woord dat dit bedrijf niet wil gebruiken (schrijf ze zonder dat w
 - "{zin met verboden woord}"
 ```
 
+Uitvoer: hetzelfde schema als het schrijven (`PaginaSchema`, `schemaName` `pagina`), zie 13.3.
+
 ### 14.6 De gele zinnen en klaarzetten
 
 - **Techniek.** `geleZinnenNa()` (`lib/pagina/controle-regels.ts`) bepaalt de gele zinnen: alle nog
@@ -3263,6 +3893,28 @@ Kost: niets, behalve een aanpassing op verzoek (richtwaarde 3 dollarcent).*
 
 **Doel van de hoofdstap.** De ondernemer laat beslissen: klopt het, klinkt het als mijn bedrijf, en zet ik dit
 zo op mijn site? Dat is de enige maatstaf die telt (`docs/tasks/contentketen-opnieuw.md` §1).
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor K as Klant
+    participant S as Paginascherm
+    participant R as Paginaroutes
+    participant DB as Postgres
+    participant Q as Wachtrij
+    S->>K: tekst met gele zinnen, verdwenen gegevens
+    K->>R: Klopt (zinnen) of zelf bewerken
+    opt aanpassing vragen
+        K->>R: notitie (budget)
+        R->>Q: pagina_herschrijven met klantNotitie
+        Q->>DB: nieuwe versie, oude bewaard
+    end
+    K->>R: Keur goed (alle gele zinnen bevestigd)
+    R->>DB: needs_review false, plan-pagina goedgekeurd
+    R->>DB: maakMeetplan: doelvragen en controlegroep
+    S->>K: publicatiepakket
+```
 
 ### 15.1 De klant leest de tekst
 
@@ -3375,6 +4027,30 @@ zo op mijn site? Dat is de enige maatstaf die telt (`docs/tasks/contentketen-opn
 **Doel van de hoofdstap.** Vastleggen dat en waar de pagina live staat, controleren of de tekst er echt staat,
 en de nameting (hoofdstap 17) klaarzetten.
 
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    actor K as Klant
+    participant R as POST publish
+    participant DB as Postgres
+    participant Q as Wachtrij
+    participant V as verify_publication
+    participant Site as Site van de klant
+    K->>Site: pagina zelf plaatsen
+    K->>R: live-link
+    R->>R: eigenaar, goedgekeurd, eigen domein
+    R->>DB: published, datePublished, plan-pagina geplaatst
+    R->>Q: verify_publication, measure_impact na 14 en 28 dagen
+    Q->>V: taak
+    V->>Site: pagina ophalen
+    V->>V: 8 zinnen, minstens 60 procent, JSON-LD, doorverwijzing
+    alt mislukt
+        V->>DB: terug naar ready en needs_review
+        V->>Q: open nameettaken verwijderen
+    end
+```
+
 ### 16.1 De klant vult de live-link in
 
 - **Techniek.** Twee ingangen die op dezelfde functie uitkomen:
@@ -3445,6 +4121,25 @@ bewijs op zichzelf: zichtbaarheid beweegt ook vanzelf en de ruis in een meting v
 zo groot als een gewone stijging. Daarom meet de app twee dingen naast elkaar: de vragen waar deze ene pagina
 voor gemaakt is (**doelvragen**) en een **controlegroep** van vragen waar geen pagina voor gemaakt is. Stijgt
 alles even hard, dan lag het niet aan de pagina.
+
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant Q as Wachtrij
+    participant MI as measure_impact
+    participant MP as measure_prompt (impact en control)
+    participant CI as compute_impact
+    participant DB as Postgres
+    Q->>MI: dag 14 en dag 28 na publicatie
+    MI->>DB: meetplan lezen
+    MI->>Q: per doelvraag en controlevraag een meting
+    Q->>MP: zelfde meting als hoofdstap 8, één keer per vraag
+    MP->>Q: laatste: compute_impact
+    Q->>CI: vóór (laatste reguliere meting) en na (deze golf)
+    CI->>CI: verschil, marge, oordeel, eigen pagina geciteerd
+    CI->>DB: content_impact
+```
 
 ### 17.1 Het meetplan (vastgelegd bij het goedkeuren)
 
@@ -3558,6 +4253,24 @@ aantallen.
 Deze hoofdstap beschrijft wat naast de hoofdlijn loopt of de hoofdlijn herhaalt. De modules onder 18.5 zijn
 kort beschreven; ik heb ze niet tot in de details nagelezen.
 
+**Stroomschema.** Wie roept wie aan, in volgorde (Mermaid; GitHub toont het als schema):
+
+```mermaid
+sequenceDiagram
+    participant VC as Vercel Cron (1e van de maand)
+    participant PC as pg_cron (04:00 UTC)
+    participant T as /api/cron/tracking
+    participant P as /api/cron/plan
+    participant Q as Wachtrij
+    VC->>T: geheim
+    T->>Q: technical_audit per merk
+    T->>Q: meting per cluster (21 dagen sinds de vorige, geen voorbeeldaccount)
+    PC->>P: geheim
+    P->>P: ochtendronde: voorbereiden, schrijfpoort (geen voorbeeldaccount)
+    P->>Q: gsc_sync per gekoppeld merk
+    Q->>Q: na elk rapport offsite_scan
+```
+
 ### 18.1 De maandelijkse meting
 
 - **Techniek.** Vercel Cron draait `GET /api/cron/tracking` met schema `0 6 1 * *` (de eerste van de maand,
@@ -3621,12 +4334,22 @@ Systeemprompt, letterlijk:
 Je controleert of een specifiek bedrijf voorkomt op een aantal websites. Gebruik web search. Per website: heeft dit bedrijf daar een eigen vermelding, profiel, bedrijfspagina of productplaatsing? Antwoord 'ja' ALLEEN als je een concrete pagina vindt die over dit bedrijf gaat, en geef dan de URL. Antwoord 'nee' als je vaststelt dat het bedrijf er niet op staat. Antwoord 'onbekend' als je het niet betrouwbaar kunt vaststellen. Dat is een geldig en vaak het juiste antwoord, en veel beter dan een gok. Een gok kost de ondernemer een middag werk aan iets wat al geregeld was, of laat hem denken dat iets geregeld is terwijl dat niet zo is. Verwar het bedrijf niet met gelijknamige bedrijven in een andere plaats of branche. Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `SourcePresence`, `schemaName` `source_presence`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `results` | lijst van objecten |  | verplicht |
+| `results[].domain` | tekst |  | verplicht |
+| `results[].present` | keuze | `ja`, `nee`, `onbekend` | verplicht |
+| `results[].url` | tekst |  | verplicht |
+| `results[].reasoning` | tekst |  | verplicht |
+
 ### 18.5 Aanverwante modules (kort)
 
 | Module | Wat het doet | Taken | Waar |
 |---|---|---|---|
 | **Clusters ontdekken** | Vindt nieuwe kandidaat-clusters voor een thema uit Search Console en DataForSEO Labs (eigen site, echte concurrenten, suggesties), schift ze op aanbod en strategie, en bundelt tot 6 tot 12 kandidaten. Eén zware AI-aanroep (de bundeling). Schrijft niet in de potentiescore of de meetgewichten | `discovery_collect`, `discovery_expand`, `discovery_sift`, `discovery_bundle` | `lib/pipeline/cluster-discovery.ts`, `lib/discovery/`, `app/api/profiles/[id]/discovery` |
-| **Clusters aanvullen** | Stelt extra onderwerpen voor (`propose_more_topics`), alleen door de consultant (`clusters_aanvullen`). Eén AI-aanroep, direct in de route, met eerst een voorbeeldweergave (`previewAdditionalRound()`) | Geen | `lib/pipeline/propose-more-topics.ts`, `app/api/profiles/[id]/topics/refresh` |
+| **Clusters aanvullen** | Stelt extra onderwerpen voor (`propose_more_topics`), alleen door de consultant (`clusters_aanvullen`). Eén AI-aanroep, direct in de route, met eerst een voorbeeldweergave (`previewAdditionalRound()`). De knop staat sinds 23 september 2026 niet meer op het scherm (opgegaan in Clusters ontdekken); de route bestaat nog | Geen | `lib/pipeline/propose-more-topics.ts`, `app/api/profiles/[id]/topics/refresh` |
 | **Reputatie** | Een los product: een analyse van de reputatie van het merk (toon, plaats, bewijskracht) met eigen vragen, vergelijkingen met concurrenten en een synthese. De volgorde van inplannen is een budgetmaatregel: de vergelijking valt als eerste weg | `reputation_start`, `_evidence`, `_brand`, `_offering`, `_compare`, `_sources`, `_market`, `_synthesis` | `lib/pipeline/reputation-*.ts`, `app/api/profiles/[id]/reputation`. Het scherm `/merk/[id]/analytics/reputatie` staat niet in het menu (`lib/nav.ts`); de enige link ernaartoe is de notificatie `reputatie_klaar` of `reputatie_mislukt` |
 | **Solliciteren** | Een zijproject van één pagina achter dezelfde inlog, met eigen stijlblad; geen onderdeel van de klantpijplijn | Geen | `app/solliciteren/`, `app/api/solliciteren` |
 | **Voorbeeldaccount** | Een ingeladen klant van twaalf maanden (RunX), zonder één AI-aanroep; zie 18.6 | Geen | `lib/demo.ts`, `lib/demo/runx/`, `app/api/beheer/demo/runx` |
@@ -3677,6 +4400,12 @@ Systeemprompt, letterlijk:
 Je vertaalt het aanbod van een bedrijf naar zoektermen zoals een klant ze in Google typt. Twee tot vier woorden per zoekterm, kleine letters, geen merknaam van het bedrijf zelf, geen plaatsnamen, geen namen van pakketten of abonnementen die alleen dit bedrijf gebruikt. [met een thema:] Alle zoektermen gaan over het THEMA hieronder: verschillende vragen, wensen en varianten binnen dat thema, zoals een klant ze zou typen. Het aanbod laat zien wat het bedrijf binnen dat thema verkoopt; diensten buiten het thema sla je over. Hooguit 20 zoektermen, de belangrijkste eerst. Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `Beginpunten`, `schemaName` `discovery_seeds`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `zoektermen` | lijst van tekst |  | verplicht |
+
 **Prompt: zoektermen schiften (clusters ontdekken)** (`kind` `discovery_sift`; bron `lib/pipeline/cluster-discovery.ts`; Luna, `deterministic`, zonder zoeken)
 
 Systeemprompt, letterlijk:
@@ -3687,6 +4416,14 @@ Laat weg: termen over iets anders dat toevallig een woord deelt (een app die 'ap
 pasvorm 'sterk': een klant die dit typt, kan morgen klant worden. 'redelijk': past bij het aanbod, maar de koopbedoeling is zwakker. Twijfel je, laat de term dan weg.
 [met een thema:] Deze ronde gaat alleen over het THEMA. Laat termen weg die niet over dat thema gaan, ook als ze wel bij het aanbod passen: die komen in een ronde met een ander thema aan bod.
 ```
+
+Uitvoer (Zod-schema `Schifting`, `schemaName` `discovery_sift`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `relevant` | lijst van objecten |  | verplicht |
+| `relevant[].nr` | getal |  | verplicht |
+| `relevant[].pasvorm` | keuze | `sterk`, `redelijk` | verplicht |
 
 **Prompt: zoektermen bundelen (clusters ontdekken)** (`kind` `discovery_bundle`; bron `lib/pipeline/cluster-discovery.ts`; Luna, `analytical`, zonder zoeken)
 
@@ -3712,6 +4449,16 @@ REGELS:
 Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `Bundeling`, `schemaName` `discovery_bundle`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `kandidaten` | lijst van objecten |  | verplicht |
+| `kandidaten[].titel` | tekst |  | verplicht |
+| `kandidaten[].onderbouwing` | tekst |  | verplicht |
+| `kandidaten[].diensten` | lijst van tekst |  | verplicht |
+| `kandidaten[].zoektermen` | lijst van tekst |  | verplicht |
+
 **Prompt: clusters aanvullen** (`kind` `propose_more_topics`; bron `lib/pipeline/propose-more-topics.ts`; Luna, `analytical`, zonder zoeken)
 
 Systeemprompt, letterlijk:
@@ -3733,6 +4480,16 @@ REGELS:
 Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `TopicProposals`, `schemaName` `topic_proposals`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `topics` | lijst van objecten |  | verplicht |
+| `topics[].title` | tekst |  | verplicht |
+| `topics[].rationale` | tekst |  | verplicht |
+| `topics[].offerings` | lijst van tekst |  | verplicht |
+| `topics[].priority` | getal |  | verplicht |
+
 **Prompt: de vragen van de reputatiemeting** (`kind` `reputation_merk, reputation_aanbod, reputation_bewijs, reputation_bron, reputation_markt, reputation_vergelijking`; bron `lib/pipeline/reputation-context.ts`, `REPUTATION_SYSTEM`; de vragen zelf in `lib/pipeline/reputation-*.ts`; Luna via `engine.callPlain()`, standaardinstellingen; zoeken per vraag, en niet als `MEASURE_WEB_SEARCH=false`)
 
 Systeemprompt, letterlijk:
@@ -3740,6 +4497,8 @@ Systeemprompt, letterlijk:
 ```text
 Je bent een behulpzame AI-assistent, zoals ChatGPT. Antwoord in het Nederlands. Ken je een bedrijf niet, of weet je te weinig om er iets zinnigs over te zeggen, zeg dat dan expliciet. Een eerlijk 'dat weet ik niet' is beter dan een vriendelijk antwoord dat nergens op rust. Noem de bronnen waar je je op baseert.
 ```
+
+Uitvoer: vrije tekst (`callPlain()`), geen schema. De app bewaart het antwoord letterlijk en beoordeelt het daarna zelf.
 
 **Prompt: het oordeel over een reputatieantwoord** (`kind` `reputation_verdict`; bron `lib/pipeline/reputation-verdict.ts`, `VERDICT_SYSTEM`; Luna, `deterministic`, zonder zoeken)
 
@@ -3749,6 +4508,19 @@ Systeemprompt, letterlijk:
 Je beoordeelt een antwoord dat een AI-assistent gaf over een bedrijf. Je geeft GEEN eigen mening over het bedrijf en je zoekt niets op: je leest alleen wat er staat en zet dat om in een structuur. Ga uitsluitend af op de tekst die je krijgt. Staat er niets over een onderwerp, vul dan niets in in plaats van iets aannemelijks. Weet je het niet, kies dan 'onbekend'. Dat is een geldig antwoord en veel beter dan een gok: een gok wordt hier een cijfer op het scherm van een ondernemer. ⚠️ KIES 'gemengd' ZODRA ER LOF ÉN KRITIEK IN STAAT. Niet 'overwegend positief'. Dat laatste is alleen juist als er nauwelijks iets tegenover de lof staat. Staan er twee of meer concrete bezwaren in de tekst, dan is het beeld per definitie gemengd, ook al klinkt de tekst vriendelijk en ook al zijn er meer pluspunten dan minpunten. Een tekst met lof en met drie klachten over de kosten is gemengd, geen overwegend positief oordeel. Pluspunten en minpunten neem je zo letterlijk mogelijk over uit de tekst, niet in je eigen woorden samengevat. ⚠️ Een pluspunt of minpunt is een EIGENSCHAP van het bedrijf: waar het goed of slecht in is, waar klanten het om prijzen of op aanspreken. Bijvoorbeeld 'persoonlijke begeleiding', 'het nakomen van afspraken', 'lange wachttijden', 'onduidelijke tarieven'. Het is NOOIT een uitspraak over de reviews zelf. Zinnen als 'het beeld is niet uitsluitend negatief', 'de algemene klantwaardering is goed' of 'daar staan ook positieve reviews tegenover' zijn geen punten: die zeggen alleen dát mensen een mening hebben, en niet welke eigenschap ze bedoelen. Laat ze weg. Houd elk punt kort, een woordgroep en geen zin. ⚠️ Het is ook NOOIT een uitspraak over wat jij wel of niet kon vinden. 'Weinig onafhankelijke reviews over deze dienst', 'certificering niet gevonden', 'de steekproef is klein' en 'de reviews zijn zes jaar oud' zijn geen minpunten van het bedrijf: dat gaat over de vindbaarheid en niet over de kwaliteit. Laat ze weg uit de minpunten. Kun je niets vinden, gebruik dan de grondslag 'geen' en het oordeel 'onbekend'. Citaten neem je WOORDELIJK over; verzin er nooit een. Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `ReputationVerdict`, `schemaName` `reputation_verdict`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `toon` | keuze | `onbekend`, `neutraal`, `gemengd`, `overwegend_positief`, `positief`, `negatief` | verplicht |
+| `noemt_merk` | ja of nee |  | verplicht |
+| `grondslag` | keuze | `onbekend`, `geen`, `eigen_site`, `sociale_media`, `pers`, `reviews` | verplicht |
+| `pluspunten` | lijst van tekst |  | verplicht |
+| `minpunten` | lijst van tekst |  | verplicht |
+| `citaten` | lijst van objecten |  | verplicht |
+| `citaten[].tekst` | tekst |  | verplicht |
+| `citaten[].bron_url` | tekst |  | verplicht |
+
 **Prompt: de vergelijking met concurrenten** (`kind` `reputation_compare_verdict`; bron `lib/pipeline/reputation-verdict.ts`; Luna, `deterministic`, zonder zoeken)
 
 Systeemprompt, letterlijk:
@@ -3756,6 +4528,19 @@ Systeemprompt, letterlijk:
 ```text
 Je leest een antwoord waarin een AI-assistent een aantal bedrijven met elkaar vergeleek, en zet dat om in een structuur. Je geeft GEEN eigen oordeel over de bedrijven en je zoekt niets op: je leest alleen terug wat er staat. Zet per onderwerp de bedrijven op de volgorde die in de tekst staat. Zegt de tekst over een bedrijf dat het onbekend is, of komt het bedrijf bij dat onderwerp niet voor, zet dan `ken_ik` op false en `plaats` op 0. Dat is een geldig antwoord en het is beter dan een gok. Voeg NOOIT een bedrijf toe dat niet in de tekst staat. Antwoord in het Nederlands.
 ```
+
+Uitvoer (Zod-schema `ReputationComparison`, `schemaName` `reputation_comparison`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `criteria` | lijst van objecten |  | verplicht |
+| `criteria[].criterium` | keuze | `dienstverlening`, `kwaliteit`, `prijs_kwaliteit`, `betrouwbaarheid` | verplicht |
+| `criteria[].partijen` | lijst van objecten |  | verplicht |
+| `criteria[].partijen[].naam` | tekst |  | verplicht |
+| `criteria[].partijen[].ken_ik` | ja of nee |  | verplicht |
+| `criteria[].partijen[].plaats` | getal |  | verplicht |
+| `criteria[].partijen[].reden` | tekst |  | verplicht |
+| `criteria[].partijen[].bronnen` | lijst van tekst |  | verplicht |
 
 **Prompt: de beoordelingen per platform** (`kind` `reputation_ratings`; bron `lib/pipeline/reputation-sources.ts`; Luna, `deterministic`, zonder zoeken)
 
@@ -3765,6 +4550,17 @@ Systeemprompt, letterlijk:
 Je leest een antwoord over online beoordelingen van een bedrijf en zet dat om in een structuur. Neem alleen over wat er letterlijk staat. Staat er geen cijfer of geen URL bij een platform, vul dan 0 respectievelijk een lege tekst in. Verzin nooit een URL of een cijfer. Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `ReputationRatings`, `schemaName` `reputation_ratings`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `platforms` | lijst van objecten |  | verplicht |
+| `platforms[].platform` | tekst |  | verplicht |
+| `platforms[].url` | tekst |  | verplicht |
+| `platforms[].cijfer` | getal |  | verplicht |
+| `platforms[].aantal` | getal |  | verplicht |
+| `platforms[].zeker` | ja of nee |  | verplicht |
+
 **Prompt: de soort bron** (`kind` `reputation_source_kinds`; bron `lib/pipeline/reputation-sources.ts`; Luna, `deterministic`, zonder zoeken)
 
 Systeemprompt, letterlijk:
@@ -3772,6 +4568,14 @@ Systeemprompt, letterlijk:
 ```text
 Je deelt websites in naar soort. Kies per domein: 'review' (een platform waar klanten beoordelingen achterlaten), 'vakpers' (nieuws of vakmedia), 'sociaal' (een sociaal netwerk), 'register' (een officieel register of overheidsbron) of 'overig'. Weet je het niet, kies 'overig'. De site van een bedrijf zelf, of dat nu het genoemde bedrijf is of een ander, valt onder 'overig'. Antwoord in het Nederlands.
 ```
+
+Uitvoer (Zod-schema `ReputationSourceKinds`, `schemaName` `reputation_source_kinds`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `domeinen` | lijst van objecten |  | verplicht |
+| `domeinen[].domein` | tekst |  | verplicht |
+| `domeinen[].soort` | keuze | `overig`, `review`, `vakpers`, `sociaal`, `register` | verplicht |
 
 **Prompt: bewijs in fragmenten knippen** (`kind` `reputation_bewijs_knip`; bron `lib/pipeline/reputation-evidence.ts`; Luna, `deterministic`, zonder zoeken)
 
@@ -3781,6 +4585,15 @@ Systeemprompt, letterlijk:
 Je knipt een onderzoeksantwoord op in losse, citeerbare fragmenten. Neem passages LETTERLIJK over; vat niet samen en voeg niets toe. Geef per fragment de bron-URL als die in de tekst staat, en een kort onderwerp zodat het fragment terug te vinden is. ⚠️ Neem RUIM over: niet alleen losse citaten tussen aanhalingstekens, maar ook de zinnen eromheen die een feit, een cijfer, een dienst of een ervaring bevatten. Een fragment van één woord is onbruikbaar; mik op hele zinnen. Alleen inleidende en afsluitende beleefdheden mogen weg. Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `ReputationEvidence`, `schemaName` `reputation_evidence`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `fragmenten` | lijst van objecten |  | verplicht |
+| `fragmenten[].tekst` | tekst |  | verplicht |
+| `fragmenten[].bron_url` | tekst |  | verplicht |
+| `fragmenten[].onderwerp` | tekst |  | verplicht |
+
 **Prompt: de aanbevelingen in de markt** (`kind` `reputation_market_verdict`; bron `lib/pipeline/reputation-market.ts`; Luna, `deterministic`, zonder zoeken)
 
 Systeemprompt, letterlijk:
@@ -3789,6 +4602,15 @@ Systeemprompt, letterlijk:
 Je leest een antwoord waarin een AI-assistent bedrijven aanbeveelt, en zet dat om in een structuur. Neem de bedrijven over in de volgorde waarin ze in de tekst staan, want die volgorde IS de aanbeveling. Neem alleen bedrijven over die echt als aanbeveling genoemd worden. Een bedrijf dat alleen terloops voorkomt, bijvoorbeeld als voorbeeld van wat je moet vermijden of als leverancier van een ander, hoort er niet bij. Voeg nooit een bedrijf toe dat niet in de tekst staat. Staat er geen enkele aanbeveling in, geef dan een lege lijst. Antwoord in het Nederlands.
 ```
 
+Uitvoer (Zod-schema `ReputationMarket`, `schemaName` `reputation_market`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `bedrijven` | lijst van objecten |  | verplicht |
+| `bedrijven[].naam` | tekst |  | verplicht |
+| `bedrijven[].plek` | getal |  | verplicht |
+| `bedrijven[].reden` | tekst |  | verplicht |
+
 **Prompt: de samenvatting van de reputatiemeting** (`kind` `reputation_synthesis`; bron `lib/pipeline/reputation-synthesis.ts`; Luna, `analytical`, zonder zoeken)
 
 Systeemprompt, letterlijk:
@@ -3796,6 +4618,18 @@ Systeemprompt, letterlijk:
 ```text
 Je schrijft de samenvatting van een reputatieanalyse voor een ondernemer die geen marketeer is. ⚠️ DE CIJFERS STAAN VAST. Je krijgt ze en je legt ze uit; je berekent ze niet en je spreekt ze niet tegen. Noem geen cijfer dat je niet gekregen hebt. Schrijfregels: je en jij, korte stellende zinnen, ORBIT ENGINE of ChatGPT als handelend onderwerp. Geen verkooppraat en geen geruststelling: een probleem benoem je. INTERPUNCTIE. Gebruik GEEN gedachtestreepjes (— of –) en GEEN schuine streep tussen twee woorden. Schrijf 'en of' voluit. Dat zijn de twee leestekens waaraan een lezer AI-tekst herkent, en dit scherm draagt de naam van de klant. Gebruik een komma, een dubbele punt, of splits de zin. Een koppelteken in een samenstelling ('AI-assistent') mag wel. Bij sterke en kwetsbare punten neem je alleen over wat je krijgt; verzin er niets bij. Antwoord in het Nederlands.
 ```
+
+Uitvoer (Zod-schema `ReputationSynthesis`, `schemaName` `reputation_synthesis`). Het model levert JSON in precies deze vorm; `[]` betekent een element van een lijst:
+
+| Veld | Type | Toegestane waarden | Leeg |
+|---|---|---|---|
+| `samenvatting` | tekst |  | verplicht |
+| `sterk` | lijst van tekst |  | verplicht |
+| `kwetsbaar` | lijst van tekst |  | verplicht |
+| `per_dienst` | lijst van objecten |  | verplicht |
+| `per_dienst[].dienst` | tekst |  | verplicht |
+| `per_dienst[].uitleg` | tekst |  | verplicht |
+| `vergelijking` | tekst |  | verplicht |
 
 ---
 
@@ -3840,7 +4674,7 @@ hoofdstap in de eerste kolom.
 | 18.4 | `source_presence` | Luna | deterministic | Ja | `offsite_scan` |
 | 18.5 | `discovery_seeds`, `discovery_sift` | Luna | deterministic | Nee | `discovery_*` |
 | 18.5 | `discovery_bundle` | Luna | analytical | Nee | `discovery_bundle` |
-| 18.5 | `propose_more_topics` | Luna | analytical | Nee | Geen taak: direct in `POST /api/profiles/[id]/topics/refresh` (de knop "Stel nieuwe clusters voor") |
+| 18.5 | `propose_more_topics` | Luna | analytical | Nee | Geen taak: direct in `POST /api/profiles/[id]/topics/refresh`; de knop "Stel nieuwe clusters voor" staat sinds 23 september 2026 niet meer op het scherm (opgegaan in Clusters ontdekken), de route bestaat nog |
 | 18.5 | `reputation_merk`, `_aanbod`, `_bewijs`, `_bron`, `_markt`, `_vergelijking` (de vragen) | Luna | standaardinstellingen | Per vraag | `reputation_*` |
 | 18.5 | `reputation_verdict`, `_compare_verdict`, `_ratings`, `_source_kinds`, `_bewijs_knip`, `_market_verdict` | Luna | deterministic | Nee | `reputation_*` |
 | 18.5 | `reputation_synthesis` | Luna | analytical | Nee | `reputation_synthesis` |
@@ -4048,11 +4882,13 @@ en zijn niet op productie of met testdata nagelopen; waar iets een afleiding is,
 5. `/api/cron/reminders` staat niet in `vercel.json`. De herinneringsmails draaien dus niet, ook niet als
    `EMAILS_ENABLED` aan staat.
 
-6a. **Het merkdossier en de handmatige upload staan niet achter de kostenremmen** (4.7). Beide routes vragen
-   alleen of de aanroeper bij het merk mag; een klant kan dus zelf een AI-aanroep starten, buiten
-   `mayTriggerCost` en buiten het dagplafond om. Per document is dat ongeveer een dollarcent, en dezelfde tekst
-   twee keer aanleveren doet niets (de upload controleert een hash), maar een reeks verschillende teksten wordt
-   nergens afgeremd. Afgeleid uit de code.
+6a. **Vier routes starten AI-werk buiten de kostenremmen** (bijlage I). Het merkdossier en de handmatige
+   upload (4.7) doen een directe AI-aanroep; de knoppen "opnieuw" voor het onderwerponderzoek en het rapport
+   (`analyses/[id]/prepare` en `analyses/[id]/report`) plannen een taak. Alle vier vragen alleen of de
+   aanroeper bij het merk mag, niet `mayTriggerCost` en niet het dagplafond. Een klant kan ze dus zelf
+   aanroepen. Per keer is dat ongeveer een dollarcent, en een herhaalde stap doet niets als zijn resultaat al
+   bestaat (de upload controleert een hash), maar een reeks verschillende teksten wordt nergens afgeremd.
+   Afgeleid uit de code.
 6b. **Het standaardaccount van de Admin.** Sinds migratie 0134 is de Admin lid van elk klantaccount.
    `defaultAccountFor()` kiest het oudste account van een gebruiker; voor de Admin is dat zijn eigen account
    alleen zolang dat als eerste is aangemaakt. Is dat ooit niet zo, dan hangt een nieuw merk aan het oudste
@@ -4127,3 +4963,1858 @@ en zijn niet op productie of met testdata nagelopen; waar iets een afleiding is,
   beoordeling uit 8.3.
 - De tests vervangen de AI met `__setTestTransport()` (0.4), zodat de ketentests (`scripts/test-chain.ts`) de
   volledige keten zonder betaalde aanroepen kunnen doorlopen.
+
+## Bijlage I. Alle API-routes
+
+Alle 80 routes onder `app/api/` (1 oktober 2026), automatisch uit de code gelezen en per route nagelopen.
+Elke route behalve `health`, `version`, `invites/accept` en de cron-routes vraagt eerst een ingelogde
+gebruiker (`getUser()`, anders 401). De kolommen:
+
+- **Wie** is wie de route mag gebruiken: *eigenaar* (iedereen die bij het merk of de analyse mag,
+  `getOwnedProfile()` of `getOwnedAnalysis()`, dus de klant en de Admin), *lid* (lid van het account of
+  Admin), *Admin* (alleen `isStaff`, anders 404 of 403), *geheim* (`Authorization: Bearer <CRON_SECRET>`) of
+  *iedereen*.
+- **Kostenslot** is de handeling uit `STAFF_ONLY_ACTIONS` waarop `mayTriggerCost()` controleert (0.5).
+- **Budget** is `checkBudgetForProfile()` (per merk en totaal) of `checkBudget()` (alleen totaal).
+- **Gevolg** is wat de route in gang zet: een taak in de wachtrij, een directe AI-aanroep, of alleen
+  schrijven of lezen.
+
+**Merk en onderzoek**
+
+| Route | Methoden | Wie | Kostenslot | Budget | Gevolg | Hoofdstap |
+|---|---|---|---|---|---|---|
+| `/api/profiles` | POST | ingelogd | `merk_onderzoeken` | totaal | Merk aanmaken, taak `profile_light_scan` | 2 |
+| `/api/profiles/[id]` | PATCH | eigenaar; de herkomst `gesprek` of `consultant` alleen Admin | Nee | Nee | Profielvelden opslaan, kennislaag, vragen sluiten | 5.2 |
+| `/api/profiles/[id]/research` | POST | eigenaar | `merk_onderzoeken` | merk | Taak `profile_research` | 3.4 |
+| `/api/profiles/[id]/deep-research` | POST | eigenaar | `merk_onderzoeken` | merk | Onderzoek opnieuw, taak `profile_discover` met `maxPages` | 3.2 |
+| `/api/profiles/[id]/refresh` | POST | eigenaar | `merk_onderzoeken` | merk | Onderzoek bijwerken, taken per veld | 5.5 |
+| `/api/profiles/[id]/refresh-inventory` | POST | eigenaar | Nee | Nee | Taak `crawl_inventory` (geen AI) | 3.2 |
+| `/api/profiles/[id]/pages` | POST, DELETE | eigenaar | Nee | Nee | Pagina's met de hand aan de inventaris toevoegen of eruit halen | 3.2 |
+| `/api/profiles/[id]/offerings` | POST, PATCH, DELETE | eigenaar; schrijft met herkomst volgens de rol | Nee | Nee | De aanbodboom bewerken | 3.5 |
+| `/api/profiles/[id]/status` | GET | eigenaar | Nee | Nee | Voortgang van het onderzoek (lezen) | 3.10 |
+| `/api/profiles/[id]/export` | GET | eigenaar | Nee | Nee | Het merkprofiel als CSV | 5 |
+| `/api/profiles/[id]/strategy` | PUT | eigenaar | Nee | Nee | Gesprek vastleggen, kennislaag, taak `propose_topics` (AI, ongeveer 0,01 dollar) | 5.4 |
+| `/api/profiles/[id]/dossier` | POST | eigenaar | Nee | Nee | Directe AI-aanroep `dossier_extract` | 4.7 |
+| `/api/profiles/[id]/kennis/upload` | POST | eigenaar | Nee | Nee | Directe AI-aanroep `upload_kennis` | 4.7 |
+| `/api/profiles/[id]/kennis/[itemId]` | POST | Admin | Nee | Nee | Handeling op een kennisitem (bevestigen, aanpassen, afwijzen, terugzetten) | 4.8 |
+| `/api/profiles/[id]/fact-conflicts` | POST, PATCH | Admin | Nee | Nee | Een tegenstrijdigheid oplossen; plant `fact_register` in (AI, `fact_classify`) | 4.6 |
+| `/api/profiles/[id]/facts` | PATCH | eigenaar | Nee | Nee | Een vraag beantwoorden of overslaan, daarna de schrijfpoort | 12.2 |
+| `/api/profiles/[id]/entities` | GET, POST | eigenaar | Nee | Nee | Concurrentenlijst lezen of aanvullen | 8.4 |
+| `/api/profiles/[id]/entities/[entityId]` | PATCH, DELETE | eigenaar | Nee | Nee | Een concurrent hernoemen, indelen of verwijderen | 8.4 |
+| `/api/profiles/[id]/search-console` | POST | eigenaar | Nee | Nee | Search Console koppelen en meteen proberen te lezen | 18.3 |
+
+**Toegang en accounts**
+
+| Route | Methoden | Wie | Kostenslot | Budget | Gevolg | Hoofdstap |
+|---|---|---|---|---|---|---|
+| `/api/profiles/[id]/assign` | GET, POST | Admin | Nee | Nee | Toewijzen aan een bestaande gebruiker | 6.1 |
+| `/api/profiles/[id]/assign-by-email` | POST | Admin | Nee | Nee | Toewijzen op e-mailadres, eventueel nieuw account en uitnodiging | 6.1 |
+| `/api/accounts/[id]` | PATCH | lid; pakket, startdatum en opzeggen alleen Admin | Nee | Nee | Bedrijfsgegevens, pakket, startdatum, opzeggen | 6.4 |
+| `/api/accounts/[id]` | GET, DELETE | Admin | Nee | Nee | Verwijderplan bekijken en het account verwijderen | 6 |
+| `/api/accounts/[id]/invites` | POST | lid | Nee | Nee | Uitnodiging maken (link alleen in het antwoord) | 6.2 |
+| `/api/accounts/[id]/invites/[inviteId]/revoke` | POST | lid | Nee | Nee | Uitnodiging intrekken | 6.2 |
+| `/api/invites/accept` | POST | iedereen, 20 pogingen per 15 minuten per IP | Nee | Nee | Uitnodiging verzilveren, gebruiker en lidmaatschap | 6.3 |
+| `/api/account/security` | POST | ingelogd (eigen account) | Nee | Nee | Eigen e-mailadres of wachtwoord wijzigen | 1.3 |
+
+**Clusters, meting en rapport**
+
+| Route | Methoden | Wie | Kostenslot | Budget | Gevolg | Hoofdstap |
+|---|---|---|---|---|---|---|
+| `/api/profiles/[id]/topics` | PATCH, POST | eigenaar; POST met kostenslot | `analyse_starten` (POST) | merk | Onderwerp beslissen; een onderwerp omzetten in een cluster, taak `prepare_analysis` | 7.1 |
+| `/api/profiles/[id]/topics/refresh` | GET, POST | eigenaar | `clusters_aanvullen` | merk | Directe AI-aanroep `propose_more_topics` (de knop staat sinds 23 september 2026 niet meer op het scherm) | 18.5 |
+| `/api/profiles/[id]/discovery` | GET, POST, PATCH | eigenaar; afwijzen alleen Admin | `clusters_aanvullen` (POST) | merk | Clusters ontdekken, taken `discovery_*` | 18.5 |
+| `/api/profiles/[id]/labels` | GET, POST | eigenaar | Nee | Nee | Clusterlabels | 7.1 |
+| `/api/profiles/[id]/labels/[labelId]` | PATCH, DELETE | eigenaar | Nee | Nee | Label hernoemen of weggooien | 7.1 |
+| `/api/analyses` | POST | eigenaar | `analyse_starten` | Nee | Zelf ingetypt onderwerp, taak `prepare_analysis` | 7.1 |
+| `/api/analyses/[id]` | PATCH | eigenaar | Nee | Nee | Content-brief en verdeling van de vragen | 7.1 |
+| `/api/analyses/[id]/prepare` | POST | eigenaar | **Nee** | **Nee** | Taak `prepare_analysis` opnieuw (de knop "opnieuw" na een mislukking) | 7.2 |
+| `/api/analyses/[id]/topic-research` | PATCH | eigenaar | Nee | Nee | Onderwerponderzoek bewerken | 7.2 |
+| `/api/analyses/[id]/prompts` | POST | eigenaar | Nee | Nee | Meetvraag toevoegen | 7.5 |
+| `/api/analyses/[id]/prompts/[promptId]` | PATCH, DELETE | eigenaar | Nee | Nee | Meetvraag wijzigen, aan of uit zetten, verwijderen | 7.5 |
+| `/api/analyses/[id]/confirm` | POST | eigenaar | `meting_starten` | merk | De poort: meettaken inplannen | 7.5 |
+| `/api/analyses/[id]/measure` | POST | eigenaar | `meting_starten` | merk | Meettaken inplannen (los van de poort) | 8.1 |
+| `/api/analyses/[id]/hervatten` | POST | eigenaar | `analyse_starten` of `meting_starten` | merk | Een vastgelopen cluster opnieuw op gang | 0.3 |
+| `/api/analyses/[id]/report` | POST | eigenaar | **Nee** | **Nee** | Taak `generate_report` opnieuw | 9 |
+| `/api/analyses/[id]/tracking` | PATCH | eigenaar | Nee | Nee | Maandelijkse meting aan of uit | 18.1 |
+| `/api/analyses/[id]/archief` | POST | eigenaar | Nee | Nee | Cluster naar de prullenbak of terug | 0.2 |
+| `/api/analyses/[id]/status` | GET | eigenaar | Nee | Nee | Voortgang (lezen) | 8 |
+| `/api/analyses/[id]/costs` | GET | Admin | Nee | Nee | AI-kosten van de analyse uit `ai_calls` | 0.4 |
+| `/api/analyses/[id]/results/export` | GET | eigenaar | Nee | Nee | Het effect als CSV | 17 |
+| `/api/analyses/[id]/offsite/[taskId]` | PATCH | eigenaar | Nee | Nee | Status van een off-site taak | 18.4 |
+
+**Contentplan en pagina's**
+
+| Route | Methoden | Wie | Kostenslot | Budget | Gevolg | Hoofdstap |
+|---|---|---|---|---|---|---|
+| `/api/profiles/[id]/plan` | POST | eigenaar | `content_schrijven` | merk | Plan opstellen (geen AI) | 10.2 |
+| `/api/profiles/[id]/plan/months/[monthId]` | POST | eigenaar; `goedkeuren` en `afwijzen` met kostenslot | `plan_goedkeuren` (goedkeuren, afwijzen) | merk (goedkeuren) | Maand starten (voorbereiding), afwijzen, alles geplaatst | 10.4 |
+| `/api/profiles/[id]/plan/pages/[pageId]` | POST | eigenaar; `soort` en `schrijf_nu` alleen Admin | Nee | merk (bij `schrijf_nu`) | Inplannen, verplaatsen, datum, soort, goedkeuren, geplaatst, nu schrijven | 10.3, 10.5 |
+| `/api/profiles/[id]/plan/note` | PATCH | eigenaar | Nee | Nee | Notitie voor de schrijver | 10.2 |
+| `/api/profiles/[id]/plan/requeue-overdue` | POST | Admin | Nee | Nee | Achterstallige pagina's opnieuw in de rij | 11.6 |
+| `/api/profiles/[id]/plan/export` | GET | eigenaar | Nee | Nee | Het plan als CSV | 10 |
+| `/api/profiles/[id]/kansen/handmatig` | POST | Admin | Nee | Nee | Eigen pagina-idee, eventueel meteen inplannen en voorbereiden | 10.1 |
+| `/api/profiles/[id]/paginas/[pieceId]` | POST | eigenaar | Nee | merk | Goedkeuren of een aanpassing vragen (taak `pagina_herschrijven`) | 15.3, 15.4 |
+| `/api/profiles/[id]/paginas/[pieceId]/zinnen` | POST | eigenaar | Nee | Nee | Een gele zin bevestigen | 15.2 |
+| `/api/analyses/[id]/content/[pieceId]` | PATCH | eigenaar | Nee | Nee | De tekst zelf bewerken | 15.2 |
+| `/api/analyses/[id]/content/[pieceId]/publish` | POST, DELETE | eigenaar | Nee | Nee | Live-link vastleggen of terugdraaien, taak `verify_publication` | 16 |
+| `/api/analyses/[id]/content/[pieceId]/status` | GET | eigenaar | Nee | Nee | Stand van een pagina (zie bijlage H, punt 3) | 13 |
+| `/api/beheer/paginas/[pieceId]/opnieuw-schrijven` | POST | Admin | Nee | **Nee** | Een geschreven pagina opnieuw laten schrijven met dezelfde brief, om een ketenwijziging te toetsen | 13 |
+
+**Overig**
+
+| Route | Methoden | Wie | Kostenslot | Budget | Gevolg | Hoofdstap |
+|---|---|---|---|---|---|---|
+| `/api/profiles/[id]/reputation` | POST | eigenaar | `reputatie_starten` | merk | Reputatiemeting, taken `reputation_*` | 18.5 |
+| `/api/notificaties` | GET | ingelogd (RLS bepaalt wat hij ziet) | Nee | Nee | Meldingen lezen | 0.7 |
+| `/api/notificaties/gezien` | POST | ingelogd | Nee | Nee | Alles tot nu gezien | 0.7 |
+| `/api/beheer/demo/runx` | POST | Admin | Nee | Nee | Voorbeeldaccount inladen, stap voor stap (geen AI) | 18.6 |
+| `/api/beheer/spoor/[profileId]` | GET | Admin | Nee | Nee | Elke AI-aanroep en taak van één merk in tijdsvolgorde | 0.4 |
+| `/api/cron/worker` | GET | geheim | Nee | Nee | De werker | 0.2 |
+| `/api/cron/plan` | GET | geheim | Nee | Nee | Ochtendronde en Search Console | 11.6, 18.3 |
+| `/api/cron/tracking` | GET | geheim | Nee | Nee | Maandelijkse meting | 18.1 |
+| `/api/cron/reminders` | GET | geheim | Nee | Nee | Herinneringen (draait niet automatisch) | 12.4 |
+| `/api/health` | GET | iedereen | Nee | Nee | Of de omgevingsvariabelen gezet zijn (alleen ja of nee) | 0 |
+| `/api/version` | GET | iedereen | Nee | Nee | De versie die op de server draait | 0 |
+| `/api/solliciteren/*` (9 routes) | diverse | Admin (`eisBeheerder()`) | Nee | Nee | Het zijproject, los van de klantpijplijn | 18.5 |
+
+**Wat deze tabel laat zien.** Vier routes zetten betaald AI-werk in gang zonder `mayTriggerCost` en zonder
+dagbudget, op een eigenaarscontrole na: `dossier` en `kennis/upload` (een directe aanroep, 4.7), en
+`analyses/[id]/prepare` en `analyses/[id]/report` (een taak). De laatste twee zijn de knoppen "opnieuw" na een
+mislukte stap; omdat de stap eerst kijkt of zijn resultaat al bestaat (0.6), kost een herhaling alleen iets als
+de stap echt mislukt was. `strategy` plant `propose_topics` (ongeveer een dollarcent) voor iedereen die bij het
+merk mag. De Admin-route `opnieuw-schrijven` controleert het dagbudget niet. Zie bijlage H, punt 6a.
+
+## Bijlage J. Het datamodel per tabel
+
+Alle tabellen van de productiedatabase (schema `public`), zoals ze er op 1 oktober 2026 stonden, met het aantal
+rijen op die dag. Opgevraagd uit de catalogus van Postgres, niet uit de migratiebestanden: de database is leidend
+(migratie `0107_contenttype_bij_de_kans` staat bijvoorbeeld wel op productie maar niet in de map). Weggelaten zijn de 21 `sales_*`-tabellen
+van de verwijderde Sales-module, de vier `sollicitatie_*`-tabellen van het zijproject en de reservekopie
+`_backup_20260729`. Per tabel: wat hij is (de toelichting die de migratie in de database zette, als die er is),
+de kolommen, de regels die de database zelf afdwingt, en wie hem via Row Level Security mag lezen. Een tabel zonder
+leesregel is alleen bereikbaar met de service-role, dus alleen via API-routes en taken (conventie 6).
+
+Leeswijzer voor de leesregels: `is_staff()` is waar voor de Admin (1.1); `owns_profile(...)`, `owns_analysis(...)` en
+verwante functies zijn waar voor wie bij het merk of de analyse mag. `[SELECT]` is lezen, `[ALL]` alles.
+
+### J. Toegang
+
+#### `accounts` (6 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `name` | text | nee |  |  |
+| `legal_name` | text | ja |  |  |
+| `address` | text | ja |  |  |
+| `postal_code` | text | ja |  |  |
+| `city` | text | ja |  |  |
+| `country` | text | ja |  |  |
+| `vat_number` | text | ja |  |  |
+| `vat_not_applicable` | boolean | nee | `false` |  |
+| `invoice_email` | text | ja |  |  |
+| `contact_person` | text | ja |  |  |
+| `contact_email` | text | ja |  |  |
+| `contact_phone` | text | ja |  |  |
+| `package_pages_per_month` | integer | ja |  |  |
+| `started_at` | timestamp with time zone | ja |  |  |
+| `cancelled_at` | timestamp with time zone | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `value_per_mention_eur` | numeric | ja |  | Wat één punt extra AI-zichtbaarheid dit account per maand waard is, in euro. Leeg = onbekend, dan toont het opbrengstblok aantallen in plaats van geld (besluit 16). |
+| `monthly_budget_eur` | numeric | ja |  | (0089) NIET MEER IN GEBRUIK. Vervangen door daily_budget_eur: het plafond per account is een dagplafond geworden, geen maandplafond. Blijft staan omdat migraties niets weggooien (conventie 4); geen enkel account had ... |
+| `daily_budget_eur` | numeric | ja |  | (0089) Dagplafond in euro's voor betaald AI-werk van dit account. Null = de standaard uit lib/spend-rules.ts (€20). Vervangt monthly_budget_eur (herstelplan T5). |
+
+Regels: controle: `(((daily_budget_eur IS NULL) OR ((daily_budget_eur >= (0)) AND (daily_budget_eur <= (100000)))))`; controle: `(((monthly_budget_eur IS NULL) OR ((monthly_budget_eur >= (0)) AND (monthly_budget_eur <= (100000)))))`; controle: `(((package_pages_per_month IS NULL) OR (package_pages_per_month in (10, 20, 40))))`; controle: `(((value_per_mention_eur IS NULL) OR ((value_per_mention_eur >= (0)) AND (value_per_mention_eur <= (100000)))))`; primaire sleutel (id).
+
+Leesregels (RLS): `accounts_select_member` [SELECT] `(id IN ( SELECT user_account_ids() AS user_account_ids))`; `accounts_select_staff` [SELECT] `is_staff()`.
+
+#### `account_users` (11 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `account_id` | uuid | nee |  |  |
+| `user_id` | uuid | nee |  |  |
+| `role` | text | nee | `'admin'` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `((role in ('admin', 'member')))`; `account_id` verwijst naar `accounts.id` (on delete cascade); `user_id` verwijst naar `auth.users.id` (on delete cascade); primaire sleutel (account_id, user_id).
+
+Leesregels (RLS): `account_users_select_own` [SELECT] `(user_id = ( SELECT auth.uid() AS uid))`; `account_users_select_staff` [SELECT] `is_staff()`.
+
+#### `account_invites` (2 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `account_id` | uuid | nee |  |  |
+| `email` | text | nee |  |  |
+| `role` | text | nee | `'admin'` |  |
+| `token_hash` | text | nee |  |  |
+| `expires_at` | timestamp with time zone | nee |  |  |
+| `accepted_at` | timestamp with time zone | ja |  |  |
+| `accepted_user_id` | uuid | ja |  |  |
+| `revoked_at` | timestamp with time zone | ja |  |  |
+| `created_by_user_id` | uuid | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `first_name` | text | ja |  |  |
+| `last_name` | text | ja |  |  |
+
+Regels: controle: `((role in ('admin', 'member')))`; `accepted_user_id` verwijst naar `auth.users.id` (on delete set null); `account_id` verwijst naar `accounts.id` (on delete cascade); `created_by_user_id` verwijst naar `auth.users.id` (on delete set null); primaire sleutel (id); uniek (token_hash).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `staff_users` (4 rijen)
+
+Wie de app beheert (docs/tasks/onboarding-2.0.md blok A). Leeg bij aanmaak: de eigenaar zet zichzelf er handmatig in. Een hardgecodeerd account-ID in versiebeheer is een achterdeur die niemand meer terugvindt.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `user_id` | uuid | nee |  |  |
+| `role` | text | nee | `'consultant'` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `user_id` verwijst naar `auth.users.id` (on delete cascade); primaire sleutel (user_id).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `staff_invites` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `email` | text | nee |  |  |
+| `token_hash` | text | nee |  |  |
+| `expires_at` | timestamp with time zone | nee |  |  |
+| `accepted_at` | timestamp with time zone | ja |  |  |
+| `accepted_user_id` | uuid | ja |  |  |
+| `revoked_at` | timestamp with time zone | ja |  |  |
+| `created_by_user_id` | uuid | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `first_name` | text | ja |  |  |
+| `last_name` | text | ja |  |  |
+
+Regels: `accepted_user_id` verwijst naar `auth.users.id` (on delete set null); `created_by_user_id` verwijst naar `auth.users.id` (on delete set null); primaire sleutel (id); uniek (token_hash).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `rate_limits` (25 rijen)
+
+(0090) Snelheidsbegrenzing per sleutel per tijdvenster. Zie lib/rate-limit.ts. Schrijf er nooit rechtstreeks in, alleen via rate_limit_hit().
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `key` | text | nee |  |  |
+| `window_start` | timestamp with time zone | nee |  |  |
+| `count` | integer | nee | `0` |  |
+
+Regels: primaire sleutel (key, window_start).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+### J. Merk en onderzoek
+
+#### `profiles` (9 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `user_id` | uuid | nee |  |  |
+| `name` | text | nee |  |  |
+| `url` | text | nee |  |  |
+| `brand_name` | text | ja |  |  |
+| `industry` | text | ja |  |  |
+| `tone_of_voice` | text | ja |  |  |
+| `summary` | text | ja |  |  |
+| `products` | text[] | nee | `'{}'` |  |
+| `value_props` | text[] | nee | `'{}'` |  |
+| `competitors` | text[] | nee | `'{}'` |  |
+| `personas` | jsonb | nee | `'[]'` |  |
+| `raw_json` | jsonb | ja |  |  |
+| `status` | profile_status | nee | `'bezig'` |  |
+| `edited_by_user` | boolean | nee | `false` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `wikidata_id` | text | ja |  |  |
+| `wikipedia_url` | text | ja |  |  |
+| `entity_checked_at` | timestamp with time zone | ja |  |  |
+| `sitemap_url` | text | ja |  |  |
+| `max_inventory_pages` | integer | nee | `40` |  |
+| `intake_description` | text | ja |  |  |
+| `intake_audience` | text | ja |  |  |
+| `aliases` | text[] | nee | `'{}'` |  |
+| `service_scope` | text | ja |  |  |
+| `service_regions` | text[] | nee | `'{}'` |  |
+| `market_language` | text | ja |  |  |
+| `customer_questions` | text[] | nee | `'{}'` |  |
+| `proof_points` | text[] | nee | `'{}'` |  |
+| `style_samples` | text[] | nee | `'{}'` |  |
+| `business_model` | text | ja |  | retailer \| platform \| dienstverlener \| fabrikant \| overig. Bepaalt o.a. welke vaste briefingvragen zinvol zijn (R8.5): een platform heeft geen enkelvoudig adres of telefoonnummer. Null = onbekend; de briefing ... |
+| `created_by_user_id` | uuid | ja |  | Wie dit profiel aanmaakte. Blijft de superuser, ook nadat user_id naar de klant is overgezet. |
+| `assigned_at` | timestamp with time zone | ja |  | Wanneer het profiel aan de klant is toegewezen. Null = nog intern. |
+| `inventory_quality_json` | jsonb | ja |  |  |
+| `onboarding_budget_usd` | numeric | nee | `2.15` | Kostenplafond voor het onboarding-onderzoek. $2,15 = ongeveer 2 euro. De poort telt ai_calls op profile_id; loopt het budget op, dan wordt een fase overgeslagen en dat wordt vastgelegd, nooit stil gedegradeerd. |
+| `deep_research_at` | timestamp with time zone | ja |  |  |
+| `engines_enabled` | text[] | nee | `'{openai}'` | Welke engines meedoen in meting en kennistest. De code snijdt dit altijd met de engines waarvoor daadwerkelijk een API-sleutel bestaat (lib/engines/registry.ts): staat hier gemini zonder sleutel, dan wordt hij ... |
+| `archived_at` | timestamp with time zone | ja |  | Gearchiveerd op. Null = zichtbaar in de app. Gevuld = verborgen uit alle lijsten en tellingen, maar volledig aanwezig in de database en bereikbaar via de directe URL. Zie lib/archive.ts. |
+| `taboo_phrases` | text[] | nee | `'{}'` | Woorden of claims die de klant nooit in gegenereerde tekst terug wil zien (bv. "gratis", "beste van Nederland"). Leeg = geen restricties. Gaat als verbod de schrijfprompt in (lib/pipeline/content.ts) en wordt na het ... |
+| `compliance_notes` | text | ja |  | Vrije tekst: regels, wetten of disclaimers waar content aan moet voldoen (bv. "nooit resultaatgaranties", "altijd een medische disclaimer"). Gaat als extra regel de schrijfprompt in. |
+| `author_name` | text | ja |  | Naam van de auteur onder wiens naam content gepubliceerd wordt. Een echt, vindbaar persoon weegt mee in hoe AI-assistenten een bron beoordelen. |
+| `author_role` | text | ja |  | Functie van de auteur, bv. "Fysiotherapeut". |
+| `author_bio` | text | ja |  | Korte bio, een paar zinnen. |
+| `author_linkedin_url` | text | ja |  | LinkedIn-profiel van de auteur, ter verificatie. |
+| `tone_formality` | smallint | ja |  | 1 (informeel) tot 3 (formeel). Null = niet ingesteld, dan bepaalt alleen `tone_of_voice` (vrije tekst) de stijl. Vertaling naar prompttaal in lib/pipeline/tone-sliders.ts, nooit het cijfer zelf naar het model. |
+| `tone_energy` | smallint | ja |  | 1 (rustig) tot 3 (energiek). Null = niet ingesteld. |
+| `tone_complexity` | smallint | ja |  | 1 (eenvoudig) tot 3 (diepgaand expert). Null = niet ingesteld. |
+| `tone_humor` | smallint | ja |  | 1 (geen humor) tot 3 (speels). Null = niet ingesteld. |
+| `account_id` | uuid | ja |  |  |
+| `brand_mission` | text | ja |  |  |
+| `brand_positioning` | text | ja |  |  |
+| `usp` | text | ja |  |  |
+| `key_messages` | text[] | nee | `'{}'` |  |
+| `identity_keywords` | text[] | nee | `'{}'` |  |
+| `differentiator` | text | ja |  |  |
+| `audience_secondary` | text | ja |  |  |
+| `audience_knowledge_level` | smallint | ja |  |  |
+| `tone_emotional` | smallint | ja |  |  |
+| `signature_phrases` | text[] | nee | `'{}'` |  |
+| `pronoun_preference` | text | ja |  |  |
+| `author_photo_url` | text | ja |  |  |
+| `author_facebook_url` | text | ja |  |  |
+| `author_other_url` | text | ja |  |  |
+| `gsc_property` | text | ja |  | De property zoals Search Console hem kent: "sc-domain:voorbeeld.nl" of "https://voorbeeld.nl/". Leeg = niet gekoppeld. |
+| `gsc_verified_at` | timestamp with time zone | ja |  | Wanneer Aura voor het laatst kon lezen. Leeg terwijl er wel een property staat = de klant moet ons adres nog toevoegen. |
+| `gsc_last_error` | text | ja |  | De laatste fout in gewone taal, zodat het scherm kan zeggen wat er mis is in plaats van "mislukt". |
+| `gsc_last_sync_at` | timestamp with time zone | ja |  |  |
+| `gsc_first_day` | date | ja |  | De eerste dag waarvoor cijfers zijn opgehaald. Bepaalt het nulpunt van "sinds de start". |
+| `priority_offerings` | text[] | nee | `'{}'` |  |
+| `deprioritised_offerings` | text[] | nee | `'{}'` |  |
+| `growth_regions` | text[] | nee | `'{}'` |  |
+| `target_segments` | text[] | nee | `'{}'` |  |
+| `deal_value_band` | text | ja |  |  |
+| `seasonality` | text | ja |  |  |
+| `sales_objections` | text[] | nee | `'{}'` |  |
+| `forbidden_topics` | text[] | nee | `'{}'` |  |
+| `offline_proof` | text[] | nee | `'{}'` |  |
+| `name_exclusions` | text[] | nee | `'{}'` |  |
+| `respect_site_structure` | boolean | ja |  |  |
+| `goal_12m` | text | ja |  |  |
+| `contact_name` | text | ja |  |  |
+| `contact_email` | text | ja |  |  |
+| `contact_phone` | text | ja |  |  |
+| `sitemap_total_urls` | integer | ja |  | Aantal niet-product-URL's in de sitemap(s) vóór het afkappen op max_inventory_pages. Null = niet gemeten. |
+| `crawl_priority_paths` | text[] | nee | `'{}'` | Sitesecties die voorrang krijgen bij de crawlselectie, bv. {/diensten}. Leeg = alleen de deterministische score. |
+| `crawl_speed` | text | nee | `'normaal'` | (0080) snel \| normaal \| langzaam, zie lib/crawl-speed.ts. Bepaalt de batchgrootte en de pauze tussen batches bij de content-inventaris. |
+| `crawl_as_browser` | boolean | nee | `false` | (0080) Standaard uit. Alleen aan met expliciete toestemming van de klant voor zijn EIGEN domein, als zijn firewall het bot-verkeer anders weert. |
+| `crawl_last_run_at` | timestamp with time zone | ja |  | (0080) Wanneer de laatste crawlronde (achtergrondtaak crawl_inventory) draaide. |
+| `crawl_last_mode` | text | ja |  | (0080) "meer" (aanvullen) of "opnieuw" (vervangen), de modus van de laatste crawlronde. |
+| `crawl_last_blocked_at` | timestamp with time zone | ja |  | (0080) Wanneer de site voor het laatst met 403 antwoordde. Zolang gezet, toont het scherm een melding in plaats van stil door te crawlen met lege pagina's. |
+| `crawl_lightly_scanned` | integer | ja |  | (0101) Aantal pagina's waarvan bij de laatste crawlronde alleen titel en meta-description zijn gelezen (niet de volledige tekst), als extra signaal voor de paginakeuze. Null = deze stap draaide nog niet mee. |
+| `verhalen` | text | ja |  |  |
+| `stem_voorbeelden` | jsonb | ja |  |  |
+| `velden_te_verversen` | text[] | nee | `'{}'` | Profielvelden die een mens zette sinds de laatste volledige onderzoeksronde (G4). Gevuld door de abonnee onderzoek_refresh, gewist zodra een nieuwe ronde start (lib/pipeline/prepare-profile.ts). ... |
+| `verhaal_klussen` | text | ja |  | Typische klussen, één per alinea. Elke alinea wordt een eigen verhaal-item in de kennislaag (0129). |
+| `verhaal_werkwijze` | text | ja |  | Hoe het bedrijf werkt, in de woorden van de ondernemer (0129). |
+| `verhaal_niet` | text | ja |  | Wat het bedrijf bewust niet doet (0129). |
+| `verhaal_begin` | text | ja |  | Waarom de ondernemer ooit begon (0129). |
+| `bezwaren_met_antwoord` | text | ja |  | Bezwaren van klanten met wat de ondernemer dan zegt, één per alinea (0129). |
+| `is_demo` | boolean | nee | `false` | Voorbeeldaccount: ingeladen data, nooit meten, schrijven of ophalen. Zie lib/demo.ts. |
+
+Regels: controle: `(((audience_knowledge_level IS NULL) OR ((audience_knowledge_level >= 1) AND (audience_knowledge_level <= 3))))`; controle: `(((business_model IS NULL) OR (business_model in ('retailer', 'platform', 'dienstverlener', 'fabrikant', 'overig'))))`; controle: `(((crawl_last_mode IS NULL) OR (crawl_last_mode in ('meer', 'opnieuw'))))`; controle: `((crawl_speed in ('snel', 'normaal', 'langzaam')))`; controle: `(((deal_value_band IS NULL) OR (deal_value_band in ('onbekend', 'klein', 'midden', 'groot'))))`; controle: `(((pronoun_preference IS NULL) OR (pronoun_preference in ('je', 'u', 'wij'))))`; controle: `(((tone_emotional IS NULL) OR ((tone_emotional >= 1) AND (tone_emotional <= 4))))`; controle: `((((tone_formality IS NULL) OR ((tone_formality >= 1) AND (tone_formality <= 3))) AND ((tone_energy IS NULL) OR ((tone_energy >= 1) AND (tone_energy <= 3))) AND ((tone_complexity IS NULL) OR ((tone_complexity >= 1) AND (tone_complexity <= 3))) AND ((tone`; `account_id` verwijst naar `accounts.id`; `created_by_user_id` verwijst naar `auth.users.id`; `user_id` verwijst naar `auth.users.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `profiles_select_account` [SELECT] `(account_id IN ( SELECT user_account_ids() AS user_account_ids))`; `profiles_select_own` [SELECT] `(user_id = ( SELECT auth.uid() AS uid))`; `profiles_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_field_sources` (108 rijen)
+
+Wie heeft dit veld het laatst gezet, met welke zekerheid en op welk bewijs. Maakt "een mens wint van een model" afdwingbaar in lib/pipeline/field-merge.ts in plaats van hoopvol in een promptinstructie.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `profile_id` | uuid | nee |  |  |
+| `field` | text | nee |  |  |
+| `source` | text | nee |  |  |
+| `confidence` | numeric | ja |  |  |
+| `evidence_url` | text | ja |  |  |
+| `evidence_quote` | text | ja |  |  |
+| `set_by` | uuid | ja |  |  |
+| `set_at` | timestamp with time zone | nee | `now()` |  |
+| `not_applicable` | boolean | nee | `false` | Bewust niet van toepassing voor dit merk. De volledigheidsmeter telt gevuld + n.v.t. als behandeld, en lib/profile-gaps.ts laat het veld weg uit de gatenlijst. Een onderzoeksronde vult het niet alsnog: de rij staat ... |
+
+Regels: controle: `((source in ('ai', 'klant', 'gesprek', 'consultant')))`; `profile_id` verwijst naar `profiles.id` (on delete cascade); `set_by` verwijst naar `auth.users.id`; primaire sleutel (profile_id, field).
+
+Leesregels (RLS): `profile_field_sources_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `profile_field_sources_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_field_sources_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_page_signals` (1.375 rijen)
+
+(0102) Titel/meta-description per URL uit de lichte vooronderzoek-scan (profile_light_scan), vóór de eerste diepe crawl. Beide kolommen null = pagina geprobeerd, niets gevonden.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `url` | text | nee |  |  |
+| `title` | text | ja |  |  |
+| `description` | text | ja |  |  |
+| `scanned_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); uniek (profile_id, url).
+
+Leesregels (RLS): `profile_page_signals_select_own` [SELECT] `(EXISTS ( SELECT 1`.
+
+#### `profile_pages` (693 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `url` | text | nee |  |  |
+| `title` | text | ja |  |  |
+| `text_excerpt` | text | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `source` | text | nee | `'crawl'` | 'crawl' = door ORBIT ENGINE gevonden · 'handmatig' = door een mens toegevoegd, overleeft een nieuwe crawl. |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); uniek (profile_id, url).
+
+Leesregels (RLS): `profile_pages_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `profile_pages_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_pages_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_facets` (54 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `facet` | text | nee |  |  |
+| `summary` | text | ja |  |  |
+| `raw_json` | jsonb | ja |  |  |
+| `confidence` | numeric | ja |  | 0.00-1.00. NULL = niet vast te stellen, en dat is een echt antwoord; 0.00 zou "zeker onjuist" betekenen (conventie 3). |
+| `sources` | text[] | nee | `'{}'` |  |
+| `model_used` | text | ja |  |  |
+| `engine` | text | nee | `'openai'` |  |
+| `cost_usd` | numeric | ja |  |  |
+| `researched_at` | timestamp with time zone | nee | `now()` | Per facet, niet per profiel: een herhaalronde ververst alleen wat verlopen is. |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); uniek (profile_id, facet).
+
+Leesregels (RLS): `profile_facets_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `profile_facets_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_facets_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_offerings` (301 rijen)
+
+Het aanbod als boom: bij een dienstverlener hangt sportmassage onder massage, bij een retailer wasmachines onder witgoed. Die structuur is wat een core topic nodig heeft, categorieniveau is te breed om te meten, productniveau te smal.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `parent_id` | uuid | ja |  |  |
+| `kind` | text | nee |  |  |
+| `name` | text | nee |  |  |
+| `description` | text | ja |  |  |
+| `audience` | text | ja |  |  |
+| `price_indication` | text | ja |  |  |
+| `evidence_url` | text | ja |  |  |
+| `evidence_quote` | text | ja |  |  |
+| `confidence` | numeric | ja |  |  |
+| `source` | text | nee | `'ai'` |  |
+| `sort_order` | integer | nee | `0` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `note` | text | ja |  | (0079) Vrije context uit het gesprek, bijvoorbeeld "levert 40% van de omzet, staat niet op de site". Anders dan description/audience/price_indication: dit is wat de klant erover vertelde, niet het aanbod zelf. |
+| `removed_at` | timestamp with time zone | ja |  | (0079) Verwijderen is uitzetten, niet wissen (conventie 8): een gewiste rij komt bij de volgende crawl gewoon terug. Alle lezers filteren op "removed_at is null" via lib/offerings.ts, niet rechtstreeks. |
+| `removed_by` | uuid | ja |  | (0079) Wie de knoop uitzette. Null voor knopen die nog actief zijn. |
+| `updated_by` | uuid | ja |  | (0079) Wie de knoop voor het laatst wijzigde via de nieuwe schrijfroute (app/api/profiles/[id]/offerings). Null voor knopen die alleen door AI gezet of gewijzigd zijn. |
+
+Regels: controle: `((kind in ('dienst', 'product', 'categorie', 'merk', 'vestiging')))`; controle: `((source in ('ai', 'klant', 'gesprek', 'consultant')))`; `parent_id` verwijst naar `profile_offerings.id` (on delete cascade); `profile_id` verwijst naar `profiles.id` (on delete cascade); `removed_by` verwijst naar `auth.users.id`; `updated_by` verwijst naar `auth.users.id`; primaire sleutel (id).
+
+Leesregels (RLS): `profile_offerings_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `profile_offerings_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_offerings_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_topics` (53 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `title` | text | nee |  |  |
+| `rationale` | text | ja |  |  |
+| `offering_ids` | uuid[] | nee | `'{}'` |  |
+| `priority` | integer | nee | `0` |  |
+| `client_note` | text | ja |  | Wat de klant er in het gesprek zelf over zei. Dit is het antwoord op "welke topics zijn belangrijk" en het overrulet de AI-prioritering bij het sorteren. |
+| `status` | text | nee | `'voorgesteld'` |  |
+| `analysis_id` | uuid | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `offering_names` | text[] | nee | `'{}'` | De namen van de aanbodknopen waar dit onderwerp uit volgt, náást offering_ids. Een herhaalronde verwijdert de AI-knopen en bouwt ze opnieuw op met nieuwe id's; deze kolom is waarmee lib/pipeline/offering.ts de ... |
+| `search_volume_index` | integer | ja |  | Hoe vaak dit onderwerp gezocht wordt, 0-100, herberekend over ALLE onderwerpen van dit merk tegelijk (recalibrateSearchVolume). Null = nog geen herberekening geweest. Nooit de ruwe uitkomst van één op zichzelf ... |
+| `search_volume_reasoning` | text | ja |  | Eén zin van het model over waarom dit onderwerp op deze index staat. Audit-trail én de tekst die de tooltip in de app vult. |
+| `stage` | text | nee | `'definitief'` | concept: voorgesteld vóór het strategisch gesprek, ter voorbereiding, niet te starten. definitief: te goedkeuren en te starten. Standaard definitief, zodat bestaand werk niet met terugwerkende kracht op slot gaat (0074). |
+| `client_questions` | text | ja |  | Clusterlaag (0075): wat klanten over dit onderwerp het vaakst vragen, zoals de klant het tijdens het strategisch gesprek vertelt. |
+| `client_friction` | text | ja |  | Clusterlaag (0075): wat er op dit onderwerp vaak misgaat, of waar klanten op afhaken. |
+| `client_edge` | text | ja |  | Clusterlaag (0075): waarin dit bedrijf zich op dit onderwerp onderscheidt van de concurrent. |
+| `origin` | text | ja |  | Herkomst op het moment van voorstellen (0076): aanbod = alleen de aanbodboom, aanbod_en_gesprek = de aanbodboom plus het strategisch gesprek. Null voor onderwerpen van vóór deze migratie. |
+| `rejection_reason` | text | ja |  | Waarom dit onderwerp is afgewezen (0077). Gaat als instructie mee in een volgende ronde van "Stel nieuwe clusters voor", zodat dezelfde richting niet terugkomt. Null is toegestaan: een afwijzing zonder reden ... |
+| `origin_uses_measurement` | boolean | nee | `false` | Stond er gemeten bewijs (een rapportgap van een lopend cluster) in de aanroep die dit onderwerp opleverde? Naast origin (0076) de tweede as van de herkomstregel op het scherm. |
+| `search_volume_absolute` | integer | ja |  | Het echte maandelijkse zoekvolume van de zwaarste zoekterm achter dit onderwerp (lib/search-demand/), uit keyword_demand. Null = nog geen match gevonden of geen leverancier gekoppeld. |
+| `search_volume_source` | text | nee | `'geschat'` | "geschat" (het model) of "gemeten" (een echte leverancier). search_volume_index blijft de 0-100 schaal die het scherm toont, deze kolom zegt of dat getal op search_volume_absolute verankerd is. |
+| `discovery_candidate_id` | uuid | ja |  | De kandidaat uit Clusters ontdekken waar dit onderwerp uit kwam (migratie 0109). |
+
+Regels: controle: `(((origin IS NULL) OR (origin in ('aanbod', 'aanbod_en_gesprek', 'ontdekking'))))`; controle: `(((search_volume_index IS NULL) OR ((search_volume_index >= 0) AND (search_volume_index <= 100))))`; controle: `((stage in ('concept', 'definitief')))`; controle: `((status in ('voorgesteld', 'goedgekeurd', 'afgewezen')))`; controle: `((search_volume_source in ('geschat', 'gemeten')))`; `analysis_id` verwijst naar `analyses.id` (on delete set null); `discovery_candidate_id` verwijst naar `cluster_discovery_candidates.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); unieke index `profile_topics_unique_title_idx`: `(profile_id, lower(title))`.
+
+Leesregels (RLS): `profile_topics_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `profile_topics_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_topics_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_topic_rounds` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `triggered_by` | uuid | ja |  |  |
+| `triggered_at` | timestamp with time zone | nee | `now()` |  |
+| `cost_usd` | numeric | ja |  |  |
+| `proposed_count` | integer | nee | `0` |  |
+| `snapshot_json` | jsonb | nee | `'{}'` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); `triggered_by` verwijst naar `auth.users.id`; primaire sleutel (id).
+
+Leesregels (RLS): `profile_topic_rounds_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_topic_rounds_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_keywords` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `topic_id` | uuid | ja |  |  |
+| `keyword` | text | nee |  |  |
+| `origin` | text | nee | `'aanbod'` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `((origin in ('aanbod', 'zoekverkeer', 'vraag', 'handmatig')))`; `profile_id` verwijst naar `profiles.id` (on delete cascade); `topic_id` verwijst naar `profile_topics.id` (on delete cascade); primaire sleutel (id); uniek (profile_id, keyword).
+
+Leesregels (RLS): `profile_keywords_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `profile_strategy` (6 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `profile_id` | uuid | nee |  |  |
+| `strategy_notes` | text | ja |  |  |
+| `context_factors` | jsonb | nee | `'[]'` | Wat de pijplijn niet kan waarnemen. Gestructureerd en niet vrij, omdat elke soort gevolg heeft: nieuwe_website zet een houdbaarheidsmelding op de technische audit, naamswijziging eist beide namen in aliases, ... |
+| `recorded_by` | uuid | ja |  |  |
+| `recorded_at` | timestamp with time zone | ja |  |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); `recorded_by` verwijst naar `auth.users.id`; primaire sleutel (profile_id).
+
+Leesregels (RLS): `profile_strategy_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `profile_strategy_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_strategy_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_llm_baseline` (107 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `engine` | text | nee |  |  |
+| `block` | text | nee |  |  |
+| `question` | text | nee |  |  |
+| `raw_response` | text | ja |  |  |
+| `verdict_json` | jsonb | ja |  | Het DETERMINISTISCHE oordeel, in code geveld tegen de gecrawlde feiten. Bewust niet wat het model over zichzelf zei: dat bleek in dit project drie keer onbetrouwbaar (content-gate, validate-claims, isSupported). |
+| `web_search` | boolean | nee | `false` |  |
+| `model_used` | text | ja |  |  |
+| `cost_usd` | numeric | ja |  |  |
+| `measured_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); unieke index `profile_llm_baseline_idem_idx`: `(profile_id, engine, block, md5(question))`.
+
+Leesregels (RLS): `profile_llm_baseline_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `profile_llm_baseline_select_own` [SELECT] `(EXISTS ( SELECT 1`; `profile_llm_baseline_select_staff` [SELECT] `is_staff()`.
+
+#### `profile_funnel_stages` (24 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `label` | text | nee |  |  |
+| `sort_order` | integer | nee | `0` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `funnel_stages_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `technical_audits` (10 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `checked_at` | timestamp with time zone | nee | `now()` |  |
+| `site_url` | text | nee |  |  |
+| `blockers` | integer | nee | `0` |  |
+| `warnings` | integer | nee | `0` |  |
+| `checks_json` | jsonb | nee | `'[]'` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `technical_audits_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `technical_audits_select_own` [SELECT] `(EXISTS ( SELECT 1`; `technical_audits_select_staff` [SELECT] `is_staff()`.
+
+#### `brand_dna` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `tone_of_voice` | text | ja |  |  |
+| `products` | text[] | ja |  |  |
+| `personas` | text[] | ja |  |  |
+| `value_props` | text[] | ja |  |  |
+| `competitors` | text[] | ja |  |  |
+| `summary` | text | ja |  |  |
+| `raw_json` | jsonb | ja |  |  |
+| `edited_by_user` | boolean | nee | `false` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `proof_points` | text[] | nee | `'{}'` |  |
+| `style_samples` | text[] | nee | `'{}'` |  |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `brand_dna_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `brand_dna_select_own` [SELECT] `(analysis_id IN ( SELECT analyses.id`.
+
+### J. Kennis
+
+#### `klantkennis` (1.383 rijen)
+
+De kennislaag: alles wat ORBIT over een bedrijf weet, met status, herkomst en gebruik (K1 van van-pijplijn-naar-kennissysteem.md). Alleen voor medewerkers.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `domein` | text | nee |  |  |
+| `soort` | text | ja |  |  |
+| `bewering` | text | nee |  |  |
+| `waarde` | jsonb | ja |  |  |
+| `status` | text | nee |  |  |
+| `bewijskracht` | text | ja |  |  |
+| `bron` | text | nee |  |  |
+| `bron_url` | text | ja |  |  |
+| `citaat` | text | ja |  |  |
+| `vastgelegd_door` | uuid | ja |  |  |
+| `vastgelegd_door_taak` | text | ja |  |  |
+| `vastgelegd_op` | timestamp with time zone | nee | `now()` |  |
+| `bevestigd_door` | uuid | ja |  |  |
+| `bevestigd_op` | timestamp with time zone | ja |  |  |
+| `laatst_gecontroleerd_op` | timestamp with time zone | ja |  |  |
+| `verloopt_op` | date | ja |  |  |
+| `gebruik` | text | nee |  |  |
+| `geldt_voor` | uuid[] | nee | `'{}'` |  |
+| `analysis_id` | uuid | ja |  |  |
+| `content_piece_id` | uuid | ja |  |  |
+| `vervangen_door` | uuid | ja |  |  |
+| `herkomst_tabel` | text | ja |  |  |
+| `herkomst_id` | uuid | ja |  |  |
+| `sleutel` | text | ja |  |  |
+| `ruw` | jsonb | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `afgewezen_door` | uuid | ja |  |  |
+| `afgewezen_op` | timestamp with time zone | ja |  |  |
+
+Regels: controle: `((NOT ((status = 'afgeleid') AND (gebruik = 'content'))))`; controle: `(((afgewezen_op IS NULL) OR (afgewezen_door IS NOT NULL)))`; controle: `((NOT ((bron = 'ai') AND (status = 'verklaard'))))`; controle: `(((status <> 'bevestigd') OR ((bevestigd_door IS NOT NULL) AND (bevestigd_op IS NOT NULL))))`; controle: `((btrim(bewering) <> ''))`; controle: `(((bewijskracht IS NULL) OR (bewijskracht in ('geen', 'gewoon', 'sterk'))))`; controle: `((bron in ('website', 'klant', 'gesprek', 'document', 'upload', 'extern', 'meting', 'ai')))`; controle: `((domein in ('identiteit', 'aanbod', 'doelgroep', 'positionering', 'bewijs', 'stem', 'verhaal', 'grens', 'geleerd')))`; controle: `((gebruik in ('content', 'intern', 'verboden')))`; controle: `(((herkomst_tabel IS NULL) OR (herkomst_tabel in ('brand_facts', 'profile_offerings', 'profiles', 'fact_requests', 'brand_documents', 'profile_strategy', 'profile_facets', 'content_impact'))))`; controle: `((status in ('waargenomen', 'verklaard', 'bevestigd', 'afgeleid')))`; controle: `(((vastgelegd_door IS NOT NULL) OR (COALESCE(btrim(vastgelegd_door_taak), '') <> '')))`; controle: `(((status <> 'waargenomen') OR ((COALESCE(btrim(citaat), '') <> '') AND (COALESCE(btrim(bron_url), '') <> ''))))`; `afgewezen_door` verwijst naar `auth.users.id` (on delete set null); `analysis_id` verwijst naar `analyses.id` (on delete cascade); `bevestigd_door` verwijst naar `auth.users.id` (on delete set null); `content_piece_id` verwijst naar `content_pieces.id` (on delete cascade); `profile_id` verwijst naar `profiles.id` (on delete cascade); `vastgelegd_door` verwijst naar `auth.users.id` (on delete set null); `vervangen_door` verwijst naar `klantkennis.id` (on delete set null); primaire sleutel (id); unieke index `klantkennis_sleutel_idx`: `(profile_id, sleutel) WHERE ((vervangen_door IS NULL) AND (sleutel IS NOT NULL))`.
+
+Leesregels (RLS): `klantkennis_select_staff` [SELECT] `is_staff()`.
+
+#### `fact_requests` (177 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `analysis_id` | uuid | ja |  |  |
+| `question` | text | nee |  |  |
+| `reason` | text | ja |  |  |
+| `answer` | text | ja |  |  |
+| `status` | text | nee | `'open'` |  |
+| `answered_at` | timestamp with time zone | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `scope` | text | nee | `'analyse'` |  |
+| `content_piece_ids` | uuid[] | nee | `'{}'` |  |
+| `kind` | text | nee | `'aanvulling'` |  |
+| `answer_type` | text | nee | `'tekst_kort'` |  |
+| `options` | text[] | nee | `'{}'` |  |
+| `suggested_answer` | text | ja |  |  |
+| `required` | boolean | nee | `false` |  |
+| `claim_key` | text | ja |  |  |
+| `fact_ref` | text | ja |  |  |
+| `verify_after` | date | ja |  |  |
+| `raw_json` | jsonb | ja |  |  |
+| `section_id` | text | ja |  | (0087) NIET IN GEBRUIK. Binnen dezelfde migratie vervangen door section_refs, omdat één vraag bij secties van meerdere pagina's kan horen. Blijft staan omdat migraties niets weggooien (conventie 4). |
+| `section_refs` | text[] | nee | `'{}'` | (0087) De contractsecties waar deze vraag bij hoort, als '<content_piece_id>:<sectie-id>'. Wordt de vraag overgeslagen, dan vervallen die secties. Leeg bij vaste slots en bij vragen van vóór 0087. Zie ... |
+| `open_vraag` | boolean | nee | `false` |  |
+
+Regels: controle: `((answer_type in ('ja_nee', 'bedrag', 'getal', 'tekst_kort', 'tekst_lang', 'keuze', 'url', 'lijst')))`; controle: `((kind in ('verificatie', 'aanvulling', 'onderscheid', 'bewijs', 'praktisch', 'grenzen')))`; controle: `((scope in ('merk', 'analyse', 'pagina')))`; controle: `((status in ('open', 'beantwoord', 'overgeslagen', 'verlopen')))`; `analysis_id` verwijst naar `analyses.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); unieke index `fact_requests_unique_idx`: `(profile_id, question)`; unieke index `fact_requests_open_claim_uniq`: `(COALESCE(analysis_id, profile_id), claim_key) WHERE ((status = 'open') AND (claim_key IS NOT NULL))`; unieke index `fact_requests_open_vraag_per_pagina`: `((content_piece_ids[1])) WHERE open_vraag`.
+
+Leesregels (RLS): `fact_requests_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `fact_requests_select_own` [SELECT] `(EXISTS ( SELECT 1`; `fact_requests_select_staff` [SELECT] `is_staff()`.
+
+#### `fact_conflicts` (2 rijen)
+
+Beoordeelde paren feiten van dezelfde soort met een andere waarde (WP2 van contentpijplijn-publicatiewaardig.md). Alleen voor medewerkers.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `feit_ids` | uuid[] | nee |  |  |
+| `paar_sleutel` | text | nee |  |  |
+| `soort` | text | nee |  |  |
+| `echt_conflict` | boolean | nee |  |  |
+| `ernst` | text | nee | `'waarschuwing'` |  |
+| `uitleg` | text | ja |  |  |
+| `voorstel` | text | ja |  |  |
+| `voorstel_feit_id` | uuid | ja |  |  |
+| `status` | text | nee | `'open'` |  |
+| `gekozen_feit_id` | uuid | ja |  |  |
+| `oplossing` | text | ja |  |  |
+| `opgelost_door` | uuid | ja |  |  |
+| `opgelost_op` | timestamp with time zone | ja |  |  |
+| `fact_request_id` | uuid | ja |  |  |
+| `oordeel_json` | jsonb | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `kennis_ids` | uuid[] | ja |  | De twee botsende items in klantkennis (K2, besluit V14). NULL bij een conflict tussen twee brand_facts; dan staan die in feit_ids. |
+
+Regels: controle: `((ernst in ('blokkerend', 'waarschuwing')))`; controle: `((status in ('open', 'opgelost', 'gevraagd', 'geen_conflict')))`; `fact_request_id` verwijst naar `fact_requests.id` (on delete set null); `gekozen_feit_id` verwijst naar `brand_facts.id` (on delete set null); `opgelost_door` verwijst naar `auth.users.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); `voorstel_feit_id` verwijst naar `brand_facts.id` (on delete set null); primaire sleutel (id); unieke index `fact_conflicts_paar_idx`: `(profile_id, paar_sleutel)`.
+
+Leesregels (RLS): `fact_conflicts_select_staff` [SELECT] `is_staff()`.
+
+#### `brand_facts` (44 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `analysis_id` | uuid | ja |  |  |
+| `text` | text | nee |  |  |
+| `source` | text | nee |  |  |
+| `source_url` | text | ja |  |  |
+| `kind` | text | nee | `'site'` |  |
+| `citable` | boolean | nee | `true` |  |
+| `allowed` | boolean | nee | `true` |  |
+| `fact_key` | text | nee |  |  |
+| `verify_after` | date | ja |  |  |
+| `origin_fact_request_id` | uuid | ja |  |  |
+| `origin_document_id` | uuid | ja |  |  |
+| `superseded_by` | uuid | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `soort` | text | ja |  |  |
+| `waarde` | jsonb | ja |  |  |
+| `geldt_voor` | text | ja |  |  |
+| `stand` | text | ja |  |  |
+| `bewijskracht` | text | ja |  |  |
+| `ingedeeld_at` | timestamp with time zone | ja |  |  |
+
+Regels: controle: `(((bewijskracht IS NULL) OR (bewijskracht in ('geen', 'gewoon', 'sterk'))))`; controle: `(((soort IS NULL) OR (soort = ANY (ARRAY['prijs', 'termijn', 'plaats', 'werkgebied', 'dienst', 'product', 'certificering', 'garantie', 'werkwijze', 'cijfer', 'openingstijd', 'contact'`; controle: `(((stand IS NULL) OR (stand in ('bevestigd', 'site', 'onderzoek', 'betwist', 'vervangen'))))`; `analysis_id` verwijst naar `analyses.id` (on delete cascade); `origin_document_id` verwijst naar `brand_documents.id` (on delete set null); `origin_fact_request_id` verwijst naar `fact_requests.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); `superseded_by` verwijst naar `brand_facts.id` (on delete set null); primaire sleutel (id); unieke index `brand_facts_actueel_idx`: `(profile_id, COALESCE(analysis_id, '00000000-0000-0000-0000-000000000000'), fact_key) WHERE (superseded_by IS NULL)`.
+
+Leesregels (RLS): `brand_facts_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `brand_facts_select_own` [SELECT] `(EXISTS ( SELECT 1`; `brand_facts_select_staff` [SELECT] `is_staff()`.
+
+#### `brand_documents` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `label` | text | ja |  |  |
+| `body` | text | nee |  |  |
+| `content_hash` | text | nee |  |  |
+| `chars` | integer | nee |  |  |
+| `facts_extracted` | integer | nee | `0` |  |
+| `facts_rejected` | integer | nee | `0` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); unieke index `brand_documents_uniek_idx`: `(profile_id, content_hash)`.
+
+Leesregels (RLS): `brand_documents_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `brand_documents_select_own` [SELECT] `(EXISTS ( SELECT 1`; `brand_documents_select_staff` [SELECT] `is_staff()`.
+
+#### `afhankelijkheden` (536 rijen)
+
+Welke kans of pagina leunt op welk kennisitem (G2). Geen client-toegang; gevuld door wie het object maakt (lib/kansen/, lib/pagina/taken.ts).
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `van_tabel` | text | nee |  |  |
+| `van_id` | uuid | nee |  |  |
+| `kennis_id` | uuid | nee |  |  |
+| `aangemaakt_op` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `((van_tabel in ('kansen', 'content_pieces')))`; `kennis_id` verwijst naar `klantkennis.id` (on delete cascade); `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); uniek (van_tabel, van_id, kennis_id).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `gebeurtenissen` (942 rijen)
+
+Het gebeurtenissenlogboek (G1 van van-pijplijn-naar-kennissysteem.md). Geen client-toegang; alleen lib/gebeurtenissen/ en de werker schrijven en lezen.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `soort` | text | nee |  |  |
+| `object_tabel` | text | nee |  |  |
+| `object_id` | uuid | nee |  |  |
+| `payload` | jsonb | ja |  |  |
+| `aangemaakt_op` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `((soort = 'kennis_gewijzigd'))`; `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `gebeurtenis_verwerkingen` (1.510 rijen)
+
+Bewaakt dat een abonnee een gebeurtenis precies één keer verwerkt (G1). Geen client-toegang.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `gebeurtenis_id` | uuid | nee |  |  |
+| `abonnee` | text | nee |  |  |
+| `verwerkt_op` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `gebeurtenis_id` verwijst naar `gebeurtenissen.id` (on delete cascade); primaire sleutel (id); uniek (gebeurtenis_id, abonnee).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+### J. Cluster en meting
+
+#### `analyses` (18 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `user_id` | uuid | nee |  |  |
+| `url` | text | nee |  |  |
+| `topic` | text | nee |  |  |
+| `name` | text | nee |  |  |
+| `status` | analysis_status | nee | `'bezig'` |  |
+| `tracking_enabled` | boolean | nee | `false` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `content_brief` | text | ja |  |  |
+| `notify_by_email` | boolean | nee | `true` |  |
+| `publish_reminder_sent_at` | timestamp with time zone | ja |  |  |
+| `archived_at` | timestamp with time zone | ja |  | Gearchiveerd op. Zelfde regel als profiles.archived_at, en de analyse valt hiermee ook uit de maandelijkse meetronde, zodat een verborgen merk geen meetkosten meer maakt. |
+| `prompts_orientatie` | smallint | ja |  | Aantal vragen in de funnelfase Orientatie. Null = de standaard uit lib/prompt-mix.ts (10). Zie migratie 0054. |
+| `prompts_overweging` | smallint | ja |  | Aantal vragen in de funnelfase Overweging. Null = de standaard uit lib/prompt-mix.ts (10). |
+| `prompts_beslissing` | smallint | ja |  | Aantal vragen in de funnelfase Beslissing. Null = de standaard uit lib/prompt-mix.ts (10). |
+| `label_id` | uuid | ja |  | Het label waaronder dit cluster in het overzicht staat (0083). Null = geen label, en dat is een geldige stand: labels zijn optioneel. |
+| `resultaat_gezien_at` | timestamp with time zone | ja |  | Wanneer de uitslag van de laatste meetronde aan de gebruiker gemeld is. Leeg = nog niet gemeld. Wordt op null gezet zodra er een nieuwe ronde start (lib/jobs/queue.ts), zodat elke ronde zijn eigen melding krijgt. |
+| `question_reminder_sent_at` | timestamp with time zone | ja |  |  |
+
+Regels: controle: `((((prompts_orientatie IS NULL) OR ((prompts_orientatie >= 0) AND (prompts_orientatie <= 40))) AND ((prompts_overweging IS NULL) OR ((prompts_overweging >= 0) AND (prompts_overweging <= 40))) AND ((prompts_beslissing IS NULL) OR ((prompts_beslissing >= 0`; `label_id` verwijst naar `cluster_labels.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); `user_id` verwijst naar `auth.users.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `analyses_select_account` [SELECT] `(profile_id IN ( SELECT p.id`; `analyses_select_own` [SELECT] `(user_id = ( SELECT auth.uid() AS uid))`; `analyses_select_staff` [SELECT] `is_staff()`.
+
+#### `cluster_labels` (0 rijen)
+
+Onderwerpgroep boven de clusters van een merk. Puur ordening: het label stuurt geen enkele pijplijnstap aan en gaat nooit mee de prompt in.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `name` | text | nee |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); unieke index `cluster_labels_unique_name_idx`: `(profile_id, lower(name))`.
+
+Leesregels (RLS): `cluster_labels_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `topic_research` (16 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `content_summary` | text | ja |  |  |
+| `competitors` | text[] | nee | `'{}'` |  |
+| `raw_json` | jsonb | ja |  |  |
+| `edited_by_user` | boolean | nee | `false` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id); uniek (analysis_id).
+
+Leesregels (RLS): `topic_research_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `topic_research_select_own` [SELECT] `(EXISTS ( SELECT 1`; `topic_research_select_staff` [SELECT] `is_staff()`.
+
+#### `prompts` (480 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `text` | text | nee |  |  |
+| `category` | text | nee |  |  |
+| `intent` | text | ja |  |  |
+| `active` | boolean | nee | `true` |  |
+| `created_by` | prompt_origin | nee | `'system'` |  |
+| `source_raw_json` | jsonb | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `intent_type` | text | ja |  |  |
+| `specificity` | text | ja |  |  |
+| `purchase_intent` | boolean | ja |  |  |
+| `cluster` | text | ja |  |  |
+| `volume_estimate` | integer | ja |  |  |
+| `volume_band` | text | ja |  |  |
+| `volume_source` | text | nee | `'geschat'` |  |
+| `brand_eliciting` | text | ja |  | Levert deze vraag antwoorden op waarin aanbieders genoemd worden? ja/nee/onbekend. Vragen op nee worden bij vervolgperiodes overgeslagen. |
+| `elicit_successes` | integer | nee | `0` | Hoe vaak er bij deze vraag minstens een aanbieder genoemd werd (brands_in_answer > 0). |
+| `elicit_samples` | integer | nee | `0` | Hoe vaak deze vraag beoordeeld is (R7). Samen met elicit_successes de schatting van de kans dat er uberhaupt een aanbieder genoemd wordt. |
+
+Regels: controle: `(((brand_eliciting IS NULL) OR (brand_eliciting in ('ja', 'nee', 'onbekend'))))`; controle: `(((cluster IS NULL) OR (length(cluster) <= 120)))`; controle: `(((volume_band IS NULL) OR (volume_band in ('hoog', 'midden', 'laag'))))`; controle: `((volume_source in ('geschat', 'klant', 'gemeten')))`; `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `prompts_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `prompts_select_own` [SELECT] `(EXISTS ( SELECT 1`; `prompts_select_staff` [SELECT] `is_staff()`.
+
+#### `tracking_runs` (1.672 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `prompt_id` | uuid | ja |  |  |
+| `prompt_text_snapshot` | text | nee |  |  |
+| `prompt_category_snapshot` | text | nee |  |  |
+| `engine` | text | nee | `'openai'` |  |
+| `model_used` | text | ja |  |  |
+| `week_no` | integer | nee | `0` |  |
+| `ran_at` | timestamp with time zone | nee | `now()` |  |
+| `raw_response` | text | ja |  |  |
+| `raw_response_received_at` | timestamp with time zone | ja |  |  |
+| `mention_json` | jsonb | ja |  |  |
+| `openai_response_id` | text | ja |  |  |
+| `tokens_used` | integer | ja |  |  |
+| `cost_usd` | numeric | ja |  |  |
+| `prompt_weight` | numeric | ja |  |  |
+| `purpose` | text | nee | `'periodic'` |  |
+| `content_piece_id` | uuid | ja |  |  |
+| `impact_wave` | integer | ja |  |  |
+| `brands_in_answer` | integer | ja |  | Aantal verschillende aanbieders dat in dit antwoord bij naam genoemd wordt, INCLUSIEF het eigen merk. 0 = de AI noemde geen enkele aanbieder; die meting telt niet mee in de zichtbaarheidsscore. Rommelentiteiten (rol ... |
+| `repeat_index` | integer | nee | `0` | Hoeveelste herhaling van dezelfde vraag binnen dezelfde periode (implementatieplan.md R6.1). 0 = de eerste meting. De zwaarstwegende vragen worden meerdere keren gemeten om ruis eruit te middelen; de aggregatie ... |
+
+Regels: controle: `((purpose in ('periodic', 'impact', 'control')))`; `analysis_id` verwijst naar `analyses.id` (on delete cascade); `content_piece_id` verwijst naar `content_pieces.id` (on delete cascade); `prompt_id` verwijst naar `prompts.id` (on delete set null); primaire sleutel (id); unieke index `tracking_runs_idem_periodic_idx`: `(analysis_id, prompt_id, week_no, engine, repeat_index, purpose) WHERE (content_piece_id IS NULL)`; unieke index `tracking_runs_impact_unique_idx`: `(content_piece_id, impact_wave, prompt_id, purpose, engine) WHERE (content_piece_id IS NOT NULL)`.
+
+Leesregels (RLS): `tracking_runs_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `tracking_runs_select_own` [SELECT] `(EXISTS ( SELECT 1`; `tracking_runs_select_staff` [SELECT] `is_staff()`.
+
+#### `tracking_run_mentions` (11.031 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `tracking_run_id` | uuid | nee |  |  |
+| `entity_name` | text | nee |  |  |
+| `is_own_brand` | boolean | nee |  |  |
+| `mentioned` | boolean | nee |  |  |
+| `position` | integer | ja |  |  |
+| `sentiment` | mention_sentiment | ja |  | VERVALLEN sinds R3 (migratie 0029): wordt niet meer gevuld. Kolom blijft bestaan voor de historie van bestaande metingen; gebruik mention_role. |
+| `cited_sources` | text[] | nee | `'{}'` |  |
+| `entity_id` | uuid | ja |  |  |
+| `mention_role` | text | ja |  | Hoe prominent dit merk in het antwoord staat (implementatieplan.md R3). Vervangt sentiment, dat in 650 rijen geen enkele keer varieerde. Null als het merk niet genoemd werd, of bij metingen van voor R3. |
+
+Regels: controle: `(((mention_role IS NULL) OR (mention_role in ('eerste_aanbeveling', 'een_van_meerdere', 'zijdelings'))))`; `entity_id` verwijst naar `entities.id` (on delete set null); `tracking_run_id` verwijst naar `tracking_runs.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `tracking_run_mentions_select_own` [SELECT] `(EXISTS ( SELECT 1`; `tracking_run_mentions_select_staff` [SELECT] `is_staff()`.
+
+#### `entities` (1.967 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `canonical_name` | text | nee |  |  |
+| `normalized` | text | nee |  |  |
+| `aliases` | text[] | nee | `'{}'` |  |
+| `confirmed` | boolean | nee | `false` |  |
+| `dismissed` | boolean | nee | `false` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `entity_role` | text | nee | `'concurrent'` |  |
+| `exclude_reason` | text | ja |  |  |
+| `role_source` | text | nee | `'onbepaald'` | Waar entity_role vandaan komt. onbepaald = nog te classificeren; ai = automatisch bepaald tijdens de aggregatie; handmatig = door de klant gezet, wordt nooit automatisch overschreven. |
+
+Regels: controle: `((entity_role in ('concurrent', 'eigen_merk', 'eigen_product', 'brancheorganisatie', 'vergelijker', 'niet_relevant')))`; controle: `((role_source in ('onbepaald', 'ai', 'handmatig')))`; `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); unieke index `entities_profile_normalized_idx`: `(profile_id, normalized)`.
+
+Leesregels (RLS): `entities_select_account` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`; `entities_select_own` [SELECT] `(EXISTS ( SELECT 1`; `entities_select_staff` [SELECT] `is_staff()`.
+
+#### `visibility_scores` (14 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `week_no` | integer | nee |  |  |
+| `score` | numeric | nee |  |  |
+| `share_of_voice` | numeric | ja |  |  |
+| `per_engine_json` | jsonb | ja |  |  |
+| `computed_at` | timestamp with time zone | nee | `now()` |  |
+| `weighted_score` | numeric | ja |  |  |
+| `judged_runs` | integer | ja |  |  |
+| `score_stderr` | numeric | ja |  |  |
+| `weighted_stderr` | numeric | ja |  |  |
+| `share_basis_count` | integer | ja |  |  |
+| `winnable_runs` | integer | ja |  | Aantal beoordeelde metingen waarin de AI minstens een aanbieder noemde. Noemer van score en weighted_score sinds R2.2. |
+| `brandless_runs` | integer | ja |  | Aantal beoordeelde metingen waarin de AI GEEN enkele aanbieder noemde. |
+| `avg_position` | numeric | ja |  | Gemiddelde positie waarop het eigen merk in het antwoord staat, over de metingen waarin het genoemd wordt. Lager is beter. |
+| `citation_count` | integer | ja |  | Aantal metingen waarin het eigen DOMEIN als bron geciteerd wordt. Een tweede vorm van zichtbaarheid naast genoemd worden. |
+| `first_mention_count` | integer | ja |  | Aantal metingen waarin het eigen merk als EERSTE AANBEVELING genoemd wordt. |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id); uniek (analysis_id, week_no).
+
+Leesregels (RLS): `visibility_scores_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `visibility_scores_select_own` [SELECT] `(EXISTS ( SELECT 1`; `visibility_scores_select_staff` [SELECT] `is_staff()`.
+
+#### `competitor_breakdown` (980 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `week_no` | integer | nee |  |  |
+| `competitor_name` | text | nee |  |  |
+| `mentions_count` | integer | nee | `0` |  |
+| `mentions_by_category_json` | jsonb | ja |  |  |
+| `top_cited_sources` | text[] | nee | `'{}'` |  |
+| `winning_run_ids` | uuid[] | nee | `'{}'` |  |
+| `losing_run_ids` | uuid[] | nee | `'{}'` |  |
+| `computed_at` | timestamp with time zone | nee | `now()` |  |
+| `avg_position` | numeric | ja |  | Gemiddelde positie van deze concurrent in de antwoorden waarin hij voorkomt. |
+| `first_mention_count` | integer | ja |  |  |
+| `attributes_json` | jsonb | ja |  | Op welke EIGENSCHAPPEN deze concurrent in de antwoorden genoemd wordt (implementatieplan.md R4.2), met per eigenschap een letterlijk citaat uit de meting als bewijs. De NAAM van de concurrent gaat nooit mee naar de ... |
+| `why_summary` | text | ja |  | Een leesbare zin voor de klant: waarom wordt deze concurrent genoemd. |
+| `citation_count` | integer | ja |  | Hoe vaak deze concurrent zijn EIGEN site als bron gebruikt zag, herkend op naam via citesOwnSite() (lib/entities/normalize.ts). Null = deze periode is aangemaakt vóór migratie 0058 of nog niet opnieuw geaggregeerd, ... |
+
+Regels: controle: `(((citation_count IS NULL) OR (citation_count >= 0)))`; `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `competitor_breakdown_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `competitor_breakdown_select_own` [SELECT] `(EXISTS ( SELECT 1`; `competitor_breakdown_select_staff` [SELECT] `is_staff()`.
+
+#### `reports` (13 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `period` | text | ja |  |  |
+| `summary` | text | ja |  |  |
+| `gaps_json` | jsonb | ja |  |  |
+| `recommendations_json` | jsonb | ja |  |  |
+| `gap_analysis_raw_json` | jsonb | ja |  |  |
+| `raw_json` | jsonb | ja |  |  |
+| `generated_at` | timestamp with time zone | nee | `now()` |  |
+| `week_no` | integer | nee | `0` |  |
+| `change_json` | jsonb | ja |  |  |
+| `emailed_at` | timestamp with time zone | ja |  |  |
+| `stripped_claims_json` | jsonb | ja |  | Beweringen die de claimvalidator uit dit rapport verwijderd heeft omdat de genoemde concurrent niet voorkwam in het bewijs van de gekoppelde vraag (implementatieplan.md R1.3). Null of een lege lijst is de gezonde ... |
+| `declined_json` | jsonb | ja |  | [{cluster, problem, reason}] (0078): gemeten gemissen die het rapportmodel overwoog maar niet als aanbeveling opnam, met de reden. Null voor rapporten van vóór deze migratie. Voedt het "afgevallen"-niveau van de ... |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id); unieke index `reports_analysis_week_idx`: `(analysis_id, week_no)`.
+
+Leesregels (RLS): `reports_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `reports_select_own` [SELECT] `(EXISTS ( SELECT 1`; `reports_select_staff` [SELECT] `is_staff()`.
+
+#### `keyword_demand` (54 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `keyword` | text | nee |  |  |
+| `country` | text | nee |  |  |
+| `language` | text | nee |  |  |
+| `volume` | integer | ja |  |  |
+| `competition` | numeric | ja |  |  |
+| `cpc` | numeric | ja |  |  |
+| `provider` | text | nee | `'dataforseo'` |  |
+| `raw_json` | jsonb | ja |  |  |
+| `fetched_at` | timestamp with time zone | nee | `now()` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: primaire sleutel (id); uniek (keyword, country, language).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+### J. Kansen en plan
+
+#### `kansen` (63 rijen)
+
+Eén kans per te nemen actie op een klantbehoefte, ongeacht de bron (N1 van van-pijplijn-naar-kennissysteem.md). Volgorde en uitleg: lib/kansen/prioriteit.ts.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `analysis_id` | uuid | ja |  |  |
+| `titel` | text | nee |  |  |
+| `lezer` | text | ja |  |  |
+| `handeling` | text | nee |  |  |
+| `bestaande_url` | text | ja |  |  |
+| `geldt_voor` | uuid[] | nee | `'{}'` |  |
+| `commerciele_waarde` | text | ja |  |  |
+| `potentie` | numeric | ja |  |  |
+| `kennis_bekend` | uuid[] | ja |  |  |
+| `kennis_ontbreekt` | text[] | ja |  |  |
+| `status` | text | nee | `'open'` |  |
+| `uitleg` | text | ja |  |  |
+| `rapport_id` | uuid | ja |  |  |
+| `vastgelegd_door` | uuid | ja |  |  |
+| `vastgelegd_door_taak` | text | ja |  |  |
+| `sleutel` | text | ja |  |  |
+| `ruw` | jsonb | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `(((commerciele_waarde IS NULL) OR (commerciele_waarde in ('voorrang', 'gewoon', 'minder'))))`; controle: `((handeling in ('nieuwe_pagina', 'pagina_verbeteren')))`; controle: `(((potentie IS NULL) OR ((potentie >= (0)) AND (potentie <= (100)))))`; controle: `((status in ('open', 'ingepland', 'in_voorbereiding', 'geschreven', 'gepubliceerd', 'vervallen', 'te_herzien')))`; controle: `((btrim(titel) <> ''))`; controle: `(((vastgelegd_door IS NOT NULL) OR (COALESCE(btrim(vastgelegd_door_taak), '') <> '')))`; controle: `(((handeling <> 'pagina_verbeteren') OR (COALESCE(btrim(bestaande_url), '') <> '')))`; `analysis_id` verwijst naar `analyses.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); `rapport_id` verwijst naar `reports.id` (on delete set null); `vastgelegd_door` verwijst naar `auth.users.id` (on delete set null); primaire sleutel (id); unieke index `kansen_sleutel_idx`: `(profile_id, sleutel) WHERE ((sleutel IS NOT NULL) AND (status <> 'vervallen'))`.
+
+Leesregels (RLS): `kansen_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `kans_bewijs` (110 rijen)
+
+Het bewijs voor een kans, één rij per bron. Leeg is geen gegevens, niet nul.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `kans_id` | uuid | nee |  |  |
+| `profile_id` | uuid | nee |  |  |
+| `bron` | text | nee |  |  |
+| `vragen_gemeten` | integer | ja |  |  |
+| `vragen_genoemd` | integer | ja |  |  |
+| `concurrenten` | text[] | ja |  |  |
+| `eigen_site_geciteerd` | boolean | ja |  |  |
+| `run_ids` | uuid[] | ja |  |  |
+| `vertoningen` | integer | ja |  |  |
+| `klikken` | integer | ja |  |  |
+| `positie` | numeric | ja |  |  |
+| `periode_dagen` | integer | ja |  |  |
+| `zoekopdrachten` | text[] | ja |  |  |
+| `toelichting` | text | ja |  |  |
+| `rapport_id` | uuid | ja |  |  |
+| `gemeten_op` | timestamp with time zone | ja |  |  |
+| `ruw` | jsonb | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `((bron in ('consultant', 'chatgpt', 'ai_overview', 'gemini', 'search_console', 'structuur')))`; controle: `((((vragen_gemeten IS NULL) OR (vragen_gemeten >= 0)) AND ((vragen_genoemd IS NULL) OR ((vragen_genoemd >= 0) AND (vragen_gemeten IS NOT NULL) AND (vragen_genoemd <= vragen_gemeten)))))`; controle: `((((vertoningen IS NULL) OR (vertoningen >= 0)) AND ((klikken IS NULL) OR (klikken >= 0)) AND ((periode_dagen IS NULL) OR (periode_dagen > 0))))`; `kans_id` verwijst naar `kansen.id` (on delete cascade); `profile_id` verwijst naar `profiles.id` (on delete cascade); `rapport_id` verwijst naar `reports.id` (on delete set null); primaire sleutel (id); unieke index `kans_bewijs_bron_idx`: `(kans_id, bron)`.
+
+Leesregels (RLS): `kans_bewijs_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `content_plans` (7 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `started_on` | date | nee | `CURRENT_DATE` |  |
+| `pages_per_month` | integer | nee |  |  |
+| `status` | text | nee | `'concept'` |  |
+| `strategy_note` | text | ja |  |  |
+| `version` | integer | nee | `1` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `(((pages_per_month >= 1) AND (pages_per_month <= 100)))`; controle: `((status in ('concept', 'actief', 'gestopt')))`; `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `content_plans_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `plan_months` (73 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `plan_id` | uuid | nee |  |  |
+| `month_number` | integer | nee |  |  |
+| `status` | text | nee | `'concept'` |  |
+| `approved_at` | timestamp with time zone | ja |  |  |
+| `approved_by_user_id` | uuid | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `(((month_number >= 1) AND (month_number <= 12)))`; controle: `((status in ('concept', 'ter_goedkeuring', 'goedgekeurd', 'afgewezen')))`; `approved_by_user_id` verwijst naar `auth.users.id` (on delete set null); `plan_id` verwijst naar `content_plans.id` (on delete cascade); primaire sleutel (id); uniek (plan_id, month_number).
+
+Leesregels (RLS): `plan_months_select` [SELECT] `(plan_id IN ( SELECT cp.id`.
+
+#### `planned_pages` (63 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `plan_month_id` | uuid | ja |  | De maand waarin deze pagina geschreven wordt. NULL = hij staat in de voorraad: wel beschikbaar, nog niet ingepland. |
+| `profile_id` | uuid | nee |  |  |
+| `title` | text | nee |  |  |
+| `url_path` | text | ja |  |  |
+| `page_type` | text | nee | `'informatief'` |  |
+| `funnel_stage_id` | uuid | ja |  |  |
+| `topic_id` | uuid | ja |  |  |
+| `status` | text | nee | `'gepland'` |  |
+| `sort_order` | integer | nee | `0` |  |
+| `is_buffer` | boolean | nee | `false` |  |
+| `scheduled_for` | date | ja |  |  |
+| `content_piece_id` | uuid | ja |  |  |
+| `posted_at` | timestamp with time zone | ja |  |  |
+| `posted_url` | text | ja |  |  |
+| `posted_by_user_id` | uuid | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `source` | text | nee | `'plan'` | plan = door de oude jaarverdeling bedacht, aanbeveling = een gemeten kans uit een rapport, handmatig = door een mens toegevoegd. |
+| `source_analysis_id` | uuid | ja |  |  |
+| `source_ref` | text | ja |  |  |
+| `recommendation_action` | text | ja |  |  |
+| `existing_url` | text | ja |  |  |
+| `why` | text | ja |  |  |
+| `target_intent` | text | ja |  |  |
+| `target_count` | integer | ja |  |  |
+| `target_weight` | numeric | ja |  |  |
+| `potential` | numeric | ja |  | Potentiescore van deze kans (0-100), ververst door de voorraadsynchronisatie. NULL = onbekend, dan staat er geen getal op de kaart. |
+| `scheduled_manual` | boolean | nee | `false` | De gebruiker koos deze publicatiedatum zelf; resequenceMonth() laat hem staan. |
+| `related_url` | text | ja |  | Zie content_pieces.related_url. Staat hier ook omdat het normale pad sinds 0065 via de contentvoorraad loopt. |
+| `auto_placed` | boolean | nee | `false` | true als vulOpenMaanden() deze kaart automatisch in zijn maand zette, false bij een menselijke sleepactie. |
+| `taken_out` | boolean | nee | `false` | true als een klant deze kaart bewust terugsleepte naar de voorraad (moveToBacklog()), false als hij nog nooit ingepland is geweest of net weer is toegewezen. |
+| `content_type` | text | ja |  | De soort tekst (article, faq, landing, comparison, gids): letterlijk uit de aanbeveling, of gekozen door de consultant. NULL = afgeleid van page_type (contentTypeFor). Migraties 0107 en 0130, besluit B33. |
+| `kans_id` | uuid | ja |  | De kans waar deze kaart uit komt (N2). source_ref blijft gelijk aan kansen.sleutel. |
+
+Regels: controle: `(((content_type IS NULL) OR (content_type in ('article', 'faq', 'landing', 'comparison', 'gids'))))`; controle: `((page_type in ('categorie', 'dienst', 'informatief', 'overig')))`; controle: `(((recommendation_action IS NULL) OR (recommendation_action in ('nieuw', 'verbeteren'))))`; controle: `((source in ('plan', 'aanbeveling', 'handmatig')))`; controle: `((status in ('gepland', 'schrijven', 'ter_goedkeuring', 'goedgekeurd', 'geplaatst', 'afgewezen', 'mislukt')))`; `content_piece_id` verwijst naar `content_pieces.id` (on delete set null); `funnel_stage_id` verwijst naar `profile_funnel_stages.id` (on delete set null); `kans_id` verwijst naar `kansen.id` (on delete set null); `plan_month_id` verwijst naar `plan_months.id` (on delete cascade); `posted_by_user_id` verwijst naar `auth.users.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); `source_analysis_id` verwijst naar `analyses.id` (on delete set null); `topic_id` verwijst naar `profile_topics.id` (on delete set null); primaire sleutel (id); unieke index `planned_pages_source_ref_uq`: `(profile_id, source_ref)`.
+
+Leesregels (RLS): `planned_pages_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+### J. Content en effect
+
+#### `content_pieces` (45 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `report_id` | uuid | ja |  |  |
+| `type` | content_type | nee |  |  |
+| `title` | text | nee |  |  |
+| `target_intent` | text | ja |  |  |
+| `cluster` | text | ja |  |  |
+| `body_markdown` | text | ja |  |  |
+| `meta_title` | text | ja |  |  |
+| `meta_description` | text | ja |  |  |
+| `schema_jsonld` | text | ja |  |  |
+| `faq_json` | jsonb | ja |  |  |
+| `raw_json` | jsonb | ja |  |  |
+| `status` | content_status | nee | `'ready'` |  |
+| `word_count` | integer | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `action` | content_action | nee | `'nieuw'` |  |
+| `existing_url` | text | ja |  |  |
+| `version` | integer | nee | `1` |  |
+| `is_current` | boolean | nee | `true` |  |
+| `supersedes_id` | uuid | ja |  |  |
+| `revision_note` | text | ja |  |  |
+| `geo_score` | integer | ja |  |  |
+| `geo_json` | jsonb | ja |  |  |
+| `review_notes` | text[] | nee | `'{}'` |  |
+| `edited_by_user` | boolean | nee | `false` |  |
+| `published_at` | timestamp with time zone | ja |  |  |
+| `published_url` | text | ja |  |  |
+| `publish_check_json` | jsonb | ja |  |  |
+| `publish_checked_at` | timestamp with time zone | ja |  |  |
+| `quality_score` | numeric | ja |  |  |
+| `needs_review` | boolean | nee | `false` |  |
+| `critique_raw_json` | jsonb | ja |  |  |
+| `claims_json` | jsonb | ja |  | Per bewering: het F-nummer (de handle die het model gebruikt), het letterlijke citaat, en sinds 0036 het brand_facts-id dat erachter zat - want een F-nummer is een positie en geen identiteit. |
+| `briefing_snapshot_json` | jsonb | ja |  |  |
+| `brief_instruction` | text | ja |  |  |
+| `source_coverage` | numeric | ja |  |  |
+| `reviewed_at` | timestamp with time zone | ja |  | Wanneer een mens deze pagina heeft vrijgegeven (S6). NULL = nog nooit bekeken; dat is iets anders dan needs_review = false, wat de poort ook automatisch zet. |
+| `reviewed_by` | uuid | ja |  | Wie de pagina heeft vrijgegeven (S6). |
+| `dossier_json` | jsonb | ja |  | (0082) Itemdossier: deelvragen, vervolgvragen en geverifieerde uitleg van algemene begrippen voor DIT contentitem. Zie lib/pipeline/item-dossier.ts. |
+| `contract_json` | jsonb | ja |  | (0082) Contentcontract: de secties die deze pagina moet hebben, met per sectie de deelvraag, de verplichte F-nummers en de uitleg. Zie lib/pipeline/content-contract.ts. |
+| `coverage_score` | numeric | ja |  | (0082) Percentage van het contract dat de tekst afdekt (lib/pipeline/content-coverage.ts). Bewust los van geo_score, zodat de reeks van geo_score vergelijkbaar blijft. |
+| `repair_round` | integer | nee | `0` | (0082) Hoeveel gerichte reparatierondes deze pagina heeft gehad. Begrensd op REPAIR_MAX in lib/pipeline/content.ts. |
+| `existing_page_text` | text | ja |  | De tekst van de te verbeteren pagina, vers opgehaald bij het plannen (tot 6000 tekens). Leeg = niet opgehaald of geen verbetering. |
+| `existing_page_fetched_at` | timestamp with time zone | ja |  | Wanneer existing_page_text is opgehaald. Zonder dit is niet vast te stellen of het verschilscherm nog klopt. |
+| `related_url` | text | ja |  | Een bestaande pagina die dit onderwerp al raakt terwijl dit tóch een nieuwe pagina is. Waarschuwing tegen twee pagina's die om dezelfde vraag concurreren, geen pagina die vervangen wordt. |
+| `input_coverage` | numeric | ja |  | (0087) Onderbouwingsgraad: percentage van de merkgebonden contractsecties dat een bestaand F-nummer heeft. NULL = deze pagina heeft geen merkgebonden sectie, er valt niets te onderbouwen. Zie ... |
+| `write_mode` | text | ja |  | (0087) Keuze van de klant bij de inputpoort. NULL = normaal schrijven. 'algemeen' = bewust zonder uitspraken over dit bedrijf. Zie lib/content-input-gate.ts. |
+| `quality_json` | jsonb | ja |  | (0091) De volledige kwaliteitsevaluatie: dimensiescores, getypeerde bevindingen, blokkades en root cause. Zie lib/pipeline/quality-score.ts. review_notes blijft daarnaast bestaan voor de schermen. |
+| `quality_verdict` | text | ja |  | (0091) pass \| repair \| block. NULL = beoordeeld voor deze migratie. block betekent: ORBIT ENGINE noemt deze pagina niet klaar; de klant kan hem wel lezen, bewerken en zelf publiceren. |
+| `quality_confidence` | numeric | ja |  | (0091) Hoe zeker de app van haar oordeel is, 0-100. Daalt zodra een beoordelaar uitvalt of een dimensie niet te bepalen was. |
+| `weighted_evidence_coverage` | numeric | ja |  | (0091) Bewijsdekking van de merkgebonden contractsecties, gewogen naar sectiebelang (kern telt 3x, optioneel 1x). Zie lib/pipeline/evidence-weight.ts. |
+| `critical_evidence_coverage` | numeric | ja |  | (0091) Dekking van alleen de KERNsecties. NULL = deze pagina heeft er geen. Onder 100 is een blokkade: een pagina waarvan de kern niet waargemaakt kan worden, bereikt zijn doel niet. |
+| `quality_profile` | text | ja |  | (0091) Welk kwaliteitsprofiel deze pagina gewogen heeft (article\|faq\|landing\|comparison). Nodig om een cijfer navertelbaar te houden nadat een profiel is bijgesteld. |
+| `proof_points_json` | jsonb | nee | `'[]'` | V9: per gekozen feit de zin die zegt wat het voor de lezer betekent. Naast claims_json, dat bewijst dat een bewering mag; dit bewijst dat een feit is omgezet naar een argument. |
+| `writer_brief_json` | jsonb | nee | `'{}'` | De schrijfopdracht: de redactionele keuze vóór het schrijven. Wie de lezer is, wat hij moet begrijpen, welke F-nummers deze pagina dragen, en waarom juist deze lezer dit bedrijf zou kiezen. Leeg object = geen ... |
+| `updated_at` | timestamp with time zone | nee | `now()` | Wanneer de handmatige bewerkroute (PATCH) deze rij voor het laatst opsloeg. Optimistic locking, punt 17. |
+| `geaccepteerde_zinnen` | jsonb | nee | `'[]'` | Zinnen zonder bron die de klant bewust laat staan: [{zin, door, op}]. Zie migratie 0110. |
+| `strategy_json` | jsonb | ja |  | De paginastrategie (L5, WP3 van contentpijplijn-publicatiewaardig.md): wat er op de pagina komt en wat niet, met de correcties die de code erop deed. Of een wachtstand op een conflict. |
+| `edit_log_json` | jsonb | ja |  |  |
+| `readiness_json` | jsonb | ja |  |  |
+| `brief_json` | jsonb | ja |  |  |
+| `controle_json` | jsonb | ja |  |  |
+| `gebruikte_kennis` | uuid[] | nee | `'{}'` | De kennisitems die in blok A van DEZE versie stonden (C3). Gevuld door de code bij schrijven en herschrijven, nooit door de schrijver zelf. |
+| `kennis_gewijzigd_op` | timestamp with time zone | ja |  | Wanneer een kennisitem uit gebruikte_kennis van DEZE versie voor het laatst veranderde (G3). NULL = niets te melden. Gezet door de abonnee kennis_wijziging_impact, nooit door de schrijver. |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); `report_id` verwijst naar `reports.id` (on delete set null); `reviewed_by` verwijst naar `auth.users.id` (on delete set null); `supersedes_id` verwijst naar `content_pieces.id` (on delete set null); primaire sleutel (id); unieke index `content_pieces_one_current_per_title_idx`: `(analysis_id, title) WHERE is_current`.
+
+Leesregels (RLS): `content_pieces_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `content_pieces_select_own` [SELECT] `(EXISTS ( SELECT 1`; `content_pieces_select_staff` [SELECT] `is_staff()`.
+
+#### `content_piece_targets` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `content_piece_id` | uuid | nee |  |  |
+| `prompt_id` | uuid | ja |  |  |
+| `tracking_run_id` | uuid | ja |  |  |
+| `prompt_text` | text | nee |  |  |
+| `cluster` | text | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `content_piece_id` verwijst naar `content_pieces.id` (on delete cascade); `prompt_id` verwijst naar `prompts.id` (on delete set null); `tracking_run_id` verwijst naar `tracking_runs.id` (on delete set null); primaire sleutel (id); unieke index `cpt_piece_prompt_idx`: `(content_piece_id, prompt_id) WHERE (prompt_id IS NOT NULL)`.
+
+Leesregels (RLS): `content_piece_targets_select_staff` [SELECT] `is_staff()`; `cpt_select_own` [SELECT] `(EXISTS ( SELECT 1`.
+
+#### `meetplannen` (8 rijen)
+
+Het meetplan van een pagina (M1): doelvragen en controlegroep bevroren bij het goedkeuren, welke bronnen toen meededen, en het adres na publicatie. Vervangt content_piece_targets als bron voor de effectmeting.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `content_piece_id` | uuid | nee |  |  |
+| `analysis_id` | uuid | nee |  |  |
+| `doelvragen` | jsonb | nee | `'[]'` |  |
+| `controlegroep` | jsonb | nee | `'[]'` |  |
+| `bronnen` | text[] | nee | `'{}'` |  |
+| `regio` | text | ja |  |  |
+| `zoekopdrachten` | jsonb | ja |  |  |
+| `adres` | text | ja |  |  |
+| `vastgelegd_op` | timestamp with time zone | nee | `now()` |  |
+| `gepubliceerd_op` | timestamp with time zone | ja |  |  |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); `content_piece_id` verwijst naar `content_pieces.id` (on delete cascade); primaire sleutel (id); unieke index `meetplannen_content_piece_idx`: `(content_piece_id)`.
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `content_impact` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `content_piece_id` | uuid | nee |  |  |
+| `analysis_id` | uuid | nee |  |  |
+| `wave` | integer | nee |  |  |
+| `target_total` | integer | nee | `0` |  |
+| `target_before_mentioned` | integer | nee | `0` |  |
+| `target_after_mentioned` | integer | nee | `0` |  |
+| `control_total` | integer | nee | `0` |  |
+| `control_before_mentioned` | integer | nee | `0` |  |
+| `control_after_mentioned` | integer | nee | `0` |  |
+| `target_delta` | numeric | ja |  |  |
+| `control_delta` | numeric | ja |  |  |
+| `delta_threshold` | numeric | ja |  |  |
+| `verdict` | text | nee | `'te_weinig_data'` |  |
+| `computed_at` | timestamp with time zone | nee | `now()` |  |
+| `target_cited_own_page` | boolean | ja |  | Is het gepubliceerde adres van de pagina geciteerd in minstens één antwoord op de doelvragen van deze golf (M3)? NULL = nog niet gemeten of geen adres bekend, niet "nee". |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); `content_piece_id` verwijst naar `content_pieces.id` (on delete cascade); primaire sleutel (id); unieke index `content_impact_piece_wave_idx`: `(content_piece_id, wave)`.
+
+Leesregels (RLS): `content_impact_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `content_impact_select_own` [SELECT] `(EXISTS ( SELECT 1`; `content_impact_select_staff` [SELECT] `is_staff()`.
+
+#### `content_quality_reviews` (0 rijen)
+
+(0091) Menselijke beoordeling van een gegenereerde pagina, plus een optionele gouden referentie. Groepeerbaar met benchmark_set. Nul policies: alleen de service-role; dit is intern materiaal en geen klantdata.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `content_piece_id` | uuid | nee |  |  |
+| `reviewer_id` | uuid | ja |  |  |
+| `reviewer_name` | text | ja |  |  |
+| `benchmark_set` | text | ja |  | (0091) Label dat losse beoordelingen tot een benchmark maakt, bijvoorbeeld "start-20". Bewust een label en geen aparte tabel: merk is profiles, cluster is analyses, pagina is content_pieces. |
+| `copywriter_equivalence` | smallint | ja |  |  |
+| `company_specificity` | smallint | ja |  |  |
+| `generic_ai_feel` | smallint | ja |  |  |
+| `persuasiveness` | smallint | ja |  |  |
+| `brand_representation` | smallint | ja |  |  |
+| `correction_effort` | text | ja |  |  |
+| `would_send` | boolean | ja |  |  |
+| `first_thing_to_change` | text | ja |  |  |
+| `notes` | text | ja |  |  |
+| `reference_markdown` | text | ja |  | (0091) De menselijke referentieversie. Geen norm maar een meetlat: waar wijkt de AI-versie van af, en hoeveel correctie kostte dat. |
+| `reference_source` | text | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `content_piece_id` verwijst naar `content_pieces.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `content_quality_runs` (0 rijen)
+
+(0091) Een rij per kwaliteitsbeoordeling per reparatieronde. Maakt "welke versie was de beste en waarom" opzoekbaar, en levert de benchmarkdata. Nul policies: alleen de service-role, net als jobs.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `content_piece_id` | uuid | nee |  |  |
+| `analysis_id` | uuid | ja |  |  |
+| `repair_round` | integer | nee | `0` |  |
+| `quality_profile` | text | ja |  |  |
+| `score` | numeric | ja |  |  |
+| `confidence` | numeric | ja |  |  |
+| `verdict` | text | ja |  |  |
+| `dimensions_json` | jsonb | ja |  |  |
+| `issues_json` | jsonb | ja |  |  |
+| `root_cause_json` | jsonb | ja |  |  |
+| `blocking_count` | integer | nee | `0` |  |
+| `issue_count` | integer | nee | `0` |  |
+| `retained` | boolean | nee | `false` |  |
+| `word_count` | integer | ja |  |  |
+| `cost_usd` | numeric | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `herkeuring` | boolean | nee | `false` | true = dezelfde tekst opnieuw beoordeeld, geen reparatieronde. De versiekeuze slaat deze rijen over. |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); `content_piece_id` verwijst naar `content_pieces.id` (on delete cascade); primaire sleutel (id); unieke index `content_quality_runs_piece_round_idx`: `(content_piece_id, repair_round)`.
+
+Leesregels (RLS): geen; alleen de service-role.
+
+### J. Wachtrij, boekhouding en meldingen
+
+#### `jobs` (4.075 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | ja |  |  |
+| `type` | text | nee |  |  |
+| `payload_json` | jsonb | ja |  |  |
+| `status` | job_status | nee | `'queued'` |  |
+| `attempts` | integer | nee | `0` |  |
+| `scheduled_for` | timestamp with time zone | nee | `now()` |  |
+| `last_error` | text | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+| `profile_id` | uuid | ja |  |  |
+| `dedupe_key` | text | ja |  |  |
+| `started_at` | timestamp with time zone | ja |  |  |
+| `finished_at` | timestamp with time zone | ja |  |  |
+| `sales_market_id` | uuid | ja |  | Bij welke marktanalyse hoort deze taak (migratie 0066). De derde soort eigenaar naast analysis_id en profile_id; een markt is geen merk. |
+| `sales_run_id` | uuid | ja |  | Bij welke meetronde hoort deze taak (migratie 0071). Naast sales_market_id: de markt draagt het plafond, de ronde draagt de voortgang. |
+
+Regels: controle: `(((analysis_id IS NOT NULL) OR (profile_id IS NOT NULL) OR (sales_market_id IS NOT NULL)))`; `analysis_id` verwijst naar `analyses.id` (on delete cascade); `profile_id` verwijst naar `profiles.id` (on delete cascade); `sales_market_id` verwijst naar `sales_markets.id` (on delete cascade); `sales_run_id` verwijst naar `sales_runs.id` (on delete cascade); primaire sleutel (id); unieke index `jobs_dedupe_open_idx`: `(dedupe_key) WHERE ((dedupe_key IS NOT NULL) AND (status in ('queued', 'running')))`.
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `ai_calls` (9.572 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | ja |  |  |
+| `profile_id` | uuid | ja |  |  |
+| `kind` | text | nee |  |  |
+| `model` | text | nee |  |  |
+| `input_tokens` | integer | ja |  |  |
+| `output_tokens` | integer | ja |  |  |
+| `total_tokens` | integer | ja |  |  |
+| `web_search` | boolean | nee | `false` |  |
+| `cost_usd` | numeric | ja |  |  |
+| `openai_response_id` | text | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `engine` | text | nee | `'openai'` |  |
+| `account_id` | uuid | ja |  | Waarop dit bedrag drukt. Gevuld door trigger ai_calls_set_account, zie migratie 0053. Null betekent: niet aan een account toe te wijzen. |
+| `reputation_run_id` | uuid | ja |  |  |
+| `sales_market_id` | uuid | ja |  | Bij welke marktanalyse hoort deze aanroep. Draagt het plafond van 10 euro per markt uit lib/sales/budget.ts. |
+| `sales_run_id` | uuid | ja |  | Bij welke meetronde hoort deze aanroep (migratie 0071). Naast sales_market_id, want de kostprijs per hermeting bepaalt of structureel hermeten uit kan. |
+| `raw_json` | jsonb | ja |  | De volledige uitvoer van het model, ook als de controle hem daarna verwierp (conventie 8). |
+| `content_piece_id` | uuid | ja |  | (0088) Welke contentpagina deze aanroep kostte, voor het budget-per-pagina uit het herstelplan (T1.5). NULL = niet aan een pagina te koppelen (bv. de allereerste schrijfaanroep vóór de briefingrij bestond). |
+| `input_json` | jsonb | ja |  | (0112) Wat er naar het model ging: system, user, schemaName, work, reasoningEffort, temperature, webSearch, request. NULL = aanroep van vóór 0112. |
+| `prompt_hash` | text | ja |  | (0112) Eerste 16 hextekens van de SHA-256 van de systeemopdracht. Zelfde kind met andere hash = andere promptversie. |
+| `duration_ms` | integer | ja |  | Hoe lang de aanroep duurde, in milliseconden, pogingen binnen de SDK meegerekend. NULL voor aanroepen van vóór migratie 0114. |
+
+Regels: `account_id` verwijst naar `accounts.id` (on delete set null); `analysis_id` verwijst naar `analyses.id` (on delete cascade); `content_piece_id` verwijst naar `content_pieces.id` (on delete set null); `profile_id` verwijst naar `profiles.id` (on delete cascade); `reputation_run_id` verwijst naar `reputation_runs.id` (on delete set null); `sales_market_id` verwijst naar `sales_markets.id` (on delete set null); `sales_run_id` verwijst naar `sales_runs.id` (on delete set null); primaire sleutel (id).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `vendor_calls` (3 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `provider` | text | nee |  |  |
+| `kind` | text | nee |  |  |
+| `units` | integer | nee | `0` |  |
+| `cost_usd` | numeric | nee | `0` |  |
+| `profile_id` | uuid | ja |  |  |
+| `raw_json` | jsonb | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete set null); primaire sleutel (id).
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `notificaties` (3 rijen)
+
+Eén rij per gebeurtenis waar de gebruiker van hoort te weten. Aangemaakt door triggers (en notificatie_meld vanuit de code); tekst, kleur en link in lib/notificaties.ts. Migratie 0131.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | ja |  |  |
+| `account_id` | uuid | ja |  |  |
+| `soort` | text | nee |  |  |
+| `object_id` | uuid | ja |  |  |
+| `gegevens` | jsonb | nee | `'{}'` |  |
+| `aantal` | integer | nee | `1` |  |
+| `alleen_beheer` | boolean | nee | `false` |  |
+| `aangemaakt_op` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `account_id` verwijst naar `accounts.id` (on delete cascade); `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `notificaties_select` [SELECT] `(((NOT alleen_beheer) OR is_staff()) AND ((profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids)) OR (account_id IN ( SELECT user_account_ids() AS user_account_ids)) OR ((profile_id I`.
+
+#### `notificaties_gezien` (1 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `user_id` | uuid | nee |  |  |
+| `gezien_tot` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `user_id` verwijst naar `auth.users.id` (on delete cascade); primaire sleutel (user_id).
+
+Leesregels (RLS): `notificaties_gezien_select` [SELECT] `(user_id = ( SELECT auth.uid() AS uid))`.
+
+### J. Aanverwant
+
+#### `source_landscape` (195 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `domain` | text | nee |  |  |
+| `citations` | integer | nee | `0` |  |
+| `prompt_count` | integer | nee | `0` |  |
+| `competitors` | text[] | nee | `'{}'` |  |
+| `own_present` | boolean | ja |  |  |
+| `own_url` | text | ja |  |  |
+| `checked_at` | timestamp with time zone | ja |  |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id); unieke index `source_landscape_analysis_domain_idx`: `(analysis_id, domain)`.
+
+Leesregels (RLS): `source_landscape_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `source_landscape_select_own` [SELECT] `(EXISTS ( SELECT 1`; `source_landscape_select_staff` [SELECT] `is_staff()`.
+
+#### `offsite_tasks` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `analysis_id` | uuid | nee |  |  |
+| `kind` | text | nee | `'platform'` |  |
+| `domain` | text | ja |  |  |
+| `title` | text | nee |  |  |
+| `why` | text | nee |  |  |
+| `action` | text | ja |  |  |
+| `status` | text | nee | `'open'` |  |
+| `priority` | integer | nee | `50` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `updated_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `((kind in ('platform', 'wikidata', 'wikipedia', 'overig')))`; controle: `((status in ('open', 'bezig', 'gedaan', 'niet_relevant')))`; `analysis_id` verwijst naar `analyses.id` (on delete cascade); primaire sleutel (id); unieke index `offsite_tasks_unique_idx`: `(analysis_id, kind, COALESCE(domain, ''))`.
+
+Leesregels (RLS): `offsite_tasks_select_account` [SELECT] `(analysis_id IN ( SELECT readable_analysis_ids() AS readable_analysis_ids))`; `offsite_tasks_select_own` [SELECT] `(EXISTS ( SELECT 1`; `offsite_tasks_select_staff` [SELECT] `is_staff()`.
+
+#### `source_analysis_cache` (0 rijen)
+
+(0082) Gecachte uitkomst van analyzeCitedSources(): welke geciteerde bronnen wat doen. Sleutel = profiel + hash van (URL-lijst, doelvragen). Nul policies: alleen de service-role.
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `cache_key` | text | nee |  |  |
+| `block` | text | nee |  |  |
+| `urls` | text[] | nee | `'{}'` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); unieke index `source_analysis_cache_key_idx`: `(profile_id, cache_key)`.
+
+Leesregels (RLS): geen; alleen de service-role.
+
+#### `search_console_days` (32.209 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `day` | date | nee |  |  |
+| `page` | text | nee |  |  |
+| `clicks` | integer | nee | `0` |  |
+| `impressions` | integer | nee | `0` |  |
+| `position` | numeric | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); uniek (profile_id, day, page).
+
+Leesregels (RLS): `gsc_days_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `search_console_queries` (62.521 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `day` | date | nee |  |  |
+| `query` | text | nee |  |  |
+| `page` | text | nee |  |  |
+| `clicks` | integer | nee | `0` |  |
+| `impressions` | integer | nee | `0` |  |
+| `position` | numeric | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); primaire sleutel (id); uniek (profile_id, day, query, page).
+
+Leesregels (RLS): `gsc_queries_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `cluster_discovery_runs` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `started_by` | uuid | ja |  |  |
+| `status` | text | nee | `'verzamelen'` |  |
+| `status_note` | text | ja |  |  |
+| `input_json` | jsonb | nee | `'{}'` |  |
+| `dataforseo_raw` | jsonb | ja |  |  |
+| `terms_json` | jsonb | ja |  |  |
+| `sifted_json` | jsonb | ja |  |  |
+| `dataforseo_cost_usd` | numeric | nee | `0` |  |
+| `ai_cost_usd` | numeric | nee | `0` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `finished_at` | timestamp with time zone | ja |  |  |
+| `theme` | text | ja |  | Productcategorie of thema van de ronde, opgegeven door de consultant. NULL = ronde van vóór 0111. Zie migratie 0111. |
+
+Regels: controle: `((status in ('verzamelen', 'verbreden', 'schiften', 'bundelen', 'klaar', 'mislukt')))`; `profile_id` verwijst naar `profiles.id` (on delete cascade); `started_by` verwijst naar `auth.users.id` (on delete set null); primaire sleutel (id).
+
+Leesregels (RLS): `cluster_discovery_runs_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `cluster_discovery_candidates` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `run_id` | uuid | nee |  |  |
+| `profile_id` | uuid | nee |  |  |
+| `title` | text | nee |  |  |
+| `rationale` | text | ja |  |  |
+| `kind` | text | nee |  |  |
+| `offering_names` | text[] | nee | `'{}'` |  |
+| `terms_json` | jsonb | nee | `'[]'` |  |
+| `total_volume` | integer | ja |  |  |
+| `own_position` | numeric | ja |  |  |
+| `score` | numeric | nee | `0` |  |
+| `score_json` | jsonb | nee | `'{}'` |  |
+| `overlaps_with` | text | ja |  |  |
+| `status` | text | nee | `'nieuw'` |  |
+| `rejection_reason` | text | ja |  |  |
+| `topic_id` | uuid | ja |  |  |
+| `requested_by` | uuid | ja |  |  |
+| `requested_at` | timestamp with time zone | ja |  |  |
+| `decided_at` | timestamp with time zone | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: controle: `((kind in ('snelle_winst', 'nieuw_terrein', 'concurrent_voor')))`; controle: `((status in ('nieuw', 'aangevraagd', 'toegevoegd', 'afgewezen')))`; `profile_id` verwijst naar `profiles.id` (on delete cascade); `requested_by` verwijst naar `auth.users.id` (on delete set null); `run_id` verwijst naar `cluster_discovery_runs.id` (on delete cascade); `topic_id` verwijst naar `profile_topics.id` (on delete set null); primaire sleutel (id).
+
+Leesregels (RLS): `cluster_discovery_candidates_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `reputation_runs` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `profile_id` | uuid | nee |  |  |
+| `engine` | text | nee | `'openai'` |  |
+| `depth` | text | nee | `'standaard'` |  |
+| `status` | text | nee | `'queued'` |  |
+| `started_by` | uuid | ja |  |  |
+| `started_at` | timestamp with time zone | nee | `now()` |  |
+| `finished_at` | timestamp with time zone | ja |  |  |
+| `tone_index` | numeric | ja |  | Toon -100..100. NULL = onbekend, en dat is iets anders dan 0 (neutraal). |
+| `evidence_score` | numeric | ja |  |  |
+| `consistency` | numeric | ja |  |  |
+| `rank_score` | numeric | ja |  |  |
+| `rank_position` | numeric | ja |  |  |
+| `rank_of` | integer | ja |  |  |
+| `rank_indicative` | boolean | nee | `true` | Rust de plaats op te weinig rotaties of op een te groot volgorde-effect? |
+| `rivals` | text[] | nee | `'{}'` |  |
+| `wins_on` | text[] | nee | `'{}'` |  |
+| `loses_on` | text[] | nee | `'{}'` |  |
+| `order_bias` | numeric | ja |  |  |
+| `summary` | text | ja |  |  |
+| `strengths` | text[] | nee | `'{}'` |  |
+| `weaknesses` | text[] | nee | `'{}'` |  |
+| `questions_planned` | integer | nee | `0` |  |
+| `questions_done` | integer | nee | `0` |  |
+| `cost_usd` | numeric | nee | `0` |  |
+| `budget_eur` | numeric | nee | `3` |  |
+| `scope_json` | jsonb | ja |  |  |
+| `notes` | text[] | nee | `'{}'` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `tone_distribution` | jsonb | ja |  |  |
+| `tone_spread` | numeric | ja |  | Verdeeldheid 0..100. Hoog = lof en kritiek naast elkaar, niet hetzelfde als neutraal. |
+| `tone_stderr` | numeric | ja |  |  |
+| `market_position` | numeric | ja |  | Plek in het open aanbevelingsantwoord. NULL = niet genoemd, geen lage plaats. |
+| `market_of` | integer | ja |  |  |
+| `market_hit_rate` | numeric | ja |  |  |
+| `market_rivals` | text[] | nee | `'{}'` |  |
+| `instrument_version` | text | ja |  | Model + redeneerinspanning + promptversie. Trends over twee versies zijn geen trends. |
+| `market_answers` | integer | ja |  | Hoeveel marktvragen er bruikbaar waren. De noemer onder market_hit_rate, nodig om twee metingen te kunnen vergelijken. |
+
+Regels: `profile_id` verwijst naar `profiles.id` (on delete cascade); `started_by` verwijst naar `auth.users.id`; primaire sleutel (id).
+
+Leesregels (RLS): `reputation_runs_select` [SELECT] `(profile_id IN ( SELECT readable_profile_ids() AS readable_profile_ids))`.
+
+#### `reputation_answers` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `run_id` | uuid | nee |  |  |
+| `block` | text | nee |  |  |
+| `offering_id` | uuid | ja |  |  |
+| `question` | text | nee |  |  |
+| `web_search` | boolean | nee | `false` |  |
+| `repeat_index` | integer | nee | `0` |  |
+| `answer_text` | text | ja |  |  |
+| `raw_json` | jsonb | ja |  |  |
+| `cited_urls` | text[] | nee | `'{}'` |  |
+| `party_order` | text[] | nee | `'{}'` |  |
+| `verdict_json` | jsonb | ja |  |  |
+| `tone` | text | ja |  |  |
+| `tone_score` | integer | ja |  |  |
+| `pros` | text[] | nee | `'{}'` |  |
+| `cons` | text[] | nee | `'{}'` |  |
+| `grounding` | text | ja |  |  |
+| `mentions_brand` | boolean | ja |  |  |
+| `model` | text | ja |  |  |
+| `cost_usd` | numeric | nee | `0` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `offering_id` verwijst naar `profile_offerings.id` (on delete set null); `run_id` verwijst naar `reputation_runs.id` (on delete cascade); primaire sleutel (id); unieke index `reputation_answers_uniek`: `(run_id, block, COALESCE(offering_id, '00000000-0000-0000-0000-000000000000'), md5(question), repeat_index)`.
+
+Leesregels (RLS): `reputation_answers_select` [SELECT] `(run_id IN ( SELECT r.id`.
+
+#### `reputation_evidence` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `run_id` | uuid | nee |  |  |
+| `query` | text | nee |  |  |
+| `url` | text | ja |  |  |
+| `domain` | text | ja |  |  |
+| `excerpt` | text | nee |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `run_id` verwijst naar `reputation_runs.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `reputation_evidence_select` [SELECT] `(run_id IN ( SELECT r.id`.
+
+#### `reputation_market` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `run_id` | uuid | nee |  |  |
+| `answer_id` | uuid | nee |  |  |
+| `offering_id` | uuid | ja |  |  |
+| `party_name` | text | nee |  |  |
+| `entity_id` | uuid | ja |  |  |
+| `is_own_brand` | boolean | nee | `false` |  |
+| `position` | integer | nee |  |  |
+| `of_parties` | integer | nee |  |  |
+| `reason` | text | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `answer_id` verwijst naar `reputation_answers.id` (on delete cascade); `entity_id` verwijst naar `entities.id` (on delete set null); `offering_id` verwijst naar `profile_offerings.id` (on delete set null); `run_id` verwijst naar `reputation_runs.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `reputation_market_select` [SELECT] `(run_id IN ( SELECT r.id`.
+
+#### `reputation_offering_scores` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `run_id` | uuid | nee |  |  |
+| `offering_id` | uuid | ja |  |  |
+| `offering_name` | text | nee |  |  |
+| `offering_kind` | text | ja |  |  |
+| `tone_index` | numeric | ja |  |  |
+| `evidence_score` | numeric | ja |  |  |
+| `answers` | integer | nee | `0` |  |
+| `rank_score` | numeric | ja |  |  |
+| `rank_position` | numeric | ja |  |  |
+| `rank_of` | integer | ja |  |  |
+| `rank_indicative` | boolean | nee | `true` |  |
+| `wins_on` | text[] | nee | `'{}'` |  |
+| `loses_on` | text[] | nee | `'{}'` |  |
+| `summary` | text | ja |  |  |
+| `top_pros` | text[] | nee | `'{}'` |  |
+| `top_cons` | text[] | nee | `'{}'` |  |
+| `source_domains` | text[] | nee | `'{}'` |  |
+| `visibility_score` | numeric | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+| `tone_spread` | numeric | ja |  |  |
+| `market_position` | numeric | ja |  |  |
+| `market_of` | integer | ja |  |  |
+| `market_rivals` | text[] | nee | `'{}'` |  |
+
+Regels: `offering_id` verwijst naar `profile_offerings.id` (on delete set null); `run_id` verwijst naar `reputation_runs.id` (on delete cascade); primaire sleutel (id); unieke index `reputation_offering_scores_uniek`: `(run_id, offering_name)`.
+
+Leesregels (RLS): `reputation_offering_scores_select` [SELECT] `(run_id IN ( SELECT r.id`.
+
+#### `reputation_ranks` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `run_id` | uuid | nee |  |  |
+| `answer_id` | uuid | nee |  |  |
+| `offering_id` | uuid | ja |  |  |
+| `criterion` | text | nee |  |  |
+| `party_name` | text | nee |  |  |
+| `entity_id` | uuid | ja |  |  |
+| `is_own_brand` | boolean | nee | `false` |  |
+| `position` | integer | ja |  |  |
+| `of_parties` | integer | nee | `0` |  |
+| `known` | boolean | nee | `false` |  |
+| `reason` | text | ja |  |  |
+| `sources` | text[] | nee | `'{}'` |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `answer_id` verwijst naar `reputation_answers.id` (on delete cascade); `entity_id` verwijst naar `entities.id` (on delete set null); `offering_id` verwijst naar `profile_offerings.id` (on delete set null); `run_id` verwijst naar `reputation_runs.id` (on delete cascade); primaire sleutel (id).
+
+Leesregels (RLS): `reputation_ranks_select` [SELECT] `(run_id IN ( SELECT r.id`.
+
+#### `reputation_sources` (0 rijen)
+
+| Kolom | Type | Leeg | Standaard | Toelichting in de database |
+|---|---|---|---|---|
+| `id` | uuid | nee | `gen_random_uuid()` |  |
+| `run_id` | uuid | nee |  |  |
+| `domain` | text | nee |  |  |
+| `kind` | text | nee | `'overig'` |  |
+| `citations` | integer | nee | `0` |  |
+| `url` | text | ja |  |  |
+| `rating` | numeric | ja |  |  |
+| `rating_count` | integer | ja |  |  |
+| `verified` | boolean | nee | `false` |  |
+| `first_seen_block` | text | ja |  |  |
+| `created_at` | timestamp with time zone | nee | `now()` |  |
+
+Regels: `run_id` verwijst naar `reputation_runs.id` (on delete cascade); primaire sleutel (id); unieke index `reputation_sources_uniek`: `(run_id, domain)`.
+
+Leesregels (RLS): `reputation_sources_select` [SELECT] `(run_id IN ( SELECT r.id`.

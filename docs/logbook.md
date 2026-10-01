@@ -13649,3 +13649,16 @@ salesrollen zijn eruit, het pakket is 10, 20 of 40 pagina's (stond nog op 5, 10 
 "weegt na 28 dagen zwaarder" klopte niet, en het voorbeeldaccount staat erin met de drie afspraken over
 het tonen ervan. De schema's van het pdf-boek zijn mee aangepast en het boek is opnieuw gemaakt.
 
+## Het technische overzicht uitgebreid: uitvoer, routes, datamodel en stroomschema's (1 oktober 2026)
+
+Op verzoek van de eigenaar kreeg `pijplijn-technisch-overzicht.md` vier uitbreidingen. Onder elk van de 37
+promptblokken staat nu de uitvoer die het model moet leveren, gegenereerd uit de Zod-schema's (het model ziet
+alleen namen, typen en toegestane waarden; op één plek een `.describe()`). Bijlage I zet alle 80 API-routes op
+een rij met wie ze mag gebruiken, het kostenslot en het dagbudget; daaruit bleek dat vier routes AI-werk starten
+buiten beide remmen om (merkdossier, upload, en de knoppen "opnieuw" voor onderwerponderzoek en rapport), wat
+nu in bijlage H staat. Bijlage J beschrijft de 69 tabellen van de productiedatabase met kolommen, regels en
+leesrechten, opgevraagd uit de catalogus van Postgres en niet uit de migratiebestanden (migratie
+`0107_contenttype_bij_de_kans` staat op productie maar niet in de map). En elke hoofdstap begint met een
+stroomschema in Mermaid; alle negentien zijn met de Mermaid-CLI gerenderd om de syntaxis te controleren. Het
+document groeit daarmee van ongeveer 45.000 naar 71.000 woorden.
+
