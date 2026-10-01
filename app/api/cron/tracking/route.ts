@@ -5,6 +5,7 @@ import { enqueue, enqueueMeasurement, enqueueAiOverviewMeasurement, enqueueLlmRe
 import { maxMeasurementPeriods } from "@/lib/config";
 import { mayMeasureAgain } from "@/lib/measure-cadence";
 import { activeOnly } from "@/lib/archive";
+import { demoProfielIds } from "@/lib/demo";
 
 /**
  * GET /api/cron/tracking, de terugkerende meting (abcplan.md §6 A3, §12.4).
@@ -55,8 +56,16 @@ export async function GET(request: Request) {
   // merk delen dezelfde website, en die twee keer controleren levert twee
   // identieke uitslagen op.
   const auditedProfiles = new Set<string>();
+  // Een voorbeeldaccount (migratie 0138) wordt nooit gemeten: zijn data is
+  // ingeladen, en één echte ronde kost ~$6,50 en zet een echt punt tussen de
+  // verzonnen punten van zijn trendlijn (`lib/demo.ts`).
+  const demo = await demoProfielIds(admin);
 
   for (const a of analyses ?? []) {
+    if (a.profile_id && demo.has(a.profile_id as string)) {
+      overgeslagen.push({ id: a.id as string, reden: "voorbeeldaccount" });
+      continue;
+    }
     // Herhaalcontrole (optimalisatie.md 3.8). Een blokkade kan er morgen zijn
     // na een aanpassing door de webbouwer, en dan moet de klant dat horen,
     // een audit die alleen bij het aanmaken draait, veroudert stil.

@@ -9289,6 +9289,98 @@ async function main(): Promise<void> {
       eqc("scenario 40: nog steeds precies één bewijsrij, geen dubbele", String(bewijsNogEens[0].n), "1");
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Een voorbeeldaccount kost nooit geld (migratie 0138, lib/demo.ts)
+    //
+    // Het demo-account RunX heeft ingeladen metingen en 30 ingeplande pagina's
+    // in goedgekeurde maanden. De maandcron, de ochtendronde, elke betaalde
+    // knop en de werker moeten er allemaal van afblijven.
+    //
+    // ⚠️ Staat als laatste: de ochtendronde en de werker werken over de hele
+    // database, en zouden anders taken van eerdere scenario's oppakken.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen voorbeeldaccount kost nooit geld");
+    {
+      const { demoProfielIds } = await import("@/lib/demo");
+      const { checkBudgetForProfile } = await import("@/lib/spend-limit");
+      const { ochtendronde } = await import("@/lib/pagina/start");
+
+      const demoMerk = randomUUID();
+      const demoCluster = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, is_demo)
+         values ($1, $2, 'RunX', 'https://runx.nl', 'RunX', 'klaar', true)`,
+        [demoMerk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status, tracking_enabled)
+         values ($1, $2, $3, 'Loopanalyse', 'https://runx.nl', 'loopanalyse', 'gereed', true)`,
+        [demoCluster, userId, demoMerk],
+      );
+
+      const demoIds = await demoProfielIds(admin);
+      ok("het voorbeeldmerk wordt herkend", demoIds.has(demoMerk));
+      ok("een gewoon merk niet", !demoIds.has(profileId));
+
+      const oordeel = await checkBudgetForProfile(demoMerk);
+      ok("elke betaalde knop weigert bij een voorbeeldaccount", !oordeel.ok && oordeel.scope === "demo", JSON.stringify(oordeel));
+      ok("een gewoon merk houdt zijn budget", (await checkBudgetForProfile(profileId)).scope !== "demo");
+
+      const { rows: plan } = await db.client.query(
+        "insert into public.content_plans (profile_id, pages_per_month, status) values ($1, 10, 'actief') returning id",
+        [demoMerk],
+      );
+      const { rows: maand } = await db.client.query(
+        "insert into public.plan_months (plan_id, month_number, status) values ($1, 1, 'goedgekeurd') returning id",
+        [plan[0].id],
+      );
+      const binnenkort = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+      const { rows: pagina } = await db.client.query(
+        `insert into public.planned_pages (plan_month_id, profile_id, title, page_type, status, source_analysis_id, scheduled_for, sort_order)
+         values ($1, $2, 'Loopanalyse in Groningen', 'dienst', 'gepland', $3, $4, 1) returning id`,
+        [maand[0].id, demoMerk, demoCluster, binnenkort],
+      );
+      const demoPagina = pagina[0].id as string;
+
+      const jobsVanDemo = async () =>
+        (await db.client.query(
+          "select status from public.jobs where profile_id = $1 or analysis_id = $2",
+          [demoMerk, demoCluster],
+        )).rows as { status: string }[];
+
+      await ochtendronde(admin as never, demoIds);
+      const { rows: naRonde } = await db.client.query(
+        "select status, content_piece_id from public.planned_pages where id = $1",
+        [demoPagina],
+      );
+      ok(
+        "de ochtendronde laat de ingeplande pagina van een voorbeeldaccount liggen",
+        naRonde[0].status === "gepland" && naRonde[0].content_piece_id === null && (await jobsVanDemo()).length === 0,
+        JSON.stringify(naRonde[0]),
+      );
+
+      // Het vangnet: een pad dat het slot vergeet zet wel een taak klaar (een
+      // rapport op de analyse, een meting op het merk), maar de werker voert
+      // hem niet uit.
+      await db.client.query(
+        `insert into public.jobs (analysis_id, profile_id, type, payload_json, dedupe_key, status, scheduled_for)
+         values ($1, null, 'generate_report', '{}'::jsonb, $3, 'queued', now()),
+                (null, $2, 'profile_llm_baseline', '{}'::jsonb, $4, 'queued', now())`,
+        [demoCluster, demoMerk, `chain-demo:${demoCluster}`, `chain-demo:${demoMerk}`],
+      );
+      const voor = await jobsVanDemo();
+      ok("er staat werk klaar voor het voorbeeldaccount", voor.length === 2, JSON.stringify(voor));
+      await runWorker();
+      const na = await jobsVanDemo();
+      ok("de werker handelt het af zonder het te doen", na.length >= 1 && na.every((j) => j.status === "done"), JSON.stringify(na));
+      const { rows: demoRapport } = await db.client.query("select 1 from public.reports where analysis_id = $1", [demoCluster]);
+      const { rows: demoKosten } = await db.client.query(
+        "select 1 from public.ai_calls where profile_id = $1 or analysis_id = $2",
+        [demoMerk, demoCluster],
+      );
+      ok("en er is geen AI-aanroep gedaan", demoRapport.length === 0 && demoKosten.length === 0);
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

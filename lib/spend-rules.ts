@@ -33,6 +33,8 @@
  * Puur, dus testbaar vanuit `scripts/test-unit.ts` (conventie 2).
  */
 
+import { DEMO_GEWEIGERD } from "@/lib/demo";
+
 /**
  * Van dollars naar euro's, en waarom dat hier met een vaste koers mag.
  *
@@ -101,7 +103,7 @@ export function limitFromEnv(raw: string | undefined, fallback: number): number 
  * Welk plafond geraakt is. Allebei een dagplafond sinds T5 (herstelplan na
  * audit); het onderscheid is WIE het plafond draagt, niet meer de periode.
  */
-export type SpendScope = "account" | "totaal";
+export type SpendScope = "account" | "totaal" | "demo";
 
 export interface SpendVerdict {
   ok: boolean;
@@ -176,4 +178,12 @@ export function spendVerdict(
 export function combinedVerdict(totaal: SpendVerdict, account: SpendVerdict): SpendVerdict {
   if (!totaal.ok) return totaal;
   return account;
+}
+
+/**
+ * Het oordeel voor een voorbeeldaccount (migratie 0138): altijd nee, met de
+ * zin uit `lib/demo.ts`. Bedragen op nul, want er is niets uitgegeven.
+ */
+export function demoVerdict(): SpendVerdict {
+  return { ok: false, scope: "demo", message: DEMO_GEWEIGERD, spentEur: 0, limitEur: 0 };
 }

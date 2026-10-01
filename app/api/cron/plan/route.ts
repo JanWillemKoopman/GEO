@@ -3,6 +3,7 @@ import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enqueue, dedupe } from "@/lib/jobs/queue";
 import { ochtendronde } from "@/lib/pagina/start";
+import { demoProfielIds } from "@/lib/demo";
 
 /**
  * GET /api/cron/plan, de motor onder het contentplan (fase 4, zie `docs/logbook.md`).
@@ -49,7 +50,9 @@ export async function GET(request: Request) {
 
   // Het vangnet onder de contentketen: de voorbereiding die niet startte, en de
   // schrijfpoort opnieuw vragen nu de datum dichterbij is (§6.8).
-  const paginas = await ochtendronde(admin);
+  // Een voorbeeldaccount heeft 30 ingeplande pagina's in goedgekeurde maanden;
+  // zonder dit schrijft de ronde er ~3 per week echt (`lib/demo.ts`).
+  const paginas = await ochtendronde(admin, await demoProfielIds(admin));
   const zoekdata = await planSearchConsoleSync(admin, nu);
 
   return NextResponse.json({ paginas, zoekdata });
@@ -70,7 +73,10 @@ async function planSearchConsoleSync(
     .from("profiles")
     .select("id")
     .not("gsc_property", "is", null)
-    .is("archived_at", null);
+    .is("archived_at", null)
+    // Een voorbeeldaccount haalt niets op: zijn zoekverkeer is ingeladen
+    // (migratie 0138, `lib/demo.ts`).
+    .eq("is_demo", false);
 
   const merken = (data ?? []) as { id: string }[];
   const dag = nu.toISOString().slice(0, 10);

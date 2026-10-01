@@ -58,6 +58,8 @@ import {
   type KennisVoorKans,
 } from "@/lib/kansen/rapport";
 import { BESLUITEN } from "./kennis-open-punten";
+import { DEMO_GEWEIGERD } from "@/lib/demo";
+import { demoVerdict } from "@/lib/spend-rules";
 import { GERICHT_ANTWOORD_MAX, antwoordGrens, antwoordTeLang, kernvraagEerst } from "@/lib/feitenvraag";
 import { keurmerkSterren, zonderCodeOpmaak } from "@/lib/pagina/mechanisch";
 import { zonderSiteHerhaling } from "@/lib/pipeline/site-herhaling";
@@ -21859,6 +21861,28 @@ group("elke schermtekst volgt de woordenlijst", () => {
       .map((x) => `${x.t.bestand}:${x.t.regel} "${x.t.tekst.slice(0, 60)}" → ${x.regels.map((r) => r.liever).join("; ")}`)
       .join("\n      "),
   );
+});
+
+group("voorbeeldaccounts kosten nooit geld (migratie 0138, lib/demo.ts)", () => {
+
+  const oordeel = demoVerdict();
+  ok("het budgetoordeel van een voorbeeldaccount is altijd nee", oordeel.ok === false && oordeel.scope === "demo");
+  ok("en zegt in gewone taal waarom", oordeel.message === DEMO_GEWEIGERD && DEMO_GEWEIGERD.includes("voorbeeldaccount"));
+
+  // ⚠️ De vijf plekken die werk inplannen of starten zonder dat een gebruiker
+  // het vraagt. Vergeet er één het slot, dan kost het demo-account geld.
+  const plekken: [string, RegExp][] = [
+    ["app/api/cron/tracking/route.ts", /demoProfielIds\(/],
+    ["app/api/cron/plan/route.ts", /ochtendronde\(admin, await demoProfielIds\(admin\)\)/],
+    ["app/api/cron/plan/route.ts", /\.eq\("is_demo", false\)/],
+    ["lib/spend-limit.ts", /is_demo === true\) return demoVerdict\(\)/],
+    ["lib/jobs/worker.ts", /"voorbeeldaccount"/],
+  ];
+  for (const [bestand, patroon] of plekken) {
+    ok(`${bestand} vraagt het slot op voorbeeldaccounts`, patroon.test(leesBestand(bestand)));
+  }
+  const migratie = leesBestand("supabase/migrations/0138_demo_account.sql");
+  ok("de migratie is additief", /add column if not exists is_demo/.test(migratie) && !/\bdrop\b/i.test(migratie));
 });
 
 // ════════════════════════════════════════════════════════════════════════════
