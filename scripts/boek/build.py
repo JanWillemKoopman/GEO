@@ -71,7 +71,6 @@ PLAATSING = {
     18: [("end", "publiceren")],
     19: [("intro", "tijdlijn"), ("end", "vergelijking"), ("end", "ladder")],
     20: [("end", "maand")],
-    23: [("end", "sales")],
 }
 
 # Alleen voor het boek: een inleiding waar het hoofdstuk er geen heeft
@@ -83,7 +82,7 @@ EXTRA_INTRO = {
 
 - De drie kolommen zijn de drie partijen: de consultant, de app zelf, en de klant.
 - Je leest van boven naar beneden. Een pijl die naar een andere kolom gaat, betekent dat de beurt naar een andere partij gaat.
-- Een blok met een dubbele rand is een poort: daar gaat het pas verder na een bewuste klik. Er zijn er drie: de meetvragen goedkeuren, een maand vrijgeven, en een pagina goedkeuren.
+- Een blok met een dubbele rand is een poort: daar gaat het pas verder na een bewuste klik. Er zijn er drie: de meetvragen goedkeuren, een maand starten, en een pagina goedkeuren.
 - Het zwarte blok onderaan is wat blijft doorlopen: elke maand meet de app opnieuw. De gestippelde lijn laat zien dat de reis dan weer bij het meten begint.
 - Figuur 4.1 in het volgende hoofdstuk legt alle vormen uit die in de schema's van dit boek terugkomen.""",
 }

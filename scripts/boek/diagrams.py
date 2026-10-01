@@ -249,19 +249,14 @@ def fig_lus():
 
 
 def fig_rollen():
-    d = Diagram(250)
-    d.raw_back('<rect x="10" y="22" width="370" height="200" rx="4" fill="none" stroke="#000" stroke-width="0.9"/>')
-    d.raw_back('<rect x="400" y="22" width="190" height="200" rx="4" fill="none" stroke="#000" stroke-width="0.9" stroke-dasharray="4 3"/>')
-    d.label(195, 22, "KLANTOMGEVING", italic=False, weight=700, size=8.5)
-    d.label(495, 22, "SALES-MODULE, INTERN", italic=False, weight=700, size=8.5)
-    d.node("c", 105, 100, "Consultant", "ziet alles\nstart betaald werk", kind="mens", w=150, h=62)
-    d.node("k", 285, 100, "Klant", "ziet alleen het eigen merk\nleest en keurt goed", kind="mens", w=150, h=62)
+    d = Diagram(220)
+    d.raw_back('<rect x="10" y="22" width="580" height="180" rx="4" fill="none" stroke="#000" stroke-width="0.9"/>')
+    d.label(300, 22, "TWEE ROLLEN", italic=False, weight=700, size=8.5)
+    d.node("c", 140, 95, "Beheerder (consultant)", "ziet alles\nstart betaald werk", kind="mens", w=190, h=62)
+    d.node("k", 460, 95, "Klant", "ziet alleen het eigen account\nleest, beantwoordt, keurt goed", kind="mens", w=210, h=62)
     d.edge("c", "r", "k", "l")
-    d.label(195, 143, "de consultant geeft de klant toegang", bg=False, size=8.5)
-    d.node("sa", 495, 80, "Sales admin", "start een marktonderzoek", kind="mens", w=160, h=50)
-    d.node("sm", 495, 165, "Salesmedewerker", "werkt kansen af", kind="mens", w=160, h=50)
-    d.node("n", 195, 192, "De consultant is automatisch ook sales admin.\nEen klant ziet niets van de Sales-module.", kind="noot", w=320, h=36)
-    d.label(495, 238, "scheiding zit in de database zelf", size=8.3, bg=False)
+    d.label(300, 80, "geeft toegang", bg=False, size=8.5)
+    d.node("n", 300, 168, "Elke klant kan collega's uitnodigen, met dezelfde rechten.\nMet de schakelaar Admin | Klant ziet de beheerder wat de klant ziet.", kind="noot", w=440, h=40)
     return d.svg()
 
 
@@ -277,7 +272,7 @@ def fig_reis():
         [("C", "Vragen goedkeuren", "poort")],
         [("A", "Meten", "app")],
         [("A", "Rapport en kansen", "app")],
-        [("C", "Maand vrijgeven", "poort")],
+        [("C", "Maand starten", "poort")],
         [("A", "Pagina voorbereiden", "app")],
         [("K", "Vragen beantwoorden", "mens")],
         [("A", "Schrijven en controleren", "app")],
@@ -531,7 +526,7 @@ def fig_rapport():
     d.node("d", X, 343, "Voldoet aan\nde vier eisen?", kind="keuze", w=170, h=84)
     d.node("x", 480, 343, "Afgewezen,\nmet de reden", w=140)
     d.node("k", X, 440, "Een kans", "met bewijs en kennisgat", w=230)
-    d.node("e", X, 525, "Voorraad van het contentplan", kind="eind", w=230, h=34)
+    d.node("e", X, 525, "Ideeënlijst van het contentplan", kind="eind", w=230, h=34)
     d.node("n", 480, 248, "Daarna op de achtergrond:\npotentie opnieuw schatten,\nexterne bronnen zoeken", kind="noot", w=170, h=50)
     d.node("e4", 480, 440, "De vier eisen: gemeten gemis,\nklant heeft iets te zeggen,\nnog geen pagina, geen overlap", kind="noot", w=180, h=50)
     for a, b in [("m", "g"), ("g", "s"), ("s", "r"), ("r", "d"), ("k", "e")]:
@@ -544,21 +539,19 @@ def fig_rapport():
 
 def fig_plan():
     d = Diagram(300)
-    d.node("v", 80, 75, "Voorraad", "alle kansen,\nnooit gewist", w=120, h=64)
+    d.node("v", 80, 75, "Ideeënlijst", "alle pagina-ideeën,\nnooit gewist", w=120, h=64)
     x0, bw, gap = 215, 27, 3
     for i in range(12):
         x = x0 + i * (bw + gap)
-        fill = "#000" if i == 0 else "#fff"
-        d.raw_front(f'<rect x="{x:.1f}" y="50" width="{bw}" height="50" rx="2" fill="{fill}" stroke="#000" stroke-width="1"/>')
+        d.raw_front(f'<rect x="{x:.1f}" y="50" width="{bw}" height="50" rx="2" fill="#fff" stroke="#000" stroke-width="1"/>')
         d.raw_front(f'<text x="{x+bw/2:.1f}" y="114" text-anchor="middle" font-size="8.5" font-weight="{700 if i == 0 else 400}" fill="#000">{i+1}</text>')
-        if i == 0:
-            for k in range(3):
-                d.raw_front(f'<rect x="{x+5:.1f}" y="{57+k*13}" width="{bw-10}" height="8" rx="1" fill="#fff"/>')
-    d.label(x0 + 6 * (bw + gap) - gap / 2, 132, "twaalf maanden; maand 1 wordt gevuld tot het pakket vol is", bg=False, size=8.8)
+        for k in range(3):
+            d.raw_front(f'<rect x="{x+5:.1f}" y="{57+k*13}" width="{bw-10}" height="8" rx="1" fill="#000"/>')
+    d.label(x0 + 6 * (bw + gap) - gap / 2, 132, "twaalf maanden; elke open maand wordt gevuld tot het pakket vol is", bg=False, size=8.8)
     d.path([(140, 64), (x0 - 1, 64)])
     d.path([(x0 - 1, 86), (140, 86)])
     d.label(177, 38, "inplannen en\nterugzetten", bg=False, size=8.5)
-    d.node("p", 330, 200, "Maand vrijgeven", "alleen de consultant, kost geld", kind="poort", w=240, h=46)
+    d.node("p", 330, 200, "Maand starten", "alleen de consultant, kost geld", kind="poort", w=240, h=46)
     d.node("e", 330, 272, "Alle pagina's van de maand worden voorbereid", kind="eind", w=340, h=34)
     xm = x0 + bw / 2
     d.path([(xm, 100), (xm, 200), d.nodes["p"].anchor("l")])
@@ -750,7 +743,7 @@ def fig_maand():
     d = Diagram(330)
     cx, cy, rx, ry = 300, 160, 215, 118
     names = [("Eerste van de maand", "eind"), ("Meetronde per cluster", "app"), ("Concurrentanalyse", "app"),
-             ("Nieuw rapport", "app"), ("Nieuwe kansen\nin de voorraad", "app"), ("Contentplan en\nnieuwe pagina's", "mens")]
+             ("Nieuw rapport", "app"), ("Nieuwe pagina-ideeën\nin de ideeënlijst", "app"), ("Contentplan en\nnieuwe pagina's", "mens")]
     for i, (t, k) in enumerate(names):
         ang = math.radians(-90 + i * 60)
         x, y = cx + rx * math.cos(ang), cy + ry * math.sin(ang)
@@ -793,7 +786,7 @@ def fig_sales():
 
 FIGUREN = {
     "lus": (fig_lus, "De vier bewegingen van ORBIT ENGINE vormen een gesloten lus."),
-    "rollen": (fig_rollen, "De vier rollen, en de scheiding tussen de klantomgeving en de Sales-module."),
+    "rollen": (fig_rollen, "De twee rollen: de beheerder en de klant."),
     "reis": (fig_reis, "De hele reis: wie doet wat, van merk aanmaken tot de maandelijkse meting."),
     "legenda": (fig_legenda, "Hoe je de schema's in dit boek leest. Een zwart label bovenop een blok zegt wat daar het werk doet: AI, AI met zoeken op internet (AI + WEB), of vaste regels in de code (CODE)."),
     "wachtrij": (fig_wachtrij, "Wat er gebeurt met een taak in de wachtrij."),
@@ -807,7 +800,7 @@ FIGUREN = {
     "cluster": (fig_cluster, "Van onderwerp naar dertig goedgekeurde meetvragen."),
     "meting": (fig_meting, "Wat er met elke meetvraag gebeurt."),
     "rapport": (fig_rapport, "Van meting naar kansen."),
-    "plan": (fig_plan, "Het contentplan: een voorraad, twaalf maanden, en het vrijgeven van een maand."),
+    "plan": (fig_plan, "Het contentplan: een ideeënlijst, twaalf maanden, en het starten van een maand."),
     "voorbereiding": (fig_voorbereiding, "De pagina's van een maand worden na elkaar voorbereid, zodat geen vraag dubbel gesteld wordt."),
     "antwoorden": (fig_antwoorden, "Waar een antwoord van de ondernemer terechtkomt."),
     "schrijfpoort": (fig_schrijfpoort, "De schrijfpoort: wanneer een pagina geschreven wordt."),

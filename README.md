@@ -79,7 +79,7 @@ een document af van wat de code doet, dan is het document fout.
 |---|---|---|
 | 1 | [`CLAUDE.md`](./CLAUDE.md) | **Het startpunt.** Wat de app is, hoe je een opdracht aanpakt, de tien code-conventies, de commando's en waar welke documentatie landt |
 | 2 | [`docs/visie.md`](./docs/visie.md) | **Waar het naartoe gaat.** ORBIT ENGINE als autonome groeimotor voor SEO en GEO. Een bestemming, geen stand van zaken |
-| 3 | [`docs/zo-werkt-orbit-engine.md`](./docs/zo-werkt-orbit-engine.md) | **De hele app van begin tot eind, zonder techniek.** Van merk aanmaken tot effect bewezen, met de grenzen, de kosten en een begrippenlijst. Ook te lezen zonder ontwikkelaar te zijn. Als opgemaakt boek met schema's: [`docs/print/zo-werkt-orbit-engine.pdf`](./docs/print/zo-werkt-orbit-engine.pdf), opnieuw te maken met `python3 scripts/boek/build.py` |
+| 3 | [`docs/zo-werkt-orbit-engine.md`](./docs/zo-werkt-orbit-engine.md) | **De hele app van begin tot eind, zonder techniek**, voor sales, customer service en marketing. Van merk aanmaken tot effect bewezen, met de grenzen, de kosten en een begrippenlijst. Ook te lezen zonder ontwikkelaar te zijn. Als opgemaakt boek met schema's: [`docs/print/zo-werkt-orbit-engine.pdf`](./docs/print/zo-werkt-orbit-engine.pdf), opnieuw te maken met `python3 scripts/boek/build.py` |
 | 4 | [`docs/architecture.md`](./docs/architecture.md) | **Hoe het werkt.** Datamodel, rechten, jobwachtrij, elke AI-aanroep, deploy en cron |
 
 ### Daarna, als je iets gaat wijzigen
@@ -98,7 +98,7 @@ een document af van wat de code doet, dan is het document fout.
 | Bestand | Waarvoor |
 |---|---|
 | [`docs/logbook.md`](./docs/logbook.md) | **Waarom het is zoals het is.** Elke beslissing met datum en het cijfer eronder. Kijk hier vóór je iets terugdraait: de kans is groot dat het met reden zo staat |
-| [`docs/pijplijn-technisch-overzicht.md`](./docs/pijplijn-technisch-overzicht.md) | **De technische beschrijving voor een extern team.** Per hoofdstap en microstap van klantaccount tot nameting: welke techniek, welke data erin en eruit, en waarom. Nagelezen tegen de code op 30 september 2026. Samen met `zo-werkt-orbit-engine.md` de enige beschrijving van de hele flow |
+| [`docs/pijplijn-technisch-overzicht.md`](./docs/pijplijn-technisch-overzicht.md) | **De technische beschrijving voor ontwikkelaars en AI-specialisten.** Per hoofdstap en microstap van klantaccount tot nameting: welke techniek, welke data erin en eruit, en waarom, met bij elke AI-aanroep de systeemprompt letterlijk. Nagelezen tegen de code en productie op 1 oktober 2026. Samen met `zo-werkt-orbit-engine.md` de enige beschrijving van de hele flow |
 | [`docs/tasks/contentketen-opnieuw.md`](./docs/tasks/contentketen-opnieuw.md) | **De contentketen, opnieuw opgebouwd (25 september 2026).** Van contentvoorstel tot geschreven pagina in vier stappen, met de besluiten, de verboden en de werkpakketten. Lees §0 en §3 vóór je iets aan het schrijven van pagina's verandert |
 | [`docs/tasks/van-pijplijn-naar-kennissysteem.md`](./docs/tasks/van-pijplijn-naar-kennissysteem.md) | **Het ontwikkelplan voor de volgende versie (26 september 2026).** Van een reeks AI-stappen naar één klantwaarheid met kansen, een contentmotor en een meetlaag eromheen. Genummerde werkpakketten met "klaar als", voor uitvoering over meerdere sessies |
 | [`docs/nova-vs-orbit-engine-proces.md`](./docs/nova-vs-orbit-engine-proces.md) | **Het proces van InSpace Nova naast dat van ORBIT ENGINE**, van eerste contact tot bewezen effect. Wat zij wel hebben en wij niet, en andersom |

@@ -13630,3 +13630,22 @@ printboekjes, samen ruim 3.600 regels. Waar code en oude plannen er nog naar ver
 vertaaltabel bovenaan dit logboek de weg. `zo-werkt-orbit-engine.md` neemt in de leesvolgorde van
 `README.md` de plek van `APP_FLOW_DOCUMENTATION.md` over. Nog open: hoofdstuk 23 daarvan beschrijft de
 Sales-module, die op 30 september is verwijderd.
+
+## De twee flowdocumenten bijgewerkt, met de prompts erin (1 oktober 2026)
+
+Beide documenten die na de opruiming van vanochtend overbleven zijn nagelopen tegen de code op `main`
+(commit `636c1e4`) en een paar tellingen op productie. Het technische overzicht beschreef de stand van 30
+september, vóór 71 commits; daarna kwamen onder meer de twee rollen Admin en Klant (migratie 0137), de
+notificaties (0133), Feiten en kennis met de handmatige upload (0135), de soorten pagina en de
+zoekresultaten van Google in de brief (0130, brief versie 7, schrijfopdracht versie 6) en het
+voorbeeldaccount (0138). Op verzoek van de eigenaar staat nu bij elke AI-aanroep de systeemprompt
+letterlijk, en waar de opdracht in het gebruikersbericht zit ook dat bericht: 37 promptblokken, uit de
+broncode gelezen met de productie-instellingen. Op productie bleken drie schakelaars aan die de code
+standaard uit heeft (`AI_OVERVIEW_ENABLED`, `BRIEF_ZOEKRESULTATEN_ENABLED`, `CLUSTER_DISCOVERY_ENABLED`);
+die stand staat nu in bijlage D. Nieuwe aandachtspunten in bijlage H: het merkdossier en de handmatige
+upload starten een AI-aanroep buiten de kostenremmen om, en het reputatiescherm staat niet in het menu.
+"Zo werkt ORBIT ENGINE" is herschreven voor sales, customer service en marketing: de Sales-module en de
+salesrollen zijn eruit, het pakket is 10, 20 of 40 pagina's (stond nog op 5, 10 of 20), de effectmeting
+"weegt na 28 dagen zwaarder" klopte niet, en het voorbeeldaccount staat erin met de drie afspraken over
+het tonen ervan. De schema's van het pdf-boek zijn mee aangepast en het boek is opnieuw gemaakt.
+
