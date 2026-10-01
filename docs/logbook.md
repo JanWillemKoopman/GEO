@@ -13547,3 +13547,36 @@ van de klant ("Wij werken met eigen monteurs"), plus één WordPress-thema.
   build. Lange regels in de schermen zijn waar nodig op één regel gezet; de opmaak is niet opnieuw
   uitgelijnd.
 
+
+## 1 oktober 2026: de app professioneler, zonder iets weg te halen
+
+Opdracht van de eigenaar: geen redesign en geen nieuwe functies, wel een app die minder als een
+dashboard voelt. Eerst een analyse met 26 punten, daarna alles in één traject. De oorzaak zat niet in de
+bouwstenen maar in hoe schermen ze stapelden, en drie getallen maakten dat zichtbaar: 233 kaarten,
+waarvan 46 met alleen een label en een zin; 228 labels in kapitalen in zes verschillende rollen; en vier
+verschillende manieren van filteren.
+
+- **Kapitalen alleen nog voor een rubriek.** `.mono-label` is een bijschrift in gewone schrijfwijze; één
+  regel CSS raakte alle 228. Van de 46 labelkaarten kregen er 37 een echte kop; bij
+  uitleg en lege staten verdween ook het kader (14 keer). De overige negen zijn een label bij een cijfer
+  of een veld en bleven dat. Regel 11 van het designsysteem: een kaart moet
+  iets dragen.
+- **Lijsten in plaats van stapels.** `Lijst` (`components/lijst.tsx`) naar het model van de Bibliotheek,
+  nu ook in het contentplan; Clusters kreeg dezelfde vorm. Een tabel van zes kolommen in het contentplan
+  schoof op een telefoon zijwaarts, de lijst niet.
+- **Eén filtervorm** (`FilterKeuze`, op de kleine veldmaat) en een menu Meer voor bijzaken.
+- **Beweging met een functie:** uitklappen, menu's, een knop die bezig is, en een beantwoorde vraag.
+  Dertig knoppen ruilden hun tekst voor "Bezig…" en sprongen van breedte; nu blijft de tekst staan met
+  een draaiend rondje (`aria-busy`).
+
+**Twee punten uit de analyse botsten met besluiten van 30 september 2026, en die besluiten winnen.** De
+analyse stelde een zichtbare hoofdknop in de takenlijst voor en "Deze maand" onder de taken. Beide waren
+de dag ervoor andersom besloten. De takenlijst kreeg daarom geen knop maar één regel die zijn handeling in
+woorden noemt; "Deze maand" bleef bovenaan en werd rustiger. **Twee punten vervielen:** de voorgestelde
+clusters hadden al rustige knoppen (sinds de UX-audit van 23 september), en een schuivende markering in
+de weergavekeuze kan niet zonder pagina-overgangen, omdat die keuzes links zijn.
+
+Getest: `tsc --noEmit`, `test:unit` (5332), `test:chain` (846) en `build` groen. De gedeelde onderdelen
+zijn met de gecompileerde stijlen gefotografeerd op 390 en 1280 pixels, licht en donker, zonder
+horizontale overloop. ⚠️ Niet bekeken met echte klantdata (conventie 10): hier staan geen sleutels voor de
+database. Details per scherm in `docs/ux-design.md` §5, de regels in `docs/designsystem.md`.

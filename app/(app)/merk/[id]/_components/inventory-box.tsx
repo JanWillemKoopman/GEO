@@ -219,7 +219,7 @@ export function InventoryBox({
           disabled={wacht}
           className="btn-outline"
         >
-          Meer pagina's lezen
+          Meer pagina&apos;s lezen
         </button>
         {!bevestigOpnieuw ? (
           <button

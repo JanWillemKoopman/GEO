@@ -1,7 +1,7 @@
 # Design System
 
 **Bron: OKX** (`okx.com`), hun `okd`-tokensysteem, gemeten op 17 september 2026 uit de gecompileerde
-CSS van hun webapp. **Peildatum van dit document: 23 september 2026**, na de UI-audit op consistentie
+CSS van hun webapp. **Peildatum van dit document: 1 oktober 2026**, na de professionaliseringsronde (`docs/logbook.md`, 1 oktober 2026); daarvoor 23 september 2026, na de UI-audit op consistentie
 die volgde op de OKX-omzetting (`docs/logbook.md`, 23 september 2026 (7)).
 
 Dit document beschrijft **hoe ORBIT ENGINE eruitziet en waarom**. Voor de tekst in die schermen geldt
@@ -311,6 +311,18 @@ verandert.
 2. **De regelhoogte is exact anderhalf keer de maat.** 14 op 21, 12 op 18, 16 op 24. Bij Nova stond
    14 op 20 en 12 op 16; dat gaf minder lucht.
 
+**Kapitalen alleen nog voor een rubriek (1 oktober 2026).** `.mono-label` is een bijschrift in gewone
+schrijfwijze (12/18px, gewicht 500, `--text-subtle`). Het stond 228 keer in de app in zes rollen tegelijk
+(kop, label bij een cijfer, datum, filternaam, terugknop, telling), en alles in kleine kapitalen liet elk
+scherm lezen als een dashboard. Kapitalen staan er nog waar een woord een rubriek aanduidt en niets
+beschrijft: het woordje boven een paginatitel (`.type-label`, via `PageHeader`), de kop van een tabel, en
+de rubriekkoppen in een menu en in de zijbalk (`.menu-kop`, `.nav-kop`). Een label dat als kop van een blok
+dient, is een echte kop (`h2`/`h3` in `.type-body-emphasis`), geen `.mono-label`.
+
+**Twee kopniveaus binnen een pagina**, overal hetzelfde: `.type-section` (18px) voor een sectie,
+`.type-body-emphasis` (16px, 500) voor een blok of een item daarbinnen. Geen `text-lg font-medium`, geen
+label in kapitalen als kop.
+
 **Mono is uit de labels, en dat is een terugdraai van de terugdraai.** Nova gebruikte mono met brede
 letterspatiëring voor `.type-lead`/`.type-label`, en dat klopte met hún productstijl. OKX doet het
 niet: hun hele interface staat in één familie (`--font-sans`), en cijfers krijgen de tabulaire
@@ -490,6 +502,22 @@ bundels en de bestaande waarden waren al kort en zonder opsmuk.
 staat elke overgang uit (`.thema-wisselt`), anders veegt het scherm van de ene stand naar de andere
 in plaats van in één keer om te klappen.
 
+**Wat er sinds 1 oktober 2026 beweegt, en waarom.** Alleen wat een overgang begrijpelijker maakt of een
+handeling bevestigt, en alles valt weg met `prefers-reduced-motion`:
+
+- **Uitklappen** (`.collapsible-inhoud`, elk kaal `<details>`): 200 ms invagen met 4 px zakken, alleen bij
+  openen. Dichtklappen gaat direct.
+- **Menu's** (`.menu-surface`): 150 ms invagen vanaf 98% van de maat, zonder richting, want het
+  profielmenu opent omhoog en de rest omlaag.
+- **Een knop die bezig is** (`aria-busy="true"` op een `.btn-*`): de tekst blijft staan, er draait een
+  rondje vóór. Een knop die zijn tekst ruilde voor "Bezig…" sprong van breedte en zei niet meer wat hij deed.
+- **Een net beantwoorde vraag** (`.vraag-net-gedaan`): de ingeklapte regel vaagt in en het vinkje groeit
+  één keer aan.
+
+Bewust niet: overgangen tussen pagina's, optillen of groeien bij aanwijzen (§5.3), tellers die oplopen. Een
+markering die in een weergavekeuze van optie naar optie schuift evenmin: die keuzes zijn links, de pagina
+bouwt de keuze opnieuw op, en schuiven kan dan alleen met pagina-overgangen.
+
 **Eén uitzondering: het mobiele menu** (`.mobiel-menu`, 30 september 2026). Het paneel schuift in
 0,5 seconde van rechts in met `cubic-bezier(0.32, 0.72, 0, 1)` (snel weg, zacht landen), de pagina
 eronder wijkt 16% opzij en krimpt naar 94%, en de regels komen 25 ms na elkaar binnen. Dat is
@@ -563,7 +591,12 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `Dialog` (`components/dialog.tsx`) + `DialogKnoppen` | De enige omhulling van een dialoog: scrim, paneel, focus en Escape. Onder 768px een blad tegen de onderrand, de hoofdactie bovenaan. Titel in `.type-title` |
 | `.live-dot` / `.live-dot-sm` | "Er gebeurt nu iets": een ring die uitdijt, in succesgroen. `.vraag-dot` ("er wacht iets op jou") heeft dezelfde kleur en een andere beweging |
 | `.type-hero` … `.type-caption-emphasis` | De tekststijlen van OKX. Zie §3.2 |
-| `.mono-label` | De kicker boven een titel. Rendert sinds deze omzetting in Archivo, niet meer in mono; de naam is historisch |
+| `.mono-label` | Bijschrift in gewone schrijfwijze: label bij een cijfer of veld, datum, metadata. Geen kop (§3.2). De naam is historisch |
+| `Lijst` / `LijstRegel` (`components/lijst.tsx`) | Een lijst van gelijksoortige dingen: één vlak, per regel titel, één regel bijzaak en rechts stand of handeling. Op een telefoon valt het rechterdeel onder de titel. Een regel die zelf de link is, krijgt een punthaak (`verder`); de pijl (`naar`) hoort achter een tekstlink. Bibliotheek en contentplan |
+| `.clusterlijst` / `.cluster-regel` | Dezelfde lijstvorm voor clusters, zonder `overflow: hidden` omdat hun menu's buiten de regel vallen |
+| `FilterKeuze` (`components/filter-keuze.tsx`) | Eén filter: label met een keuzelijst op `.field-sm`. Hooguit vijf vaste keuzes naast elkaar zijn `FilterChip`; wat zelden nodig is staat achter een knop "Filters" of "Meer filters" |
+| `MeerMenu` (`components/meer-menu.tsx`) | Een knop "Meer" voor links en downloads die er moeten zijn maar zelden gebruikt worden. Geen handeling die iets verandert |
+| `.oplever-deel` | Delen van één sectie, gescheiden door een lijn en lucht in plaats van een eigen kaart |
 | `.stat-value` / `.tabular` / `.field-number` | Cijfers die je vergelijkt, `tabular-nums`, gewicht 500 |
 | `.field` / `.field-sm` / `.field-lg` / `.field-error` / `.field-select` | Oppervlakkleur met een rand, 40px (36px `.field-sm`, 48px `.field-lg`, en 48px voor elk veld onder 768px). Een keuzelijst krijgt altijd `.field-select`. Hover maakt de rand donkerder, focus zet hem op `--border-focus` |
 | `.stand`, `.wil-lezen`, `.wil-data` | De drie opmaakstanden van een pagina. Zie §8. Geen eigen `max-w-xl`: een smalle pagina is `.wil-lezen` |
@@ -576,7 +609,7 @@ Gebruik deze, nooit een eigen tint of een eigen maat.
 | `SectionHeading` | De kop boven een blok binnen een pagina, met een scheidingslijn 8px onder de titel |
 | `Tabs` | Onderlijnde navigatietabs, vervangt sinds stap 10 een aantal losse pil-navigaties |
 | `Drawer` | Rechts uitschuivend paneel, vervangt sinds stap 10 `DetailPanel` overal waar dat de tabel ernaast versmalde |
-| `CollapsibleSection` | Vlakke accordeon met alleen een onderrand, geen kader. `compact`-variant voor een kleinere trede |
+| `CollapsibleSection` | Vlakke accordeon met alleen een onderrand, geen kader. `compact`-variant voor een kleinere trede. Een blok met een eigen kop is een `CollapsibleSection`; een toelichting van één regel in de tekst blijft een `<details>`, met dezelfde punthaak |
 | `EmptyState`, `ErrorState`, `ConfidenceChip` | Eén variant per patroon |
 | `DataCard` | Elk cijfer naast het ene hoofdgetal van een scherm: 24px (`.data-card-waarde`, ook los te gebruiken in een kaart). Het hoofdgetal zelf staat op `text-5xl` in de kaart met de stang. `verschil.oordeel` kleurt naar beter of slechter als lager beter is |
 | `FilterChip` (`.chip-select`), `Segment` (`.segment`) | Een filter is een filterchip, een wissel van weergave is een segment. Geen eigen schakelknoppen |
@@ -615,7 +648,7 @@ tweede omzetting. Dat stond ook al open ná de Nova-ronde en is niet opnieuw dic
 
 ---
 
-## 11. De tien regels
+## 11. De elf regels
 
 1. **Een kleur heeft een betekenis, geen naam.** `--intent-danger-content`, nooit `--accent-purple`
    (die alias bestaat alleen voor bestaand gebruik), en nooit een hexwaarde of rauwe `rgba()` in een
@@ -641,6 +674,10 @@ tweede omzetting. Dat stond ook al open ná de Nova-ronde en is niet opnieuw dic
     2026 stond alles buiten een laag; 126 randkleuren en een handvol maten kwamen daardoor nooit door.
     Een lettermaat onder 12px bestaat niet, en 6px radius
     evenmin.
+11. **Een kaart moet iets dragen** (1 oktober 2026). Data, een formulier, een handeling of een
+    waarschuwing. Uitleg, een lege staat of een samenvatting staat zonder kader: een kop en tekst, met
+    lucht eromheen. Er stonden 46 kaarten met een label in kapitalen als kop; 37 kregen een echte kop en 14
+    daarvan verloren ook hun kader. Een lijst is één vlak met regels, nooit een stapel kaarten.
 
 ---
 

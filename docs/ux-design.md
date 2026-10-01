@@ -1324,6 +1324,33 @@ Nog niet gedaan: de vier stappen (idee, gepland, jouw beurt, live) als één rou
 plan (punt 2 van het voorstel). Dat verandert twee schermen en wacht op een ontwerp dat de eigenaar
 kan aanklikken.
 
+### De professionaliseringsronde (1 oktober 2026)
+
+Geen nieuwe functies en geen andere werking: dezelfde informatie, rustiger gepresenteerd. De regels
+voor kaarten, kapitalen, koppen, filters en beweging staan in `docs/designsystem.md` (§3.2, §7, §9 en
+regel 11); per scherm veranderde dit.
+
+- **Openstaande taken.** De takenlijst is één vlak zonder omlijnd vak eromheen, met één teller boven de
+  lijst en per sectie het aantal als tekst. Er staan geen knoppen in (besluit 30 september 2026), maar de
+  dringendste regel van het scherm noemt zijn handeling in woorden naast de punthaak ("Beantwoord de
+  vragen"). Zonder dat zei de startpagina nergens wat de volgende stap was. "Deze maand" blijft bovenaan
+  (ook 30 september) en toont de toelichting alleen nog bij de stap die loopt.
+- **Het scherm van één pagina.** De stand staat er één keer: het label naast de titel alleen als de
+  standbalk niets toont of als er iets mis is. "Meld dat hij live staat" staat in "Aan zet", bovenaan.
+  De vier opleverkaarten zijn één sectie ("Bij de tekst", na goedkeuren "Op je site zetten") en de
+  handleiding is een dicht uitklapblok. Wat je moet weten om goed te keuren (gegevens van de huidige
+  pagina die in de nieuwe tekst ontbreken) staat vóór de knop.
+- **Contentplan.** De vraag aan de klant is een zin onder de kop, de maanden zijn lijsten in plaats van
+  tabellen met zes kolommen, en "Eerdere voorstellen" en de download staan in een menu Meer.
+- **Bibliotheek.** Eén regel met zoekveld en een knop Filters; de vier keuzes klappen eronder open.
+- **Clusters.** Eén lijst in plaats van een stapel kaarten. Labelen zit in het menu Meer, de cijfers
+  staan als één zin.
+- **Analytics en Reputatie.** Uitleg en lege staten staan zonder kader; blokken met cijfers houden het.
+
+⚠️ Gebouwd en op code getest, en de gedeelde onderdelen zijn met de gecompileerde stijlen op 390 en 1280
+pixels in licht en donker gefotografeerd. Niet met echte klantdata bekeken (conventie 10): in de
+ontwikkelomgeving staan geen sleutels voor de database.
+
 ## 6. Eén werkmodel
 
 `lib/work.ts` is de enige statusmachine voor "werk". Daarvoor bestond werk in vijf vormen die

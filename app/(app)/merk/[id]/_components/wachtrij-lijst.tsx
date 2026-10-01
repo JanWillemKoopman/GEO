@@ -151,13 +151,15 @@ function TaakRegel({ item, spreekt }: { item: WorkItem; spreekt: boolean }) {
   return (
     <Link
       href={item.href}
-      className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-[var(--radius-md)] px-3 py-3 transition-colors hover:bg-[var(--bg-surface-raised)]"
+      // Alleen de sprekende regel mag afbreken (zijn handeling valt op een
+      // telefoon onder de tekst); een losse punthaak blijft op dezelfde regel.
+      className={`flex ${spreekt ? "flex-wrap" : ""} items-center gap-x-6 gap-y-2 rounded-[var(--radius-md)] px-3 py-3 transition-colors hover:bg-[var(--bg-surface-raised)]`}
     >
       {/* Twee regels: wat en waarom (UX-audit P2.2). Het cluster en de extra
           informatie staan in de tooltip; vier regels per taak maakten de lijst
           twee keer zo traag om te scannen. */}
       <div
-        className="flex min-w-0 flex-1 basis-72 flex-col gap-1"
+        className={`flex min-w-0 flex-1 flex-col gap-1 ${spreekt ? "basis-72" : ""}`}
         title={[cluster ? `Cluster: ${cluster}` : null, item.meta].filter(Boolean).join(". ") || undefined}
       >
         <span className="font-medium">{titel}</span>
