@@ -754,12 +754,13 @@ export function OnboardingSession({
             )}
             <div className="flex flex-wrap items-center gap-3">
               <button
+                aria-busy={bijwerken === "bezig"}
                 type="button"
                 className="btn-primary w-fit"
                 disabled={plan.tasks.length === 0 || bijwerken === "bezig"}
                 onClick={() => setBevestigBijwerken(true)}
               >
-                {bijwerken === "bezig" ? "Bezig…" : "Onderzoek bijwerken"}
+                Onderzoek bijwerken
               </button>
               {bijwerken === "gedaan" && (
                 <span className="text-sm text-secondary">
@@ -790,7 +791,6 @@ export function OnboardingSession({
             : undefined
         }
         confirmLabel="Onderzoek bijwerken"
-        confirmingLabel="Bezig…"
         busy={bijwerken === "bezig"}
         onConfirm={() => void werkBij()}
         onCancel={() => setBevestigBijwerken(false)}
@@ -809,7 +809,6 @@ export function OnboardingSession({
             "De inventaris en het aanbod zijn gebaseerd op de oude website. Draai \"Onderzoek bijwerken\" zodra je klaar bent, anders blijft ORBIT ENGINE werken met de oude pagina's.",
         }}
         confirmLabel="Website wijzigen"
-        confirmingLabel="Bezig…"
         busy={standen.url === "opslaan"}
         onConfirm={() => void bewaarUrl()}
         onCancel={() => setBevestigUrl(false)}

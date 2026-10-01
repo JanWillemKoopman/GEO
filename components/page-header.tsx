@@ -24,6 +24,13 @@
  * verschil dat een app "plat" laat voelen in plaats van een duidelijke
  * hiërarchie te tonen. `.type-heading-lg` bestaat al sinds stap 8 (de
  * inlogroute); dit is de tweede aanroeper.
+ *
+ * ── HET WOORDJE BOVEN DE TITEL IS DE LAATSTE KAPITAAL (1 OKTOBER 2026) ──────
+ *
+ * `.mono-label` is sinds vandaag een bijschrift in gewone schrijfwijze. Het
+ * woordje boven de paginatitel ("Strategie", de merknaam) houdt zijn kapitalen
+ * via `.type-label`, want het is de ene plek waar een label een rubriek
+ * aanduidt in plaats van iets te beschrijven, net als OKX' `heading-overline`.
  */
 export function PageHeader({
   eyebrow,
@@ -40,7 +47,7 @@ export function PageHeader({
     <div className="flex flex-col">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          {eyebrow && <span className="mono-label">{eyebrow}</span>}
+          {eyebrow && <span className="type-label text-[var(--text-subtle)]">{eyebrow}</span>}
           <h1 className="type-heading-lg mt-1">{title}</h1>
           {description && (
             <p className="type-compact mt-1 max-w-[40rem] text-[var(--text-tertiary)]">{description}</p>

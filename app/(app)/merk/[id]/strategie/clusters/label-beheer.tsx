@@ -126,8 +126,8 @@ export function LabelBeheer({
                     aria-label={`Nieuwe naam voor ${l.name}`}
                     autoFocus
                   />
-                  <button type="button" className="btn-primary btn-sm" disabled={opSlot} onClick={hernoem}>
-                    {opSlot ? "Bezig…" : "Opslaan"}
+                  <button aria-busy={opSlot} type="button" className="btn-primary btn-sm" disabled={opSlot} onClick={hernoem}>
+                    Opslaan
                   </button>
                   <button
                     type="button"
@@ -191,7 +191,6 @@ export function LabelBeheer({
           "je het label zo weer aan."
         }
         confirmLabel="Label verwijderen"
-        confirmingLabel="Bezig…"
         busy={opSlot}
         danger
         onConfirm={gooiWeg}

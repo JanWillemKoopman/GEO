@@ -317,12 +317,13 @@ function Rij({ brand }: { brand: CsmBrand }) {
       <div className="flex shrink-0 flex-wrap items-center gap-3 text-sm">
         {brand.paginasTeLaat > 0 && (
           <button
+            aria-busy={bezig}
             type="button"
             className="btn-outline btn-sm"
             disabled={bezig}
             onClick={() => void verzetEnHerinplannen()}
           >
-            {bezig ? "Bezig…" : "Verzet en herinplannen"}
+            Verzet en herinplannen
           </button>
         )}
         {/* Wacht dit merk op een gesprek, dan is de sessie de volgende stap en

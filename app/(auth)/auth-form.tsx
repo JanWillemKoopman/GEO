@@ -66,8 +66,8 @@ export function AuthForm({
         </Alert>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
-        {pending ? "Bezig…" : "Account aanmaken"}
+      <button aria-busy={pending} type="submit" disabled={pending} className="btn-primary btn-lg mt-2 w-full">
+        Account aanmaken
       </button>
 
       {signupsEnabled && (

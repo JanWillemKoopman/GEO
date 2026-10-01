@@ -998,14 +998,24 @@ input[type="radio"] {
    De kleur gaat van `--text-muted` (dat was 3,7:1, te weinig voor tekst) naar
    `--text-subtle`, en die haalt 7,1:1 in donker en 6,5:1 in licht. Daarmee kan
    het gewicht terug naar 500 zonder dat het label wegvalt, en dat is precies
-   wat OKX doet. */
+   wat OKX doet.
+
+   ── GEEN KAPITALEN MEER (1 oktober 2026) ───────────────────────────────────
+
+   Dit label stond 228 keer in de app, in zes rollen tegelijk: kop van een
+   kaart, label bij een cijfer, datum, filternaam, terugknop en telling. Alles
+   in kleine kapitalen liet elk scherm fluisteren als een dashboard, en een kop
+   was niet meer van bijzaak te onderscheiden. Sindsdien is dit een bijschrift
+   in gewone schrijfwijze. Kapitalen zijn er nog op precies twee plekken: het
+   woordje boven een paginatitel (`.type-label`, via `PageHeader`) en de kop
+   van een tabel (`.tabel th`). De regelhoogte gaat van 15 naar 18 pixels, die
+   van `.type-caption`, want zonder kapitalen heeft een regel onderstok nodig. */
 .mono-label {
   font-family: var(--font-sans);
   font-size: 0.75rem; /* 12px */
   font-weight: 500;
-  line-height: 0.9375rem; /* 15px */
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  line-height: 1.125rem; /* 18px */
+  letter-spacing: 0;
   color: var(--text-subtle);
 }
 
@@ -1332,6 +1342,37 @@ input[type="radio"] {
   color: var(--text-disabled);
   opacity: 1; /* de kleur doet het werk, niet de doorzichtigheid */
   cursor: not-allowed;
+}
+
+/* ── Een knop die bezig is (1 oktober 2026) ─────────────────────────────────
+   Dertig knoppen wisselden hun tekst voor "Bezig…" zolang een opslag liep.
+   De knop sprong daarbij van breedte, en wat hij deed stond er niet meer op.
+   Nu blijft de tekst staan en verschijnt er een draaiend rondje vóór, op
+   `aria-busy`. Dat zegt een schermlezer ook dat er gewacht wordt. Het rondje
+   draait, want stilstand leest als vastgelopen; met minder beweging staat het
+   stil en zegt de grijze knop het. */
+:is(.btn-primary, .btn-outline, .btn-ghost, .btn-accent, .btn-actie, .btn-danger)[aria-busy="true"] {
+  cursor: progress;
+}
+:is(.btn-primary, .btn-outline, .btn-ghost, .btn-accent, .btn-actie, .btn-danger)[aria-busy="true"]::before {
+  content: "";
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: knop-draait 0.7s linear infinite;
+}
+@keyframes knop-draait {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.btn-primary, .btn-outline, .btn-ghost, .btn-accent, .btn-actie, .btn-danger)[aria-busy="true"]::before {
+    animation: none;
+  }
 }
 
 /* De focusring is overal dezelfde en hij is niet gekleurd: bij OKX is
@@ -1928,6 +1969,63 @@ textarea.field {
   flex-direction: column;
   gap: 12px;
   padding-bottom: 32px;
+  animation: uitklap-in var(--duration-slow) var(--ease-out);
+}
+
+/* ── Uitklappen (1 oktober 2026) ────────────────────────────────────────────
+   Het pijltje draaide wel, maar de inhoud stond er in één keer: het oog zag
+   een sprong in plaats van een blok dat openging. 200 ms invagen met 4 pixels
+   zakken laat zien waar de nieuwe inhoud vandaan komt, zonder dat hij lang
+   in beweging is. Alleen bij openen: dichtklappen gaat direct, want wie
+   dichtklapt wil het kwijt. Een kaal `<details>` (een toelichting in de tekst)
+   krijgt dezelfde beweging, zodat er één manier van uitklappen is. Niet in het
+   zijproject Solliciteren (`.sol-*`), dat zijn eigen vormgeving heeft. */
+@keyframes uitklap-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+details[open]:not([class*="sol-"]) > :not(summary) {
+  animation: uitklap-in var(--duration-slow) var(--ease-out);
+}
+
+/* Eén teken voor "hier zit meer onder". Een kaal `<details>` kreeg het
+   driehoekje van de browser, behalve waar de regel `flex` was: daar viel het
+   weg. Twaalf uitklapregels hadden zo drie gedaanten. Nu staat er overal de
+   punthaak van `CollapsibleSection`, achter de tekst, die bij openen omdraait.
+
+   De rolverdeling (designsystem.md §9): een blok dat een eigen kop heeft is
+   een `CollapsibleSection`; een toelichting van één regel in de tekst ("Bewijs
+   per bron", "3 overige bronnen") blijft een `<details>`. */
+details:not([class*="sol-"]) > summary {
+  list-style: none;
+}
+details:not([class*="sol-"]) > summary::-webkit-details-marker {
+  display: none;
+}
+details:not([class*="sol-"]) > summary::after {
+  content: "";
+  display: inline-block;
+  flex-shrink: 0;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  margin-left: 8px;
+  margin-bottom: 2px;
+  vertical-align: middle;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+details[open]:not([class*="sol-"]) > summary::after {
+  transform: rotate(-135deg);
+  margin-bottom: -2px;
 }
 .collapsible-compact .collapsible-kop {
   padding: 16px 0;
@@ -3420,6 +3518,21 @@ a.notificatie-rij:hover {
   padding: 4px 0;
   max-height: 320px;
   overflow-y: auto;
+  animation: menu-in var(--duration-base) var(--ease-out);
+}
+/* Een menu stond er in één frame (1 oktober 2026). 150 ms invagen vanaf 98%
+   van zijn maat laat zien dat het vlak bij de knop hoort en eroverheen komt,
+   zonder richting: het profielmenu opent omhoog, de rest omlaag, en een schuif
+   zou bij de helft de verkeerde kant op wijzen. Sluiten gaat direct. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 /* Eén regel in dat menu. GEMETEN: 36 pixels hoog, 12 opzij, 14 pixels tekst.
    ⚠️ Een gekozen regel krijgt GEEN accentkleur maar een vinkje en een waas.
@@ -3792,7 +3905,11 @@ a.notificatie-rij:hover {
   .toast-card,
   .toast-card[data-leaving],
   .modal-overlay,
-  .modal-panel {
+  .modal-panel,
+  .menu-surface,
+  .collapsible-inhoud,
+  details[open]:not([class*="sol-"]) > :not(summary),
+  .lijst-verdwijnt {
     animation: none;
   }
   .skeleton {

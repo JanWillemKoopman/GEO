@@ -213,12 +213,13 @@ export function InventoryBox({
 
       <div className="flex flex-wrap items-center gap-3">
         <button
+          aria-busy={wacht}
           type="button"
           onClick={() => void plan("meer")}
           disabled={wacht}
           className="btn-outline"
         >
-          {wacht ? "Bezig…" : "Meer pagina's lezen"}
+          Meer pagina's lezen
         </button>
         {!bevestigOpnieuw ? (
           <button

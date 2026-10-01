@@ -170,12 +170,13 @@ export function PackageBox({
 
       <div className="flex items-center gap-3">
         <button
+          aria-busy={busy}
           type="button"
           className="btn-primary w-fit"
           onClick={() => void bewaar()}
           disabled={busy || !gewijzigd}
         >
-          {busy ? "Bezig…" : "Afspraak opslaan"}
+          Afspraak opslaan
         </button>
         <span className="text-sm text-muted">Nu: {packageLabel(current)}</span>
       </div>

@@ -358,12 +358,13 @@ export function ClusterKaart({
                       />
                       <div className="flex gap-2">
                         <button
+                          aria-busy={opSlot}
                           type="button"
                           className="btn-primary btn-sm"
                           disabled={opSlot}
                           onClick={maakLabelEnKoppel}
                         >
-                          {opSlot ? "Bezig…" : "Opslaan"}
+                          Opslaan
                         </button>
                         <button
                           type="button"
@@ -481,9 +482,9 @@ export function ClusterKaart({
           Die is er niet meer, dus staat de knop hier. */}
       {!gearchiveerd && analyse.status === "mislukt" && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
-          <button type="button" className="btn-outline btn-sm" disabled={opSlot} onClick={() => void hervat()}>
+          <button aria-busy={opSlot} type="button" className="btn-outline btn-sm" disabled={opSlot} onClick={() => void hervat()}>
             <Icon naam="herstel" size={14} />
-            {opSlot ? "Bezig…" : "Probeer het opnieuw"}
+            Probeer het opnieuw
           </button>
           <span className="text-sm text-muted">
             Wat al gemeten is blijft staan, dus je begint niet van voren af aan.
@@ -494,13 +495,14 @@ export function ClusterKaart({
       {gearchiveerd && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
           <button
+            aria-busy={opSlot}
             type="button"
             className="btn-outline btn-sm"
             disabled={opSlot}
             onClick={() => zetArchief(false)}
           >
             <Icon naam="herstel" size={14} />
-            {opSlot ? "Bezig…" : "Terugzetten"}
+            Terugzetten
           </button>
           <span className="text-sm text-muted">
             Zolang dit cluster hier staat, wordt er niet meer gemeten.
@@ -532,7 +534,6 @@ export function ClusterKaart({
             "het meten weer verder."
           }
           confirmLabel="Naar de prullenbak"
-          confirmingLabel="Bezig…"
           busy={opSlot}
           danger
           onConfirm={() => zetArchief(true)}

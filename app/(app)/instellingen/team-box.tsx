@@ -275,11 +275,12 @@ export function TeamBox({
               disabled={busy}
             />
             <button
+              aria-busy={busy}
               type="submit"
               className="btn-primary shrink-0"
               disabled={busy || !email.trim() || !voornaam.trim() || !achternaam.trim()}
             >
-              {busy ? "Bezig…" : "Uitnodigen"}
+              Uitnodigen
             </button>
           </div>
         </form>

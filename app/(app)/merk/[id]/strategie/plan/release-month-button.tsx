@@ -128,7 +128,6 @@ export function ReleaseMonthButton({
             "Elke pagina die geschreven wordt kost geld. Klopt de indeling niet, overleg dan eerst met je consultant.",
         }}
         confirmLabel="Start deze maand"
-        confirmingLabel="Bezig…"
         busy={wacht}
         onCancel={() => setOpen(false)}
         onConfirm={() => void vrijgeven()}

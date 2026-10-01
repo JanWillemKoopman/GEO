@@ -300,12 +300,13 @@ export function OfferingsEditor({
         </label>
         <div className="flex flex-wrap gap-2">
           <button
+            aria-busy={wacht}
             type="button"
             className="btn-primary btn-sm"
             disabled={wacht || !form.name.trim()}
             onClick={() => void opslaan()}
           >
-            {wacht ? "Bezig…" : "Opslaan"}
+            Opslaan
           </button>
           <button type="button" className="btn-ghost btn-sm" disabled={wacht} onClick={annuleer}>
             Annuleren

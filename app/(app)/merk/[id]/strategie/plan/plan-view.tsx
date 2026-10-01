@@ -1027,7 +1027,6 @@ export function PlanView({
             "De pagina telt vanaf nu als gepubliceerd, en ORBIT ENGINE begint hem te volgen op dit adres.",
         }}
         confirmLabel="Ja, dit staat live"
-        confirmingLabel="Bezig…"
         busy={busy === postDialog?.id}
         onCancel={() => setPostDialog(null)}
         onConfirm={() => postDialog && void paginaActie(postDialog, "geplaatst", postUrl)}
@@ -1052,7 +1051,6 @@ export function PlanView({
         title="Publicatiedatum"
         body={`Op welke dag moet "${datumDialog?.title ?? ""}" verschijnen? ORBIT ENGINE begint tien dagen voor die datum met schrijven.`}
         confirmLabel="Datum opslaan"
-        confirmingLabel="Bezig…"
         busy={busy === datumDialog?.id}
         confirmDisabled={datumFout !== null}
         onCancel={() => {
@@ -1113,7 +1111,6 @@ export function PlanView({
             "Dit pagina-idee komt niet vanzelf terug, ook niet als het cluster opnieuw gemeten wordt.",
         }}
         confirmLabel="Definitief verwijderen"
-        confirmingLabel="Bezig…"
         danger
         busy={busy === (removeDialog?.id ?? removeKans?.id)}
         onCancel={() => {
@@ -1139,7 +1136,6 @@ export function PlanView({
             "Deze pagina's tellen vanaf nu als gepubliceerd, en ORBIT ENGINE begint ze te volgen op die adressen.",
         }}
         confirmLabel="Ja, dit staat allemaal live"
-        confirmingLabel="Bezig…"
         busy={busy === bulkDialog?.id}
         onCancel={() => setBulkDialog(null)}
         onConfirm={() => bulkDialog && void alsGeplaatstMarkeren(bulkDialog)}
@@ -1193,7 +1189,6 @@ export function PlanView({
             "Elke pagina die geschreven wordt kost geld. Haal pagina's terug naar de ideeënlijst als ze er nog niet in horen. Geschreven wordt er pas als de vragen van een pagina gedaan zijn.",
         }}
         confirmLabel="Start deze maand"
-        confirmingLabel="Bezig…"
         busy={busy === monthDialog?.id}
         onCancel={() => setMonthDialog(null)}
         onConfirm={() => monthDialog && void maandActie(monthDialog, "goedkeuren")}
@@ -1211,7 +1206,6 @@ export function PlanView({
             "Geschreven teksten blijven in je bibliotheek staan en pagina's die live staan blijven live. Het oude plan blijft staan, maar je ziet het hier niet meer terug.",
         }}
         confirmLabel="Opnieuw opzetten"
-        confirmingLabel="Bezig…"
         danger
         busy={busy === "plan"}
         onCancel={() => setOpnieuwDialog(false)}

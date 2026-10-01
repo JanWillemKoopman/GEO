@@ -106,12 +106,13 @@ export function SecurityBox({ email }: { email: string }) {
           je huidige adres gewoon werken.
         </p>
         <button
+          aria-busy={busy === "email"}
           type="button"
           className="btn-primary btn-sm w-fit"
           onClick={() => void verstuur("email")}
           disabled={busy !== null || nieuwAdres.trim().length === 0}
         >
-          {busy === "email" ? "Bezig…" : "Wijzig mijn e-mailadres"}
+          Wijzig mijn e-mailadres
         </button>
       </div>
 
@@ -161,6 +162,7 @@ export function SecurityBox({ email }: { email: string }) {
         )}
 
         <button
+          aria-busy={busy === "wachtwoord"}
           type="button"
           className="btn-primary btn-sm mt-1 w-fit"
           onClick={() => void verstuur("wachtwoord")}
@@ -168,7 +170,7 @@ export function SecurityBox({ email }: { email: string }) {
             busy !== null || huidig.length === 0 || regels.some((r) => !r.ok)
           }
         >
-          {busy === "wachtwoord" ? "Bezig…" : "Wijzig mijn wachtwoord"}
+          Wijzig mijn wachtwoord
         </button>
       </div>
     </div>
