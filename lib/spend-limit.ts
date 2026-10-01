@@ -32,6 +32,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   spendVerdict,
   combinedVerdict,
+  demoVerdict,
   limitFromEnv,
   DEFAULT_ACCOUNT_DAILY_LIMIT_EUR,
   DEFAULT_TOTAL_DAILY_LIMIT_EUR,
@@ -179,8 +180,12 @@ export async function checkBudgetForProfile(profileId: string): Promise<SpendVer
   const admin = createAdminClient();
   const { data } = await admin
     .from("profiles")
-    .select("account_id")
+    .select("account_id, is_demo")
     .eq("id", profileId)
     .maybeSingle();
+  // Een voorbeeldaccount (migratie 0138) start nooit betaald werk, ook niet
+  // voor een beheerder: elke route die geld kost vraagt deze functie, dus dit
+  // is de ene plek die ze allemaal dicht zet (`lib/demo.ts`).
+  if (data?.is_demo === true) return demoVerdict();
   return checkBudget((data?.account_id as string | null) ?? null);
 }

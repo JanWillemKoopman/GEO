@@ -436,6 +436,11 @@ export interface Profile {
    */
   archived_at: string | null;
   /**
+   * Voorbeeldaccount (migratie 0138): ingeladen data, nooit meten, schrijven of
+   * ophalen. Zie lib/demo.ts.
+   */
+  is_demo?: boolean;
+  /**
    * Inventariskwaliteit (migratie 0039, was R6.2/0033). Bol had 1 pagina in de
    * inventaris en HEMA 40 productpagina's; in beide gevallen degradeerde het
    * rapport zonder foutmelding. Null = nog niet beoordeeld.

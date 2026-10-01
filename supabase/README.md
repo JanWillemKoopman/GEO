@@ -901,3 +901,11 @@ oude consultant-testaccounts lezen via RLS niets meer buiten hun eigen account. 
 `staff_invites` en de kolom `account_users.role` blijven staan (migraties zijn additief). Idempotent. Op
 productie toegepast op 30 september 2026; nagerekend vooraf: 11 leden (allemaal al `admin`), 1 uitnodiging
 met `member`, en de superuser heeft zijn `superuser`-rij.
+
+## 0138: voorbeeldaccount
+
+Kolom `profiles.is_demo` (boolean, standaard `false`) plus een gedeeltelijke index. Een merk met deze vlag
+is een voorbeeldaccount met ingeladen data (`docs/tasks/demo-account-runx.md`): de maandmeting, de
+ochtendronde, de Search Console-ophaling, elke betaalde knop en de werker slaan het over (`lib/demo.ts`).
+Additief en idempotent. Op productie toegepast op 1 oktober 2026 (migratienaam `demo_account`);
+nagerekend: 9 merken, 0 met de vlag.

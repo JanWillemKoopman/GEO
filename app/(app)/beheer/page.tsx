@@ -9,6 +9,8 @@ import { totals } from "@/lib/csm";
 import { PageHeader } from "@/components/page-header";
 import { CsmView } from "./csm-view";
 import { DeleteAccountBox } from "./delete-account-box";
+import { DemoAccountBox } from "./demo-account-box";
+import { PROFIEL_ID as RUNX_PROFIEL_ID } from "@/lib/demo/runx/ids";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,7 @@ export default async function BeheerPage() {
     admin.from("accounts").select("id, name").order("name"),
     ownAccountIdsOf(user.id),
   ]);
+  const { data: runx } = await admin.from("profiles").select("id").eq("id", RUNX_PROFIEL_ID).maybeSingle();
   const eigenIds = new Set(eigen);
   const verwijderbaar = (alleAccounts ?? [])
     .filter((a) => !eigenIds.has(a.id as string))
@@ -61,6 +64,7 @@ export default async function BeheerPage() {
         description="Alle merken van alle klanten, met bovenaan wat het eerst aandacht vraagt."
       />
       <CsmView brands={brands} kpi={totals(brands)} />
+      <DemoAccountBox profielId={(runx?.id as string | undefined) ?? null} />
       <DeleteAccountBox accounts={verwijderbaar} />
     </div>
   );

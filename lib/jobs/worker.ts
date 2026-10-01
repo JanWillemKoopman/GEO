@@ -279,39 +279,48 @@ export async function runWorker(): Promise<WorkerResult> {
 }
 
 /**
- * Is het merk of de analyse van deze taak gearchiveerd?
+ * Moet deze taak overgeslagen worden, en waarom?
  *
- * Faalt zacht naar `false`: kunnen we het niet vaststellen, dan draait de taak
+ * Twee redenen. **Gearchiveerd**: het merk of de analyse is uit beeld, en werk
+ * waarvan de uitkomst nergens meer te zien is hoeft niet betaald te worden.
+ * **Voorbeeldaccount** (migratie 0138, `lib/demo.ts`): de data is ingeladen en
+ * mag nooit geld kosten. De crons en de budgetcontrole houden dat al tegen;
+ * dit is het vangnet voor een pad dat daar vergeten is.
+ *
+ * Faalt zacht naar `null`: kunnen we het niet vaststellen, dan draait de taak
  * gewoon. Dat is de kant waarop deze controle hoort te falen, want het
  * alternatief is een wachtrij die stilvalt omdat één query hapert. Het ergste
  * geval hier is dat er één ronde te veel draait voor een merk dat uit beeld is;
  * het ergste geval andersom is dat er niets meer gebeurt voor iedereen.
  */
-async function isArchived(
+async function overslaanReden(
   admin: ReturnType<typeof createAdminClient>,
   job: Job,
-): Promise<boolean> {
+): Promise<"gearchiveerd" | "voorbeeldaccount" | null> {
   try {
+    let profielId = job.profile_id;
     if (job.analysis_id) {
       const { data } = await admin
         .from("analyses")
-        .select("archived_at")
+        .select("archived_at, profile_id")
         .eq("id", job.analysis_id)
         .maybeSingle();
-      if (data?.archived_at) return true;
+      if (data?.archived_at) return "gearchiveerd";
+      profielId = profielId ?? ((data?.profile_id as string | null) ?? null);
     }
-    if (job.profile_id) {
+    if (profielId) {
       const { data } = await admin
         .from("profiles")
-        .select("archived_at")
-        .eq("id", job.profile_id)
+        .select("archived_at, is_demo")
+        .eq("id", profielId)
         .maybeSingle();
-      if (data?.archived_at) return true;
+      if (data?.is_demo === true) return "voorbeeldaccount";
+      if (job.profile_id && data?.archived_at) return "gearchiveerd";
     }
-    return false;
+    return null;
   } catch (err) {
-    console.error(`Archiefcontrole mislukt voor taak ${job.id}, taak draait door:`, err);
-    return false;
+    console.error(`Archief- en democontrole mislukt voor taak ${job.id}, taak draait door:`, err);
+    return null;
   }
 }
 
@@ -372,12 +381,15 @@ async function processJob(
     // net uit beeld is gehaald zijn hele wachtrij nog leeg, en dat is betaald
     // werk waarvan de uitkomst nergens meer te zien is. De maandronde filtert
     // gearchiveerde analyses al; de taken die er op dat moment al stonden niet.
-    if (await isArchived(admin, job)) {
+    const reden = await overslaanReden(admin, job);
+    if (reden) {
       await markDone(admin, job);
       out.succeeded++;
       out.results.push({ id: job.id, type: job.type, ok: true });
       console.log(
-        `Taak ${job.type} (${job.id}) overgeslagen: het merk of de analyse is gearchiveerd.`,
+        reden === "gearchiveerd"
+          ? `Taak ${job.type} (${job.id}) overgeslagen: het merk of de analyse is gearchiveerd.`
+          : `Taak ${job.type} (${job.id}) overgeslagen: het merk is een voorbeeldaccount.`,
       );
       return;
     }

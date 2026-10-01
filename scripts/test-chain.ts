@@ -9289,6 +9289,177 @@ async function main(): Promise<void> {
       eqc("scenario 40: nog steeds precies één bewijsrij, geen dubbele", String(bewijsNogEens[0].n), "1");
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Een voorbeeldaccount kost nooit geld (migratie 0138, lib/demo.ts)
+    //
+    // Het demo-account RunX heeft ingeladen metingen en 30 ingeplande pagina's
+    // in goedgekeurde maanden. De maandcron, de ochtendronde, elke betaalde
+    // knop en de werker moeten er allemaal van afblijven.
+    //
+    // ⚠️ Staat als laatste: de ochtendronde en de werker werken over de hele
+    // database, en zouden anders taken van eerdere scenario's oppakken.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nEen voorbeeldaccount kost nooit geld");
+    {
+      const { demoProfielIds } = await import("@/lib/demo");
+      const { checkBudgetForProfile } = await import("@/lib/spend-limit");
+      const { ochtendronde } = await import("@/lib/pagina/start");
+
+      const demoMerk = randomUUID();
+      const demoCluster = randomUUID();
+      await db.client.query(
+        `insert into public.profiles (id, user_id, name, url, brand_name, status, is_demo)
+         values ($1, $2, 'RunX', 'https://runx.nl', 'RunX', 'klaar', true)`,
+        [demoMerk, userId],
+      );
+      await db.client.query(
+        `insert into public.analyses (id, user_id, profile_id, name, url, topic, status, tracking_enabled)
+         values ($1, $2, $3, 'Loopanalyse', 'https://runx.nl', 'loopanalyse', 'gereed', true)`,
+        [demoCluster, userId, demoMerk],
+      );
+
+      const demoIds = await demoProfielIds(admin);
+      ok("het voorbeeldmerk wordt herkend", demoIds.has(demoMerk));
+      ok("een gewoon merk niet", !demoIds.has(profileId));
+
+      const oordeel = await checkBudgetForProfile(demoMerk);
+      ok("elke betaalde knop weigert bij een voorbeeldaccount", !oordeel.ok && oordeel.scope === "demo", JSON.stringify(oordeel));
+      ok("een gewoon merk houdt zijn budget", (await checkBudgetForProfile(profileId)).scope !== "demo");
+
+      const { rows: plan } = await db.client.query(
+        "insert into public.content_plans (profile_id, pages_per_month, status) values ($1, 10, 'actief') returning id",
+        [demoMerk],
+      );
+      const { rows: maand } = await db.client.query(
+        "insert into public.plan_months (plan_id, month_number, status) values ($1, 1, 'goedgekeurd') returning id",
+        [plan[0].id],
+      );
+      const binnenkort = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+      const { rows: pagina } = await db.client.query(
+        `insert into public.planned_pages (plan_month_id, profile_id, title, page_type, status, source_analysis_id, scheduled_for, sort_order)
+         values ($1, $2, 'Loopanalyse in Groningen', 'dienst', 'gepland', $3, $4, 1) returning id`,
+        [maand[0].id, demoMerk, demoCluster, binnenkort],
+      );
+      const demoPagina = pagina[0].id as string;
+
+      const jobsVanDemo = async () =>
+        (await db.client.query(
+          "select status from public.jobs where profile_id = $1 or analysis_id = $2",
+          [demoMerk, demoCluster],
+        )).rows as { status: string }[];
+
+      await ochtendronde(admin as never, demoIds);
+      const { rows: naRonde } = await db.client.query(
+        "select status, content_piece_id from public.planned_pages where id = $1",
+        [demoPagina],
+      );
+      ok(
+        "de ochtendronde laat de ingeplande pagina van een voorbeeldaccount liggen",
+        naRonde[0].status === "gepland" && naRonde[0].content_piece_id === null && (await jobsVanDemo()).length === 0,
+        JSON.stringify(naRonde[0]),
+      );
+
+      // Het vangnet: een pad dat het slot vergeet zet wel een taak klaar (een
+      // rapport op de analyse, een meting op het merk), maar de werker voert
+      // hem niet uit.
+      await db.client.query(
+        `insert into public.jobs (analysis_id, profile_id, type, payload_json, dedupe_key, status, scheduled_for)
+         values ($1, null, 'generate_report', '{}'::jsonb, $3, 'queued', now()),
+                (null, $2, 'profile_llm_baseline', '{}'::jsonb, $4, 'queued', now())`,
+        [demoCluster, demoMerk, `chain-demo:${demoCluster}`, `chain-demo:${demoMerk}`],
+      );
+      const voor = await jobsVanDemo();
+      ok("er staat werk klaar voor het voorbeeldaccount", voor.length === 2, JSON.stringify(voor));
+      await runWorker();
+      const na = await jobsVanDemo();
+      ok("de werker handelt het af zonder het te doen", na.length >= 1 && na.every((j) => j.status === "done"), JSON.stringify(na));
+      const { rows: demoRapport } = await db.client.query("select 1 from public.reports where analysis_id = $1", [demoCluster]);
+      const { rows: demoKosten } = await db.client.query(
+        "select 1 from public.ai_calls where profile_id = $1 or analysis_id = $2",
+        [demoMerk, demoCluster],
+      );
+      ok("en er is geen AI-aanroep gedaan", demoRapport.length === 0 && demoKosten.length === 0);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Het voorbeeldaccount RunX inladen kost niets (docs/tasks/demo-account-runx.md)
+    //
+    // Het hele jaar, alle stappen van de beheerroute, met een AI-koppeling die
+    // bij élke aanroep faalt. Lukt het inladen, dan is er dus geen AI-aanroep
+    // gedaan. Daarna het verhaal narekenen tegen wat de schermen lezen.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nHet voorbeeldaccount RunX inladen");
+    {
+      const aiAanroepen: string[] = [];
+      __setTestTransport((async (opts: { schemaName: string }) => {
+        aiAanroepen.push(opts.schemaName);
+        throw new Error(`AI-aanroep tijdens het inladen van de demo: ${opts.schemaName}`);
+      }) as never);
+      __setTestPlainTransport((async () => {
+        aiAanroepen.push("tekst");
+        throw new Error("AI-aanroep tijdens het inladen van de demo (tekst)");
+      }) as never);
+
+      const { STAPPEN, PROFIEL_ID, voerStapUit } = await import("@/lib/demo/runx/laden");
+      const nu = new Date("2026-10-01T12:00:00Z");
+      const fouten: string[] = [];
+      for (const stap of STAPPEN) {
+        try {
+          const verslag = await voerStapUit(admin as never, stap, { gebruikerId: userId, nu });
+          for (const r of verslag.regels) console.log(`      ${stap}: ${r}`);
+        } catch (err) {
+          fouten.push(`${stap}: ${err instanceof Error ? err.message : String(err)}`);
+          break;
+        }
+      }
+      ok("alle stappen van het inladen lukken", fouten.length === 0, fouten.join("\n"));
+      ok("zonder één AI-aanroep", aiAanroepen.length === 0, aiAanroepen.join(", "));
+
+      const tel = async (sql: string) => Number((await db.client.query(sql, [PROFIEL_ID])).rows[0].n);
+      ok("het merk is een voorbeeldaccount", (await db.client.query("select is_demo from public.profiles where id = $1", [PROFIEL_ID])).rows[0]?.is_demo === true);
+      eqc("acht clusters", String(await tel("select count(*) n from public.analyses where profile_id = $1")), "8");
+      eqc("240 meetvragen", String(await tel("select count(*) n from public.prompts p join public.analyses a on a.id = p.analysis_id where a.profile_id = $1")), "240");
+      const scores = (await db.client.query(
+        `select a.name, v.week_no, v.score, v.weighted_score from public.visibility_scores v join public.analyses a on a.id = v.analysis_id
+          where a.profile_id = $1 order by a.name, v.week_no`, [PROFIEL_ID])).rows as { name: string; week_no: number; score: number; weighted_score: number }[];
+      eqc("een score per meetmoment: 13+13+13+13+11+9+6+3", String(scores.length), "81");
+      const laatste = new Map<string, number>();
+      for (const s of scores) laatste.set(s.name, s.score);
+      ok("de loopanalyse staat nu rond de 58", Math.abs((laatste.get("Loopanalyse en de juiste hardloopschoen") ?? 0) - 58) <= 3, JSON.stringify([...laatste]));
+      ok("de concurrentievergelijking is gevuld", (await tel("select count(*) n from public.competitor_breakdown c join public.analyses a on a.id = c.analysis_id where a.profile_id = $1")) > 0);
+      eqc("een rapport per meetmoment", String(await tel("select count(*) n from public.reports r join public.analyses a on a.id = r.analysis_id where a.profile_id = $1")), "81");
+      ok("de rapporten maakten kansen", (await tel("select count(*) n from public.kansen where profile_id = $1")) >= 150);
+      const plan = (await db.client.query("select status, count(*)::int n from public.planned_pages where profile_id = $1 group by status", [PROFIEL_ID])).rows as { status: string; n: number }[];
+      const aantal = (st: string) => plan.find((r) => r.status === st)?.n ?? 0;
+      ok("150 pagina's in het plan plus de voorraad", plan.reduce((s, r) => s + r.n, 0) >= 150, JSON.stringify(plan));
+      // Twaalf voorraadkansen; een paar raken vragen die een open kans al had
+      // en worden daar terecht bewijs bij (V7), dus niet allemaal een kaart.
+      ok("de voorraad staat klaar", (await tel("select count(*) n from public.planned_pages where profile_id = $1 and plan_month_id is null")) >= 8);
+      const taken = (await db.client.query("select type, count(*)::int n from public.jobs where profile_id = $1 group by type", [PROFIEL_ID])).rows as { type: string; n: number }[];
+      ok("in de wachtrij staat geen betaald werk voor het voorbeeldaccount", taken.every((t) => t.type === "gebeurtenis_verwerken"), JSON.stringify(taken));
+      eqc("geen regel in het kostenlogboek", String(await tel("select count(*) n from public.ai_calls where profile_id = $1")), "0");
+      ok("de vragen aan de klant zijn beantwoord via de kennislaag", (await tel("select count(*) n from public.klantkennis where profile_id = $1 and status = 'verklaard'")) > 20);
+      ok("open vragen staan klaar", (await tel("select count(*) n from public.fact_requests where profile_id = $1 and status = 'open'")) >= 3);
+      ok("zoekverkeer is ingeladen", (await tel("select count(*) n from public.search_console_days where profile_id = $1")) > 1000);
+      console.log(`      plan: ${JSON.stringify(plan)}`);
+
+      // Opnieuw inladen, een maand later, verdubbelt niets.
+      const voor = await tel("select count(*) n from public.tracking_runs t join public.analyses a on a.id = t.analysis_id where a.profile_id = $1");
+      const fouten2: string[] = [];
+      for (const stap of STAPPEN) {
+        try {
+          await voerStapUit(admin as never, stap, { gebruikerId: userId, nu: new Date("2026-11-02T12:00:00Z") });
+        } catch (err) {
+          fouten2.push(`${stap}: ${err instanceof Error ? err.message : String(err)}`);
+          break;
+        }
+      }
+      ok("verjongen lukt", fouten2.length === 0, fouten2.join("\n"));
+      const na = await tel("select count(*) n from public.tracking_runs t join public.analyses a on a.id = t.analysis_id where a.profile_id = $1");
+      ok("en verdubbelt de metingen niet", na === voor, `${voor} → ${na}`);
+      ok("ook na verjongen geen AI-aanroep", aiAanroepen.length === 0, aiAanroepen.join(", "));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

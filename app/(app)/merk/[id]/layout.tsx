@@ -61,5 +61,19 @@ export default async function MerkLayout({
   const profile = await getOwnedProfile(createAdminClient(), id, user.id);
   if (!profile) notFound();
 
+  // Een voorbeeldaccount (migratie 0138) zegt dat op elk scherm, zodat niemand
+  // in een demogesprek denkt dat het een echte klant is
+  // (`docs/tasks/demo-account-runx.md` §2).
+  if (profile.is_demo) {
+    return (
+      <>
+        <p className="mb-4 rounded-md border px-3 py-2 text-sm text-muted" role="note">
+          Voorbeeldaccount, opgebouwd uit openbare informatie en een nagespeeld jaar. Dit merk is geen klant.
+        </p>
+        {children}
+      </>
+    );
+  }
+
   return <>{children}</>;
 }

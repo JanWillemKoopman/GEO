@@ -278,20 +278,30 @@ export async function probeerNaAntwoord(admin: Admin, factId: string): Promise<v
  * alsnog; een pagina waarvan de vragen klaar zijn en de datum nadert, gaat
  * schrijven. Idempotent: een tweede ronde op dezelfde dag doet niets dubbel.
  */
-export async function ochtendronde(admin: Admin): Promise<{ voorbereid: number; schrijven: number; zonderCluster: number }> {
+export async function ochtendronde(
+  admin: Admin,
+  // De merken die deze ronde overslaat: de voorbeeldaccounts (migratie 0138).
+  // De route geeft ze mee, zodat deze keten niets van demo's hoeft te weten
+  // (`docs/tasks/contentketen-opnieuw.md` §7.3).
+  overslaanMerken: ReadonlySet<string> = new Set(),
+): Promise<{ voorbereid: number; schrijven: number; zonderCluster: number }> {
   const { data: maanden } = await admin.from("plan_months").select("id").eq("status", "goedgekeurd");
   const maandIds = ((maanden ?? []) as { id: string }[]).map((m) => m.id);
   if (maandIds.length === 0) return { voorbereid: 0, schrijven: 0, zonderCluster: 0 };
 
   const { data: paginas } = await admin
     .from("planned_pages")
-    .select("id, content_piece_id")
+    .select("id, content_piece_id, profile_id")
     .in("plan_month_id", maandIds)
     // "mislukt" ook: het scherm belooft bij een mislukte pagina dat we het
     // opnieuw proberen, en dit is waar dat gebeurt (één keer per dag).
     .in("status", ["gepland", "mislukt"])
     .eq("is_buffer", false);
-  const rijen = (paginas ?? []) as { id: string; content_piece_id: string | null }[];
+  // Een voorbeeldaccount (migratie 0138) heeft 30 ingeplande pagina's in
+  // goedgekeurde maanden; zonder dit filter schrijft deze ronde er ~3 per week
+  // echt (`lib/demo.ts`).
+  const rijen = ((paginas ?? []) as { id: string; content_piece_id: string | null; profile_id: string | null }[])
+    .filter((r) => !overslaanMerken.has(r.profile_id ?? ""));
   const uitslag = await bereidVoor(admin, rijen.map((r) => r.id));
 
   const { data: gekoppeld } = await admin
