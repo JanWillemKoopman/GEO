@@ -59,6 +59,24 @@ import {
 } from "@/lib/kansen/rapport";
 import { BESLUITEN } from "./kennis-open-punten";
 import { DEMO_GEWEIGERD } from "@/lib/demo";
+import {
+  bouwKlantRij,
+  klantcijferVensters,
+  achterOpPakket,
+  gscStandVan,
+  dringendsteSegment,
+  filterKlanten,
+  sorteerKlanten,
+  klantenCsv,
+  procentVerschil,
+  puntenVerschil,
+  hoeLangGeleden,
+  KOLOMMEN,
+  KOLOM_GROEPEN,
+  type KlantInvoer,
+  type KlantCijfers,
+  type MerkInvoer,
+} from "@/lib/klantenoverzicht";
 import { demoVerdict } from "@/lib/spend-rules";
 import { GERICHT_ANTWOORD_MAX, antwoordGrens, antwoordTeLang, kernvraagEerst } from "@/lib/feitenvraag";
 import { keurmerkSterren, zonderCodeOpmaak } from "@/lib/pagina/mechanisch";
@@ -21851,7 +21869,7 @@ group("elke schermtekst volgt de woordenlijst", () => {
     "lib/nav.ts", "lib/pagina-stand.ts", "lib/pagina-lijst.ts", "lib/plan-status.ts", "lib/wachtrij.ts",
     "lib/activity.ts", "lib/meldingen.ts", "lib/errors.ts", "lib/cost-rules.ts", "lib/analysis-status.ts",
     "lib/search-console/lege-staat.ts", "lib/search-console/koppelstatus.ts", "lib/insights.ts",
-    "lib/notificaties.ts", "lib/roles.ts",
+    "lib/notificaties.ts", "lib/roles.ts", "lib/klantenoverzicht.ts",
   ];
   const teksten = uiTeksten(["app", "components"], labelBestanden);
   ok("er zijn schermteksten gevonden", teksten.length > 2000, String(teksten.length));
@@ -21888,6 +21906,178 @@ group("voorbeeldaccounts kosten nooit geld (migratie 0138, lib/demo.ts)", () => 
   }
   const migratie = leesBestand("supabase/migrations/0138_demo_account.sql");
   ok("de migratie is additief", /add column if not exists is_demo/.test(migratie) && !/\bdrop\b/i.test(migratie));
+});
+
+group("klantenoverzicht voor de beheerder (migratie 0139, lib/klantenoverzicht.ts)", () => {
+  const nu = new Date("2026-10-15T10:00:00Z");
+
+  // ── De vensters ───────────────────────────────────────────────────────────
+  const v = klantcijferVensters(nu);
+  eq("de maand begint op de eerste", v.maandStart, "2026-10-01");
+  eq("het zoekverkeer eindigt twee dagen voor vandaag", v.gscTot, "2026-10-13");
+  eq("en beslaat 28 dagen", v.gscVan, "2026-09-16");
+  eq("de vorige periode sluit er direct op aan", v.gscVorigeTot, "2026-09-15");
+  eq("en is even lang", v.gscVorigeVan, "2026-08-19");
+  eq("niet gelukte taken kijken 7 dagen terug", v.foutenSinds.slice(0, 10), "2026-10-08");
+
+  // ── Achter op het pakket, naar rato van de maand ──────────────────────────
+  // 15 oktober: 8 × 15/31 = 3,87 → 3 verwacht.
+  ok("3 van 8 halverwege de maand is op schema", achterOpPakket(8, 3, nu) === false);
+  ok("2 van 8 halverwege de maand loopt achter", achterOpPakket(8, 2, nu) === true);
+  ok("op de eerste dag loopt niemand achter", achterOpPakket(8, 0, new Date("2026-10-01T08:00:00Z")) === false);
+  ok("zonder pakket is achterstand onbekend en geen nee", achterOpPakket(null, 0, nu) === null);
+  ok("zonder telling ook", achterOpPakket(8, null, nu) === null);
+
+  // ── Search Console over meerdere merken ───────────────────────────────────
+  const gscVan = (property: string | null, verifiedAt: string | null, lastError: string | null) => ({
+    gsc: { property, verifiedAt, lastError, lastSyncAt: null, firstDay: null },
+  });
+  const werkt = gscVan("sc-domain:a.nl", "2026-10-01", null);
+  const kapot = gscVan("sc-domain:b.nl", "2026-10-01", "403 geen toegang");
+  const leeg = gscVan(null, null, null);
+  eq("alles gekoppeld", gscStandVan([werkt, werkt], true).stand, "gekoppeld");
+  eq("een deel gekoppeld", gscStandVan([werkt, leeg], true).stand, "deels");
+  eq("één fout wint van wat wel werkt", gscStandVan([werkt, kapot], true).stand, "fout");
+  eq("en de fout staat erbij", gscStandVan([werkt, kapot], true).fout ?? "", "403 geen toegang");
+  eq("niets gekoppeld", gscStandVan([leeg], true).stand, "niet_gekoppeld");
+  eq("zonder Google-sleutel werkt geen enkele koppeling", gscStandVan([werkt], false).stand, "fout");
+  eq("zonder merk", gscStandVan([], true).stand, "geen_merk");
+
+  eq("het dringendste segment wint", dringendsteSegment(["loopt", "vastgelopen", null]) ?? "", "vastgelopen");
+  ok("zonder segmenten is er geen", dringendsteSegment([null]) === null);
+
+  // ── Eén klant opbouwen ────────────────────────────────────────────────────
+  const cijfers: KlantCijfers = {
+    account_id: "acc-1",
+    clusters_goedgekeurd: 3, clusters_voorgesteld: 12, vragen_actief: 90, concurrenten: 40,
+    meetplannen: 2, laatste_meting: "2026-10-10T06:00:00Z",
+    kansen_open: 5, kansen_opgepakt: 4, kansen_vervallen: 1,
+    paginas_in_plan: 12, paginas_geschreven: 6, paginas_gepubliceerd: 2,
+    geschreven_deze_maand: 2, laatst_geschreven: "2026-10-14T09:00:00Z",
+    // numeric en bigint komen uit Supabase als tekst binnen.
+    gsc_klikken: "1100", gsc_vertoningen: "20000", gsc_klikken_vorige: "1000", gsc_vertoningen_vorige: "25000",
+    kosten_maand_usd: "3.456", kosten_totaal_usd: "22.8", mislukte_taken: 1,
+  };
+  const merk = (over: Partial<MerkInvoer> = {}): MerkInvoer => ({
+    id: "m-1", naam: "Merk A", url: "https://a.nl", isDemo: false, dossierVoortgang: 0.85, openVragen: 2,
+    segment: "loopt", onderzoekLoopt: false, onderzoekVastgelopen: false,
+    paginasTerGoedkeuring: 1, maandenTerGoedkeuring: 0,
+    gsc: { property: "sc-domain:a.nl", verifiedAt: "2026-10-01", lastError: null, lastSyncAt: "2026-10-14T03:00:00Z", firstDay: "2026-07-01" },
+    zichtbaarheid: [
+      { analysis_id: "an-1", week_no: 1, score: 20, weighted_score: 30, winnable_runs: 10, judged_runs: 10 },
+      { analysis_id: "an-1", week_no: 2, score: 25, weighted_score: 40, winnable_runs: 10, judged_runs: 10 },
+    ],
+    ...over,
+  });
+  const invoer = (over: Partial<KlantInvoer> = {}): KlantInvoer => ({
+    account: { id: "acc-1", name: "Bakkerij Jansen", created_at: "2026-08-01T00:00:00Z", started_at: "2026-08-15T00:00:00Z", cancelled_at: null, package_pages_per_month: 8 },
+    leden: [
+      { email: "Piet@Jansen.nl", laatsteInlog: "2026-10-12T08:00:00Z" },
+      { email: "koopman.janwillem@gmail.com", laatsteInlog: "2026-10-15T09:59:00Z" },
+    ],
+    openUitnodigingen: 1,
+    merken: [merk()],
+    cijfers,
+    ...over,
+  });
+
+  const r = bouwKlantRij(invoer(), nu, true);
+  eq2("de beheerder telt niet mee als gebruiker", r.gebruikers, 1);
+  ok("en zijn e-mailadres staat er niet bij", r.emails.join(",") === "piet@jansen.nl", r.emails.join(","));
+  eq("en zijn inlog is niet de laatste inlog van de klant", r.laatsteInlog ?? "", "2026-10-12T08:00:00Z");
+  eq("een gestarte klant is een klant", r.stand, "klant");
+  eq2("het dossier in hele procenten", r.dossierCompleet, 85);
+  eq2("de zichtbaarheid is de gewogen som, zoals Resultaten", r.zichtbaarheid, 40);
+  eq2("met de vorige periode ernaast", r.zichtbaarheidVorige, 30);
+  eq2("genoemd is de ongewogen som", r.genoemd, 25);
+  eq2("klikken uit tekst worden een getal", r.klikken, 1100);
+  eq2("kosten ook", r.kostenMaand, 3.456);
+  ok("2 van 8 halverwege de maand loopt achter", r.achterOpPakket === true);
+  eq("de koppeling werkt", r.gsc, "gekoppeld");
+
+  const zonderCijfers = bouwKlantRij(invoer({ cijfers: null }), nu, true);
+  ok("zonder telling zijn de tellers onbekend en geen nul", zonderCijfers.clusters === null && zonderCijfers.kostenTotaal === null && zonderCijfers.paginasGeschreven === null);
+
+  const zonderKoppeling = bouwKlantRij(
+    invoer({ merken: [merk({ gsc: { property: null, verifiedAt: null, lastError: null, lastSyncAt: null, firstDay: null } })] }),
+    nu,
+    true,
+  );
+  ok("zonder koppeling zijn de klikken onbekend en geen nul", zonderKoppeling.klikken === null);
+
+  const tweeMerken = bouwKlantRij(
+    invoer({
+      merken: [
+        merk(),
+        merk({ id: "m-2", naam: "Merk B", dossierVoortgang: 0.4, segment: "vastgelopen", zichtbaarheid: [{ analysis_id: "an-2", week_no: 2, score: 10, weighted_score: 20, winnable_runs: 10, judged_runs: 10 }] }),
+      ],
+    }),
+    nu,
+    true,
+  );
+  eq2("bij twee merken telt het minst complete dossier", tweeMerken.dossierCompleet, 40);
+  eq2("de zichtbaarheid is het gemiddelde van de merken", tweeMerken.zichtbaarheid, 30);
+  ok("zonder vorige meting bij één merk is er geen vergelijking", tweeMerken.zichtbaarheidVorige === null);
+  eq("het dringendste segment van de merken", tweeMerken.segment ?? "", "vastgelopen");
+
+  eq("niet gestart is voor de verkoop", bouwKlantRij(invoer({ account: { ...invoer().account, started_at: null } }), nu, true).stand, "voor_verkoop");
+  eq("opzeggen gaat voor alles", bouwKlantRij(invoer({ account: { ...invoer().account, cancelled_at: "2026-10-01T00:00:00Z" } }), nu, true).stand, "opgezegd");
+  eq("zonder merk", bouwKlantRij(invoer({ merken: [] }), nu, true).stand, "geen_merk");
+
+  // ── Weergave ──────────────────────────────────────────────────────────────
+  eq("klikken +10%", procentVerschil(1100, 1000)?.tekst ?? "", "+10%");
+  eq("vertoningen -20%", procentVerschil(20000, 25000)?.tekst ?? "", "-20%");
+  ok("van nul is geen percentage", procentVerschil(5, 0) === null);
+  eq("zichtbaarheid in punten", puntenVerschil(40, 30)?.tekst ?? "", "+10 punten");
+  eq("één punt is enkelvoud", puntenVerschil(31, 30)?.tekst ?? "", "+1 punt");
+  eq("gisteren", hoeLangGeleden("2026-10-14T23:00:00Z", nu), "gisteren");
+  eq("een oude datum wordt een datum", hoeLangGeleden("2026-08-01T00:00:00Z", nu), "1 aug 2026");
+
+  // Elke groep heeft kolommen, en elke kolom geeft een tekst zonder te breken.
+  for (const g of KOLOM_GROEPEN) {
+    ok(`de groep ${g} heeft kolommen`, KOLOMMEN.some((k) => k.groep === g));
+  }
+  const leegRij = bouwKlantRij(invoer({ merken: [], cijfers: null, leden: [] }), nu, true);
+  for (const k of KOLOMMEN) {
+    ok(`kolom ${k.sleutel} werkt ook voor een lege klant`, typeof k.tekst(leegRij, nu) === "string");
+  }
+
+  // ── Filteren, sorteren, exporteren ────────────────────────────────────────
+  const rijen = [
+    r,
+    bouwKlantRij(invoer({ account: { ...invoer().account, id: "acc-2", name: "Autobedrijf Smit" }, leden: [{ email: "jan@smit.nl", laatsteInlog: null }, { email: "piet@jansen.nl", laatsteInlog: null }], cijfers: null }), nu, true),
+    bouwKlantRij(invoer({ account: { ...invoer().account, id: "acc-3", name: "Cafe Noord" }, leden: [], merken: [] }), nu, true),
+  ];
+  const leegFilter = { zoek: "", klantId: "", email: "" };
+  eq2("zonder filter alles", filterKlanten(rijen, leegFilter).length, 3);
+  eq("zoeken op bedrijfsnaam", filterKlanten(rijen, { ...leegFilter, zoek: "smit" }).map((x) => x.naam).join(), "Autobedrijf Smit");
+  eq("zoeken vindt ook de merknaam", filterKlanten(rijen, { ...leegFilter, zoek: "merk a" }).map((x) => x.id).join(), "acc-1,acc-2");
+  eq("één klant uit de keuzelijst", filterKlanten(rijen, { ...leegFilter, klantId: "acc-3" }).map((x) => x.id).join(), "acc-3");
+  eq(
+    "een gebruiker met toegang tot twee klanten ziet ze allebei",
+    filterKlanten(rijen, { ...leegFilter, email: "PIET@jansen" }).map((x) => x.id).join(),
+    "acc-1,acc-2",
+  );
+  eq2("het e-mailadres van de beheerder geeft geen klanten", filterKlanten(rijen, { ...leegFilter, email: "koopman.janwillem" }).length, 0);
+
+  const opKosten = sorteerKlanten(rijen, (x) => x.kostenTotaal, "af");
+  // acc-1 en acc-3 hebben kosten ($22,80), acc-2 heeft geen telling.
+  eq("onbekend staat onderaan, ook bij aflopend sorteren", opKosten[2].id, "acc-2");
+  eq("gelijke waarden staan op naam", opKosten.slice(0, 2).map((x) => x.naam).join(), "Bakkerij Jansen,Cafe Noord");
+  const opKostenOp = sorteerKlanten(rijen, (x) => x.kostenTotaal, "op");
+  ok("en bij oplopend sorteren staat onbekend ook onderaan", opKostenOp[opKostenOp.length - 1].kostenTotaal === null);
+
+  const csv = klantenCsv([r], nu);
+  const [kop, regel] = csv.split("\r\n");
+  ok("de export heeft een kolom per waarde", kop.split(";").length === KOLOMMEN.length + 3, String(kop.split(";").length));
+  ok("met puntkomma's, zodat Excel hem meteen in kolommen opent", regel.startsWith("Bakkerij Jansen;Merk A;piet@jansen.nl;"));
+  ok("en met het verschil erbij", regel.includes("1.100 (+10%)"), regel);
+
+  // ── De migratie ───────────────────────────────────────────────────────────
+  const migratie = leesBestand("supabase/migrations/0139_beheer_klantcijfers.sql");
+  ok("de migratie is additief", /create or replace function public\.beheer_klantcijfers/.test(migratie) && !/\bdrop\b/i.test(migratie));
+  ok("een klant kan de functie niet aanroepen", /revoke execute[\s\S]*from public, anon, authenticated/.test(migratie));
+  ok("de pagina controleert zelf of je beheerder bent", /isStaff\(user\.id\)\)\) notFound\(\)/.test(leesBestand("app/(app)/beheer/klanten/page.tsx")));
 });
 
 // ════════════════════════════════════════════════════════════════════════════

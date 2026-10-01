@@ -13612,3 +13612,31 @@ Getest: `tsc --noEmit`, `test:unit` (5340), `test:chain` en `build` groen. Het k
 hele jaar met een AI-koppeling die bij elke aanroep faalt: 81 meetmomenten, 81 rapporten, 150 pagina's,
 nul AI-aanroepen, en een maand later opnieuw inladen verdubbelt niets. ⚠️ Nog niet op productie
 ingeladen (conventie 10): de remmen gelden pas als de code op `main` staat.
+
+## 1 oktober 2026: het klantenoverzicht voor de beheerder
+
+Rechtsboven, naast de wissel Beheerder en Klant, staat een knop "Beheer". Die opent `/beheer/klanten`:
+één tabel met één regel per klant (account), met de 30 gegevens die de eigenaar uit een genummerde lijst
+koos. Een rij filterknoppen boven de tabel wisselt tussen zes groepen kolommen (klant en account,
+onderzoek en dossier, meten, ideeën en pagina's, Search Console, kosten en gezondheid); de klantnaam
+blijft vooraan staan. Verder: zoeken op bedrijfsnaam, een keuzelijst met alle klanten, een filter op
+e-mailadres van een gebruiker (dat zegt in één zin bij welke klanten die gebruiker hoort), sorteren op
+elke kolom en een export naar CSV. "Alle merken" blijft bestaan als tweede tabblad.
+
+**Eén regel per klant, niet per merk**, op verzoek van de eigenaar. Tellers tellen de merken op. Waar
+optellen niet kan staat de regel in `lib/klantenoverzicht.ts`: zichtbaarheid is het gemiddelde van de
+gemeten merken (via `brandScorePerPeriod`, dus hetzelfde getal als Resultaten), het dossier telt het
+minst complete merk, en bij Search Console wint één fout van alles wat werkt.
+
+**De tellers staan in de database** (migratie 0139): `ai_calls` (9.572 regels) en `search_console_days`
+(32.209) halen de grens van 1.000 regels per query, en een som daarboven valt stil te laag uit.
+
+**Twee valkuilen, gevonden tijdens het narekenen.** De beheerder is sinds migratie 0134 lid van élk
+account; zonder filter telde hij overal als gebruiker mee, was zijn eigen inlog de laatste inlog van
+iedere klant, en gaf het filter op zijn e-mailadres alle klanten terug. En kosten via `ai_calls.account_id`
+gaven Van den Udenhout $0,09, omdat het merk op 28 september naar een eigen account verhuisde: kosten
+gaan nu via het merk, en komen op $2,83.
+
+Getest: `tsc --noEmit`, `test:unit` (5443), `test:chain` (874) en `build` groen. De databasefunctie is
+nagerekend op productie. ⚠️ Het scherm zelf is nog niet ingelogd bekeken (conventie 10): in deze
+omgeving staan geen databasesleutels.

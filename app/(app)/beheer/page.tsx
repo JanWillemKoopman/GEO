@@ -7,6 +7,7 @@ import { ownAccountIdsOf } from "@/lib/accounts";
 import { loadCsmBrands } from "@/lib/csm-data";
 import { totals } from "@/lib/csm";
 import { PageHeader } from "@/components/page-header";
+import { Tabs } from "@/components/tabs";
 import { CsmView } from "./csm-view";
 import { DeleteAccountBox } from "./delete-account-box";
 import { DemoAccountBox } from "./demo-account-box";
@@ -62,6 +63,15 @@ export default async function BeheerPage() {
         eyebrow="Beheer"
         title="Alle merken"
         description="Alle merken van alle klanten, met bovenaan wat het eerst aandacht vraagt."
+      />
+      {/* `actief` expliciet: "/beheer" is het begin van élk beheeradres, dus
+          op het adres afgaan zou dit tabblad ook op /beheer/klanten oplichten. */}
+      <Tabs
+        label="Beheer"
+        items={[
+          { label: "Klanten", href: "/beheer/klanten", actief: false },
+          { label: "Alle merken", href: "/beheer", actief: true, aantal: brands.length },
+        ]}
       />
       <CsmView brands={brands} kpi={totals(brands)} />
       <DemoAccountBox profielId={(runx?.id as string | undefined) ?? null} />

@@ -3,6 +3,7 @@ import { signOut } from "@/app/(auth)/actions";
 import { selectBrand } from "@/app/(app)/workspace-actions";
 import { ProfileMenu } from "@/components/profile-menu";
 import { PreviewToggle } from "@/components/preview-toggle";
+import { BeheerKnop } from "@/components/beheer-knop";
 import { WorkspaceChrome } from "@/components/workspace-chrome";
 import { OpenQuestionsBadge } from "@/components/open-questions-badge";
 import { NotificatieKnop } from "@/components/notificaties";
@@ -91,7 +92,14 @@ export async function AppShell({
         />
       }
       notificaties={<NotificatieKnop />}
-      previewToggle={staffAccount ? <PreviewToggle previewing={!staff} /> : null}
+      // De knop naar het klantenoverzicht staat alleen in de stand Beheerder
+      // (`staff`): in de klantweergave is die pagina er niet.
+      previewToggle={staffAccount ? (
+        <>
+          {staff && <BeheerKnop />}
+          <PreviewToggle previewing={!staff} />
+        </>
+      ) : null}
       naam={naam}
       email={email}
       profiel={<ProfileMenu naam={naam} email={email} signOutAction={signOut} plek="zijbalk" />}
