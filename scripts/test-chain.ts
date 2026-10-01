@@ -9381,6 +9381,85 @@ async function main(): Promise<void> {
       ok("en er is geen AI-aanroep gedaan", demoRapport.length === 0 && demoKosten.length === 0);
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Het voorbeeldaccount RunX inladen kost niets (docs/tasks/demo-account-runx.md)
+    //
+    // Het hele jaar, alle stappen van de beheerroute, met een AI-koppeling die
+    // bij élke aanroep faalt. Lukt het inladen, dan is er dus geen AI-aanroep
+    // gedaan. Daarna het verhaal narekenen tegen wat de schermen lezen.
+    // ══════════════════════════════════════════════════════════════════════
+    console.log("\nHet voorbeeldaccount RunX inladen");
+    {
+      const aiAanroepen: string[] = [];
+      __setTestTransport((async (opts: { schemaName: string }) => {
+        aiAanroepen.push(opts.schemaName);
+        throw new Error(`AI-aanroep tijdens het inladen van de demo: ${opts.schemaName}`);
+      }) as never);
+      __setTestPlainTransport((async () => {
+        aiAanroepen.push("tekst");
+        throw new Error("AI-aanroep tijdens het inladen van de demo (tekst)");
+      }) as never);
+
+      const { STAPPEN, PROFIEL_ID, voerStapUit } = await import("@/lib/demo/runx/laden");
+      const nu = new Date("2026-10-01T12:00:00Z");
+      const fouten: string[] = [];
+      for (const stap of STAPPEN) {
+        try {
+          const verslag = await voerStapUit(admin as never, stap, { gebruikerId: userId, nu });
+          for (const r of verslag.regels) console.log(`      ${stap}: ${r}`);
+        } catch (err) {
+          fouten.push(`${stap}: ${err instanceof Error ? err.message : String(err)}`);
+          break;
+        }
+      }
+      ok("alle stappen van het inladen lukken", fouten.length === 0, fouten.join("\n"));
+      ok("zonder één AI-aanroep", aiAanroepen.length === 0, aiAanroepen.join(", "));
+
+      const tel = async (sql: string) => Number((await db.client.query(sql, [PROFIEL_ID])).rows[0].n);
+      ok("het merk is een voorbeeldaccount", (await db.client.query("select is_demo from public.profiles where id = $1", [PROFIEL_ID])).rows[0]?.is_demo === true);
+      eqc("acht clusters", String(await tel("select count(*) n from public.analyses where profile_id = $1")), "8");
+      eqc("240 meetvragen", String(await tel("select count(*) n from public.prompts p join public.analyses a on a.id = p.analysis_id where a.profile_id = $1")), "240");
+      const scores = (await db.client.query(
+        `select a.name, v.week_no, v.score, v.weighted_score from public.visibility_scores v join public.analyses a on a.id = v.analysis_id
+          where a.profile_id = $1 order by a.name, v.week_no`, [PROFIEL_ID])).rows as { name: string; week_no: number; score: number; weighted_score: number }[];
+      eqc("een score per meetmoment: 13+13+13+13+11+9+6+3", String(scores.length), "81");
+      const laatste = new Map<string, number>();
+      for (const s of scores) laatste.set(s.name, s.score);
+      ok("de loopanalyse staat nu rond de 58", Math.abs((laatste.get("Loopanalyse en de juiste hardloopschoen") ?? 0) - 58) <= 3, JSON.stringify([...laatste]));
+      ok("de concurrentievergelijking is gevuld", (await tel("select count(*) n from public.competitor_breakdown c join public.analyses a on a.id = c.analysis_id where a.profile_id = $1")) > 0);
+      eqc("een rapport per meetmoment", String(await tel("select count(*) n from public.reports r join public.analyses a on a.id = r.analysis_id where a.profile_id = $1")), "81");
+      ok("de rapporten maakten kansen", (await tel("select count(*) n from public.kansen where profile_id = $1")) >= 150);
+      const plan = (await db.client.query("select status, count(*)::int n from public.planned_pages where profile_id = $1 group by status", [PROFIEL_ID])).rows as { status: string; n: number }[];
+      const aantal = (st: string) => plan.find((r) => r.status === st)?.n ?? 0;
+      ok("150 pagina's in het plan plus de voorraad", plan.reduce((s, r) => s + r.n, 0) >= 150, JSON.stringify(plan));
+      // Twaalf voorraadkansen; een paar raken vragen die een open kans al had
+      // en worden daar terecht bewijs bij (V7), dus niet allemaal een kaart.
+      ok("de voorraad staat klaar", (await tel("select count(*) n from public.planned_pages where profile_id = $1 and plan_month_id is null")) >= 8);
+      const taken = (await db.client.query("select type, count(*)::int n from public.jobs where profile_id = $1 group by type", [PROFIEL_ID])).rows as { type: string; n: number }[];
+      ok("in de wachtrij staat geen betaald werk voor het voorbeeldaccount", taken.every((t) => t.type === "gebeurtenis_verwerken"), JSON.stringify(taken));
+      eqc("geen regel in het kostenlogboek", String(await tel("select count(*) n from public.ai_calls where profile_id = $1")), "0");
+      ok("de vragen aan de klant zijn beantwoord via de kennislaag", (await tel("select count(*) n from public.klantkennis where profile_id = $1 and status = 'verklaard'")) > 20);
+      ok("open vragen staan klaar", (await tel("select count(*) n from public.fact_requests where profile_id = $1 and status = 'open'")) >= 3);
+      ok("zoekverkeer is ingeladen", (await tel("select count(*) n from public.search_console_days where profile_id = $1")) > 1000);
+      console.log(`      plan: ${JSON.stringify(plan)}`);
+
+      // Opnieuw inladen, een maand later, verdubbelt niets.
+      const voor = await tel("select count(*) n from public.tracking_runs t join public.analyses a on a.id = t.analysis_id where a.profile_id = $1");
+      const fouten2: string[] = [];
+      for (const stap of STAPPEN) {
+        try {
+          await voerStapUit(admin as never, stap, { gebruikerId: userId, nu: new Date("2026-11-02T12:00:00Z") });
+        } catch (err) {
+          fouten2.push(`${stap}: ${err instanceof Error ? err.message : String(err)}`);
+          break;
+        }
+      }
+      ok("verjongen lukt", fouten2.length === 0, fouten2.join("\n"));
+      const na = await tel("select count(*) n from public.tracking_runs t join public.analyses a on a.id = t.analysis_id where a.profile_id = $1");
+      ok("en verdubbelt de metingen niet", na === voor, `${voor} → ${na}`);
+      ok("ook na verjongen geen AI-aanroep", aiAanroepen.length === 0, aiAanroepen.join(", "));
+    }
+
     __setTestAdminClient(null);
     __setTestTransport(null);
     __setTestPlainTransport(null);

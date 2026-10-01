@@ -19920,6 +19920,11 @@ const MENSELIJKE_STATUS_TOEGESTAAN = [
   // K8 deel 4: wat een mens aan de aanbodboom toevoegt of aanpast, is verklaard
   // (zoals het terugvullen van K3 een aangepaste knoop vastlegde).
   "app/api/profiles/[id]/offerings/route.ts",
+  // Het voorbeeldaccount RunX (docs/tasks/demo-account-runx.md): een beheerder
+  // laadt het nagespeelde onboardinggesprek en de antwoorden van een jaar in,
+  // langs dezelfde functies als het gespreksscherm en de vragenlijst.
+  "lib/demo/runx/laden.ts",
+  "app/api/beheer/demo/runx/route.ts",
 ];
 
 function magMenselijkeStatus(pad: string): boolean {
