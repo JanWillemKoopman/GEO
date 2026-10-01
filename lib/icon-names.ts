@@ -68,6 +68,7 @@ export const ICOON_NAMEN = [
   // (`overzicht`, `analytics`, `merkprofiel`, en `meten` voor Clusters), de
   // rest krijgt hier zijn eerste tekening.
   "zoekmachine",
+  "filter",
   "opnieuw",
   "plannen",
   "bibliotheek",

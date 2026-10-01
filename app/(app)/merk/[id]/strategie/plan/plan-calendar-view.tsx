@@ -191,7 +191,7 @@ function MaandGrid({ dagen, onKiesDag }: { dagen: CalendarDag[]; onKiesDag: (dag
           >
             {d.dag}
             <span
-              className="tabular absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] font-medium leading-none"
+              className="tabular absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[0.75rem] font-medium leading-none"
               style={{ background: "var(--bg-inverse)", color: "var(--text-inverse)" }}
             >
               {d.paginas.length}

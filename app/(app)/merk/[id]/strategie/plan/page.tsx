@@ -8,8 +8,8 @@ import { laadIdeeVenster } from "@/lib/pagina-idee-data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadPlan } from "@/lib/plans";
 import { backlogCount } from "@/lib/plan-backlog-data";
+import { MeerMenu } from "@/components/meer-menu";
 import { PageHeader } from "@/components/page-header";
-import { Icon } from "@/components/icon";
 import { PlanView } from "./plan-view";
 import { PlanReadView } from "./plan-read-view";
 import { PlanCalendarView } from "./plan-calendar-view";
@@ -116,26 +116,23 @@ export default async function PlanPage({
         }
         action={
           bundle && (
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Blok A punt 7: alleen tonen als er ook echt meer dan één
-                  voorstel is. */}
-              {(versieAantal ?? 0) > 1 && (
-                <Link href={`/merk/${id}/strategie/plan/versies`} className="btn-outline">
-                  Eerdere voorstellen
-                </Link>
-              )}
-              {/* Punt 28 uit docs/tasks/nova-vergelijking-verbeterpunten.md: de
-                  klant die dit meeneemt naar een eigen overleg wil het hele
-                  plan zien, dus alleen tonen zodra er een plan bestaat om te
-                  downloaden. */}
-              <a
-                href={`/api/profiles/${id}/plan/export`}
-                className="btn-outline inline-flex items-center gap-1.5"
-              >
-                <Icon naam="downloaden" size={16} />
-                Download CSV
-              </a>
-            </div>
+            // Bijzaken in één menu (1 oktober 2026): "Eerdere voorstellen" en
+            // "Download CSV" stonden als twee omlijnde knoppen naast de kop,
+            // even zwaar als een echte handeling. De download is alleen
+            // zinvol zodra er een plan is; eerdere voorstellen pas vanaf twee.
+            <MeerMenu
+              regels={[
+                ...((versieAantal ?? 0) > 1
+                  ? [{ label: "Eerdere voorstellen", href: `/merk/${id}/strategie/plan/versies` }]
+                  : []),
+                {
+                  label: "Download als CSV",
+                  href: `/api/profiles/${id}/plan/export`,
+                  icoon: "downloaden" as const,
+                  download: true,
+                },
+              ]}
+            />
           )
         }
       />

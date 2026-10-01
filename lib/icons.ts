@@ -77,6 +77,7 @@ import {
   BuildingsIcon,
   CalendarBlankIcon,
   CaretDownIcon,
+  FunnelSimpleIcon,
   CaretRightIcon,
   ChartBarIcon,
   ChatCircleIcon,
@@ -281,6 +282,9 @@ export const ICONEN: Record<IcoonNaam, ComponentType<IconProps>> = {
   // Een vergrootglas: het klassieke teken voor zoeken, en Zoekverkeer gaat
   // over precies dat, zichtbaarheid in Google.
   zoekmachine: MagnifyingGlassIcon,
+  // Een trechter: de knop die de filters van een lijst openklapt (Bibliotheek,
+  // 1 oktober 2026). Bewust niet het vergrootglas, dat is zoeken op tekst.
+  filter: FunnelSimpleIcon,
   // Met de klok mee ronddraaien: een nieuwe ronde die weer bij stap 01
   // begint. Bewust een andere tekening dan `herstel` (tegen de klok in): dat
   // is een pijplijn die opnieuw moet na een storing, dit is de cyclus die

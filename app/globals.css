@@ -1972,6 +1972,50 @@ textarea.field {
   animation: uitklap-in var(--duration-slow) var(--ease-out);
 }
 
+/* ── De clusterlijst (1 oktober 2026) ───────────────────────────────────────
+   Eén vlak met een lijn tussen de clusters, in plaats van een losse kaart per
+   cluster met 12 pixels ertussen. Zelfde beeld als `Lijst` (components/
+   lijst.tsx), maar zonder `overflow: hidden`: het label- en het actiemenu van
+   een cluster hangen buiten de regel en zouden anders afgeknipt worden. De
+   eerste en laatste regel ronden daarom zelf hun hoeken af. */
+.clusterlijst {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-surface);
+  border: var(--border-width-xs) solid var(--border-primary);
+  border-radius: var(--radius-xl);
+}
+.clusterlijst > li + li {
+  border-top: var(--border-width-xs) solid var(--border-subtle);
+}
+.cluster-regel {
+  padding: 16px;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+@media (min-width: 768px) {
+  .cluster-regel {
+    padding: 20px;
+  }
+}
+.clusterlijst > li:first-child .cluster-regel {
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+}
+.clusterlijst > li:last-child .cluster-regel {
+  border-bottom-left-radius: var(--radius-xl);
+  border-bottom-right-radius: var(--radius-xl);
+}
+.cluster-regel-link {
+  cursor: pointer;
+}
+.cluster-regel-link:hover {
+  background-color: var(--bg-surface-raised);
+}
+.cluster-regel-link:focus-visible {
+  outline: var(--border-width-sm) solid var(--border-focus);
+  outline-offset: -2px;
+}
+
 /* ── Een vraag die net beantwoord is (1 oktober 2026) ───────────────────────
    De vraagkaart klapt na opslaan in tot één regel. Dat gebeurde in één frame,
    en het oog zag een sprong in plaats van een bevestiging. Nu vaagt de regel

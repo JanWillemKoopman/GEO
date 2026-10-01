@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { pagineer, PAGINA_GROOTTE } from "@/lib/library";
 import { filterPaginas, filterKeuzes, groepVan, statusRegel, GROEP_LABEL, LEEG_FILTER, type Groep as GroepSleutel, type PaginaFilter } from "@/lib/pagina-lijst";
 import { Icon } from "@/components/icon";
 import { SectionHeading } from "@/components/section-heading";
+import { FilterKeuze } from "@/components/filter-keuze";
+import { Lijst, LijstRegel } from "@/components/lijst";
 import { formatDag, heeftEigenScherm } from "@/lib/pagina-stand";
 import type { PaginaRij } from "@/lib/pagina-data";
 
@@ -45,6 +46,14 @@ import type { PaginaRij } from "@/lib/pagina-data";
  * jou wacht staat nu rechts als oranje chip (`chip-warning`), net als de groene
  * "Klaar voor jouw akkoord". De chip is zelf het teken, dus de stip viel weg.
  *
+ * ── ÉÉN REGEL, FILTERS ACHTER EEN KNOP (1 oktober 2026) ─────────────────────
+ *
+ * Het zoekveld, vier keuzelijsten met een label erboven en de teller stonden
+ * samen in een kaart die het eerste scherm vulde: wie de bibliotheek opende,
+ * zag eerst filters en pas daarna pagina's. Nu staat er één regel met het
+ * zoekveld en een knop "Filters" die zegt hoeveel er aan staan; de vier keuzes
+ * klappen eronder open (`FilterKeuze`, dezelfde vorm als op Analytics).
+ *
  * Een filter staat nooit meer uit. Met twee teksten van dezelfde soort hadden
  * Status, Content en Type elk één keuze en werden ze grijs: de eigenaar las
  * dat terecht als "de filters doen het niet".
@@ -67,6 +76,11 @@ export function LibraryView({
   const deel = useMemo(() => pagineer(gefilterd, pagina), [gefilterd, pagina]);
   const actief = Object.values(filter).some((v) => v !== "");
   const totaal = useMemo(() => filterPaginas(rows, LEEG_FILTER).length, [rows]);
+  // Hoeveel van de vier keuzelijsten iets aan hebben; zoeken telt niet, dat
+  // staat altijd in beeld. Open als er al een filter uit het adres komt, zodat
+  // een kortere lijst nooit onverklaard is.
+  const aantalFilters = [filter.status, filter.cluster, filter.soort, filter.actie].filter((v) => v !== "").length;
+  const [filtersOpen, setFiltersOpen] = useState(beginCluster !== "");
 
   function zet(deel: Partial<PaginaFilter>) {
     setFilter((f) => ({ ...f, ...deel }));
@@ -75,10 +89,10 @@ export function LibraryView({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="card flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="mono-label">Zoeken</span>
-          <span className="relative flex items-center">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="relative flex min-w-0 flex-1 basis-64 items-center">
+            <span className="sr-only">Zoeken</span>
             <span className="pointer-events-none absolute left-3 text-muted" aria-hidden>
               <Icon naam="zoekmachine" size={16} />
             </span>
@@ -90,22 +104,35 @@ export function LibraryView({
               onChange={(e) => zet({ zoek: e.target.value })}
               placeholder="Zoek op naam van de pagina of cluster"
             />
-          </span>
-        </label>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Keuze label="Status" waarde={filter.status} opties={keuzes.status} onKies={(status) => zet({ status })} />
-          <Keuze label="Cluster" waarde={filter.cluster} opties={keuzes.cluster} onKies={(cluster) => zet({ cluster })} />
-          <Keuze label="Soort pagina" waarde={filter.soort} opties={keuzes.soort} onKies={(soort) => zet({ soort })} />
-          <Keuze label="Nieuw of bestaand" waarde={filter.actie} opties={keuzes.actie} onKies={(actie) => zet({ actie })} />
+          </label>
+          <button
+            type="button"
+            className="btn-outline"
+            aria-expanded={filtersOpen}
+            aria-controls="bibliotheek-filters"
+            onClick={() => setFiltersOpen((o) => !o)}
+          >
+            <Icon naam="filter" size={16} />
+            Filters
+            {aantalFilters > 0 && <span className="chip chip-neutral tabular">{aantalFilters}</span>}
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line-muted)] pt-3">
+        {filtersOpen && (
+          <div id="bibliotheek-filters" className="filter-rij flex flex-wrap items-center gap-x-5 gap-y-3">
+            <Keuze label="Status" waarde={filter.status} opties={keuzes.status} onKies={(status) => zet({ status })} />
+            <Keuze label="Cluster" waarde={filter.cluster} opties={keuzes.cluster} onKies={(cluster) => zet({ cluster })} />
+            <Keuze label="Soort pagina" waarde={filter.soort} opties={keuzes.soort} onKies={(soort) => zet({ soort })} />
+            <Keuze label="Nieuw of bestaand" waarde={filter.actie} opties={keuzes.actie} onKies={(actie) => zet({ actie })} />
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3">
           <span className="type-caption text-muted tabular">
             {actief ? `${deel.totaal} van de ${totaal} pagina's` : `${totaal} pagina's`}
           </span>
           {actief && (
-            <button type="button" className="btn-ghost btn-sm" onClick={() => zet(LEEG_FILTER)}>
+            <button type="button" className="link type-caption" onClick={() => zet(LEEG_FILTER)}>
               Filters wissen
             </button>
           )}
@@ -173,25 +200,17 @@ function Keuze({
   onKies: (waarde: string) => void;
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="mono-label">{label}</span>
-      <select
-        className="field field-select"
-        value={waarde}
-        onChange={(e) => onKies(e.target.value)}
-      >
-        <option value="">Alles</option>
-        {opties.map(([waarde, tekst]) => (
-          <option key={waarde} value={waarde}>
-            {tekst}
-          </option>
-        ))}
-      </select>
-    </label>
+    <FilterKeuze label={label} waarde={waarde} onKies={onKies}>
+      <option value="">Alles</option>
+      {opties.map(([waarde, tekst]) => (
+        <option key={waarde} value={waarde}>
+          {tekst}
+        </option>
+      ))}
+    </FilterKeuze>
   );
 }
 
-/** Wat een groep zegt als hij leeg is. Een lege "Staat live" valt weg. */
 const LEEG: Partial<Record<GroepSleutel, string>> = {
   wacht: "Er wacht nu niets op jou.",
   binnenkort: "Er staat nu niets klaar om geschreven te worden.",
@@ -217,51 +236,39 @@ function Groep({
       {rijen.length === 0 ? (
         <p className="type-compact text-secondary">{leeg}</p>
       ) : (
-        <ul className="card flex flex-col divide-y divide-[var(--border-subtle)] overflow-hidden !p-0">
+        <Lijst label={GROEP_LABEL[groep]}>
           {rijen.map((r) => (
-            <li key={r.routeId}>
-              <Rij rij={r} wacht={groep === "wacht"} profileId={profileId} />
-            </li>
+            <Rij key={r.routeId} rij={r} wacht={groep === "wacht"} profileId={profileId} />
           ))}
-        </ul>
+        </Lijst>
       )}
     </section>
   );
 }
 
 function Rij({ rij: r, wacht, profileId }: { rij: PaginaRij; wacht: boolean; profileId: string }) {
-  const link = heeftEigenScherm(r.stand.sleutel);
-  const inhoud = (
-    <>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="truncate type-body-emphasis" title={r.naam}>
-          {r.naam}
-        </p>
-        <p className="type-caption text-muted">
-          {[r.soort, r.cluster, r.datum ? `gepland ${formatDag(r.datum)}` : null].filter(Boolean).join(" · ")}
-        </p>
-        {!wacht && <p className="type-compact mt-0.5 text-secondary">{statusRegel(r)}</p>}
-      </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
+  const rechts =
+    wacht || r.stand.looptAchter ? (
+      <>
         {wacht && <span className="chip chip-warning">{statusRegel(r)}</span>}
         {r.stand.looptAchter && <span className="chip chip-danger">Loopt achter</span>}
-        {link && (
-          <span className="text-muted" aria-hidden>
-            <Icon naam="verder" size={16} />
-          </span>
-        )}
-      </div>
-    </>
-  );
-  const klasse = "flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between md:px-5";
-  return link ? (
-    <Link
-      href={`/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`}
-      className={`${klasse} transition-colors hover:bg-[var(--bg-surface-raised)] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--border-focus)]`}
-    >
-      {inhoud}
-    </Link>
-  ) : (
-    <div className={klasse}>{inhoud}</div>
+      </>
+    ) : undefined;
+  return (
+    <LijstRegel
+      titel={
+        <span className="block truncate" title={r.naam}>
+          {r.naam}
+        </span>
+      }
+      bijzaak={[r.soort, r.cluster, r.datum ? `gepland ${formatDag(r.datum)}` : null].filter(Boolean).join(" · ")}
+      toelichting={wacht ? undefined : statusRegel(r)}
+      rechts={rechts}
+      href={
+        heeftEigenScherm(r.stand.sleutel)
+          ? `/merk/${profileId}/strategie/bibliotheek/${r.routeId}?van=bibliotheek`
+          : undefined
+      }
+    />
   );
 }
