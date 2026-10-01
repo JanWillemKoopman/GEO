@@ -49,7 +49,7 @@ export function StartReputationButton({
   if (!mayStart) {
     return (
       <div className="card flex flex-col gap-2">
-        <span className="mono-label">Zo zet je hem in gang</span>
+        <h3 className="type-body-emphasis">Zo zet je hem in gang</h3>
         <p className="text-secondary">{deniedMessage}</p>
       </div>
     );

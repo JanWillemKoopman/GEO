@@ -61,8 +61,8 @@ export function CsmView({ brands, kpi }: { brands: CsmBrand[]; kpi: CsmTotals })
 
   if (brands.length === 0) {
     return (
-      <div className="card flex flex-col gap-2">
-        <span className="mono-label">Nog geen merken</span>
+      <div className="flex flex-col gap-2">
+        <h3 className="type-body-emphasis">Nog geen merken</h3>
         <p className="text-secondary">
           Zodra je het eerste merk aanmaakt, staat het hier.
         </p>

@@ -116,7 +116,7 @@ export function AnalyticsFilters({
       {periodes.length >= 2 && (
         <Filter label="Periode">
           <select
-            className="field field-select"
+            className="field field-sm field-select w-auto max-w-[16rem]"
             value={periodefilter}
             onChange={(e) => navigeer({ periode: e.target.value === PERIODEFILTER_ACTUEEL ? null : e.target.value })}
           >
@@ -133,7 +133,7 @@ export function AnalyticsFilters({
       {clustersBijLabel.length > 1 && (
         <Filter label="Cluster">
           <select
-            className="field field-select"
+            className="field field-sm field-select w-auto max-w-[16rem]"
             value={clusterfilter}
             onChange={(e) => navigeer({ cluster: e.target.value === CLUSTERFILTER_ALLES ? null : e.target.value })}
           >
@@ -163,7 +163,7 @@ export function AnalyticsFilters({
       {labels.length > 0 && (
         <Filter label="Label">
           <select
-            className="field field-select"
+            className="field field-sm field-select w-auto max-w-[16rem]"
             value={labelfilter}
             // Een gekozen label beperkt de clusterlijst (F2); een nieuwe keuze
             // die niet meer bij dat label hoort is verwarrender dan de
@@ -206,7 +206,7 @@ export function AnalyticsFilters({
       {funnelfasen.length > 1 && (
         <Filter label="Fase">
           <select
-            className="field field-select"
+            className="field field-sm field-select w-auto max-w-[16rem]"
             value={funnelfilter}
             onChange={(e) => navigeer({ funnel: e.target.value === FUNNELFILTER_ALLES ? null : e.target.value })}
           >
@@ -274,7 +274,7 @@ function Bronkeuze({
     <div ref={ref} className="relative">
       <button
         type="button"
-        className="field flex items-center justify-between gap-2 text-left"
+        className="field field-sm flex items-center justify-between gap-2 text-left"
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}

@@ -36,7 +36,7 @@ export function ContentBriefEditor({ analysisId, initial }: { analysisId: string
 
   return (
     <div className="card flex flex-col gap-3">
-      <span className="mono-label">Richting van de pagina&apos;s</span>
+      <h3 className="type-body-emphasis">Richting van de pagina&apos;s</h3>
       <p className="text-sm text-secondary">
         Stuur de hoek en doelgroep van de pagina&apos;s. Dit werkt door in de aanbevelingen en in wat ORBIT ENGINE schrijft. (De AI-vragen staan al klaar sinds het aanmaken.)
       </p>

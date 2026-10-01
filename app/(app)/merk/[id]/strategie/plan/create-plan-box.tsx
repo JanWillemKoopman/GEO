@@ -109,7 +109,7 @@ export function CreatePlanBox({
   return (
     <div className="flex flex-col gap-4">
       <div className="card flex flex-col gap-3">
-        <span className="mono-label">Nog geen contentplan</span>
+        <h3 className="type-body-emphasis">Nog geen contentplan</h3>
         <p className="text-secondary">
           Een contentplan geeft je {MONTHS_AHEAD} maanden vooruit. ORBIT ENGINE vult
           elke maand vanzelf met de sterkste pagina-ideeën uit je metingen, jij keurt per

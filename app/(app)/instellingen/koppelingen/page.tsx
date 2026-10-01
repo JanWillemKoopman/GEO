@@ -108,7 +108,7 @@ export default async function KoppelingenPage() {
           de klant. Het staat er één keer bovenaan in plaats van per merk. */}
       {!adres && (
         <div className="card card-warning flex flex-col gap-1">
-          <span className="mono-label">De Google-sleutel staat nog niet ingesteld</span>
+          <h2 className="type-body-emphasis">De Google-sleutel staat nog niet ingesteld</h2>
           <p className="text-secondary">
             Zolang die ontbreekt kan ORBIT ENGINE geen cijfers ophalen, ook niet voor een merk dat
             al een property heeft. Daarom staat hieronder alles op rood.

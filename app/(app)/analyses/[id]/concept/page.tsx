@@ -100,7 +100,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
   return (
     <div className="flex flex-col gap-6">
       <div className="card card-rail flex flex-col gap-3">
-        <span className="mono-label">Klaar om te starten</span>
+        <h2 className="type-body-emphasis">Klaar om te starten</h2>
         <h2 className="type-title">Dit gaat ORBIT ENGINE meten</h2>
         <p className="text-secondary">
           ORBIT ENGINE heeft je website en je merkdossier doorgenomen en daaruit dit meetplan afgeleid. Loop
@@ -113,8 +113,8 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
         </p>
       </div>
 
-      <div className="card flex flex-col gap-3">
-        <span className="mono-label">Waar het over gaat</span>
+      <div className="flex flex-col gap-3">
+        <h2 className="type-body-emphasis">Waar het over gaat</h2>
         <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
           <span className="text-secondary">Website</span>
           <span className="break-url font-medium">{analysis.url}</span>

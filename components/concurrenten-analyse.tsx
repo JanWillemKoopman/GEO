@@ -168,8 +168,8 @@ export function ConcurrentenAnalyse({
               : "De sites die een AI-assistent aanhaalt als hij over jouw onderwerpen praat."}
         </p>
         {bronnen.length === 0 ? (
-          <div className="card flex flex-col gap-1">
-            <span className="mono-label">Nog niet in kaart</span>
+          <div className="flex flex-col gap-1">
+            <h3 className="type-body-emphasis">Nog niet in kaart</h3>
             <p className="text-secondary">
               ORBIT ENGINE brengt dit in kaart tijdens de meting. Zodra de eerste meting klaar is,
               staat hier welke sites de AI aanhaalt.

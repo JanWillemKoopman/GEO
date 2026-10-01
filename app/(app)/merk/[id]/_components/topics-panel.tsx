@@ -92,7 +92,7 @@ export function TopicsPanel({
   if (topics.length === 0) {
     return (
       <div className="card flex flex-col gap-3">
-        <span className="mono-label">Onderwerpen om op te meten</span>
+        <h3 className="type-body-emphasis">Onderwerpen om op te meten</h3>
         <p className="text-secondary">
           ORBIT ENGINE kon uit je aanbod geen onderwerpen afleiden. Dat gebeurt als de
           website te weinig prijsgaf om diensten uit te herkennen, bijvoorbeeld

@@ -29,8 +29,8 @@ export function ReputationOfferings({ views, brand }: { views: OfferingView[]; b
 
   if (views.length === 0) {
     return (
-      <div className="card flex flex-col gap-1">
-        <span className="mono-label">Niets per product gemeten</span>
+      <div className="flex flex-col gap-1">
+        <h3 className="type-body-emphasis">Niets per product gemeten</h3>
         <p className="text-secondary">
           Deze meting leverde geen uitkomst per product op. Dat gebeurt als het merkdossier nog
           geen diensten of producten bevat.

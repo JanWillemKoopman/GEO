@@ -39,8 +39,8 @@ export function RivalTable({
       (run.scope_json as { concurrenten?: { reden?: string } } | null)?.concurrenten?.reden ??
       "ORBIT ENGINE kent nog geen concurrenten van dit merk.";
     return (
-      <div className="card flex flex-col gap-1">
-        <span className="mono-label">Niet vergeleken</span>
+      <div className="flex flex-col gap-1">
+        <h3 className="type-body-emphasis">Niet vergeleken</h3>
         <p className="text-secondary">{reden}</p>
         <p className="text-sm text-muted">
           De rest van deze pagina klopt gewoon: de toon en de bronnen zijn wél gemeten. Alleen de
@@ -84,7 +84,7 @@ export function RivalTable({
   return (
     <div className="flex flex-col gap-3">
       <div className="card flex flex-col gap-3">
-        <span className="mono-label flex items-center gap-1">
+        <h3 className="type-body-emphasis flex items-center gap-1">
           Wie er vergeleken is
           <InfoHint label="Hoe zijn deze partijen gekozen?">
             Uit de merken die daadwerkelijk uit je metingen naar boven kwamen, op hoe vaak ze
@@ -92,7 +92,7 @@ export function RivalTable({
             nooit in, en een vergelijkingssite of brancheorganisatie ook niet. Klopt de selectie
             niet, pas hem dan aan op het scherm Concurrenten: die keuze werkt hier vanzelf door.
           </InfoHint>
-        </span>
+        </h3>
         <p className="text-sm text-secondary">
           {(run.scope_json as { concurrenten?: { reden?: string } } | null)?.concurrenten?.reden}
         </p>
@@ -167,8 +167,8 @@ export function RivalTable({
 
       {/* Twee zinnen die de tabel samenvatten, want een tabel is geen conclusie. */}
       {(run.wins_on.length > 0 || run.loses_on.length > 0) && (
-        <div className="card flex flex-col gap-1">
-          <span className="mono-label">Wat de tabel zegt</span>
+        <div className="flex flex-col gap-1">
+          <h3 className="type-body-emphasis">Wat de tabel zegt</h3>
           <p className="text-secondary">
             {run.wins_on.length > 0 && (
               <>

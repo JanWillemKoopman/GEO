@@ -119,7 +119,7 @@ export function InventoryBox({
 
   return (
     <div className="card flex flex-col gap-3">
-      <span className="mono-label">Wat er al op je site staat</span>
+      <h3 className="type-body-emphasis">Wat er al op je site staat</h3>
       <p className="text-sm text-secondary">
         ORBIT ENGINE brengt in kaart welke pagina&apos;s je website al heeft. Zo kan een aanbeveling ook een bestaande pagina verbeteren, in plaats van altijd iets nieuws voor te stellen.
         Productpagina&apos;s van webshops blijven buiten beschouwing.{" "}

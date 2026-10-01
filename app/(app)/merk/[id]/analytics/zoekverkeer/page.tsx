@@ -187,8 +187,8 @@ export default async function ZoekverkeerPage({
     return (
       <div className="flex flex-col gap-6">
         <Kop />
-        <div className="card flex flex-col gap-3">
-          <span className="mono-label">{leeg.kop}</span>
+        <div className="flex flex-col gap-3">
+          <h2 className="type-body-emphasis">{leeg.kop}</h2>
           <p className="text-secondary">{leeg.uitleg}</p>
           {leeg.staat === "niets_live" && (
             <p className="text-sm text-muted">

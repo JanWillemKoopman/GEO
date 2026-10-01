@@ -52,7 +52,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
   return (
     <div className="flex flex-col gap-6">
       <div className="card flex flex-col gap-3">
-        <span className="mono-label">Cluster</span>
+        <h2 className="type-body-emphasis">Cluster</h2>
         <div className="flex justify-between gap-4 border-b border-[var(--border-subtle)] pb-3">
           <span className="text-secondary">Website</span>
           <span className="break-url font-medium">{analysis.url}</span>
@@ -69,7 +69,7 @@ export default async function InstellingenPage({ params }: { params: Promise<{ i
 
       {profile ? (
         <div className="card flex flex-col gap-3">
-          <span className="mono-label">Merk</span>
+          <h2 className="type-body-emphasis">Merk</h2>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-lg font-medium">{profile.name}</p>
