@@ -1,253 +1,614 @@
-# Hoe betrouwbaar is een meting van Google AI Overview?
+# De herhaalbaarheid van Google AI Overview
 
-Plan van aanpak voor een zelfstandig onderzoek, los van ORBIT ENGINE. Status: plan, nog niets
-uitgevoerd, nog geen enkele betaalde aanroep gedaan (3 oktober 2026).
+**Een meetonderzoek naar de consistentie van genoemde aanbieders, volgorde, aantal en sentiment
+bij lokale commerciële zoekvragen, op desktop en mobiel**
 
-## 1. Aanleiding en kernvraag
+Onderzoeksplan voor een wetenschappelijk paper. Versie 2, 3 oktober 2026. Status: plan, nog geen
+data verzameld. Doorlooptijd van het onderzoek: 7 dagen.
 
-Steeds meer bedrijven verkopen een "AI-zichtbaarheidsscore": hoe vaak wordt jouw merk genoemd in
-AI-antwoorden. Zo'n score is maar zo goed als de meting eronder. Als Google bij dezelfde vraag, op
-hetzelfde moment, vanaf dezelfde plek, telkens andere bedrijven noemt, dan zegt één meting weinig
-en een verschil tussen twee maanden misschien niets.
+Dit onderzoek staat volledig los van andere producten of software van de auteur. Het gebruikt
+alleen een eigen verzamelscript, de API van DataForSEO en standaard statistische software.
 
-**Kernvraag:** hoe consistent is Google AI Overview in welke bedrijven het noemt, in welke
-volgorde, hoeveel, en op welke toon, wanneer iemand in Amsterdam zoekt naar een marketingbureau
-voor Google Ads, op desktop en op mobiel?
+---
 
-**De praktische vraag erachter, die de blog moet beantwoorden:** hoeveel metingen heb je nodig
-voordat een zichtbaarheidscijfer iets betekent, en hoe groot moet een verandering zijn voordat je
-mag zeggen dat er echt iets veranderd is?
+## Inhoud
 
-### Wat we al weten (eigen voormeting, ander onderwerp)
+1. Probleemstelling
+2. Onderzoeksvragen en hypothesen
+3. Onderzoeksontwerp
+4. Dataverzameling
+5. Van tekst naar variabelen (codering)
+6. Uitkomstmaten
+7. Statistische analyse
+8. Steekproefomvang en onderscheidend vermogen
+9. Validiteit en betrouwbaarheid
+10. Visualisaties in het paper
+11. Opbouw van het paper
+12. Planning in 7 dagen
+13. Kosten en middelen
+14. Ethiek, transparantie en belangen
+15. Beslissingen voor de auteur
 
-In ORBIT ENGINE is op 20 september 2026 een kleine meting gedaan op 90 vragen van een autobedrijf
-(`docs/logbook.md`, zoek op "De aanname over Google AI Overview is weerlegd"). Twee rondes met een
-half uur ertussen:
+---
 
-- bij 17 van de 28 vragen waar het merk ooit genoemd werd, wisselde de uitkomst (61%);
-- van de 418 bronnen kwam ongeveer de helft terug (49%);
-- bij 1 op de 5 vragen wisselde zelfs óf er een AI Overview verscheen;
-- een AI Overview kostte gemiddeld $0,0037 per meting via DataForSEO, inclusief herkansingen.
+## 1. Probleemstelling
 
-Dat is een aanwijzing, geen bewijs: twee rondes, één branche, landelijk gemeten en alleen desktop.
-Dit onderzoek maakt er een opgezette proef van. Gevolg voor het ontwerp: we verwachten veel
-wisseling, dus het onderzoek moet vooral goed kunnen scheiden wáár die wisseling vandaan komt.
+Een groeiend aantal bedrijven biedt "AI-zichtbaarheid" aan als meetbare grootheid: hoe vaak een
+merk genoemd wordt in antwoorden van generatieve zoeksystemen. Google AI Overview is daarvan voor
+Nederlandse ondernemers het meest zichtbare voorbeeld, omdat het bovenaan de gewone zoekresultaten
+verschijnt.
 
-## 2. Onderzoeksvragen en verwachtingen
+Zo'n score veronderstelt dat het gemeten verschijnsel herhaalbaar is. Een AI Overview wordt echter
+door een taalmodel samengesteld en kan per aanroep verschillen, ook als zoekvraag, plaats en
+apparaat gelijk zijn. Hoe groot die variatie is, en welk deel ervan toeval is en welk deel
+systematisch, is voor zover bekend niet openbaar en reproduceerbaar onderzocht voor een concrete
+Nederlandse lokale zoekmarkt. (Dit wordt op dag 1 met een korte literatuurverkenning getoetst, zie
+§11.)
 
-Vooraf vastgelegd, zodat we achteraf niet het verhaal kiezen dat het best uitkomt.
+**Doel.** Vaststellen hoe herhaalbaar Google AI Overview is in (a) welke aanbieders het noemt,
+(b) in welke volgorde, (c) hoeveel, en (d) op welke toon, voor zoekvragen naar een Google
+Ads-bureau in Amsterdam, en die variatie toeschrijven aan vier bronnen: toeval, tijdstip, apparaat
+en formulering van de vraag.
 
-| # | Vraag | Verwachting (hypothese) |
+**Praktische vertaling.** Uit het antwoord volgt hoeveel metingen nodig zijn voor een betrouwbare
+zichtbaarheidsscore, en hoe groot een verandering moet zijn voordat die van toeval te
+onderscheiden is.
+
+**Afbakening.** Eén branche (Google Ads-dienstverlening), één stad (Amsterdam), één taal
+(Nederlands), één meetperiode van vijf dagen, gemeten via een SERP-API en niet via echte
+gebruikers, behalve een kleine ijkmeting (§4.6). De conclusies gaan over wat een meetinstrument te
+zien krijgt. Of een echte zoeker hetzelfde ziet, onderzoekt dit paper alleen verkennend.
+
+## 2. Onderzoeksvragen en hypothesen
+
+### 2.1 Onderzoeksvragen
+
+| # | Onderzoeksvraag | Soort |
 |---|---|---|
-| V1 | Hoe vaak verschijnt er überhaupt een AI Overview? | Per zoekzin vrij vast: sommige zinnen vrijwel altijd, andere vrijwel nooit. |
-| V2 | Noemt Google bij herhaling dezelfde bureaus? | Nee: zelfs binnen tien minuten is de overlap tussen twee antwoorden gemiddeld kleiner dan 80%. |
-| V3 | Is de volgorde stabiel? | De eerste plek is stabieler dan de rest van de lijst. |
-| V4 | Hoeveel bureaus worden genoemd, en schommelt dat? | Het aantal schommelt merkbaar, ook bij dezelfde zoekzin. |
-| V5 | In welk sentiment worden bureaus genoemd? | Vrijwel altijd neutraal tot positief; negatief is zeldzaam. |
-| V6 | Verschillen desktop en mobiel? | Ja, voor een deel van de bureaus, maar minder dan het verschil tussen zoekzinnen. |
-| V7 | Verandert het beeld over vier weken meer dan het toeval binnen een kwartier? | Ja: er is een langzame verschuiving bovenop het directe toeval. |
-| V8 | Wat weegt het zwaarst: de formulering, het apparaat, het moment of puur toeval? | De formulering weegt het zwaarst, toeval op twee. |
-| V9 | Zijn de genoemde bureaus dezelfde als in de gewone zoekresultaten en de kaart? | Grote overlap, maar niet volledig. |
+| OV1 | Hoe vaak verschijnt er een AI Overview, en verschilt dat per zoekvraag en apparaat? | beschrijvend |
+| OV2 | Hoe sterk overlappen de genoemde aanbieders bij exacte herhaling op hetzelfde moment? | toetsend (H1) |
+| OV3 | Neemt de overlap af naarmate er meer tijd tussen twee metingen zit? | toetsend (H2) |
+| OV4 | Verschillen desktop en mobiel in welke aanbieders genoemd worden? | toetsend (H3) |
+| OV5 | Bepaalt de formulering van de vraag het antwoord sterker dan apparaat en tijdstip? | toetsend (H4) |
+| OV6 | Hoe stabiel is de volgorde, en in het bijzonder de eerste plek? | beschrijvend |
+| OV7 | Hoeveel aanbieders worden genoemd, en hoe sterk schommelt dat? | beschrijvend |
+| OV8 | In welk sentiment worden aanbieders genoemd, en is dat per aanbieder stabiel? | beschrijvend |
+| OV9 | Hoe groot is de meetfout van een zichtbaarheidsscore bij een gegeven aantal metingen? | afgeleid (simulatie) |
+| OV10 | Komen de genoemde aanbieders overeen met de organische resultaten en het kaartblok? | verkennend |
 
-## 3. Opzet van de proef
+**Waarom maar vier toetsende hypothesen.** Elke extra toets vergroot de kans op een toevallig
+"significant" resultaat. Vier hypothesen die vooraf vastliggen, plus een duidelijk gemarkeerd
+beschrijvend en verkennend deel, is beter verdedigbaar dan twintig toetsen achteraf.
 
-### 3.1 De zoekzinnen
+### 2.2 Hypothesen
 
-Twaalf zoekzinnen, in vier soorten van drie. Zo kunnen we zien of de formulering het antwoord
-meer bepaalt dan het apparaat of het moment.
+De hypothesen gebruiken de **Jaccard-overlap** J tussen de verzamelingen genoemde aanbieders van
+twee AI Overviews: het aantal gedeelde aanbieders gedeeld door het aantal verschillende aanbieders
+samen (0 is niets gemeen, 1 is identiek). Definitie en randgevallen in §6.
 
-| Soort | Voorbeelden (definitief na de pilot) |
+| # | Hypothese | Toets en beslisregel |
+|---|---|---|
+| **H1** | Bij exacte herhaling (zelfde vraag, apparaat en tijdvak) is het antwoord niet praktisch stabiel: de gemiddelde J ligt onder 0,80. | Eenzijdig. Bovengrens van het 95%-bootstrapinterval van de gemiddelde J ligt onder 0,80. |
+| **H2** | De overlap neemt af met de tijd tussen twee metingen. | Helling van J op het tijdsverschil (in uren, log-schaal) is negatief; 95%-interval van de helling ligt onder 0. |
+| **H3** | Desktop en mobiel geven systematisch verschillende antwoorden: J tussen apparaten in hetzelfde tijdvak is lager dan J binnen een apparaat in hetzelfde tijdvak. | Permutatietoets (10.000 permutaties van het apparaatlabel binnen tijdvak en vraag), alfa 0,05. |
+| **H4** | Formulering weegt zwaarder dan apparaat: J tussen twee formuleringen van dezelfde soort is lager dan J tussen apparaten bij dezelfde formulering. | Verschil in gemiddelde J met hiërarchisch bootstrapinterval; interval ligt geheel boven 0. |
+
+**Waarom 0,80 als grens in H1.** Bij een typische lijst van vijf aanbieders betekent J = 0,80 dat
+gemiddeld ongeveer één aanbieder wisselt. Daaronder is een enkele meting niet meer als "het
+antwoord" te beschouwen. De grens is een inhoudelijke keuze en wordt vooraf vastgelegd; in de
+discussie rapporteren we ook bij welke grens de conclusie zou omslaan.
+
+**Correctie voor meervoudig toetsen.** De vier hypothesen worden met de methode van Holm (1979)
+gecorrigeerd. Toetsen per afzonderlijke aanbieder (bijvoorbeeld desktop tegenover mobiel per
+aanbieder) zijn verkennend en worden gecorrigeerd met Benjamini en Hochberg (1995).
+
+## 3. Onderzoeksontwerp
+
+### 3.1 Type onderzoek
+
+Een **herhaald-metingenonderzoek met een volledig gekruist factorieel ontwerp**: elke zoekvraag
+wordt op elk apparaat in elk tijdvak meerdere keren gemeten. Het is een observationeel meetonderzoek
+naar een systeem (Google) en geen experiment met mensen.
+
+### 3.2 Factoren
+
+| Factor | Niveaus | Toelichting |
+|---|---|---|
+| Zoekvraag | 12, genest in 4 soorten van 3 | zie §3.3 |
+| Apparaat | 2: desktop (Windows), mobiel | mobiel besturingssysteem gekozen in de pilot, §4.5 |
+| Tijdvak | 60: elke 2 uur, 5 dagen | dekt dag, nacht, werkdag en waar mogelijk weekend |
+| Herhaling | 3 per tijdvak | zuivere herhaling, binnen enkele minuten |
+
+Totaal: 12 × 2 × 60 × 3 = **4.320 metingen**, plus een pilot van ongeveer 150.
+
+**Waarom deze verdeling.** Het ontwerp moet vier bronnen van variatie van elkaar kunnen scheiden.
+Dat lukt alleen als elke bron afzonderlijk varieert terwijl de rest gelijk blijft:
+
+- **toeval**: drie herhalingen in hetzelfde tijdvak, al het andere gelijk;
+- **tijd**: hetzelfde, maar in een ander tijdvak (2 uur tot 5 dagen later);
+- **apparaat**: dezelfde vraag in hetzelfde tijdvak op het andere apparaat;
+- **formulering**: een andere vraag van dezelfde soort, in hetzelfde tijdvak en op hetzelfde apparaat.
+
+Dat levert de **gelijkenisladder** op, de ruggengraat van de analyse (§7.2): elke trede verandert
+precies één ding ten opzichte van de vorige.
+
+**Waarom elke 2 uur en 3 herhalingen.** Binnen 7 dagen blijven er 5 meetdagen over (§12). Elke 2
+uur geeft 12 tijdvakken per etmaal, genoeg om een dagritme te zien. Drie herhalingen is het
+minimum om binnen een tijdvak een spreiding te schatten (twee geeft één paar per tijdvak, drie geeft
+er drie). Meer herhalingen per tijdvak zou ten koste gaan van het aantal tijdvakken, en de tijdas is
+de zwakste kant van een onderzoek van vijf dagen.
+
+### 3.3 Zoekvragen
+
+Vier soorten zoekgedrag, elk drie formuleringen. Definitief na de pilot (§4.5).
+
+| Soort | Formuleringen (concept) |
 |---|---|
-| Kort zoekwoord | "google ads bureau amsterdam", "sea bureau amsterdam", "google ads specialist amsterdam" |
-| Vergelijkend | "beste google ads bureau amsterdam", "top 10 google ads bureaus amsterdam", "goed sea bureau in amsterdam voor mkb" |
-| Vraag | "welk bureau in amsterdam kan mijn google ads advertenties beheren?", "wie kan in amsterdam mijn google ads campagne verbeteren?", "welk marketingbureau in amsterdam is goed in google ads?" |
-| Opdracht met context | "google ads uitbesteden amsterdam kosten", "google ads beheer laten doen klein bedrijf amsterdam", "google ads bureau amsterdam ervaringen" |
+| S1 Kort zoekwoord | "google ads bureau amsterdam" · "sea bureau amsterdam" · "google ads specialist amsterdam" |
+| S2 Vergelijkend | "beste google ads bureau amsterdam" · "top google ads bureaus amsterdam" · "goed sea bureau amsterdam voor mkb" |
+| S3 Vraag | "welk bureau in amsterdam kan mijn google ads beheren?" · "wie kan in amsterdam mijn google ads campagne verbeteren?" · "welk marketingbureau in amsterdam is goed in google ads?" |
+| S4 Opdracht met context | "google ads uitbesteden amsterdam kosten" · "google ads beheer laten doen klein bedrijf amsterdam" · "google ads bureau amsterdam ervaringen" |
 
-Exacte schrijfwijze (hoofdletters, vraagteken) blijft gedurende het hele onderzoek gelijk.
+**Waarom een plaatsnaam in elke vraag.** Een locatie-instelling alleen is een zwakke manipulatie van
+"zoeken vanuit Amsterdam". Met de plaatsnaam in de vraag én de locatie op Amsterdam is de lokale
+intentie ondubbelzinnig. Of de locatie-instelling zelf iets toevoegt, wordt in de pilot verkend.
 
-### 3.2 Apparaat en locatie
+**Waarom vier soorten.** Meetinstrumenten kiezen hun vragen vaak zonder te verantwoorden welke
+formulering ze nemen. Als formulering de grootste bron van variatie blijkt (H4), dan is die keuze
+belangrijker dan het aantal metingen.
 
-- **Desktop:** `device: desktop`, `os: windows`.
-- **Mobiel:** `device: mobile`, `os: ios` (in de pilot ook `android`, om te zien of dat verschil maakt).
-- **Locatie Amsterdam:** via een coördinaat in het centrum (`location_coordinate`) of de
-  DataForSEO-locatie voor Amsterdam. De precieze code halen we op via hun locatielijst; niet
-  overnemen uit een voorbeeld. Taal `nl`.
-- **Controle op de locatie (klein):** dezelfde zoekzinnen een paar keer met Utrecht en met heel
-  Nederland. Komt daar hetzelfde uit, dan doet de locatie-instelling weinig, en dat is zelf een
-  bevinding die de blog moet melden.
+## 4. Dataverzameling
 
-### 3.3 Drie metingen in één onderzoek
+### 4.1 Instrument
 
-**A. Toeval op één moment (de "kwartierproef").** Per zoekzin en apparaat tien aanroepen binnen
-ongeveer tien minuten, op drie verschillende dagen. Dit meet het zuivere toeval: alles is gelijk
-behalve het moment van de aanroep. 12 × 2 × 10 × 3 = **720 aanroepen**.
+DataForSEO SERP API, endpoint `serp/google/organic/live/advanced`, één taak per aanroep.
 
-**B. Verloop over vier weken (de tijdreeks).** Elke vier uur elke zoekzin op beide apparaten,
-28 dagen lang, op wisselende minuten om vaste patronen te vermijden. Dit meet verschuiving over
-tijd en verschil tussen dag en nacht, werkdag en weekend. 12 × 2 × 6 × 28 = **4.032 aanroepen**.
-
-**C. Echte gebruikers als ijkpunt (klein, maar belangrijk).** DataForSEO is een nagebootste
-zoekopdracht vanaf een server, niet een echte Amsterdammer met een telefoon. Daarom vijf tot tien
-mensen in Amsterdam die op afgesproken momenten drie zoekzinnen intikken (incognito, uitgelogd) en
-een schermafbeelding maken, terwijl op dezelfde minuut de API dezelfde zinnen opvraagt. Doel: niet
-statistisch bewijzen dat het hetzelfde is, maar laten zien hóe ver het uit elkaar ligt. Zonder deze
-stap kan de blog alleen iets zeggen over meettools, niet over wat een zoeker echt ziet.
-
-### 3.4 Wat er per aanroep bewaard wordt
-
-- De **volledige ruwe JSON** van DataForSEO, ongewijzigd, met tijdstip, zoekzin, apparaat,
-  locatie, kosten en eventuele foutcode.
-- Uit de JSON: of er een AI Overview is, de volledige tekst, de bronnen (adres, domein, titel), de
-  organische top 10 en de bedrijven in het kaartblok.
-- Een mislukte aanroep telt als mislukt, niet als "geen AI Overview". Uit de voormeting: bijna een
-  derde faalt de eerste keer met een serverfout en slaagt bij een herkansing. Herkansingen en
-  mislukkingen worden apart geteld, anders verandert de noemer per ronde.
-
-## 4. Van tekst naar gegevens: de codering
-
-Dit is de stap waar zulke onderzoeken het vaakst op onderuit gaan, dus hij krijgt een eigen
-controle.
-
-1. **Bureaulijst opbouwen.** Na de pilot een lijst van alle genoemde bureaus met hun
-   schrijfvarianten en domein ("Bureau X", "Bureau X B.V.", bureaux.nl). Elke nieuwe naam in de
-   hoofdmeting wordt aan die lijst toegevoegd, nooit stil samengevoegd.
-2. **Automatisch herkennen.** Per AI Overview haalt een taalmodel met een vaste instructie de
-   genoemde bureaus eruit, in volgorde van eerste vermelding, met per bureau het sentiment. De
-   uitkomst gaat als vaste structuur (JSON) terug en wordt tegen de bureaulijst gelegd. Het
-   tellen, de volgorde en de vergelijking doet daarna gewone code, niet het model.
-3. **Sentiment in vier standen:** *aanbevolen* (expliciet aangeraden, "bekend om", "sterk in"),
-   *neutraal genoemd* (in een opsomming zonder oordeel), *met voorbehoud* ("al zijn de kosten
-   hoog"), *negatief*. Plus het kenmerk waarmee het bureau wordt neergezet ("gespecialiseerd in
-   mkb", "Google Partner"), want dat zegt meer dan positief of negatief.
-4. **Controle door mensen.** Een willekeurige steekproef van 10% (minimaal 200 antwoorden) wordt
-   door twee mensen los van elkaar gecodeerd. We rapporteren hoe vaak het model een bureau mist of
-   verzint, en hoe goed mensen en model het eens zijn over het sentiment (Cohens kappa; vanaf 0,8
-   noemen we het betrouwbaar). Haalt het model dat niet, dan wordt alles met de hand gecodeerd.
-   Bij ongeveer 4.000 antwoorden is dat veel werk, maar het is beter dan een onbetrouwbare telling.
-
-## 5. Analyse
-
-Per vraag één hoofdmaat, zodat er niet achteraf gezocht wordt naar de maat die het mooiste
-resultaat geeft.
-
-| Vraag | Hoofdmaat | In gewone taal |
+| Parameter | Waarde | Reden |
 |---|---|---|
-| V1 | Aandeel aanroepen met een AI Overview, met betrouwbaarheidsmarge | "In 7 van de 10 zoekopdrachten verschijnt een overzicht" |
-| V2 | Overlap tussen twee antwoorden (Jaccard: gedeelde bureaus gedeeld door alle genoemde) | "Twee antwoorden op dezelfde vraag delen gemiddeld de helft van de bureaus" |
-| V3 | Gelijkenis van de volgorde, met meer gewicht voor bovenaan (rank-biased overlap) en de kans dat nummer 1 nummer 1 blijft | "Het bureau op plek 1 staat er de volgende keer in 4 van de 10 gevallen weer" |
-| V4 | Mediaan en spreiding van het aantal genoemde bureaus | "Meestal 4 bureaus, maar alles tussen 2 en 8 komt voor" |
-| V5 | Verdeling van de vier sentimentstanden per bureau | "Bureau X wordt in 9 van de 10 vermeldingen aanbevolen" |
-| V6 | Verschil in vermeldingskans per bureau tussen desktop en mobiel, gepaard per tijdstip | "Op mobiel wordt bureau Y half zo vaak genoemd" |
-| V7 | Overlap binnen een kwartier tegenover overlap tussen dagen en weken | "Over vier weken verschuift het beeld meer dan toeval verklaart" |
-| V8 | Verdeling van de variatie over formulering, apparaat, moment en toeval (statistisch model met deze vier als factoren) | "Hoe je het vraagt bepaalt het antwoord twee keer zo sterk als je apparaat" |
-| V9 | Overlap tussen bureaus in AI Overview, de organische top 10 en het kaartblok | "8 van de 10 genoemde bureaus staan ook in de gewone zoekresultaten" |
+| `keyword` | de zoekvraag, letterlijk | schrijfwijze ligt vast |
+| `language_code` | `nl` | Nederlandstalige interface |
+| `location_coordinate` | centrum Amsterdam (Dam), formaat en straal volgens actuele documentatie | preciezer dan een stadsnaam; exacte waarde in het onderzoeksplan vastgelegd |
+| `device` / `os` | `desktop`/`windows` en `mobile`/(pilot) | §4.5 |
+| `depth` | 10 | organische top 10 voor OV10; meer is niet nodig |
+| `load_async_ai_overview` | `true` | zonder deze vlag kan het AI-overzicht zonder inhoud terugkomen |
 
-### De rekenproef voor meettools
+**Waarom de live-variant en niet de goedkopere wachtrij.** Bij de wachtrij bepaalt de leverancier
+wanneer de zoekopdracht werkelijk wordt uitgevoerd. Voor een onderzoek naar variatie in de tijd
+moet het tijdstip van elke meting in onze hand liggen en bekend zijn.
 
-Het onderdeel dat de blog het meest bruikbaar maakt. Met de 4.032 metingen als "volledige
-werkelijkheid" trekken we steekproeven zoals een meettool dat doet (1, 3, 5, 10, 30 metingen per
-zoekzin) en kijken we hoe ver de score van zo'n tool afwijkt van de werkelijke vermeldingskans.
+### 4.2 Volgorde binnen een tijdvak
 
-Een eerste schatting laat zien waarom dit ertoe doet. Wordt een bureau in werkelijkheid in 30% van
-de antwoorden genoemd, dan is de foutmarge van een gemeten score ongeveer:
+Per tijdvak 72 aanroepen (12 vragen × 2 apparaten × 3 herhalingen), uitgevoerd in drie rondes: eerst
+herhaling 1 van alle 24 combinaties in willekeurige volgorde, dan herhaling 2 in een nieuwe
+willekeurige volgorde, dan herhaling 3. Hooguit vijf aanroepen tegelijk.
 
-| Metingen | Foutmarge (ruwe benadering) | Gevolg |
+**Waarom.** Zo liggen de drie herhalingen van één combinatie enkele minuten uit elkaar en niet
+seconden, en heeft geen enkele vraag systematisch de eerste of laatste plek. Een vaste volgorde zou
+tijd en vraag met elkaar vermengen.
+
+### 4.3 Wat per aanroep wordt bewaard
+
+- de **volledige ruwe JSON-respons**, onbewerkt, als bron van waarheid;
+- tijdstempel van verzenden en ontvangen (UTC), en het tijdstip dat DataForSEO zelf rapporteert;
+- vraag, soort, apparaat, besturingssysteem, tijdvak, herhaling, positie in de volgorde;
+- statuscode, aantal pogingen, kosten;
+- afgeleid: AI Overview aanwezig (ja/nee), volledige tekst, bronnen (adres, domein, titel),
+  organische top 10, aanbieders in het kaartblok.
+
+Alles gaat in één tabel met één rij per aanroep, plus een map met de ruwe bestanden. Er wordt
+achteraf niets in de ruwe bestanden gewijzigd.
+
+### 4.4 Mislukte aanroepen
+
+Een aanroep die een foutcode geeft wordt binnen hetzelfde tijdvak hooguit drie keer opnieuw
+geprobeerd. Lukt het dan nog niet, dan is de meting **ontbrekend**, nooit "geen AI Overview". Het
+aantal ontbrekende metingen wordt per vraag, apparaat en tijdvak gerapporteerd. Ligt het
+ontbrekende deel boven 5%, dan volgt een gevoeligheidsanalyse (§9.4).
+
+**Waarom dit onderscheid ertoe doet.** Een mislukte aanroep als "geen overzicht" tellen verlaagt
+kunstmatig zowel de aanwezigheid als de overlap, en dat zou precies het effect nabootsen dat dit
+onderzoek wil meten.
+
+### 4.5 Pilot (dag 1)
+
+Ongeveer 150 aanroepen, met vier doelen:
+
+1. **Werkt het instrument?** Geen lege AI-overzichten bij een aanwezig blok, ruwe JSON compleet.
+2. **Zoekvragen vaststellen.** Per kandidaatvraag hoe vaak een AI Overview verschijnt. Een vraag
+   die vrijwel nooit een overzicht geeft wordt vervangen door een alternatief van dezelfde soort,
+   en dat wordt gerapporteerd. Het percentage zelf is een uitkomst (OV1).
+3. **Mobiel besturingssysteem kiezen.** iOS en Android elk tien keer op drie vragen. Geven ze
+   duidelijk andere antwoorden, dan kiezen we het meest gebruikte systeem in Nederland (op dag 1
+   opgezocht) en melden we het verschil als beperking.
+4. **Locatie-instelling verkennen.** Drie vragen met Amsterdam, Rotterdam en heel Nederland als
+   locatie. Doet de locatie niets, dan is dat een bevinding voor de discussie.
+
+Na de pilot gaat alles op slot (§4.7). Pilotdata telt **niet** mee in de hoofdanalyse.
+
+### 4.6 IJkmeting met echte gebruikers (dag 4, verkennend)
+
+Minimaal vijf personen in Amsterdam zoeken op twee afgesproken momenten drie vragen op hun eigen
+telefoon, in een incognitovenster en uitgelogd, en maken een schermafbeelding van het hele
+AI-overzicht. Op dezelfde minuten vraagt het script dezelfde vragen op via de API.
+
+Analyse: J tussen mens en API, vergeleken met J tussen twee API-herhalingen en tussen twee mensen.
+Ligt mens-API in de buurt van API-API, dan meet de API wat mensen zien, binnen de ruis. Met deze
+omvang is dat een beschrijvende vergelijking, geen toets, en zo wordt het ook gerapporteerd.
+
+### 4.7 Vooraf vastleggen (preregistratie)
+
+Aan het eind van dag 1, vóór de hoofdmeting start, worden vastgelegd: definitieve zoekvragen,
+parameters, hypothesen met beslisregels, uitkomstmaten, analysecode op pilotdata, en de
+codeerinstructie. Dit gebeurt op **AsPredicted** of **OSF Registries** (openbaar met tijdstempel),
+en het verzamelscript plus dit plan krijgen een vaste versie (git-commit). Elke afwijking van het
+plan wordt in het paper benoemd met reden.
+
+## 5. Van tekst naar variabelen (codering)
+
+### 5.1 Aanbiederslijst
+
+Na de pilot een lijst van alle genoemde aanbieders met canonieke naam, schrijfvarianten en domein.
+Tijdens de hoofdmeting komen nieuwe namen erbij, maar twee namen worden alleen samengevoegd op
+grond van een vastgelegde regel (zelfde domein, of zelfde KvK-inschrijving). Twijfelgevallen
+blijven gescheiden en worden gemeld.
+
+**Wat telt als "genoemd".** Een aanbieder die met naam in de tekst van het AI-overzicht staat. Een
+aanbieder die alleen als bronlink verschijnt telt apart (variabele "geciteerd"), omdat een gebruiker
+die naam niet leest. Platforms en gidsen (bijvoorbeeld een vergelijkingssite) worden als aparte
+categorie gecodeerd en niet als aanbieder meegeteld.
+
+### 5.2 Automatische extractie
+
+Een taalmodel krijgt per AI-overzicht een vaste instructie en geeft in een vaste JSON-structuur
+terug: de genoemde aanbieders in volgorde van eerste vermelding, met per aanbieder het sentiment en
+de letterlijke zin waarin het voorkomt. Model en versie liggen vast, en elke ruwe modeluitvoer wordt
+bewaard. Tellen, rangschikken en vergelijken doet daarna gewone code, niet het model.
+
+**Controle op de extractor zelf.** Een steekproef van 100 overzichten gaat twee keer door het
+model. Wijkt de uitkomst af, dan is de extractor zelf een bron van variatie, en die wordt
+gerapporteerd en zo nodig met een meerderheid van drie runs opgelost.
+
+### 5.3 Sentiment
+
+Vier categorieën, met een codeerinstructie met voorbeelden:
+
+| Code | Betekenis | Herkenbaar aan |
 |---|---|---|
-| 1 | niet te zeggen | De score is 0% of 100%, nooit 30% |
-| 5 | ongeveer 40 procentpunt | Bijna elke uitkomst is mogelijk |
-| 10 | ongeveer 28 procentpunt | 10% en 50% zijn allebei "normaal" |
-| 30 | ongeveer 16 procentpunt | Grote verschillen worden zichtbaar |
-| 100 | ongeveer 9 procentpunt | Bruikbaar voor een trend |
+| A | aanbevolen | expliciete aanraden, "bekend om", "sterk in", "een goede keuze" |
+| N | neutraal genoemd | in een opsomming zonder oordeel |
+| V | met voorbehoud | positief met een kanttekening ("al is het duurder") |
+| NEG | negatief | afgeraden of een overwegend negatief oordeel |
 
-Uit de echte data volgt dan hoe vaak een tool die één keer per week of per maand meet een
-"stijging" of "daling" rapporteert die puur toeval is. Dat is de zin waar de blog om draait.
+**Waarom geen schaal van 1 tot 5.** Een AI-overzicht oordeelt zelden expliciet. Een fijne schaal
+zou schijnprecisie geven en de overeenstemming tussen codeurs verlagen. Vier herkenbare categorieën
+zijn beter te verdedigen en te controleren.
 
-### Hoeveel metingen is genoeg?
+### 5.4 Betrouwbaarheid van de codering
 
-Met 168 tijdreeksmetingen per zoekzin en apparaat is de marge op een vermeldingskans hooguit
-ongeveer 8 procentpunt; opgeteld over twaalf zoekzinnen per apparaat ongeveer 2 procentpunt. Dat is
-ruim genoeg om verschillen tussen desktop en mobiel van 5 procentpunt of meer te zien. Kleinere
-verschillen kan dit onderzoek niet aantonen, en dat zeggen we dan ook.
+Een gestratificeerde steekproef van **200 AI-overzichten** (gelijk verdeeld over soort vraag en
+apparaat) wordt door **twee mensen onafhankelijk** gecodeerd, zonder de modeluitkomst te zien.
 
-## 6. Valkuilen en hoe we ze afvangen
+| Wat | Maat | Grens |
+|---|---|---|
+| Mens tegen mens, aanbieder genoemd | Krippendorffs alfa | ≥ 0,80 |
+| Mens tegen mens, sentiment | Krippendorffs alfa | ≥ 0,80 voor stevige conclusies, 0,667 tot 0,80 alleen voorlopig |
+| Model tegen menselijke consensus, aanbieders | precisie, recall, F1 | F1 ≥ 0,95 |
+| Model tegen menselijke consensus, sentiment | Cohens kappa | ≥ 0,80 |
 
-| Valkuil | Wat we doen |
+De grenzen volgen Krippendorff (2004). **Haalt het model de grens niet**, dan worden alle
+overzichten met de hand gecodeerd voor dat kenmerk, of wordt dat kenmerk in het paper als
+voorlopig gepresenteerd. Dat besluit ligt vooraf vast.
+
+## 6. Uitkomstmaten
+
+Notatie: voor een AI-overzicht *a* is A de verzameling genoemde aanbieders en L de geordende lijst.
+
+| Maat | Definitie | Waarom deze maat |
+|---|---|---|
+| **Aanwezigheid** | 1 als er een AI Overview met inhoud is, anders 0 | basis voor alles; los geanalyseerd zodat "geen overzicht" de overlap niet vervuilt |
+| **Jaccard J** | \|A₁ ∩ A₂\| / \|A₁ ∪ A₂\| | eenvoudig, begrensd tussen 0 en 1, goed uit te leggen |
+| **Rank-biased overlap (RBO)** | gewogen overlap van twee ranglijsten met meer gewicht bovenaan (Webber, Moffat en Zobel, 2010), persistentie p = 0,8, extrapolatieversie | werkt bij lijsten van ongelijke lengte met deels andere namen, waar Kendalls tau dat niet kan; p = 0,8 legt het zwaartepunt op de eerste vijf plekken, wat past bij de verwachte lijstlengte. Gevoeligheid: p = 0,7 en 0,9 |
+| **Behoud eerste plek** | 1 als de eerst genoemde aanbieder in beide overzichten gelijk is | de vraag die een ondernemer stelt: "sta ik bovenaan?" |
+| **Aantal** | \|A\| | OV7 |
+| **Vermeldingskans** van aanbieder *b* | aandeel geslaagde metingen waarin *b* genoemd wordt | de grootheid die meettools rapporteren |
+| **Sentimentstabiliteit** van *b* | aandeel vermeldingen van *b* met het meest voorkomende sentiment | is de toon per aanbieder vast? |
+
+**Randgevallen, vooraf vastgelegd.**
+
+- Overlap wordt alleen berekend tussen twee overzichten die allebei aanwezig zijn. Aanwezigheid
+  wordt apart geanalyseerd.
+- Zijn A₁ en A₂ beide leeg (overzicht zonder aanbieders), dan is J niet gedefinieerd. Die paren
+  tellen we en sluiten we uit, en we rapporteren hoe vaak het voorkomt.
+- **Vermeldingskans heeft twee noemers**: alle geslaagde metingen (wat een zoeker gemiddeld ziet)
+  en alleen metingen met een overzicht. De eerste is de hoofdmaat, omdat een meettool die een
+  ontbrekend overzicht negeert de zichtbaarheid overschat. Beide worden gerapporteerd.
+
+## 7. Statistische analyse
+
+Alle analyses in R (pakketten `lme4`, `glmmTMB`, `boot`, `ggplot2`). **Waarom R:** modellen met
+gekruiste toevalseffecten zijn daarin de standaard, en reviewers kennen ze. Het verzamelscript
+staat in Python. Code en data worden openbaar (§14).
+
+### 7.1 Beschrijvend
+
+Per vraag en apparaat: aanwezigheid met **Wilson-betrouwbaarheidsinterval** (Wilson, 1927; beter
+dan het gewone interval bij kansen dicht bij 0 of 1), mediaan en interkwartielafstand van het
+aantal aanbieders, en vermeldingskans per aanbieder met interval.
+
+### 7.2 De gelijkenisladder (H1, H3, H4)
+
+Alle paren van overzichten worden ingedeeld naar wat er tussen de twee verschilt:
+
+| Trede | Verschilt in | Gelijk |
+|---|---|---|
+| 0 | alleen herhaling | vraag, apparaat, tijdvak |
+| 1 | apparaat | vraag, tijdvak |
+| 2 | tijdvak (zelfde dag) | vraag, apparaat |
+| 3 | dag | vraag, apparaat |
+| 4 | formulering, zelfde soort | apparaat, tijdvak |
+| 5 | soort vraag | apparaat, tijdvak |
+
+Per trede de gemiddelde J, de gemiddelde RBO en het behoud van de eerste plek, met 95%-interval.
+Trede 0 is de basislijn van puur toeval: alles wat daarboven verder daalt is systematische
+variatie door die ene factor.
+
+**Afhankelijkheid tussen paren.** Paren zijn niet onafhankelijk: hetzelfde overzicht zit in veel
+paren. Gewone toetsen zouden de onzekerheid onderschatten. Daarom:
+
+- **Hiërarchische bootstrap** voor intervallen: trek eerst met teruglegging vragen, dan binnen elke
+  vraag tijdvakken, en bereken de maat opnieuw. 5.000 herhalingen, percentielinterval. Dat
+  respecteert dat metingen binnen een vraag en binnen een tijdvak op elkaar lijken.
+- **Permutatietoets** voor H3: binnen elk tijdvak en elke vraag wordt het apparaatlabel willekeurig
+  verwisseld. Als het apparaat niets uitmaakt, verandert het verschil tussen trede 0 en 1 daar niet
+  door. 10.000 permutaties.
+
+**Waarom deze aanpak en geen variantieanalyse.** De uitkomst is een verzameling namen, geen getal.
+De gelijkenisladder vertaalt elke bron van variatie direct naar een daling in overlap, en dat is
+zowel statistisch verdedigbaar als in één figuur te laten zien.
+
+### 7.3 Verloop in de tijd (H2)
+
+Voor alle paren met dezelfde vraag en hetzelfde apparaat: J als functie van het tijdsverschil Δt
+(log-schaal, 0 tot 120 uur), in een lineair gemengd model met een toevalseffect per vraag. H2 is
+bevestigd als de helling negatief is en het interval (hiërarchische bootstrap) onder 0 ligt.
+Aanvullend: aanwezigheid en aantal per uur van de dag, om een dagritme te zien.
+
+**Beperking die we vooraf benoemen.** Vijf dagen kan geen onderscheid maken tussen een langzame
+trend en een eenmalige wijziging bij Google. Een plotselinge sprong in de tijdreeks wordt daarom
+apart gemeld en niet als trend gerapporteerd.
+
+### 7.4 Vermeldingskans en variantieverdeling (aanvullend op H3 en H4)
+
+Logistisch gemengd model per meting en per aanbieder (alleen aanbieders die minstens 50 keer
+genoemd worden, omdat zeldzame namen het model onstabiel maken):
+
+```
+genoemd ~ apparaat + soort_vraag
+          + (1 | aanbieder) + (1 | vraag) + (1 | tijdvak)
+          + (0 + apparaat | aanbieder) + (1 | aanbieder:vraag)
+```
+
+Uit de variantiecomponenten volgt welk deel van de variatie bij de vraag, de aanbieder-vraag
+combinatie, het tijdvak en het apparaat ligt, met wat overblijft als toeval. Dit is de formele
+tegenhanger van de gelijkenisladder. Komen beide tot dezelfde rangorde van bronnen, dan versterkt
+dat de conclusie; wijken ze af, dan wordt dat besproken.
+
+**Als het model niet convergeert**, dan worden toevalseffecten in een vooraf vastgelegde volgorde
+weggelaten (eerst de helling per aanbieder, dan aanbieder-vraag) en wordt dat gerapporteerd.
+
+### 7.5 Aantal en sentiment (OV7, OV8)
+
+Aantal aanbieders: Poisson- of negatief-binomiaal gemengd model met apparaat en soort vraag als
+vaste effecten en vraag en tijdvak als toevalseffecten (keuze op basis van overdispersie). Sentiment
+beschrijvend: verdeling per aanbieder en sentimentstabiliteit; een toets alleen als de verdeling
+genoeg variatie heeft.
+
+### 7.6 Simulatie: wat een meettool ziet (OV9)
+
+De 4.320 metingen dienen als de best beschikbare benadering van de werkelijke verdeling. Daaruit
+trekken we herhaald (10.000 keer) een steekproef zoals een meettool die zou nemen: k metingen per
+vraag, met k = 1, 3, 5, 10, 20, 30, 60.
+
+Per k rapporteren we:
+
+1. de breedte van het interval waarbinnen 95% van de gemeten vermeldingskansen valt, per aanbieder;
+2. de **schijnveranderingskans**: hoe vaak twee onafhankelijke steekproeven van k metingen uit
+   dezelfde periode een verschil van 10 procentpunt of meer laten zien, terwijl er niets veranderd
+   is;
+3. het kleinste k waarbij die schijnveranderingskans onder 5% zakt.
+
+Ter oriëntatie de theoretische ondergrens bij een werkelijke vermeldingskans van 30% en
+onafhankelijke metingen (halve breedte van het 95%-interval ≈ 1,96 × √(0,21 / k)):
+
+| k | halve breedte |
 |---|---|
-| **Een API is geen mens.** Een server met een locatie-instelling is niet hetzelfde als een telefoon in Amsterdam, met een zoekgeschiedenis en een ingelogd Google-account. | Meting C als ijkpunt, en in de blog expliciet: dit onderzoek meet wat meettools zien. |
-| **Caching bij de leverancier.** Twee identieke antwoorden kunnen betekenen dat DataForSEO een oud antwoord teruggeeft. | Tijdstempel van Google in de respons vergelijken; letterlijk identieke antwoorden apart tellen en navragen bij DataForSEO. |
-| **Google verandert tijdens de proef.** Een modelupdate in week 3 lijkt dan op "verschuiving". | Logboek bijhouden van aangekondigde Google-updates; tijdreeks bekijken op plotselinge sprongen. |
-| **Het AI-overzicht laadt apart.** Zonder `load_async_ai_overview: true` komt het blok zonder inhoud terug (vastgesteld in de voormeting). | Vlag altijd aan; in de pilot controleren dat het aandeel lege blokken nul is. |
-| **Lokale zoekvragen geven een kaart in plaats van een overzicht.** | De pilot bepaalt per zoekzin hoe vaak er een overzicht komt. Weinig overzichten is zelf een uitkomst (V1), geen reden om de zin stil te schrappen. |
-| **Achteraf de mooiste maat kiezen.** | Dit plan met hoofdmaten wordt vóór de hoofdmeting vastgelegd met een commit (tijdstempel in git), eventueel ook op OSF. Extra analyses heten in de blog "verkennend". |
-| **Belangenverstrengeling.** Outer Orbit verkoopt zelf AI-zichtbaarheidsmeting. | In de blog melden, de ruwe data en de code openbaar maken, zodat iedereen het kan narekenen. |
+| 5 | ± 40 procentpunt |
+| 10 | ± 28 procentpunt |
+| 30 | ± 16 procentpunt |
+| 60 | ± 12 procentpunt |
 
-## 7. Bedrijfsnamen in de blog
+De simulatie laat zien hoeveel slechter het in werkelijkheid is, omdat metingen kort na elkaar op
+elkaar lijken en dus minder informatie geven dan onafhankelijke metingen.
 
-Het onderzoek gaat over de betrouwbaarheid van de meting, niet over welk bureau het beste is. Twee
-opties:
+### 7.7 Overeenkomst met organische resultaten en kaartblok (OV10, verkennend)
 
-- **Met naam:** concreter en geloofwaardiger, maar een bureau dat "met voorbehoud" genoemd wordt
-  kan zich benadeeld voelen. Dan alleen letterlijke citaten van Google, geen eigen oordeel.
-- **Geanonimiseerd** (Bureau A tot en met Z): veiliger, de boodschap blijft overeind.
+Per meting de overlap tussen aanbieders in het AI-overzicht en (a) de domeinen in de organische
+top 10, (b) de bedrijven in het kaartblok. Beschrijvend, met de kanttekening dat een overlap op
+domein iets anders meet dan op naam.
 
-Advies: geanonimiseerd in de grafieken, met de opmerking dat de volledige lijst op aanvraag
-beschikbaar is. Dit is een keuze voor de eigenaar.
+## 8. Steekproefomvang en onderscheidend vermogen
 
-## 8. Fasering en kosten
+- **Per vraag en apparaat** 180 metingen (60 tijdvakken × 3). Bij een vermeldingskans van 50% is
+  de halve breedte van het interval bij onafhankelijke metingen 7,3 procentpunt. Lijken de drie
+  herhalingen sterk op elkaar (ontwerpeffect tot 3), dan stijgt dat tot ongeveer 12,7 procentpunt.
+  Voldoende voor beschrijving per cel, niet voor fijne vergelijkingen tussen cellen.
+- **Desktop tegen mobiel**, over alle vragen samen: 2.160 metingen per apparaat. Bij een
+  vermeldingskans van 30%, 80% onderscheidend vermogen en alfa 0,05 is het kleinste aantoonbare
+  verschil ongeveer 4 procentpunt bij onafhankelijke metingen, en ongeveer 5,5 procentpunt bij een
+  ontwerpeffect van 2. Kleinere verschillen kan dit onderzoek niet aantonen; dat wordt vermeld.
+- **Gelijkenisladder.** Trede 0 levert per vraag en apparaat 3 paren per tijdvak, dus 4.320 paren
+  in totaal. Het aantal effectief onafhankelijke eenheden is lager: 12 vragen en 60 tijdvakken. De
+  hiërarchische bootstrap houdt daar rekening mee. **Twaalf vragen is de zwakste schakel**: voor
+  uitspraken over "zoekvragen in het algemeen" is dat weinig, en het paper presenteert de
+  formulering-effecten daarom als geldig voor deze twaalf.
 
-Kosten op basis van de voormeting ($0,0037 per AI Overview inclusief herkansingen). Prijzen van
-DataForSEO en het taalmodel vlak voor de start opnieuw nakijken.
+## 9. Validiteit en betrouwbaarheid
 
-| Fase | Wat | Duur | Kosten (schatting) |
+### 9.1 Constructvaliditeit: meet de API wat een zoeker ziet?
+
+Nee, niet vanzelf. Een API-aanroep heeft geen zoekgeschiedenis, geen ingelogd account en een
+gesimuleerde locatie. De ijkmeting (§4.6) laat zien hoe groot dat verschil is. De hoofdconclusies
+gaan expliciet over **wat een meetinstrument via een SERP-API ziet**, en dat is precies wat
+commerciële meettools gebruiken.
+
+### 9.2 Caching bij de leverancier
+
+Als DataForSEO een eerder opgehaald resultaat teruggeeft, lijkt Google stabieler dan hij is. Twee
+controles: het tijdstip dat DataForSEO per resultaat rapporteert, en het aantal letterlijk
+identieke overzichten binnen een tijdvak. Is dat aantal opvallend hoog, dan wordt navraag gedaan en
+het in het paper gemeld.
+
+### 9.3 Veranderingen bij Google tijdens de meting
+
+Een update van Google midden in de meetweek zou als "tijdseffect" verschijnen. Tijdens de week
+wordt bijgehouden of Google of de vakpers een wijziging aankondigt, en de tijdreeks wordt
+gecontroleerd op een plotselinge sprong (§7.3).
+
+### 9.4 Ontbrekende metingen
+
+Mislukte aanroepen worden apart geteld (§4.4). Is meer dan 5% ontbrekend, dan wordt gekeken of dat
+samenhangt met tijdvak, vraag of apparaat. Als gevoeligheidsanalyse worden de hoofdmaten opnieuw
+berekend op alleen de tijdvakken zonder ontbrekende metingen.
+
+### 9.5 Externe validiteit
+
+Eén branche, één stad, één week. De bevindingen gelden niet zonder meer voor andere branches of voor
+vragen zonder plaatsnaam. Het ontwerp en de code zijn wel direct herbruikbaar voor een herhaling,
+en dat wordt in de discussie als vervolgonderzoek voorgesteld.
+
+## 10. Visualisaties in het paper
+
+De figuren zijn zo gekozen dat elk precies één onderzoeksvraag beantwoordt, en dat een lezer zonder
+statistische kennis de kernboodschap ziet.
+
+| Fig. | Wat | Vorm | Vraag |
 |---|---|---|---|
-| 0. Voorbereiding | Zoekzinnen concept, locatiecode opzoeken, script voor ophalen en opslaan, codeerinstructie | 2 tot 3 dagen | $0 |
-| 1. Pilot | Alle 12 zoekzinnen × 2 apparaten (plus android en de locatiecontrole), ±200 aanroepen; bureaulijst opbouwen; zoekzinnen definitief maken | 2 dagen | ongeveer $1 |
-| 2. Vastleggen | Plan definitief, commit als vooraf vastgelegd onderzoeksplan | 1 dag | $0 |
-| 3. Hoofdmeting | Kwartierproef (720) en tijdreeks (4.032) automatisch, plus de ijkmeting met echte gebruikers | 4 weken | ongeveer $18 |
-| 4. Codering | Automatische herkenning, menselijke controle van de steekproef | 1 week | enkele dollars aan het taalmodel, en vooral tijd |
-| 5. Analyse | Hoofdmaten, rekenproef, grafieken | 1 week | $0 |
-| 6. Blog | Schrijven, laten meelezen, data en code openbaar | 1 week | $0 |
+| 1 | Het meetontwerp: factoren, tijdvakken, herhalingen | schema | methode |
+| 2 | **Het vermeldingsraster**: aanbieders (rijen) tegen alle 180 metingen van één vraag en apparaat (kolommen, op tijd), vakje gekleurd als genoemd | heatmap | in één oogopslag hoe grillig het is |
+| 3 | Aanwezigheid van een AI Overview per vraag en apparaat, met interval | puntgrafiek met foutbalken | OV1 |
+| 4 | **De gelijkenisladder**: gemiddelde J, RBO en behoud eerste plek per trede, met interval | puntgrafiek met foutbalken, treden van boven naar beneden | H1, H3, H4 |
+| 5 | Overlap als functie van de tijd tussen twee metingen | lijn met betrouwbaarheidsband | H2 |
+| 6 | Vermeldingskans per aanbieder op desktop en mobiel | "dumbbell": twee punten per aanbieder verbonden met een lijn | H3 |
+| 7 | Op welke plek elke aanbieder genoemd wordt | gestapelde staven per aanbieder (plek 1, 2, 3, …) | OV6 |
+| 8 | Aantal genoemde aanbieders per overzicht, per soort vraag | histogram of stripgrafiek | OV7 |
+| 9 | Sentiment per aanbieder | gestapelde staven, vier categorieën | OV8 |
+| 10 | **Meetfout tegen aantal metingen**: intervalbreedte en schijnveranderingskans tegen k | twee lijnen, horizontale lijn bij 5% | OV9 |
 
-Totaal: ongeveer zeven weken doorlooptijd en minder dan $30 aan aanroepen. De echte kosten zitten
-in de menselijke controle van de codering en het regelen van de ijkmeting.
+Tabellen: 1. zoekvragen met aanwezigheid; 2. betrouwbaarheid van de codering; 3. resultaten van het
+gemengde model; 4. uitkomsten per hypothese met beslissing.
 
-**Waar het draait:** een klein zelfstandig script in deze map, niet in de app. Het elke vier uur
-laten draaien kan met een geplande taak (bijvoorbeeld GitHub Actions); het werkelijke tijdstip van
-elke aanroep wordt bewaard, want zo'n planner loopt soms minuten uit. De analyse in Python
-(pandas, statsmodels) of R, zodat de statistiek met standaardgereedschap na te rekenen is.
+Vormgevingsregels: één kleur voor desktop en één voor mobiel door het hele paper, kleuren die ook
+voor kleurenblinden te onderscheiden zijn, altijd een interval bij een schatting, en aanbieders
+geanonimiseerd (§14) maar in vaste volgorde (op totale vermeldingskans) in alle figuren.
 
-## 9. De blog
+## 11. Opbouw van het paper
 
-Werktitel: **"Vraag het Google twee keer: hoe betrouwbaar is je AI-zichtbaarheidsscore?"**
+Standaard IMRaD-opbouw.
 
-1. **Aanleiding.** Iedereen meet AI-zichtbaarheid; wij wilden weten hoe hard zo'n cijfer is.
-2. **De proef in één alinea.** Twaalf zoekzinnen, Amsterdam, desktop en mobiel, vier weken,
-   bijna 5.000 zoekopdrachten.
-3. **Wat er gebeurt als je hetzelfde twee keer vraagt.** De kwartierproef, met één grafiek: per
-   bureau in hoeveel van de antwoorden het genoemd wordt.
-4. **Formulering, apparaat of toeval?** De verdeling uit V8, in één staafje.
-5. **Wat dit betekent voor een meettool.** De rekenproef: hoeveel metingen je nodig hebt, en hoe
-   vaak een maandrapport een schijnverandering laat zien.
-6. **Wat je als ondernemer wél kunt doen.** Kijk naar kansen over veel metingen, niet naar één
-   positie; vraag je meetleverancier hoe vaak per vraag er gemeten wordt.
-7. **Beperkingen.** API tegenover echte gebruiker, één branche, één stad, vier weken.
-8. **Methode en data.** Link naar de ruwe data, de code en dit plan.
+1. **Samenvatting** (250 woorden): vraag, ontwerp, belangrijkste getal per hypothese, gevolg.
+2. **Inleiding**: opkomst van AI-zichtbaarheidsmeting; waarom herhaalbaarheid een voorwaarde is;
+   wat er bekend is. Literatuurverkenning op dag 1, zoektermen onder meer: *reproducibility of
+   LLM outputs*, *non-determinism large language models*, *search engine result volatility*,
+   *generative search engine optimization*, *AI Overviews*, *rank-biased overlap*. Alleen bronnen
+   opnemen die zelf gelezen zijn.
+3. **Methode**: §3 tot en met §7 van dit plan, verkort, met verwijzing naar de preregistratie.
+4. **Resultaten**: per hypothese, in vaste volgorde, met effectgrootte en interval; daarna het
+   beschrijvende en verkennende deel, als zodanig benoemd.
+5. **Discussie**: wat betekent dit voor meettools en voor ondernemers; beperkingen (§9);
+   vervolgonderzoek.
+6. **Conclusie**: drie tot vijf zinnen.
+7. **Beschikbaarheid van data en code**, **belangenverklaring**, **literatuur**, **bijlagen**
+   (codeerinstructie, extractie-instructie, volledige vragenlijst, afwijkingen van het plan).
 
-Grafieken die het verhaal dragen: een raster van bureau tegen meting (gekleurd vlak is genoemd), dat
-in één oogopslag laat zien hoe grillig het is; de vermeldingskans over vier weken met marge; de
-staaf met de verdeling van de variatie.
+## 12. Planning in 7 dagen
 
-## 10. Wat de eigenaar nog moet beslissen
+De meting zelf heeft vijf volle etmalen nodig. Alles wat daar niet op hoeft te wachten, gebeurt
+tijdens de meting.
 
-1. **Bedrijfsnamen:** met naam of geanonimiseerd (§7).
-2. **De ijkmeting met echte gebruikers:** wie in Amsterdam doet mee, en hoeveel momenten?
-3. **De zoekzinnen:** kloppen deze twaalf met hoe een mkb-ondernemer echt zoekt? De eigenaar kent
-   die zoeker beter dan dit plan.
-4. **Openbaar maken van data en code:** ja of nee. Advies: ja, het is de sterkste bescherming tegen
-   het verwijt dat een meetbedrijf zijn eigen gelijk onderzoekt.
+| Dag | Meting | Werk ernaast |
+|---|---|---|
+| **1** | pilot (±150 aanroepen) | locatie en parameters vastleggen, verzamelscript afmaken, pilot draaien en beoordelen, zoekvragen definitief, aanbiederslijst v1, codeer- en extractie-instructie, analysecode op pilotdata, literatuurverkenning, **preregistratie indienen**. Hoofdmeting start om middernacht. |
+| **2** | tijdvak 1 t/m 12 | dagelijkse controle (ontbrekend, lege overzichten, kosten); extractie draaien op de eerste data; extractor twee keer laten lopen op 100 overzichten |
+| **3** | tijdvak 13 t/m 24 | steekproef van 200 trekken; codeur 1 en codeur 2 beginnen onafhankelijk |
+| **4** | tijdvak 25 t/m 36 | **ijkmeting met echte gebruikers** op twee momenten; codering afronden |
+| **5** | tijdvak 37 t/m 48 | betrouwbaarheid van de codering berekenen; besluit handmatig of automatisch (§5.4); methodesectie schrijven |
+| **6** | tijdvak 49 t/m 60 | alle analyses en figuren draaien op de data tot nu toe als generale repetitie; meting stopt om middernacht |
+| **7** | klaar | definitieve extractie, alle analyses en figuren op de volledige data, resultatensectie schrijven, data en code klaarzetten voor publicatie |
 
-## 11. Raakvlak met ORBIT ENGINE
+Na dag 7 liggen er: de volledige dataset, alle figuren en tabellen, een methode- en
+resultatensectie, en de uitkomst per hypothese. Inleiding en discussie schrijft de auteur daarna.
 
-Los onderzoek, maar de uitkomst is direct bruikbaar voor de app: de rekenproef zegt hoeveel
-herhalingen per vraag nodig zijn voor een betrouwbaar cijfer. Wordt dat iets voor de app, dan is
-dat een aparte beslissing met een eigen alinea in `docs/logbook.md`. Er verandert nu niets aan de app.
+**Startdag.** Start op een woensdag of donderdag, dan valt er minstens één weekenddag in de
+meting en is een verschil tussen werkdag en weekend zichtbaar.
+
+**Waar het verzamelscript draait.** Het moet vijf dagen onafgebroken elke twee uur draaien. Opties:
+een geplande taak in een eigen GitHub-repository (gratis, kan enkele minuten uitlopen; het
+werkelijke tijdstip wordt bewaard), of een kleine server. Een laptop die in slaap valt is
+ongeschikt. Advies: een eigen repository alleen voor dit onderzoek, zodat data, code en plan samen
+openbaar kunnen.
+
+**Grootste risico voor de planning.** De codering door twee mensen (dag 3 en 4). Reken op drie tot
+vier uur per codeur voor 200 overzichten. Is de tweede codeur niet beschikbaar, dan wordt de
+betrouwbaarheid alleen tussen mens en model berekend, en dat wordt als beperking gemeld.
+
+## 13. Kosten en middelen
+
+| Post | Schatting |
+|---|---|
+| DataForSEO, pilot en hoofdmeting (±4.500 aanroepen, inclusief herkansingen) | $15 tot $25; prijs per aanroep op dag 1 vaststellen aan de hand van het kostenveld in de pilotrespons |
+| Taalmodel voor extractie (±4.300 overzichten, plus dubbele controle) | enkele dollars |
+| Preregistratie, R, Python, GitHub | gratis |
+| Mensen | auteur, één tweede codeur (±4 uur), vijf deelnemers voor de ijkmeting (±15 minuten elk) |
+
+Totaal ruim onder $50. Een vooraf ingesteld bestedingsplafond bij DataForSEO voorkomt verrassingen.
+
+## 14. Ethiek, transparantie en belangen
+
+- **Geen persoonsgegevens.** Alleen openbare zoekresultaten. Deelnemers aan de ijkmeting leveren
+  schermafbeeldingen van zoekresultaten; hun naam wordt niet opgeslagen.
+- **Aanbieders geanonimiseerd** in het paper (Aanbieder A, B, …), omdat het onderzoek over de
+  meting gaat en niet over de kwaliteit van bureaus. De koppeling met echte namen wordt bewaard
+  maar niet gepubliceerd.
+- **Openbaar**: preregistratie, verzamelscript, analysecode, en de gecodeerde data met
+  geanonimiseerde namen. De ruwe JSON bevat echte bedrijfsnamen en wordt alleen op verzoek gedeeld.
+- **Belangenverklaring.** De auteur werkt in de markt voor AI-zichtbaarheid. Dat wordt in het paper
+  vermeld. Preregistratie en open code zijn de bescherming tegen de schijn dat de uitkomst gestuurd
+  is.
+
+## 15. Beslissingen voor de auteur
+
+1. **Zoekvragen**: kloppen de twaalf concepten met hoe een ondernemer echt zoekt?
+2. **Tweede codeur**: wie, en beschikbaar op dag 3 en 4?
+3. **IJkmeting**: wie zijn de vijf deelnemers in Amsterdam?
+4. **Startdag**: bij voorkeur een woensdag of donderdag.
+5. **Eigen repository** voor dit onderzoek, los van alle andere code.
+6. **Waar het paper heen gaat** (preprint zoals arXiv of SSRN, vakblad, eigen site). Dat bepaalt
+   het format, de lengte en of er een peer review volgt.
+
+---
+
+## Literatuur bij de methode
+
+- Benjamini, Y. en Hochberg, Y. (1995). Controlling the false discovery rate. *Journal of the Royal
+  Statistical Society, Series B*, 57(1), 289-300.
+- Cohen, J. (1960). A coefficient of agreement for nominal scales. *Educational and Psychological
+  Measurement*, 20(1), 37-46.
+- Holm, S. (1979). A simple sequentially rejective multiple test procedure. *Scandinavian Journal
+  of Statistics*, 6(2), 65-70.
+- Krippendorff, K. (2004). *Content Analysis: An Introduction to Its Methodology* (2e druk). Sage.
+- Webber, W., Moffat, A. en Zobel, J. (2010). A similarity measure for indefinite rankings. *ACM
+  Transactions on Information Systems*, 28(4), 20.
+- Wilson, E. B. (1927). Probable inference, the law of succession, and statistical inference.
+  *Journal of the American Statistical Association*, 22(158), 209-212.
+
+Bibliografische details controleren tegen de bron voordat ze in het paper gaan.
